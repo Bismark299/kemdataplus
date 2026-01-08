@@ -8,7 +8,7 @@
     "emailNotify": true,
     "smsNotify": false,
     "maintenance": false,
-    "apiUrl": "http://localhost:5000",
+    "apiUrl": "",
     "apiKey": ""
   },
   "siteSettings": {

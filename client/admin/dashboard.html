@@ -4975,7 +4975,7 @@
                         <div class="settings-grid settings-grid-2">
                             <div style="padding: 10px 0;">
                                 <label style="font-weight: 600; display: block; margin-bottom: 8px;">API Base URL</label>
-                                <input type="text" id="settingApiUrl" value="http://localhost:5000" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                                <input type="text" id="settingApiUrl" value="" placeholder="Auto-detected" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
                             </div>
                             <div style="padding: 10px 0;">
                                 <label style="font-weight: 600; display: block; margin-bottom: 8px;">API Key</label>
@@ -9040,7 +9040,7 @@
             emailNotify: true,
             smsNotify: false,
             maintenance: false,
-            apiUrl: 'http://localhost:5000',
+            apiUrl: '',
             apiKey: ''
         };
         
@@ -9078,7 +9078,7 @@
             }
             
             // Populate API fields
-            document.getElementById('settingApiUrl').value = adminSettings.apiUrl || 'http://localhost:5000';
+            document.getElementById('settingApiUrl').value = adminSettings.apiUrl || window.location.origin;
             document.getElementById('settingApiKey').value = adminSettings.apiKey || '';
             
             // Set all site setting toggles
