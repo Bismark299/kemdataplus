@@ -7471,7 +7471,7 @@
                 }
                 
                 closeVerifyClaimModal();
-                await loadIncomingPayments();
+                await loadIncomingPayments(true); // Force refresh to bypass cache
                 await initUsersData();
                 updateWalletStats();
                 renderUserWallets();
@@ -7497,7 +7497,7 @@
                     throw new Error(err.error || 'Failed to reject claim');
                 }
                 
-                await loadIncomingPayments();
+                await loadIncomingPayments(true); // Force refresh to bypass cache
                 renderIncomingPayments();
                 showToast('Claim rejected', 'success');
             } catch (err) {
