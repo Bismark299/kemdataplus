@@ -594,7 +594,7 @@
             <!-- WALLET HEADER -->
             <div class="wallet-header">
                 <h1><i class="fas fa-wallet"></i> My Wallet</h1>
-                <div class="wallet-balance" id="walletBalance">GHS 250.50</div>
+                <div class="wallet-balance" id="walletBalance">GHS 0.00</div>
                 <div class="wallet-status">Account Status: <strong>Active</strong></div>
             </div>
 
@@ -631,7 +631,7 @@
                             
                             <div class="momo-number-display">
                                 <div class="label">Send Money To:</div>
-                                <div class="number" id="momoNumberDisplay">0241234567</div>
+                                <div class="number" id="momoNumberDisplay">Loading...</div>
                                 <div class="name">KemDataplus</div>
                                 <button class="copy-btn" onclick="copyMomoNumber()">
                                     <i class="fas fa-copy"></i> Copy Number
@@ -991,10 +991,30 @@
         }
         
         // ========== CLAIM MOMO ==========
-        const MOMO_NUMBER = '0241234567';
+        let MOMO_NUMBER = '';
         const MOMO_NAME = 'KemDataplus';
         
+        // Load MoMo number from admin settings
+        async function loadMomoSettings() {
+            try {
+                const settings = await apiRequest('/settings/public');
+                if (settings.momoNumbers && settings.momoNumbers.length > 0) {
+                    MOMO_NUMBER = settings.momoNumbers[0];
+                    document.getElementById('momoNumberDisplay').textContent = MOMO_NUMBER;
+                } else {
+                    document.getElementById('momoNumberDisplay').textContent = 'Contact support';
+                }
+            } catch (e) {
+                console.warn('Could not load MoMo settings');
+                document.getElementById('momoNumberDisplay').textContent = 'Contact support';
+            }
+        }
+        
         function copyMomoNumber() {
+            if (!MOMO_NUMBER) {
+                showError('MoMo number not available');
+                return;
+            }
             navigator.clipboard.writeText(MOMO_NUMBER).then(() => {
                 showSuccess('MoMo number copied to clipboard!');
             }).catch(() => {
@@ -1157,6 +1177,7 @@
             }
             await loadWalletData();
             await loadPendingClaims();
+            await loadMomoSettings();
             renderRecentTransfers();
         });
 

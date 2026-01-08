@@ -330,7 +330,7 @@
                 <div class="api-key-section">
                     <p><strong>Important:</strong> Keep your API key secure and never expose it in client-side code.</p>
                     <div class="api-key-display">
-                        <input type="text" class="api-key-input" id="apiKey" value="kdp_sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx" readonly>
+                        <input type="text" class="api-key-input" id="apiKey" placeholder="No API key generated yet" readonly>
                         <button class="btn-copy" onclick="copyApiKey()"><i class="fas fa-copy"></i> Copy</button>
                         <button class="btn-generate" onclick="generateNewKey()"><i class="fas fa-sync"></i> Regenerate</button>
                     </div>
@@ -346,8 +346,8 @@ Authorization: Bearer YOUR_API_KEY
                 </div>
 
                 <h3>Base URL</h3>
-                <div class="code-block">
-https://api.kemdataplus.com/v1
+                <div class="code-block" id="baseUrlDisplay">
+Loading...
                 </div>
             </div>
 
@@ -482,6 +482,44 @@ X-RateLimit-Reset: 1609459200
     </div>
 
     <script>
+        // Auth check - redirect to login if not authenticated
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/users/me', { credentials: 'include' });
+                return res.ok;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // Initialize page
+        (async function() {
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) {
+                window.location.href = './login.html';
+                return;
+            }
+            
+            // Set dynamic base URL
+            const baseUrlDisplay = document.getElementById('baseUrlDisplay');
+            if (baseUrlDisplay) {
+                baseUrlDisplay.textContent = window.location.origin + '/api/v1';
+            }
+            
+            // Load API key from user profile
+            try {
+                const res = await fetch('/api/users/me', { credentials: 'include' });
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.apiKey) {
+                        document.getElementById('apiKey').value = user.apiKey;
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not load API key from profile');
+            }
+        })();
+        
         // Profile dropdown toggle
         document.getElementById('profileBtn').addEventListener('click', function(e) {
             e.stopPropagation();
@@ -496,6 +534,10 @@ X-RateLimit-Reset: 1609459200
 
         function copyApiKey() {
             const apiKeyInput = document.getElementById('apiKey');
+            if (!apiKeyInput.value || apiKeyInput.value.includes('No API key')) {
+                alert('No API key to copy. Generate one first.');
+                return;
+            }
             apiKeyInput.select();
             apiKeyInput.setSelectionRange(0, 99999); // For mobile
             navigator.clipboard.writeText(apiKeyInput.value).then(function() {
@@ -511,27 +553,10 @@ X-RateLimit-Reset: 1609459200
             if (confirm('Are you sure you want to regenerate your API key? This will invalidate your current key.')) {
                 const newKey = 'kdp_sk_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
                 document.getElementById('apiKey').value = newKey;
-                // API key should be stored in user profile via API (future implementation)
+                // TODO: Save to user profile via API
                 alert('New API key generated! Make sure to update your applications.');
             }
         }
-
-        // Load API key from user profile on page load
-        (async function() {
-            try {
-                const res = await fetch('/api/users/me', {
-                    credentials: 'include'
-                });
-                if (res.ok) {
-                    const user = await res.json();
-                    if (user.apiKey) {
-                        document.getElementById('apiKey').value = user.apiKey;
-                    }
-                }
-            } catch (e) {
-                console.warn('Could not load API key from profile');
-            }
-        })();
 
         // Logout function
         async function logout() {

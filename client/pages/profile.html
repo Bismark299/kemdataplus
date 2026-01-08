@@ -412,28 +412,28 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>First Name</label>
-                                <input type="text" value="John" required>
+                                <input type="text" id="inputFirstName" placeholder="Enter first name" required>
                             </div>
                             <div class="form-group">
                                 <label>Last Name</label>
-                                <input type="text" value="Doe" required>
+                                <input type="text" id="inputLastName" placeholder="Enter last name" required>
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Email Address</label>
-                                <input type="email" value="john.doe@example.com" required>
+                                <input type="email" id="inputEmail" placeholder="Enter email address" readonly style="background:#f5f5f5;">
                             </div>
                             <div class="form-group">
                                 <label>Phone Number</label>
-                                <input type="tel" value="0240000000" required>
+                                <input type="tel" id="inputPhone" placeholder="Enter phone number" required>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label>Company/Business Name</label>
-                            <input type="text" value="Doe's Data Hub" placeholder="Your company name">
+                            <input type="text" id="inputCompany" placeholder="Your company name">
                         </div>
 
                         <div class="form-row">
@@ -447,13 +447,13 @@
                             </div>
                             <div class="form-group">
                                 <label>City</label>
-                                <input type="text" value="Accra" placeholder="City">
+                                <input type="text" id="inputCity" placeholder="City">
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label>Bio</label>
-                            <textarea rows="3" placeholder="Tell us about yourself...">Professional data bundle reseller</textarea>
+                            <textarea id="inputBio" rows="3" placeholder="Tell us about yourself..."></textarea>
                         </div>
 
                         <button type="submit" class="btn-save"><i class="fas fa-save"></i> Save Changes</button>
@@ -498,7 +498,7 @@
                         <div class="setting-row">
                             <div class="setting-info">
                                 <h4>Current Session</h4>
-                                <p>Chrome on Windows • 192.168.1.1</p>
+                                <p id="sessionInfo">This browser • Current device</p>
                             </div>
                             <span style="color:#4caf50;font-weight:600;">Active Now</span>
                         </div>
@@ -518,7 +518,7 @@
                     <div class="setting-row">
                         <div class="setting-info">
                             <h4>Account Tier</h4>
-                            <p>You are currently on the <strong id="accountTierDisplay">Premium</strong> plan</p>
+                            <p>You are currently on the <strong id="accountTierDisplay">Loading...</strong> plan</p>
                         </div>
                         <button class="btn-save" onclick="showUpgradeModal()" style="padding:8px 16px;font-size:0.9rem;">
                             <i class="fas fa-arrow-up"></i> Upgrade
@@ -530,7 +530,7 @@
                     <h3 style="color:#024959;margin-bottom:15px;">API Keys</h3>
                     <div class="form-group">
                         <label>Active API Key</label>
-                        <input type="text" id="settingsApiKey" value="pk_live_51234567890abcdef" readonly style="background:#f9f9f9;">
+                        <input type="text" id="settingsApiKey" placeholder="No API key generated" readonly style="background:#f9f9f9;">
                         <small style="color:#999;">Keep your API key secure. Never share it publicly.</small>
                     </div>
                     <button class="btn-save" onclick="regenerateApiKey()" style="margin-right:10px;">
@@ -606,16 +606,48 @@
             email: '',
             phone: '',
             role: 'AGENT',
-            twoFactorEnabled: false
+            twoFactorEnabled: false,
+            apiKey: ''
         };
+        
+        // Save userData to localStorage (for client-side preferences like 2FA toggle)
+        function saveUserData(data) {
+            try {
+                const savedData = {
+                    twoFactorEnabled: data.twoFactorEnabled || false,
+                    apiKey: data.apiKey || ''
+                };
+                localStorage.setItem('userPrefs', JSON.stringify(savedData));
+            } catch (e) {
+                console.warn('Could not save user preferences:', e);
+            }
+        }
+        
+        // Load saved preferences
+        function loadSavedPrefs() {
+            try {
+                const saved = localStorage.getItem('userPrefs');
+                if (saved) {
+                    const prefs = JSON.parse(saved);
+                    userData.twoFactorEnabled = prefs.twoFactorEnabled || false;
+                    userData.apiKey = prefs.apiKey || '';
+                }
+            } catch (e) {
+                console.warn('Could not load user preferences:', e);
+            }
+        }
 
         async function loadUserFromAPI() {
             const isAuthenticated = await requireAuth();
             if (!isAuthenticated) return;
             
+            // Load saved client-side preferences first
+            loadSavedPrefs();
+            
             try {
                 const user = await apiRequest('/users/me');
                 userData = {
+                    ...userData, // Keep saved prefs
                     id: user.id,
                     name: user.name || '',
                     email: user.email || '',
@@ -623,7 +655,6 @@
                     role: user.role || 'AGENT',
                     firstName: user.name?.split(' ')[0] || '',
                     lastName: user.name?.split(' ').slice(1).join(' ') || '',
-                    twoFactorEnabled: false,
                     accountTier: user.role || 'AGENT'
                 };
                 loadProfileData();
@@ -673,24 +704,32 @@
         // LOAD PROFILE DATA
         // =====================
         function loadProfileData() {
-            const form = document.getElementById('profileForm');
-            const inputs = form.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], textarea, select');
+            // Populate form fields by ID
+            const firstNameInput = document.getElementById('inputFirstName');
+            const lastNameInput = document.getElementById('inputLastName');
+            const emailInput = document.getElementById('inputEmail');
+            const phoneInput = document.getElementById('inputPhone');
+            const companyInput = document.getElementById('inputCompany');
             
-            // Map form fields to userData
-            inputs.forEach((input, index) => {
-                if (index === 0 && userData.firstName) input.value = userData.firstName;
-                else if (index === 1 && userData.lastName) input.value = userData.lastName;
-                else if (index === 2 && userData.email) input.value = userData.email;
-                else if (index === 3 && userData.phone) input.value = userData.phone;
-            });
+            if (firstNameInput) firstNameInput.value = userData.firstName || '';
+            if (lastNameInput) lastNameInput.value = userData.lastName || '';
+            if (emailInput) emailInput.value = userData.email || '';
+            if (phoneInput) phoneInput.value = userData.phone || '';
+            if (companyInput) companyInput.value = userData.company || '';
 
             // Load 2FA status
             update2FAButton();
 
             // Load account tier in settings tab
-            const tierText = document.querySelector('#settingsTab .setting-info p strong');
-            if (tierText) {
-                tierText.textContent = userData.accountTier || userData.role || 'AGENT';
+            const tierDisplay = document.getElementById('accountTierDisplay');
+            if (tierDisplay) {
+                tierDisplay.textContent = userData.role || 'AGENT';
+            }
+            
+            // Load API key if exists
+            const apiKeyInput = document.getElementById('settingsApiKey');
+            if (apiKeyInput && userData.apiKey) {
+                apiKeyInput.value = userData.apiKey;
             }
         }
 
