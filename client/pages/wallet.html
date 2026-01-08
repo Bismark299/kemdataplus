@@ -730,12 +730,12 @@
                 <div class="wallet-sidebar">
                     <div class="sidebar-card">
                         <div class="sidebar-label">Total Spent</div>
-                        <div class="sidebar-value">GHS 1,250.00</div>
+                        <div class="sidebar-value" id="totalSpent">GHS 0.00</div>
                     </div>
 
                     <div class="sidebar-card" style="background: linear-gradient(135deg, #593E25 0%, #F2AE30 100%);">
                         <div class="sidebar-label">This Month</div>
-                        <div class="sidebar-value">GHS 350.75</div>
+                        <div class="sidebar-value" id="thisMonthSpent">GHS 0.00</div>
                     </div>
 
                     <h3 style="color:#024959;margin-bottom:10px;">Quick Actions</h3>
@@ -843,6 +843,7 @@
                 const txnData = await apiRequest('/wallet/transactions?limit=50');
                 transactions = txnData.transactions || [];
                 renderTransactions();
+                updateSpendingStats();
                 
                 // Get user profile
                 const userData = await apiRequest('/users/me');
@@ -858,6 +859,34 @@
             if (walletBalanceEl) {
                 walletBalanceEl.textContent = 'GHS ' + walletBalance.toFixed(2);
             }
+        }
+        
+        function updateSpendingStats() {
+            // Calculate total spent (all debits/purchases)
+            let totalSpent = 0;
+            let thisMonthSpent = 0;
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            transactions.forEach(txn => {
+                const isDebit = txn.type === 'PURCHASE' || txn.type === 'WITHDRAWAL' || txn.type === 'TRANSFER_OUT' || txn.amount < 0;
+                if (isDebit) {
+                    const amount = Math.abs(txn.amount);
+                    totalSpent += amount;
+                    
+                    // Check if this month
+                    const txnDate = new Date(txn.createdAt);
+                    if (txnDate.getMonth() === currentMonth && txnDate.getFullYear() === currentYear) {
+                        thisMonthSpent += amount;
+                    }
+                }
+            });
+            
+            const totalSpentEl = document.getElementById('totalSpent');
+            const thisMonthEl = document.getElementById('thisMonthSpent');
+            if (totalSpentEl) totalSpentEl.textContent = 'GHS ' + totalSpent.toFixed(2);
+            if (thisMonthEl) thisMonthEl.textContent = 'GHS ' + thisMonthSpent.toFixed(2);
         }
         
         // Refresh balance periodically (every 30 seconds instead of 10)
