@@ -69,21 +69,38 @@ async function initProduction() {
       console.log('📦 Creating default bundles...');
       
       const defaultBundles = [
-        { name: 'MTN 1GB', network: 'MTN', dataAmount: '1GB', basePrice: 4.00, agentPrice: 4.50, validity: '30 days' },
-        { name: 'MTN 2GB', network: 'MTN', dataAmount: '2GB', basePrice: 7.00, agentPrice: 8.00, validity: '30 days' },
-        { name: 'MTN 5GB', network: 'MTN', dataAmount: '5GB', basePrice: 15.00, agentPrice: 18.00, validity: '30 days' },
-        { name: 'MTN 10GB', network: 'MTN', dataAmount: '10GB', basePrice: 28.00, agentPrice: 32.00, validity: '30 days' },
-        { name: 'Telecel 1GB', network: 'Telecel', dataAmount: '1GB', basePrice: 4.00, agentPrice: 4.50, validity: '30 days' },
-        { name: 'Telecel 2GB', network: 'Telecel', dataAmount: '2GB', basePrice: 7.00, agentPrice: 8.00, validity: '30 days' },
-        { name: 'AirtelTigo 1GB', network: 'AirtelTigo', dataAmount: '1GB', basePrice: 4.00, agentPrice: 4.50, validity: '30 days' },
-        { name: 'AirtelTigo 2GB', network: 'AirtelTigo', dataAmount: '2GB', basePrice: 7.00, agentPrice: 8.00, validity: '30 days' },
+        { name: 'MTN 1GB', network: 'MTN', dataAmount: '1GB', baseCost: 3.50, basePrice: 4.50, validity: '30 days' },
+        { name: 'MTN 2GB', network: 'MTN', dataAmount: '2GB', baseCost: 6.50, basePrice: 8.00, validity: '30 days' },
+        { name: 'MTN 5GB', network: 'MTN', dataAmount: '5GB', baseCost: 14.00, basePrice: 18.00, validity: '30 days' },
+        { name: 'MTN 10GB', network: 'MTN', dataAmount: '10GB', baseCost: 26.00, basePrice: 32.00, validity: '30 days' },
+        { name: 'Telecel 1GB', network: 'Telecel', dataAmount: '1GB', baseCost: 3.50, basePrice: 4.50, validity: '30 days' },
+        { name: 'Telecel 2GB', network: 'Telecel', dataAmount: '2GB', baseCost: 6.50, basePrice: 8.00, validity: '30 days' },
+        { name: 'AirtelTigo 1GB', network: 'AirtelTigo', dataAmount: '1GB', baseCost: 3.50, basePrice: 4.50, validity: '30 days' },
+        { name: 'AirtelTigo 2GB', network: 'AirtelTigo', dataAmount: '2GB', baseCost: 6.50, basePrice: 8.00, validity: '30 days' },
       ];
 
-      for (const bundle of defaultBundles) {
-        await prisma.bundle.create({ data: bundle });
+      for (const bundleData of defaultBundles) {
+        // Create bundle with role-based prices
+        const bundle = await prisma.bundle.create({ 
+          data: bundleData
+        });
+        
+        // Create prices for each role
+        const roles = ['PARTNER', 'SUPER_DEALER', 'DEALER', 'SUPER_AGENT', 'AGENT'];
+        const priceMultipliers = { PARTNER: 1.0, SUPER_DEALER: 1.05, DEALER: 1.10, SUPER_AGENT: 1.15, AGENT: 1.20 };
+        
+        for (const role of roles) {
+          await prisma.bundlePrice.create({
+            data: {
+              bundleId: bundle.id,
+              role: role,
+              price: Math.round(bundleData.basePrice * priceMultipliers[role] * 100) / 100
+            }
+          });
+        }
       }
       
-      console.log(`✅ Created ${defaultBundles.length} default bundles`);
+      console.log(`✅ Created ${defaultBundles.length} default bundles with role prices`);
     } else {
       console.log(`✅ ${bundleCount} bundles already exist`);
     }
