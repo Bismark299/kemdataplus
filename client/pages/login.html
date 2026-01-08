@@ -287,12 +287,19 @@
     // =====================
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const email = document.getElementById('loginUsername').value.trim();
+      // Clean email: trim whitespace and convert to lowercase
+      const email = document.getElementById('loginUsername').value.trim().toLowerCase();
       const password = document.getElementById('loginPassword').value;
       const submitBtn = this.querySelector('button[type="submit"]');
 
       if (email === '' || password === '') {
         showError('loginError', 'Please enter both email and password.');
+        return;
+      }
+
+      // Basic email validation
+      if (!email.includes('@') || !email.includes('.')) {
+        showError('loginError', 'Please enter a valid email address.');
         return;
       }
 
