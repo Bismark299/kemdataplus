@@ -36,7 +36,7 @@ async function initProduction() {
       console.log('✅ Admin user already exists:', existingAdmin.email);
       console.log('Skipping admin creation.');
     } else {
-      // Create admin user
+      // Create admin user with wallet
       const hashedPassword = await bcrypt.hash(adminPassword, 12);
       
       const admin = await prisma.user.create({
@@ -46,9 +46,14 @@ async function initProduction() {
           name: 'Administrator',
           phone: '0200000000',
           role: 'ADMIN',
-          agentCode: 'ADMIN001',
           isActive: true,
-          balance: 0
+          canCreateUsers: true,
+          hierarchyLevel: 0,
+          wallet: {
+            create: {
+              balance: 0
+            }
+          }
         }
       });
 
