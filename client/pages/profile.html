@@ -687,15 +687,10 @@
             // Load 2FA status
             update2FAButton();
 
-            // Load account tier
-            const tierText = document.getElementById('accountTierDisplay');
-            if (tierText) {
-                tierText.textContent = userData.accountTier || userData.role || 'AGENT';
-            }
-        }            // Load account tier
+            // Load account tier in settings tab
             const tierText = document.querySelector('#settingsTab .setting-info p strong');
             if (tierText) {
-                tierText.textContent = userData.accountTier || 'Premium';
+                tierText.textContent = userData.accountTier || userData.role || 'AGENT';
             }
         }
 

@@ -468,15 +468,22 @@
                 font-size: 0.85rem;
             }
             
-            /* Table responsive - convert to cards on mobile */
+            /* Table responsive on mobile */
             .orders-wrapper {
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -10px;
+                padding: 0 10px;
+            }
+            
+            .orders-table {
+                min-width: 600px;
             }
             
             .orders-table th,
             .orders-table td {
                 padding: 10px 8px;
-                font-size: 0.8rem;
+                font-size: 0.75rem;
                 white-space: nowrap;
             }
             
