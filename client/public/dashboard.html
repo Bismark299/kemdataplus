@@ -7,8 +7,30 @@
     <link rel="stylesheet" href="./css/dashboard.css">
     <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* Hide body until auth is verified */
+        body.auth-checking { opacity: 0; }
+        body.auth-ready { opacity: 1; transition: opacity 0.2s; }
+    </style>
+    <script>
+        // Immediate auth check - redirect before page renders
+        (async function() {
+            document.body?.classList.add('auth-checking');
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!res.ok) {
+                    window.location.replace('/pages/login.html');
+                    return;
+                }
+                document.body?.classList.remove('auth-checking');
+                document.body?.classList.add('auth-ready');
+            } catch (e) {
+                window.location.replace('/pages/login.html');
+            }
+        })();
+    </script>
 </head>
-<body>
+<body class="auth-checking">
     <div class="background">
     <!-- HEADER WITH PROFILE -->
     <div class="header-container">

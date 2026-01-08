@@ -83,7 +83,12 @@ app.use(helmet({
 
 // CORS configuration - STRICT in production
 const allowedOrigins = isProduction 
-  ? [process.env.FRONTEND_URL || 'https://kemdataplus.com'].filter(Boolean)
+  ? [
+      'https://kemdataplus.onrender.com',
+      'https://kemdataplus.com',
+      'https://www.kemdataplus.com',
+      process.env.FRONTEND_URL
+    ].filter(Boolean)
   : ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080', 'http://127.0.0.1:3000'];
 
 app.use(cors({
@@ -96,7 +101,7 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // In production, strictly check allowed origins
+    // In production, check allowed origins
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
