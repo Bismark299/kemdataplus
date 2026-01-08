@@ -9217,28 +9217,42 @@
                     method: 'PUT',
                     body: JSON.stringify({ adminSettings, siteSettings })
                 });
-                if (!res.ok) throw new Error('Failed to save settings');
+                
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    console.error('Settings save error:', data);
+                    throw new Error(data.error || 'Failed to save settings');
+                }
+                
+                console.log('Settings saved successfully:', data);
                 return true;
             } catch (err) {
                 console.error('Failed to save settings to API:', err);
+                showToast('Error: ' + err.message, 'error');
                 return false;
             }
         }
         
         async function saveAllSettings() {
             // Gather API settings
-            adminSettings.apiUrl = document.getElementById('settingApiUrl').value;
-            adminSettings.apiKey = document.getElementById('settingApiKey').value;
+            adminSettings.apiUrl = document.getElementById('settingApiUrl')?.value || '';
+            adminSettings.apiKey = document.getElementById('settingApiKey')?.value || '';
             
             // Clean empty MoMo numbers
-            adminSettings.momoNumbers = adminSettings.momoNumbers.filter(n => n.trim());
+            adminSettings.momoNumbers = (adminSettings.momoNumbers || []).filter(n => n && n.trim());
+            
+            // Ensure momoNumbers has at least an empty array
+            if (!adminSettings.momoNumbers || adminSettings.momoNumbers.length === 0) {
+                adminSettings.momoNumbers = [];
+            }
+            
+            console.log('Saving settings:', { adminSettings, siteSettings });
             
             // Save to API
             const success = await saveSettingsToAPI();
             if (success) {
                 showToast('Settings saved successfully!');
-            } else {
-                showToast('Failed to save settings', 'error');
             }
         }
 

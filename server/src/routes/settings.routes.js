@@ -3,6 +3,9 @@ const router = express.Router();
 const settingsController = require('../controllers/settings.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 
+// GET /api/settings/public - Public settings (no auth required)
+router.get('/public', settingsController.getPublicSettings);
+
 // GET /api/settings - Get all settings (admin only)
 router.get('/', authenticate, authorize('ADMIN'), settingsController.getSettings);
 
