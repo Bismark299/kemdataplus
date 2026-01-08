@@ -329,7 +329,12 @@
             }
           }, 1000);
         } else {
-          showError('loginError', data.error || data.message || 'Invalid credentials. Please try again.');
+          // Show detailed error including validation details
+          let errorMsg = data.error || data.message || 'Invalid credentials. Please try again.';
+          if (data.details && Array.isArray(data.details)) {
+            errorMsg = data.details.map(d => d.msg).join(', ');
+          }
+          showError('loginError', errorMsg);
         }
       } catch (error) {
         console.error('Login error:', error);
