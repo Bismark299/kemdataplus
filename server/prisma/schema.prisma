@@ -1,0 +1,789 @@
+// Prisma Schema for KemDataplus
+// PostgreSQL database - Multi-Tenant Reseller Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+// Role hierarchy (highest to lowest): ADMIN > PARTNER > SUPER_DEALER > DEALER > SUPER_AGENT > AGENT
+enum Role {
+  ADMIN
+  PARTNER
+  SUPER_DEALER
+  DEALER
+  SUPER_AGENT
+  AGENT
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  PURCHASE
+  REFUND
+  TRANSFER_IN
+  TRANSFER_OUT
+  PROFIT_CREDIT
+  COMMISSION
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+  DISABLED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  PRICE_CHANGE
+  WALLET_CREDIT
+  WALLET_DEBIT
+  PROFIT_ALLOCATION
+  ORDER_CREATE
+  ORDER_COMPLETE
+  ORDER_CANCEL
+  ADMIN_OVERRIDE
+  TENANT_CREATE
+  TENANT_SUSPEND
+  ROLE_CHANGE
+}
+
+// ============================================
+// TENANT & HIERARCHY MODELS
+// ============================================
+
+model Tenant {
+  id              String       @id @default(uuid())
+  name            String
+  slug            String       @unique // subdomain or identifier
+  domain          String?      @unique // custom domain mapping
+  
+  // Hierarchy
+  parentId        String?      
+  hierarchyLevel  Int          @default(0) // depth in tree (root = 0)
+  hierarchyPath   String       @default("/") // materialized path for quick queries
+  
+  // Settings & Branding
+  brandName       String?
+  logoUrl         String?
+  primaryColor    String?      @default("#024959")
+  secondaryColor  String?      @default("#F2C12E")
+  
+  // Capabilities
+  canCreateSubTenant  Boolean  @default(false)
+  maxSubTenants       Int      @default(0)
+  maxUsers            Int      @default(100)
+  
+  // Financial Controls
+  dailyTransactionCap Float?
+  monthlyTransactionCap Float?
+  minProfitMargin     Float    @default(0)
+  
+  // Status
+  status          TenantStatus @default(ACTIVE)
+  isRoot          Boolean      @default(false)
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  createdById     String?
+
+  // Relations
+  parent          Tenant?      @relation("TenantHierarchy", fields: [parentId], references: [id])
+  children        Tenant[]     @relation("TenantHierarchy")
+  users           User[]
+  tenantPrices    TenantBundlePrice[]
+  profitRecords   ProfitRecord[]
+  auditLogs       AuditLog[]
+  storefronts     Storefront[]
+  
+  @@index([parentId])
+  @@index([slug])
+  @@index([domain])
+  @@index([hierarchyPath])
+  @@map("tenants")
+}
+
+// ============================================
+// USER MODEL (Extended)
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  role      Role     @default(AGENT)
+  isActive  Boolean  @default(true)
+  
+  // Tenant & Hierarchy
+  tenantId         String?
+  parentUserId     String?
+  hierarchyLevel   Int           @default(0)
+  canCreateUsers   Boolean       @default(false)
+  maxDownlineUsers Int           @default(0)
+  
+  // Security
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil      DateTime?
+  
+  // Password Reset
+  resetToken       String?       @unique
+  resetTokenExpiry DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
+  parentUser   User?     @relation("UserHierarchy", fields: [parentUserId], references: [id])
+  downlineUsers User[]   @relation("UserHierarchy")
+  wallet       Wallet?
+  orders       Order[]
+  auditLogs    AuditLog[]
+  profitsEarned ProfitRecord[] @relation("ProfitBeneficiary")
+  profitsGenerated ProfitRecord[] @relation("ProfitSource")
+  
+  // Storefront & MoMo relations
+  storefronts      Storefront[]
+  momoReceived     MomoTransaction[] @relation("MomoRecipient")
+  momoInitiated    MomoTransaction[] @relation("MomoInitiator")
+  momoClaimed      MomoTransaction[] @relation("MomoClaimer")
+
+  @@index([tenantId])
+  @@index([parentUserId])
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================
+// WALLET & LEDGER SYSTEM
+// ============================================
+
+model Wallet {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  balance         Float    @default(0)        // Available balance
+  pendingBalance  Float    @default(0)        // Pending (awaiting confirmation)
+  lockedBalance   Float    @default(0)        // Locked (reserved for operations)
+  
+  // Daily tracking for caps
+  dailyCredits    Float    @default(0)
+  dailyDebits     Float    @default(0)
+  dailyCreditLimit Float?
+  dailyDebitLimit Float?
+  dailyResetAt    DateTime @default(now())
+  
+  // Freeze capability
+  isFrozen        Boolean  @default(false)
+  frozenAt        DateTime?
+  frozenReason    String?
+  frozenBy        String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerEntries   WalletLedger[]
+  transactions    Transaction[]
+
+  @@map("wallets")
+}
+
+// Immutable ledger for wallet transactions
+model WalletLedger {
+  id            String    @id @default(uuid())
+  walletId      String
+  
+  entryType     TransactionType
+  amount        Float
+  runningBalance Float
+  
+  orderId       String?
+  transactionId String?
+  profitRecordId String?
+  momoTransactionId String? @unique
+  
+  description   String?
+  reference     String    @unique
+  
+  createdAt     DateTime  @default(now())
+  checksum      String?
+  
+  wallet        Wallet    @relation(fields: [walletId], references: [id])
+  momoTransaction MomoTransaction? @relation("MomoLedgerEntry", fields: [momoTransactionId], references: [id])
+  
+  @@index([walletId])
+  @@index([reference])
+  @@index([createdAt])
+  @@map("wallet_ledger")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  walletId    String
+  type        TransactionType
+  amount      Float
+  status      TransactionStatus @default(PENDING)
+  reference   String            @unique
+  description String?
+  
+  momoReference   String?       @unique
+  momoPhone       String?
+  paymentMethod   String?
+  
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  wallet      Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([reference])
+  @@index([momoReference])
+  @@index([status])
+  @@map("transactions")
+}
+
+// ============================================
+// BUNDLE & PRICING MODELS
+// ============================================
+
+model Bundle {
+  id          String   @id @default(uuid())
+  name        String
+  network     String
+  dataAmount  String
+  
+  baseCost    Float    @default(0)
+  basePrice   Float
+  
+  validity    String
+  description String?
+  isActive    Boolean  @default(true)
+  outOfStock  Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders       Order[]
+  prices       BundlePrice[]
+  tenantPrices TenantBundlePrice[]
+  priceHistory BundlePriceHistory[]
+  storefrontProducts StorefrontProduct[]
+  storefrontOrders   StorefrontOrder[] @relation("StorefrontBundleOrders")
+  customerFavorites  CustomerFavorite[]
+
+  @@index([network])
+  @@index([isActive])
+  @@map("bundles")
+}
+
+model BundlePrice {
+  id        String   @id @default(uuid())
+  bundleId  String
+  role      Role
+  price     Float
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bundle    Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, role])
+  @@index([bundleId])
+  @@index([role])
+  @@map("bundle_prices")
+}
+
+// Tenant-specific price overrides
+model TenantBundlePrice {
+  id        String   @id @default(uuid())
+  tenantId  String
+  bundleId  String
+  role      Role
+  price     Float
+  
+  parentPriceAtCreation Float  @default(0)
+  isValid   Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bundle    Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, bundleId, role])
+  @@index([tenantId])
+  @@index([bundleId])
+  @@map("tenant_bundle_prices")
+}
+
+model BundlePriceHistory {
+  id           String   @id @default(uuid())
+  bundleId     String
+  tenantId     String?
+  role         Role
+  
+  oldPrice     Float
+  newPrice     Float
+  
+  changedBy    String
+  changeReason String?
+  
+  createdAt    DateTime @default(now())
+
+  bundle       Bundle   @relation(fields: [bundleId], references: [id])
+
+  @@index([bundleId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("bundle_price_history")
+}
+
+// ============================================
+// ORDER MODEL (Extended)
+// ============================================
+
+model Order {
+  id             String      @id @default(uuid())
+  userId         String
+  bundleId       String
+  tenantId       String?
+  storefrontId   String?     // Order placed via storefront
+  storefrontOrderId String?  @unique // Link to storefront customer order
+  
+  recipientPhone String
+  quantity       Int         @default(1)
+  
+  unitPrice      Float       @default(0)
+  totalPrice     Float
+  baseCost       Float       @default(0)
+  
+  reference      String      @unique
+  status         OrderStatus @default(PENDING)
+  paymentStatus  String      @default("PENDING")
+  
+  profitDistributed Boolean  @default(false)
+  
+  // Price snapshot at order time
+  priceSnapshot  Float?      // Locked price when order was placed
+  
+  processedAt    DateTime?
+  processedBy    String?
+  failureReason  String?
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bundle         Bundle      @relation(fields: [bundleId], references: [id])
+  storefront     Storefront? @relation("StorefrontOrders", fields: [storefrontId], references: [id])
+  storefrontOrder StorefrontOrder?
+  profitRecords  ProfitRecord[]
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([storefrontId])
+  @@index([reference])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+// ============================================
+// PROFIT DISTRIBUTION MODEL
+// ============================================
+
+model ProfitRecord {
+  id              String   @id @default(uuid())
+  orderId         String
+  tenantId        String?
+  
+  beneficiaryId   String
+  sourceUserId    String
+  
+  amount          Float
+  profitType      String
+  hierarchyLevel  Int
+  
+  sellingPrice    Float
+  costPrice       Float
+  marginPercent   Float
+  
+  status          TransactionStatus @default(PENDING)
+  creditedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+
+  order           Order    @relation(fields: [orderId], references: [id])
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
+  beneficiary     User     @relation("ProfitBeneficiary", fields: [beneficiaryId], references: [id])
+  sourceUser      User     @relation("ProfitSource", fields: [sourceUserId], references: [id])
+
+  @@index([orderId])
+  @@index([beneficiaryId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("profit_records")
+}
+
+// ============================================
+// AUDIT & COMPLIANCE
+// ============================================
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  
+  userId      String?
+  tenantId    String?
+  ipAddress   String?
+  userAgent   String?
+  
+  action      AuditAction
+  entityType  String
+  entityId    String?
+  
+  oldValues   Json?
+  newValues   Json?
+  metadata    Json?
+  
+  createdAt   DateTime    @default(now())
+
+  user        User?       @relation(fields: [userId], references: [id])
+  tenant      Tenant?     @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// SYSTEM SETTINGS & CONFIGURATION
+// ============================================
+
+model SystemSettings {
+  id            String   @id @default(uuid())
+  key           String   @unique
+  value         Json
+  description   String?
+  isPublic      Boolean  @default(false)
+  
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+
+  @@map("system_settings")
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  isEnabled   Boolean  @default(false)
+  tenantIds   String[]
+  roleAccess  Role[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+// ============================================
+// USER-GENERATED STOREFRONTS
+// ============================================
+
+enum StorefrontStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+  PENDING_APPROVAL
+}
+
+model Storefront {
+  id              String           @id @default(uuid())
+  
+  // Ownership
+  ownerId         String
+  tenantId        String?
+  
+  // Identification
+  slug            String           @unique  // URL: kemplus.com/store/{slug}
+  name            String
+  description     String?
+  
+  // Branding
+  logoUrl         String?
+  bannerUrl       String?
+  primaryColor    String?          @default("#024959")
+  accentColor     String?          @default("#F2C12E")
+  
+  // Contact
+  contactPhone    String?
+  contactEmail    String?
+  contactWhatsapp String?
+  
+  // Payment Settings
+  momoNumber      String?          // MoMo number for customer payments
+  momoName        String?          // Name on MoMo account
+  
+  // Settings
+  isPublic        Boolean          @default(true)
+  showOwnerInfo   Boolean          @default(false)
+  allowDirectContact Boolean       @default(true)
+  
+  // Status
+  status          StorefrontStatus @default(ACTIVE)
+  suspendedAt     DateTime?
+  suspendedReason String?
+  suspendedBy     String?
+  
+  // Analytics
+  totalOrders     Int              @default(0)
+  totalRevenue    Float            @default(0)
+  viewCount       Int              @default(0)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  // Relations
+  owner           User             @relation(fields: [ownerId], references: [id])
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id])
+  orders          Order[]          @relation("StorefrontOrders")
+  products        StorefrontProduct[]
+  customerOrders  StorefrontOrder[]
+  customerFavorites CustomerFavorite[]
+  
+  @@index([ownerId])
+  @@index([tenantId])
+  @@index([slug])
+  @@index([status])
+  @@map("storefronts")
+}
+
+// Products displayed on storefront (links to bundles with custom pricing)
+model StorefrontProduct {
+  id            String     @id @default(uuid())
+  storefrontId  String
+  bundleId      String
+  
+  // Custom display
+  displayName   String?
+  displayOrder  Int        @default(0)
+  isVisible     Boolean    @default(true)
+  
+  // Price snapshot (owner's cost price at time of adding)
+  priceSnapshot Float
+  
+  // Custom selling price (must be >= priceSnapshot)
+  sellingPrice  Float?     // If null, use priceSnapshot (no markup)
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  storefront    Storefront @relation(fields: [storefrontId], references: [id], onDelete: Cascade)
+  bundle        Bundle     @relation(fields: [bundleId], references: [id])
+  
+  @@unique([storefrontId, bundleId])
+  @@index([storefrontId])
+  @@map("storefront_products")
+}
+
+// Customer orders placed through storefronts
+model StorefrontOrder {
+  id                  String        @id @default(uuid())
+  storefrontId        String
+  storefrontProductId String?
+  
+  // Customer info (no account required)
+  customerPhone       String
+  customerName        String?
+  
+  // Bundle ordered
+  bundleId            String
+  
+  // Pricing
+  amount              Float         // Customer paid (selling price)
+  ownerCost           Float         // Store owner's cost price
+  ownerProfit         Float         // amount - ownerCost
+  
+  // Payment
+  paymentStatus       String        @default("PENDING")  // PENDING, PAID, FAILED
+  paymentReference    String?       // Customer's MoMo transaction reference
+  paymentPhone        String?       // Phone number customer paid from
+  
+  // Status
+  status              String        @default("PENDING")  // PENDING, PROCESSING, COMPLETED, FAILED, REFUNDED
+  
+  // Linked main order (for fulfillment)
+  orderId             String?       @unique
+  
+  // Timestamps
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  // Relations
+  storefront          Storefront    @relation(fields: [storefrontId], references: [id])
+  bundle              Bundle        @relation("StorefrontBundleOrders", fields: [bundleId], references: [id])
+  order               Order?        @relation(fields: [orderId], references: [id])
+  
+  @@index([storefrontId])
+  @@index([customerPhone])
+  @@index([status])
+  @@map("storefront_orders")
+}
+
+// ============================================
+// MOMO SEND & CLAIM SYSTEM
+// ============================================
+
+enum MomoTransactionStatus {
+  INITIATED      // Admin initiated send
+  PENDING_CLAIM  // Waiting for claim
+  CLAIMED        // Successfully claimed
+  EXPIRED        // Claim window expired
+  CANCELLED      // Admin cancelled
+  FAILED         // Claim verification failed
+}
+
+model MomoTransaction {
+  id              String                @id @default(uuid())
+  
+  // Transaction Details
+  reference       String                @unique  // Unique system reference
+  momoReference   String?               @unique  // MoMo network reference (after send)
+  
+  // Parties
+  targetUserId    String                // User to receive funds
+  initiatedBy     String                // Admin who initiated
+  claimedBy       String?               // Admin who processed claim
+  
+  // Amount
+  amount          Float
+  fee             Float                 @default(0)
+  netAmount       Float                 // amount - fee
+  
+  // Phone
+  targetPhone     String
+  
+  // Status
+  status          MomoTransactionStatus @default(INITIATED)
+  
+  // Timestamps
+  initiatedAt     DateTime              @default(now())
+  sentAt          DateTime?             // When MoMo send was executed
+  claimedAt       DateTime?
+  expiresAt       DateTime              // Claim window expiration
+  
+  // Verification
+  claimCode       String?               // Optional claim verification code
+  verificationNotes String?
+  
+  // Audit
+  metadata        Json?
+  ipAddress       String?
+  
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  
+  // Relations
+  targetUser      User                  @relation("MomoRecipient", fields: [targetUserId], references: [id])
+  initiator       User                  @relation("MomoInitiator", fields: [initiatedBy], references: [id])
+  claimer         User?                 @relation("MomoClaimer", fields: [claimedBy], references: [id])
+  walletLedgerEntry WalletLedger?       @relation("MomoLedgerEntry")
+  
+  @@index([targetUserId])
+  @@index([status])
+  @@index([reference])
+  @@index([momoReference])
+  @@index([expiresAt])
+  @@map("momo_transactions")
+}
+
+// ============================================
+// STORE CUSTOMER ACCOUNTS
+// ============================================
+
+// Customers who create accounts on storefronts
+model StoreCustomer {
+  id              String   @id @default(uuid())
+  
+  // Authentication
+  phone           String   // Primary identifier (phone number)
+  pin             String   // 4-6 digit PIN (hashed)
+  
+  // Profile
+  name            String?
+  email           String?
+  
+  // Settings
+  isActive        Boolean  @default(true)
+  
+  // Timestamps
+  lastLoginAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  favorites       CustomerFavorite[]
+  
+  @@unique([phone])
+  @@index([phone])
+  @@map("store_customers")
+}
+
+// Customer favorite bundles
+model CustomerFavorite {
+  id              String   @id @default(uuid())
+  
+  customerId      String
+  bundleId        String
+  storefrontId    String
+  
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  customer        StoreCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  bundle          Bundle        @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  storefront      Storefront    @relation(fields: [storefrontId], references: [id], onDelete: Cascade)
+  
+  @@unique([customerId, bundleId, storefrontId])
+  @@index([customerId])
+  @@index([bundleId])
+  @@map("customer_favorites")
+}

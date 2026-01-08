@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Full Integration Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .test-section { background: white; padding: 20px; margin: 10px 0; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 5px 0; background: #e8f5e9; border-left: 4px solid #4caf50; }
+        .error { background: #ffebee; border-left-color: #f44336; color: #c62828; }
+        button { padding: 10px 20px; background: #024959; color: white; border: none; cursor: pointer; margin: 5px; }
+        button:hover { background: #0a3d52; }
+        .network-tab, .mode-btn { padding: 10px 15px; margin: 5px; cursor: pointer; background: #ddd; display: inline-block; }
+        .network-tab.active, .mode-btn.active { background: #024959; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Full Integration Test (ordersData.js + dashboard interactions)</h1>
+    
+    <div class="test-section">
+        <h2>Step 1: Load ordersData.js and verify functions</h2>
+        <div id="step1"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 2: Test Network Tab Toggle</h2>
+        <div class="network-tabs">
+            <div class="network-tab active" data-network="MTN">MTN</div>
+            <div class="network-tab" data-network="Telecel">Telecel</div>
+            <div class="network-tab" data-network="Ishare">Ishare</div>
+            <div class="network-tab" data-network="Bigtime">Bigtime</div>
+        </div>
+        <div id="step2" class="status" style="margin-top: 10px;">Waiting for interaction...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 3: Test Mode Button Toggle</h2>
+        <div>
+            <button class="mode-btn active" data-mode="single">📱 Single</button>
+            <button class="mode-btn" data-mode="bulk">📦 Bulk</button>
+            <button class="mode-btn" data-mode="excel">📄 Excel</button>
+        </div>
+        <div id="step3" class="status" style="margin-top: 10px;">Waiting for interaction...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 4: Test Add to Cart (Single Mode)</h2>
+        <div>
+            <input type="text" id="phoneNumber" placeholder="Phone: 0240000001" value="0240000001">
+            <select id="bundleSize">
+                <option value="">Select Bundle</option>
+                <option value="1">1GB - GHS 10</option>
+                <option value="5">5GB - GHS 35</option>
+                <option value="10">10GB - GHS 65</option>
+                <option value="20">20GB - GHS 120</option>
+                <option value="50">50GB - GHS 179</option>
+            </select>
+            <button id="addToCartBtn">Add to Cart</button>
+        </div>
+        <div id="step4" class="status" style="margin-top: 10px;">Waiting for interaction...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Cart Contents</h2>
+        <div id="cartDisplay" style="background: #f0f0f0; padding: 10px; border-radius: 4px; min-height: 50px;">
+            <em>Cart is empty</em>
+        </div>
+    </div>
+    
+    <script src="./js/ordersData.js?v=3"></script>
+    <script>
+        const log = (sectionId, msg, isError = false) => {
+            const el = document.getElementById(sectionId);
+            const div = document.createElement('div');
+            div.className = 'status' + (isError ? ' error' : '');
+            div.textContent = (isError ? '❌ ' : '✓ ') + msg;
+            el.appendChild(div);
+            console.log((isError ? '[ERROR]' : '[OK]') + ' ' + msg);
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // Step 1: Verify all functions
+                log('step1', 'DOMContentLoaded fired');
+                
+                const required = ['initializeStorage', 'getOrderStats', 'getTodaysSales', 'getWeeklySales', 'getWalletBalance', 'updateWalletBalance', 'addOrder', 'saveCart'];
+                let allFunctionsExist = true;
+                
+                required.forEach(fname => {
+                    const exists = typeof window[fname] === 'function';
+                    if (!exists) {
+                        log('step1', `Function ${fname} is ${typeof window[fname]}`, !exists);
+                        allFunctionsExist = false;
+                    } else {
+                        log('step1', `Function ${fname} exists`);
+                    }
+                });
+                
+                // Initialize
+                log('step1', 'Calling initializeStorage()...');
+                initializeStorage();
+                
+                // Check cart
+                if (typeof cart === 'undefined') {
+                    log('step1', 'ERROR: cart is undefined', true);
+                } else if (!Array.isArray(cart)) {
+                    log('step1', 'ERROR: cart is not an array', true);
+                } else {
+                    log('step1', `cart initialized successfully (${cart.length} items)`);
+                }
+                
+                // Step 2: Network tab toggle
+                let currentNetwork = 'MTN';
+                document.querySelectorAll('.network-tab').forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        document.querySelectorAll('.network-tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        currentNetwork = this.dataset.network;
+                        log('step2', `Network changed to: ${currentNetwork}`);
+                    });
+                });
+                log('step2', `Network tab listeners attached (${document.querySelectorAll('.network-tab').length} tabs)`);
+                
+                // Step 3: Mode button toggle
+                let currentMode = 'single';
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        currentMode = this.dataset.mode;
+                        log('step3', `Mode changed to: ${currentMode}`);
+                    });
+                });
+                log('step3', `Mode button listeners attached (${document.querySelectorAll('.mode-btn').length} buttons)`);
+                
+                // Step 4: Add to cart
+                const networks = { 'MTN': 1.0, 'Telecel': 1.0, 'Ishare': 1.1, 'Bigtime': 1.05 };
+                const bundles = { '1': 10, '5': 35, '10': 65, '20': 120, '50': 179 };
+                
+                document.getElementById('addToCartBtn').addEventListener('click', function() {
+                    try {
+                        const phone = document.getElementById('phoneNumber').value;
+                        const bundle = document.getElementById('bundleSize').value;
+                        
+                        if (!phone) {
+                            log('step4', 'ERROR: Phone number is required', true);
+                            return;
+                        }
+                        if (!bundle) {
+                            log('step4', 'ERROR: Bundle size is required', true);
+                            return;
+                        }
+                        
+                        const item = {
+                            numbers: [phone],
+                            network: currentNetwork,
+                            bundle: bundle,
+                            price: bundles[bundle] * networks[currentNetwork],
+                            id: Date.now()
+                        };
+                        
+                        cart.push(item);
+                        log('step4', `Item added! Cart now has ${cart.length} item(s)`);
+                        
+                        // Update display
+                        const display = document.getElementById('cartDisplay');
+                        display.innerHTML = cart.map((item, idx) => 
+                            `<div><strong>#${idx+1}</strong> ${item.network} - ${item.bundle}GB - ${item.numbers.join(',')} - GHS ${item.price}</div>`
+                        ).join('');
+                        
+                    } catch(e) {
+                        log('step4', `ERROR: ${e.message}`, true);
+                    }
+                });
+                log('step4', 'Add to Cart listener attached');
+                
+                log('step1', '✅ ALL SETUP COMPLETE - Ready for testing!');
+                
+            } catch(e) {
+                log('step1', `FATAL ERROR: ${e.message}`, true);
+                console.error(e.stack);
+            }
+        });
+    </script>
+</body>
+</html>

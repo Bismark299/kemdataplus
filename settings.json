@@ -1,0 +1,28 @@
+{
+  "adminSettings": {
+    "adminName": "Administrator",
+    "adminEmail": "admin@kemdataplus.com",
+    "momoNumbers": ["0241234567"],
+    "autoApprove": false,
+    "autoApproveLimit": 50,
+    "emailNotify": true,
+    "smsNotify": false,
+    "maintenance": false,
+    "apiUrl": "http://localhost:5000",
+    "apiKey": ""
+  },
+  "siteSettings": {
+    "masterAPI": true,
+    "mtnAPI": true,
+    "telecelAPI": false,
+    "airteltigoAPI": false,
+    "placeOrders": true,
+    "loadWallet": false,
+    "claimWallet": true,
+    "bulkOrders": true,
+    "excelImport": false,
+    "cartOrder": true,
+    "newRegistration": true,
+    "websiteUpdate": false
+  }
+}

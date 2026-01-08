@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - KemDataplus</title>
+    <link rel="stylesheet" href="../public/css/dashboard.css">
+    <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
+    <style>
+        .wallet-container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .wallet-header {
+            background: linear-gradient(135deg, #024959 0%, #F2C12E 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        .wallet-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+        .wallet-balance {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .wallet-status {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+        .wallet-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+        /* TOP-UP SECTION */
+        .topup-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .topup-section h2 {
+            color: #024959;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #024959;
+            font-weight: 600;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #F2C12E;
+            box-shadow: 0 0 0 3px rgba(242, 193, 46, 0.1);
+        }
+        .payment-methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .method-option {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .method-option:hover {
+            border-color: #F2C12E;
+            background: #f9f9f9;
+        }
+        .method-option input[type="radio"] {
+            display: none;
+        }
+        .method-option input[type="radio"]:checked + label {
+            color: #F2C12E;
+        }
+        .method-option.selected {
+            border-color: #F2C12E;
+            background: #fffaf0;
+        }
+        .method-icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        .btn-topup {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #024959 0%, #F2C12E 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn-topup:hover {
+            transform: translateY(-2px);
+        }
+        .success-msg {
+            background: #4caf50;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .error-msg {
+            background: #f44336;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        /* TRANSACTION HISTORY */
+        .history-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .history-section h2 {
+            color: #024959;
+            margin-bottom: 20px;
+        }
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+            font-size: 0.8rem;
+        }
+        .transaction-item:hover {
+            background: #f9f9f9;
+        }
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+        .transaction-icon {
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .transaction-icon.debit {
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+        }
+        .transaction-icon.credit {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+        }
+        .transaction-details {
+            flex: 1;
+        }
+        .transaction-description {
+            color: #024959;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        .transaction-date {
+            color: #999;
+            font-size: 0.85rem;
+        }
+        .transaction-amount {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .transaction-amount.debit {
+            color: #f44336;
+        }
+        .transaction-amount.credit {
+            color: #4caf50;
+        }
+        .no-transactions {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        /* SIDEBAR */
+        .wallet-sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: fit-content;
+        }
+        .sidebar-card {
+            background: linear-gradient(135deg, #024959 0%, #F2C12E 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .sidebar-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .sidebar-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .quick-btn {
+            padding: 10px;
+            border: 2px solid #024959;
+            background: white;
+            color: #024959;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .quick-btn:hover {
+            background: #024959;
+            color: white;
+        }
+        
+        /* WALLET TABS */
+        .wallet-tabs {
+            display: flex;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        .wallet-tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .wallet-tab:hover {
+            color: #024959;
+        }
+        .wallet-tab.active {
+            color: #024959;
+        }
+        .wallet-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #024959, #F2C12E);
+            border-radius: 2px 2px 0 0;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* CLAIM MOMO SECTION */
+        .claim-info {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .claim-info h4 {
+            color: #92400e;
+            margin: 0 0 10px 0;
+            font-size: 0.95rem;
+        }
+        .claim-info p {
+            color: #78350f;
+            font-size: 0.85rem;
+            margin: 0;
+            line-height: 1.5;
+        }
+        .claim-info ol {
+            color: #78350f;
+            font-size: 0.85rem;
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+        .claim-info li {
+            margin-bottom: 5px;
+        }
+        .momo-number-display {
+            background: #024959;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .momo-number-display .label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .momo-number-display .number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .momo-number-display .name {
+            font-size: 0.9rem;
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+        .copy-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Pending Claims */
+        .pending-claims {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .pending-claims h4 {
+            color: #024959;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+        }
+        .pending-claim-item {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .pending-claim-item .claim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .pending-claim-item .claim-amount {
+            font-weight: 700;
+            color: #f59e0b;
+            font-size: 1.1rem;
+        }
+        .pending-claim-item .claim-status {
+            font-size: 0.75rem;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+        .pending-claim-item .claim-details {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        .no-pending {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.9rem;
+            padding: 20px;
+        }
+        
+        /* Responsive Styles - Clean stacking like login page */
+        @media (max-width: 900px) {
+            .wallet-container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+            
+            .wallet-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .wallet-sidebar {
+                order: -1; /* Show sidebar first on mobile */
+            }
+            
+            .wallet-header {
+                padding: 25px 20px;
+                margin-bottom: 20px;
+                border-radius: 10px;
+            }
+            
+            .wallet-header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .wallet-balance {
+                font-size: 2rem;
+                margin: 12px 0;
+            }
+            
+            .payment-methods {
+                grid-template-columns: 1fr;
+            }
+            
+            .topup-section,
+            .history-section,
+            .wallet-sidebar {
+                padding: 20px;
+                border-radius: 10px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .wallet-container {
+                padding: 0 10px;
+                margin: 15px auto;
+            }
+            
+            .wallet-header {
+                padding: 20px 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+            }
+            
+            .wallet-header h1 {
+                font-size: 1.1rem;
+                margin: 0 0 8px 0;
+            }
+            
+            .wallet-balance {
+                font-size: 1.8rem;
+                margin: 10px 0;
+            }
+            
+            .wallet-status {
+                font-size: 0.85rem;
+            }
+            
+            .wallet-content {
+                gap: 15px;
+            }
+            
+            .topup-section,
+            .history-section,
+            .wallet-sidebar {
+                padding: 15px;
+                border-radius: 8px;
+            }
+            
+            .topup-section h2,
+            .history-section h2 {
+                font-size: 1rem;
+                margin-bottom: 15px;
+            }
+            
+            .form-group label {
+                font-size: 0.9rem;
+            }
+            
+            .form-group input,
+            .form-group select {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            
+            .btn-topup {
+                padding: 12px;
+                font-size: 0.95rem;
+            }
+            
+            .transaction-item {
+                padding: 10px 8px;
+            }
+            
+            .transaction-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+                margin-right: 10px;
+            }
+            
+            .transaction-description {
+                font-size: 0.85rem;
+            }
+            
+            .transaction-date {
+                font-size: 0.75rem;
+            }
+            
+            .transaction-amount {
+                font-size: 1rem;
+            }
+            
+            .sidebar-card {
+                padding: 15px;
+                margin-bottom: 12px;
+            }
+            
+            .sidebar-label {
+                font-size: 0.8rem;
+            }
+            
+            .sidebar-value {
+                font-size: 1.3rem;
+            }
+            
+            .quick-btn {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <!-- HEADER -->
+        <div class="header-container">
+            <header>
+                <div><a href="../public/dashboard.html"><img src="../public/img/kem.png" alt="KemDataplus" class="logo"></a></div>
+                <input type="checkbox" id="check-box">
+                <div class="nav-links">
+                    <label for="check-box" class="menu-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </label>
+                    <div class="nav-menu">
+                        <div class="links">
+                            <a href="../public/dashboard.html">Dashboard</a>
+                            <a href="../public/dashboard.html#buy-bundles">Buy Bundles</a>
+                            <a href="./orders.html">Orders</a>
+                            <a href="./wallet.html" class="active">Wallet</a>
+                            <a href="./mystore.html">My Store</a>
+                            <a href="./api.html">API</a>
+                            <a href="./profile.html">Profile</a>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown">
+                        <img src="../public/img/kem.png" alt="Profile" class="profile-pic" id="profileBtn">
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a href="./profile.html"><i class="fas fa-user"></i> My Profile</a>
+                            <a href="./profile.html"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="./wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+                            <hr>
+                            <a href="#" onclick="logout(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                    <label for="check-box" class="close-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </label>
+                </div>
+            </header>
+        </div>
+
+        <!-- WALLET CONTENT -->
+        <div class="wallet-container">
+            <!-- WALLET HEADER -->
+            <div class="wallet-header">
+                <h1><i class="fas fa-wallet"></i> My Wallet</h1>
+                <div class="wallet-balance" id="walletBalance">GHS 250.50</div>
+                <div class="wallet-status">Account Status: <strong>Active</strong></div>
+            </div>
+
+            <div class="wallet-content">
+                <!-- MAIN CONTENT -->
+                <div>
+                    <!-- TOP-UP SECTION -->
+                    <div class="topup-section">
+                        <!-- Wallet Tabs -->
+                        <div class="wallet-tabs">
+                            <button class="wallet-tab active" data-tab="claimMomo">
+                                <i class="fas fa-receipt"></i> Claim MoMo
+                            </button>
+                            <button class="wallet-tab" data-tab="sendFunds">
+                                <i class="fas fa-paper-plane"></i> Send Funds
+                            </button>
+                        </div>
+                        
+                        <div class="success-msg" id="successMsg">✓ Operation successful!</div>
+                        <div class="error-msg" id="errorMsg">✗ An error occurred. Please try again.</div>
+
+                        <!-- CLAIM MOMO TAB (Now Primary) -->
+                        <div class="tab-content active" id="claimMomoTab">
+                            <div class="claim-info">
+                                <h4><i class="fas fa-info-circle"></i> How to Add Funds via MoMo</h4>
+                                <ol>
+                                    <li>Send money to the MoMo number below</li>
+                                    <li>Copy the <strong>Transaction ID</strong> from your MoMo message</li>
+                                    <li>Enter the amount you sent and paste the Transaction ID</li>
+                                    <li>Click "Submit Claim" and wait for admin verification</li>
+                                    <li>Once approved, funds will be added to your wallet</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="momo-number-display">
+                                <div class="label">Send Money To:</div>
+                                <div class="number" id="momoNumberDisplay">0241234567</div>
+                                <div class="name">KemDataplus</div>
+                                <button class="copy-btn" onclick="copyMomoNumber()">
+                                    <i class="fas fa-copy"></i> Copy Number
+                                </button>
+                            </div>
+                            
+                            <form id="claimMomoForm">
+                                <div class="form-group">
+                                    <label>Amount Sent (GHS)</label>
+                                    <input type="number" id="claimAmount" placeholder="Enter exact amount sent" min="1" step="0.01" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Transaction ID</label>
+                                    <input type="text" id="transactionId" placeholder="Paste transaction ID from MoMo message" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Sender Phone Number</label>
+                                    <input type="tel" id="senderPhone" placeholder="Your MoMo number (0240000000)" pattern="[0-9]{10}" required>
+                                </div>
+                                
+                                <button type="submit" class="btn-topup" style="background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);">
+                                    <i class="fas fa-paper-plane"></i> Submit Claim
+                                </button>
+                            </form>
+                            
+                            <!-- Pending Claims -->
+                            <div class="pending-claims">
+                                <h4><i class="fas fa-clock"></i> Your Pending Claims</h4>
+                                <div id="pendingClaimsList">
+                                    <div class="no-pending">No pending claims</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SEND FUNDS TAB -->
+                        <div class="tab-content" id="sendFundsTab">
+                            <div class="claim-info" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #3b82f6;">
+                                <h4 style="color: #1e40af;"><i class="fas fa-info-circle"></i> Send Funds to Another User</h4>
+                                <p style="color: #1e3a8a;">Transfer funds from your wallet to another KemDataplus user. The recipient must be a registered user.</p>
+                            </div>
+                            
+                            <form id="sendFundsForm">
+                                <div class="form-group">
+                                    <label>Recipient Phone Number</label>
+                                    <input type="tel" id="recipientPhone" placeholder="Recipient's phone (0240000000)" pattern="[0-9]{10}" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Amount to Send (GHS)</label>
+                                    <input type="number" id="sendAmount" placeholder="Enter amount" min="1" step="0.01" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Note (Optional)</label>
+                                    <input type="text" id="sendNote" placeholder="E.g., Payment for bundles">
+                                </div>
+                                
+                                <div class="send-summary" id="sendSummary" style="display: none; background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bae6fd;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                        <span>Amount:</span>
+                                        <strong id="summaryAmount">GHS 0.00</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                        <span>Your Balance After:</span>
+                                        <strong id="summaryBalanceAfter">GHS 0.00</strong>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn-topup" style="background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);">
+                                    <i class="fas fa-paper-plane"></i> Send Funds
+                                </button>
+                            </form>
+                            
+                            <!-- Recent Transfers -->
+                            <div class="pending-claims" style="margin-top: 20px;">
+                                <h4><i class="fas fa-exchange-alt"></i> Recent Transfers</h4>
+                                <div id="recentTransfersList">
+                                    <div class="no-pending">No recent transfers</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TRANSACTION HISTORY -->
+                    <div class="history-section" style="margin-top:30px;">
+                        <h2><i class="fas fa-history"></i> Transaction History</h2>
+                        <div id="transactionsList">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIDEBAR -->
+                <div class="wallet-sidebar">
+                    <div class="sidebar-card">
+                        <div class="sidebar-label">Total Spent</div>
+                        <div class="sidebar-value">GHS 1,250.00</div>
+                    </div>
+
+                    <div class="sidebar-card" style="background: linear-gradient(135deg, #593E25 0%, #F2AE30 100%);">
+                        <div class="sidebar-label">This Month</div>
+                        <div class="sidebar-value">GHS 350.75</div>
+                    </div>
+
+                    <h3 style="color:#024959;margin-bottom:10px;">Quick Actions</h3>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="window.location.href='../public/dashboard.html#buy-bundles'">
+                            <i class="fas fa-shopping-cart"></i> Buy Bundles
+                        </button>
+                        <button class="quick-btn" onclick="window.location.href='./orders.html'">
+                            <i class="fas fa-list"></i> View Orders
+                        </button>
+                        <button class="quick-btn" onclick="document.getElementById('claimMomoTab').scrollIntoView()">
+                            <i class="fas fa-arrow-up"></i> Add Funds
+                        </button>
+                    </div>
+
+                    <div style="margin-top:20px;padding:15px;background:#f9f9f9;border-radius:8px;border-left:4px solid #F2C12E;">
+                        <strong style="color:#024959;">Need Help?</strong>
+                        <p style="font-size:0.85rem;color:#666;margin:8px 0 0;">Contact support at support@kemdataplus.com or call +233 XXX XXX XXXX</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== API CONFIGURATION ==========
+        const API_BASE = window.location.origin + '/api';
+        
+        // Check if logged in via httpOnly cookie
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                return res.ok;
+            } catch {
+                return false;
+            }
+        }
+        
+        async function requireAuth() {
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) {
+                window.location.href = '/pages/login.html';
+                return false;
+            }
+            return true;
+        }
+        
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            };
+            if (data) options.body = JSON.stringify(data);
+            
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            if (response.status === 401) {
+                window.location.href = '/pages/login.html';
+                throw new Error('Session expired');
+            }
+            return response.json();
+        }
+        
+        // ========== UTC TIME HELPERS ==========
+        function formatDateTimeUTC(date) {
+            const d = (date instanceof Date) ? date : new Date(date);
+            const day = d.getUTCDate();
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = months[d.getUTCMonth()];
+            const year = d.getUTCFullYear();
+            const hours = String(d.getUTCHours()).padStart(2, '0');
+            const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+            const suffix = (day > 3 && day < 21) ? 'th' : ['th', 'st', 'nd', 'rd', 'th'][Math.min(day % 10, 4)];
+            return `${day}${suffix} ${month} ${year} at ${hours}:${minutes} GMT`;
+        }
+        
+        // ========== WALLET TABS ==========
+        document.querySelectorAll('.wallet-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.wallet-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                const tabId = this.dataset.tab + 'Tab';
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // ========== WALLET DATA FROM API ==========
+        let walletBalance = 0;
+        let transactions = [];
+        let currentUser = {};
+        
+        async function loadWalletData() {
+            if (!requireAuth()) return;
+            
+            try {
+                // Get wallet balance
+                const walletData = await apiRequest('/wallet');
+                walletBalance = walletData.balance || 0;
+                updateBalanceDisplay();
+                
+                // Get transactions
+                const txnData = await apiRequest('/wallet/transactions?limit=50');
+                transactions = txnData.transactions || [];
+                renderTransactions();
+                
+                // Get user profile
+                const userData = await apiRequest('/users/me');
+                currentUser = userData;
+            } catch (error) {
+                console.error('Failed to load wallet data:', error);
+                showError('Failed to load wallet data');
+            }
+        }
+        
+        function updateBalanceDisplay() {
+            const walletBalanceEl = document.getElementById('walletBalance');
+            if (walletBalanceEl) {
+                walletBalanceEl.textContent = 'GHS ' + walletBalance.toFixed(2);
+            }
+        }
+        
+        // Refresh balance periodically (every 30 seconds instead of 10)
+        setInterval(async () => {
+            try {
+                const walletData = await apiRequest('/wallet');
+                walletBalance = walletData.balance || 0;
+                updateBalanceDisplay();
+            } catch (e) { /* ignore */ }
+        }, 30000);
+
+        // Render transactions
+        function renderTransactions() {
+            const container = document.getElementById('transactionsList');
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = '<div class="no-transactions">No transactions yet</div>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(txn => {
+                const isCredit = txn.type === 'DEPOSIT' || txn.type === 'REFUND' || txn.type === 'TRANSFER_IN' || txn.amount > 0;
+                const displayType = isCredit ? 'credit' : 'debit';
+                const amount = Math.abs(txn.amount);
+                return `
+                <div class="transaction-item">
+                    <div style="display:flex;align-items:center;flex:1;">
+                        <div class="transaction-icon ${displayType}">
+                            ${isCredit ? '<i class="fas fa-arrow-down"></i>' : '<i class="fas fa-arrow-up"></i>'}
+                        </div>
+                        <div class="transaction-details">
+                            <div class="transaction-description">${txn.description || txn.type}</div>
+                            <div class="transaction-date">${formatDateTimeUTC(txn.createdAt)}</div>
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${displayType}">
+                        ${isCredit ? '+' : '-'}GHS ${amount.toFixed(2)}
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // ========== SEND FUNDS ==========
+        const sendAmountInput = document.getElementById('sendAmount');
+        if (sendAmountInput) {
+            sendAmountInput.addEventListener('input', function() {
+                const amount = parseFloat(this.value) || 0;
+                const summary = document.getElementById('sendSummary');
+                
+                if (amount > 0) {
+                    summary.style.display = 'block';
+                    document.getElementById('summaryAmount').textContent = `GHS ${amount.toFixed(2)}`;
+                    const balanceAfter = walletBalance - amount;
+                    document.getElementById('summaryBalanceAfter').textContent = `GHS ${balanceAfter.toFixed(2)}`;
+                    document.getElementById('summaryBalanceAfter').style.color = balanceAfter < 0 ? '#ef4444' : '#10b981';
+                } else {
+                    summary.style.display = 'none';
+                }
+            });
+        }
+        
+        // Send Funds Form - Note: This would need a backend endpoint for user-to-user transfers
+        const sendFundsForm = document.getElementById('sendFundsForm');
+        if (sendFundsForm) {
+            sendFundsForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const recipientPhone = document.getElementById('recipientPhone').value.trim();
+                const amount = parseFloat(document.getElementById('sendAmount').value);
+                const note = document.getElementById('sendNote').value.trim();
+                
+                if (!recipientPhone || !recipientPhone.match(/^[0-9]{10}$/)) {
+                    showError('Please enter a valid 10-digit recipient phone number');
+                    return;
+                }
+                
+                if (isNaN(amount) || amount < 1) {
+                    showError('Amount must be at least GHS 1');
+                    return;
+                }
+                
+                if (amount > walletBalance) {
+                    showError(`Insufficient balance. Your balance is GHS ${walletBalance.toFixed(2)}`);
+                    return;
+                }
+                
+                try {
+                    // Call transfer API endpoint
+                    const result = await apiRequest('/wallet/transfer', 'POST', {
+                        recipientPhone,
+                        amount,
+                        note
+                    });
+                    
+                    showSuccess(`GHS ${amount.toFixed(2)} sent successfully!`);
+                    this.reset();
+                    document.getElementById('sendSummary').style.display = 'none';
+                    loadWalletData(); // Refresh data
+                } catch (error) {
+                    showError(error.message || 'Transfer failed');
+                }
+            });
+        }
+        
+        // ========== CLAIM MOMO ==========
+        const MOMO_NUMBER = '0241234567';
+        const MOMO_NAME = 'KemDataplus';
+        
+        function copyMomoNumber() {
+            navigator.clipboard.writeText(MOMO_NUMBER).then(() => {
+                showSuccess('MoMo number copied to clipboard!');
+            }).catch(() => {
+                showError('Failed to copy number');
+            });
+        }
+        
+        // Pending claims loaded from API
+        let pendingClaims = [];
+        
+        async function loadPendingClaims() {
+            try {
+                const data = await apiRequest('/wallet/claims');
+                pendingClaims = data.claims || [];
+                renderPendingClaims();
+            } catch (e) {
+                pendingClaims = [];
+                renderPendingClaims();
+            }
+        }
+        
+        function renderPendingClaims() {
+            const container = document.getElementById('pendingClaimsList');
+            
+            if (!pendingClaims || pendingClaims.length === 0) {
+                container.innerHTML = '<div class="no-pending">No pending claims</div>';
+                return;
+            }
+            
+            container.innerHTML = pendingClaims.map(claim => {
+                const status = (claim.status || 'PENDING').toUpperCase();
+                const statusStyle = status === 'REJECTED' 
+                    ? 'background: #fee2e2; color: #dc2626;' 
+                    : 'background: #fef3c7; color: #92400e;';
+                const statusText = status === 'REJECTED' ? 'Rejected' : 'Pending Verification';
+                
+                return `
+                <div class="pending-claim-item" style="${status === 'REJECTED' ? 'border-color: #fca5a5;' : ''}">
+                    <div class="claim-header">
+                        <span class="claim-amount">GHS ${parseFloat(claim.amount).toFixed(2)}</span>
+                        <span class="claim-status" style="${statusStyle}">${statusText}</span>
+                    </div>
+                    <div class="claim-details">
+                        <div><strong>Transaction ID:</strong> ${claim.reference || claim.transactionId}</div>
+                        <div><strong>Submitted:</strong> ${formatDateTimeUTC(claim.createdAt || claim.date)}</div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        // Claim MoMo form submission
+        document.getElementById('claimMomoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const amount = parseFloat(document.getElementById('claimAmount').value);
+            const transactionId = document.getElementById('transactionId').value.trim();
+            const senderPhone = document.getElementById('senderPhone').value.trim();
+            
+            if (isNaN(amount) || amount < 1) {
+                showError('Please enter a valid amount');
+                return;
+            }
+            
+            if (!transactionId) {
+                showError('Please enter the transaction ID');
+                return;
+            }
+            
+            if (!senderPhone || !senderPhone.match(/^[0-9]{10}$/)) {
+                showError('Please enter a valid 10-digit phone number');
+                return;
+            }
+            
+            try {
+                const result = await apiRequest('/wallet/deposit', 'POST', {
+                    amount,
+                    paymentMethod: 'momo',
+                    reference: transactionId,
+                    senderPhone
+                });
+                
+                showSuccess('Claim submitted! Admin will verify your payment.');
+                this.reset();
+                loadPendingClaims();
+            } catch (error) {
+                showError(error.message || 'Failed to submit claim');
+            }
+        });
+        
+        // Render recent transfers
+        function renderRecentTransfers() {
+            const container = document.getElementById('recentTransfersList');
+            if (!container) return;
+            
+            // Filter transactions for transfers
+            const transfers = transactions.filter(t => 
+                t.type === 'TRANSFER_IN' || t.type === 'TRANSFER_OUT'
+            ).slice(0, 5);
+            
+            if (transfers.length === 0) {
+                container.innerHTML = '<div class="no-pending">No recent transfers</div>';
+                return;
+            }
+            
+            container.innerHTML = transfers.map(t => {
+                const isSent = t.type === 'TRANSFER_OUT';
+                const amount = Math.abs(t.amount);
+                return `
+                    <div class="pending-claim-item" style="background: ${isSent ? '#fef2f2' : '#f0fdf4'}; border-color: ${isSent ? '#fca5a5' : '#86efac'};">
+                        <div class="claim-header">
+                            <span class="claim-amount" style="color: ${isSent ? '#ef4444' : '#22c55e'};">
+                                ${isSent ? '-' : '+'}GHS ${amount.toFixed(2)}
+                            </span>
+                            <span class="claim-status" style="background: ${isSent ? '#fee2e2' : '#dcfce7'}; color: ${isSent ? '#b91c1c' : '#166534'};">
+                                ${isSent ? 'Sent' : 'Received'}
+                            </span>
+                        </div>
+                        <div class="claim-details">
+                            <div><strong>Description:</strong> ${t.description}</div>
+                            <div><strong>Date:</strong> ${formatDateTimeUTC(t.createdAt)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showSuccess(msg) {
+            const el = document.getElementById('successMsg');
+            el.textContent = '✓ ' + msg;
+            el.style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = '✗ ' + msg;
+            el.style.display = 'block';
+            document.getElementById('successMsg').style.display = 'none';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        // Profile Dropdown
+        document.getElementById('profileBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', () => {
+            document.getElementById('dropdownMenu').style.display = 'none';
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+            await loadWalletData();
+            await loadPendingClaims();
+            renderRecentTransfers();
+        });
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            } catch (e) {}
+            localStorage.removeItem('currentUser');
+            window.location.href = './login.html';
+        }
+    </script>
+</body>
+</html>

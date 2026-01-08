@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Store - KemDataplus</title>
+    <link rel="stylesheet" href="../public/css/dashboard.css">
+    <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
+    <style>
+        .store-container { max-width: 1200px; margin: 20px auto; padding: 20px; }
+        .store-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .store-header h1 { color: #024959; font-size: 1.6rem; }
+        .btn { padding: 10px 20px; border-radius: 8px; cursor: pointer; border: none; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: #024959; color: white; }
+        .btn-primary:hover { background: #026773; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+        .tab { padding: 12px 20px; cursor: pointer; border: none; background: none; font-size: 1rem; color: #64748b; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .tab.active { color: #024959; border-bottom-color: #024959; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .store-card { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; overflow: hidden; }
+        .store-card-header { background: linear-gradient(135deg, #024959, #026773); color: white; padding: 20px; position: relative; }
+        .store-card-header h3 { margin: 0 0 5px 0; }
+        .store-status { position: absolute; top: 15px; right: 15px; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .store-status.active { background: #22c55e; }
+        .store-card-body { padding: 20px; }
+        .store-link-box { background: #f0fdf4; border: 2px dashed #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .store-link-box label { font-size: 0.85rem; color: #166534; font-weight: 600; display: block; margin-bottom: 8px; }
+        .link-row { display: flex; gap: 10px; align-items: center; }
+        .link-row input { flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; }
+        .copy-btn { background: #22c55e; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }
+        .store-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
+        .stat-box { text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; }
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: #024959; }
+        .stat-label { font-size: 0.75rem; color: #64748b; }
+        .products-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+        .products-table th, .products-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .products-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .price-input { width: 80px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; text-align: right; }
+        .profit-badge { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .action-btns button { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 5px; }
+        .btn-save { background: #22c55e; color: white; }
+        .btn-remove { background: #ef4444; color: white; }
+        .bundle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 15px; }
+        .bundle-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; background: white; }
+        .bundle-card:hover { border-color: #024959; background: #f8fafc; }
+        .bundle-card.added { opacity: 0.5; cursor: not-allowed; }
+        .bundle-name { font-weight: 600; color: #024959; }
+        .bundle-details { font-size: 0.85rem; color: #64748b; margin-top: 5px; }
+        .bundle-cost { font-size: 0.9rem; color: #166534; font-weight: 600; margin-top: 8px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { margin: 0; color: #024959; font-size: 1.2rem; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; justify-content: flex-end; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #475569; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
+        .form-group small { color: #94a3b8; font-size: 0.8rem; }
+        .empty-state { text-align: center; padding: 40px; color: #64748b; }
+        .empty-state i { font-size: 3rem; color: #e2e8f0; margin-bottom: 15px; display: block; }
+        .network-filter { display: flex; gap: 8px; margin-bottom: 15px; }
+        .network-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; background: white; }
+        .network-btn.active { background: #024959; color: white; border-color: #024959; }
+        @media (max-width: 768px) { .store-stats { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <div class="header-container">
+            <header>
+                <div><a href="../public/dashboard.html"><img src="../public/img/kem.png" alt="KemDataplus" class="logo"></a></div>
+                <input type="checkbox" id="check-box">
+                <div class="nav-links">
+                    <label for="check-box" class="menu-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></label>
+                    <div class="nav-menu">
+                        <div class="links">
+                            <a href="../public/dashboard.html">Dashboard</a>
+                            <a href="../public/dashboard.html#buy-bundles">Buy Bundles</a>
+                            <a href="./orders.html">Orders</a>
+                            <a href="./wallet.html">Wallet</a>
+                            <a href="./mystore.html" class="active">My Store</a>
+                            <a href="./api.html">API</a>
+                            <a href="./profile.html">Profile</a>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown">
+                        <img src="../public/img/kem.png" alt="Profile" class="profile-pic" id="profileBtn">
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a href="./profile.html"><i class="fas fa-user"></i> My Profile</a>
+                            <a href="./profile.html"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="./wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+                            <hr>
+                            <a href="#" onclick="logout(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                    <label for="check-box" class="close-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></label>
+                </div>
+            </header>
+        </div>
+        <div class="store-container">
+            <div class="store-header">
+                <h1><i class="fas fa-store"></i> My Storefront</h1>
+                <button class="btn btn-primary" id="createStoreBtn" onclick="openCreateModal()"><i class="fas fa-plus"></i> Create Store</button>
+            </div>
+            <div id="loadingState" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>
+            <div id="noStoreState" class="empty-state" style="display:none;"><i class="fas fa-store-slash"></i><h3>No Store Yet</h3><p>Create your storefront to start selling!</p><button class="btn btn-primary" onclick="openCreateModal()"><i class="fas fa-plus"></i> Create My Store</button></div>
+            <div id="storeContent" style="display:none;">
+                <div class="store-card">
+                    <div class="store-card-header">
+                        <span class="store-status active" id="storeStatus">ACTIVE</span>
+                        <h3 id="storeName">My Store</h3>
+                        <small id="storeDesc"></small>
+                    </div>
+                    <div class="store-card-body">
+                        <div class="store-link-box">
+                            <label><i class="fas fa-link"></i> Your Store Link (Share with customers)</label>
+                            <div class="link-row">
+                                <input type="text" id="storeLink" readonly>
+                                <button class="copy-btn" onclick="copyLink()"><i class="fas fa-copy"></i> Copy</button>
+                                <button class="btn btn-success" onclick="shareWhatsApp()"><i class="fab fa-whatsapp"></i></button>
+                            </div>
+                        </div>
+                        <div class="store-stats">
+                            <div class="stat-box"><div class="stat-value" id="statViews">0</div><div class="stat-label">Views</div></div>
+                            <div class="stat-box"><div class="stat-value" id="statOrders">0</div><div class="stat-label">Orders</div></div>
+                            <div class="stat-box"><div class="stat-value" id="statProducts">0</div><div class="stat-label">Products</div></div>
+                            <div class="stat-box"><div class="stat-value" id="statRevenue">GHS 0</div><div class="stat-label">Revenue</div></div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="openEditModal()"><i class="fas fa-edit"></i> Edit Store</button>
+                    </div>
+                </div>
+                <div class="tabs">
+                    <button class="tab active" data-tab="products">Bundle Prices</button>
+                    <button class="tab" data-tab="orders">Store Orders</button>
+                    <button class="tab" data-tab="settings">Payment Settings</button>
+                </div>
+                <div class="tab-content active" id="products-tab">
+                    <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:15px;">
+                        <p style="color:#166534;margin:0;"><i class="fas fa-info-circle"></i> <strong>All bundles are automatically available in your store.</strong> Set custom selling prices below to make profit. If no price is set, bundles are sold at your cost price.</p>
+                    </div>
+                    <div class="network-filter" id="priceFilter">
+                        <button class="network-btn active" data-network="all">All Networks</button>
+                        <button class="network-btn" data-network="MTN">MTN</button>
+                        <button class="network-btn" data-network="TELECEL">Telecel</button>
+                        <button class="network-btn" data-network="AIRTELTIGO">AirtelTigo</button>
+                    </div>
+                    <div id="productsEmpty" class="empty-state" style="display:none;"><i class="fas fa-box-open"></i><p>No bundles available.</p></div>
+                    <div id="productsContainer"></div>
+                </div>
+                <div class="tab-content" id="orders-tab">
+                    <div id="ordersEmpty" class="empty-state"><i class="fas fa-receipt"></i><p>No orders yet. Share your store link to get customers!</p></div>
+                    <table class="products-table" id="ordersTable" style="display:none;">
+                        <thead><tr><th>Date</th><th>Customer</th><th>Bundle</th><th>Price</th><th>Your Profit</th><th>Payment</th><th>Status</th></tr></thead>
+                        <tbody id="ordersBody"></tbody>
+                    </table>
+                </div>
+                <div class="tab-content" id="settings-tab">
+                    <div class="store-card" style="margin-bottom:20px;">
+                        <div class="store-card-header" style="padding:15px;">
+                            <h3 style="margin:0;"><i class="fas fa-mobile-alt"></i> MoMo Payment Setup</h3>
+                        </div>
+                        <div class="store-card-body">
+                            <p style="color:#64748b;margin-bottom:15px;">Add your MoMo number so customers can pay directly. They'll see payment instructions when ordering.</p>
+                            <div class="form-group"><label>MoMo Number *</label><input type="tel" id="momoNumber" placeholder="0241234567" maxlength="10"></div>
+                            <div class="form-group"><label>Name on MoMo</label><input type="text" id="momoName" placeholder="e.g., Kofi Mensah"></div>
+                            <button class="btn btn-primary" onclick="saveMomoSettings()"><i class="fas fa-save"></i> Save Payment Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="storeModal">
+        <div class="modal">
+            <div class="modal-header"><h2 id="modalTitle">Create Store</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>Store Name *</label><input type="text" id="inputName" placeholder="e.g., Kofi's Data Hub"></div>
+                <div class="form-group"><label>Description</label><textarea id="inputDesc" rows="2" placeholder="Best data deals!"></textarea></div>
+                <div class="form-group"><label>Contact Phone</label><input type="tel" id="inputPhone" placeholder="0241234567"></div>
+                <div class="form-group"><label>WhatsApp</label><input type="tel" id="inputWhatsapp" placeholder="0241234567"><small>Customers can message you</small></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="saveStoreBtn" onclick="saveStore()">Create Store</button></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="priceModal">
+        <div class="modal">
+            <div class="modal-header"><h2>Set Selling Price</h2><button class="modal-close" onclick="closePriceModal()">&times;</button></div>
+            <div class="modal-body">
+                <div id="selectedBundleInfo"></div>
+                <div class="form-group"><label>Your Cost Price</label><input type="text" id="priceCost" readonly style="background:#f8fafc;"></div>
+                <div class="form-group"><label>Your Selling Price *</label><input type="number" id="priceSellingInput" step="0.01"><small>Must be ≥ cost. Profit = Selling - Cost</small></div>
+                <div class="form-group"><label>Your Profit per Sale</label><input type="text" id="priceProfit" readonly style="background:#dcfce7;color:#166534;font-weight:600;"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closePriceModal()">Cancel</button><button class="btn btn-primary" onclick="confirmSetPrice()"><i class="fas fa-save"></i> Save Price</button></div>
+        </div>
+    </div>
+    <script>
+        const API='/api';let store=null,products=[],selectedBundle=null,storeOrders=[],currentFilter='all';
+        async function checkAuth(){try{const r=await fetch(API+'/auth/me',{credentials:'include'});return r.ok}catch(e){return false}}
+        function logout(){localStorage.removeItem('currentUser');window.location.href='login.html'}
+        async function api(e,o={}){const r=await fetch(API+e,{...o,credentials:'include',headers:{'Content-Type':'application/json',...o.headers}});return 401===r.status&&logout(),r}
+        async function loadStore(){try{const e=await api('/storefronts'),o=await e.json();document.getElementById('loadingState').style.display='none',0===o.length?(document.getElementById('noStoreState').style.display='block',document.getElementById('createStoreBtn').style.display='inline-flex'):(store=o[0],document.getElementById('noStoreState').style.display='none',document.getElementById('createStoreBtn').style.display='none',document.getElementById('storeContent').style.display='block',renderStore(),loadProducts(),loadOrders())}catch(e){document.getElementById('loadingState').innerHTML='<i class="fas fa-exclamation-triangle" style="color:#ef4444"></i><p>Failed to load</p>'}}
+        function renderStore(){document.getElementById('storeName').textContent=store.name,document.getElementById('storeDesc').textContent=store.description||'',document.getElementById('storeStatus').textContent=store.status,document.getElementById('storeLink').value=window.location.origin+'/store/'+store.slug,document.getElementById('statViews').textContent=store.viewCount||0,document.getElementById('statOrders').textContent=store._count?.orders||store.totalOrders||0,document.getElementById('statProducts').textContent=products.length||'All',document.getElementById('statRevenue').textContent='GHS '+(store.totalRevenue||0).toFixed(2);
+            document.getElementById('momoNumber').value=store.momoNumber||'';document.getElementById('momoName').value=store.momoName||'';
+        }
+        async function loadProducts(){const e=await api('/storefronts/'+store.id+'/products');products=await e.json();
+            // Sort products by dataAmount (ascending)
+            products.sort((a,b)=>{
+                const getGB=str=>{const m=(str||'').match(/(\d+)/);return m?parseInt(m[1]):0;};
+                return getGB(a.bundle.dataAmount)-getGB(b.bundle.dataAmount);
+            });
+            document.getElementById('statProducts').textContent=products.length;renderProducts();}
+        
+        function parseDataAmount(str){const m=(str||'').match(/(\d+)/);return m?parseInt(m[1]):0;}
+        
+        function renderProducts(filter='all'){
+            currentFilter=filter;
+            const container=document.getElementById('productsContainer');
+            const empty=document.getElementById('productsEmpty');
+            const filtered=filter==='all'?products:products.filter(p=>p.bundle.network===filter);
+            
+            if(filtered.length===0){empty.style.display='block';container.innerHTML='';return;}
+            empty.style.display='none';
+            
+            // Group by network
+            const networks=['MTN','TELECEL','AIRTELTIGO'];
+            const grouped={};
+            networks.forEach(n=>grouped[n]=[]);
+            filtered.forEach(p=>{if(grouped[p.bundle.network])grouped[p.bundle.network].push(p);});
+            
+            // Sort each group by dataAmount ascending
+            Object.keys(grouped).forEach(n=>{
+                grouped[n].sort((a,b)=>parseDataAmount(a.bundle.dataAmount)-parseDataAmount(b.bundle.dataAmount));
+            });
+            
+            let html='';
+            networks.forEach(network=>{
+                if(grouped[network].length===0)return;
+                const networkName=network==='TELECEL'?'Telecel':network==='AIRTELTIGO'?'AirtelTigo':network;
+                const color=network==='MTN'?'#ffc107':network==='TELECEL'?'#e60000':'#003366';
+                html+=`<div style="margin-bottom:25px;"><h3 style="color:${color};margin-bottom:12px;padding:10px;background:#f8fafc;border-radius:8px;border-left:4px solid ${color};"><i class="fas fa-signal"></i> ${networkName} Bundles (${grouped[network].length})</h3>`;
+                html+=`<table class="products-table" style="display:table;"><thead><tr><th>Bundle</th><th>Data</th><th>Validity</th><th>Your Cost</th><th>Selling Price</th><th>Profit</th><th>Actions</th></tr></thead><tbody>`;
+                grouped[network].forEach(e=>{
+                    const profit=(e.profit||0).toFixed(2);
+                    const profitColor=parseFloat(profit)>0?'#166534':'#666';
+                    html+=`<tr data-bundle="${e.bundleId}"><td><strong>${e.displayName||e.bundle.name}</strong></td><td>${e.bundle.dataAmount}</td><td>${e.bundle.validity}</td><td>GHS ${e.costPrice.toFixed(2)}</td><td style="font-weight:600;color:#166534;">GHS ${(e.sellingPrice||e.costPrice).toFixed(2)}</td><td><span class="profit-badge" style="background:${parseFloat(profit)>0?'#dcfce7':'#f3f4f6'};color:${profitColor}">GHS ${profit}</span></td><td class="action-btns"><button class="btn-save" onclick="openPriceModal('${e.bundleId}')"><i class="fas fa-edit"></i> Set Price</button></td></tr>`;
+                });
+                html+=`</tbody></table></div>`;
+            });
+            container.innerHTML=html;
+        }
+        
+        async function loadOrders(){try{const e=await api('/storefronts/'+store.id+'/orders');storeOrders=await e.json(),renderOrders()}catch(e){console.error('Failed to load orders:',e)}}
+        function renderOrders(){const e=document.getElementById('ordersBody'),o=document.getElementById('ordersTable'),t=document.getElementById('ordersEmpty');0===storeOrders.length?(o.style.display='none',t.style.display='block'):(o.style.display='table',t.style.display='none',e.innerHTML=storeOrders.map(o=>{const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),s=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444',ps=o.paymentStatus==='PAID'?'#22c55e':'#f59e0b';return'<tr><td>'+d+'</td><td><strong>'+(o.customerName||'Customer')+'</strong><br><small>'+o.customerPhone+'</small></td><td>'+o.bundle.name+'<br><small>'+o.bundle.network+' • '+o.bundle.dataAmount+'</small></td><td>GHS '+o.amount.toFixed(2)+'</td><td><span class="profit-badge">GHS '+o.ownerProfit.toFixed(2)+'</span></td><td><span style="color:'+ps+';font-weight:500">'+(o.paymentStatus||'PENDING')+'</span><br><small>'+(o.paymentReference||'-')+'</small></td><td><span style="color:'+s+';font-weight:600">'+o.status+'</span></td></tr>'}).join(''))}
+        
+        function openPriceModal(bundleId){selectedBundle=products.find(p=>p.bundleId===bundleId);if(!selectedBundle)return;document.getElementById('selectedBundleInfo').innerHTML='<div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:15px"><strong>'+selectedBundle.bundle.name+'</strong><br><small>'+selectedBundle.bundle.network+' • '+selectedBundle.bundle.dataAmount+' • '+selectedBundle.bundle.validity+'</small></div>',document.getElementById('priceCost').value='GHS '+selectedBundle.costPrice.toFixed(2),document.getElementById('priceSellingInput').value=(selectedBundle.sellingPrice||selectedBundle.costPrice).toFixed(2),document.getElementById('priceSellingInput').min=selectedBundle.costPrice,document.getElementById('priceProfit').value='GHS '+(selectedBundle.profit||0).toFixed(2),document.getElementById('priceModal').classList.add('active'),document.getElementById('priceSellingInput').oninput=function(){document.getElementById('priceProfit').value='GHS '+(parseFloat(this.value)-selectedBundle.costPrice).toFixed(2)}}
+        function closePriceModal(){document.getElementById('priceModal').classList.remove('active'),selectedBundle=null}
+        async function confirmSetPrice(){const sellingPrice=parseFloat(document.getElementById('priceSellingInput').value);if(sellingPrice<selectedBundle.costPrice)return alert('Price cannot be less than cost (GHS '+selectedBundle.costPrice.toFixed(2)+')');const btn=document.querySelector('#priceModal .btn-primary');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving...';const r=await api('/storefronts/'+store.id+'/prices/'+selectedBundle.bundleId,{method:'PUT',body:JSON.stringify({sellingPrice})});if(r.ok){closePriceModal();loadProducts();}else{alert((await r.json()).error);}btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Save Price';}
+        
+        async function saveMomoSettings(){const momoNumber=document.getElementById('momoNumber').value.trim(),momoName=document.getElementById('momoName').value.trim();if(!momoNumber)return alert('Please enter your MoMo number');const r=await api('/storefronts/'+store.id,{method:'PUT',body:JSON.stringify({momoNumber,momoName})});if(r.ok){store.momoNumber=momoNumber;store.momoName=momoName;alert('Payment settings saved!');}else{alert((await r.json()).error);}}
+        
+        function openCreateModal(){document.getElementById('modalTitle').textContent='Create Store',document.getElementById('saveStoreBtn').textContent='Create Store',document.getElementById('inputName').value='',document.getElementById('inputDesc').value='',document.getElementById('inputPhone').value='',document.getElementById('inputWhatsapp').value='',document.getElementById('storeModal').classList.add('active')}
+        function openEditModal(){document.getElementById('modalTitle').textContent='Edit Store',document.getElementById('saveStoreBtn').textContent='Save Changes',document.getElementById('inputName').value=store.name||'',document.getElementById('inputDesc').value=store.description||'',document.getElementById('inputPhone').value=store.contactPhone||'',document.getElementById('inputWhatsapp').value=store.contactWhatsapp||'',document.getElementById('storeModal').classList.add('active')}
+        function closeModal(){document.getElementById('storeModal').classList.remove('active')}
+        async function saveStore(){const e={name:document.getElementById('inputName').value.trim(),description:document.getElementById('inputDesc').value.trim(),contactPhone:document.getElementById('inputPhone').value.trim(),contactWhatsapp:document.getElementById('inputWhatsapp').value.trim()};if(!e.name)return alert('Store name required');const o=document.getElementById('saveStoreBtn');o.disabled=!0,o.textContent='Saving...';const t=null!==store,r=await api(t?'/storefronts/'+store.id:'/storefronts',{method:t?'PUT':'POST',body:JSON.stringify(e)}),n=await r.json();r.ok?(closeModal(),t||alert('Store created!\\n\\nYour link:\\n'+window.location.origin+'/store/'+n.slug),loadStore()):alert(n.error),o.disabled=!1,o.textContent=t?'Save Changes':'Create Store'}
+        function copyLink(){navigator.clipboard.writeText(document.getElementById('storeLink').value),alert('Link copied!')}
+        function shareWhatsApp(){window.open('https://wa.me/?text='+encodeURIComponent('Check out my data store! '+document.getElementById('storeLink').value),'_blank')}
+        document.querySelectorAll('.tab').forEach(e=>e.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active')),document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')),e.classList.add('active'),document.getElementById(e.dataset.tab+'-tab').classList.add('active')}));
+        document.getElementById('priceFilter').addEventListener('click',e=>{if(e.target.classList.contains('network-btn')){document.querySelectorAll('#priceFilter .network-btn').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');renderProducts(e.target.dataset.network);}});
+        (async()=>{if(await checkAuth()){loadStore()}else{window.location.href='login.html?redirect=mystore.html'}})();
+    </script>
+</body>
+</html>

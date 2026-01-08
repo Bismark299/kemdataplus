@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KemDataplus Dashboard</title>
+    <link rel="stylesheet" href="./css/dashboard.css">
+    <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="background">
+    <!-- HEADER WITH PROFILE -->
+    <div class="header-container">
+        <header>
+            <div><a href="./dashboard.html"><img src="./img/kem.png" alt="KemDataplus" class="logo"></a></div>
+            <input type="checkbox" id="check-box">
+            <div class="nav-links">
+                <label for="check-box" class="menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </label>
+                <div class="nav-menu">
+                    <div class="links"> 
+                        <a href="./dashboard.html">Dashboard</a>
+                        <a href="./dashboard.html#buy-bundles">Buy Bundles</a>
+                        <a href="../pages/orders.html">Orders</a>
+                        <a href="../pages/wallet.html">Wallet</a>
+                        <a href="../pages/mystore.html">My Store</a>
+                        <a href="../pages/api.html">API</a>
+                        <a href="../pages/profile.html">Profile</a>
+                    </div>
+                </div>
+                <div class="profile-dropdown">
+                    <img src="./img/kem.png" alt="Profile" class="profile-pic" id="profileBtn">
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <a href="../pages/profile.html"><i class="fas fa-user"></i> My Profile</a>
+                        <a href="../pages/profile.html"><i class="fas fa-cog"></i> Settings</a>
+                        <a href="../pages/wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+                        <hr>
+                        <a href="#" onclick="logout(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+                <label for="check-box" class="close-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </label>
+            </div>
+        </header>
+    </div>
+
+    <!-- GREETING MESSAGE WITH PROFILE -->
+    <div class="dashboard-container">
+        <div class="welcome-board">
+            <div class="welcome-header">
+                <img src="./img/kem.png" alt="User" class="user-avatar">
+                <div>
+                    <div class="icons">
+                        <h4><i class="fa-solid fa-sun"></i> <span id="greetingText">Good Morning</span></h4>
+                        <h4><i class="fa-solid fa-star"></i> Rank: <span id="userRank">Premium</span></h4>
+                    </div>
+                    <div class="welcome-text">
+                        <h2>Welcome back, <span id="userName">User</span>!</h2>
+                        <p>Here's a summary of your account activity.</p>
+                    </div>
+                </div>
+            </div>
+        <div class="action-buttons">
+            <button class="log-out" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+        </div>
+    </div>
+    </div>
+
+    <!-- QUICK ACTION CARDS -->
+    <div class="quick-actions">
+        <div class="action-card" onclick="window.location.href='./dashboard.html#buy-bundles'">
+            <i class="fas fa-mobile-alt"></i>
+            <h4>Buy Bundles</h4>
+            <p>Purchase data bundles</p>
+            <span class="card-link">Get Started →</span>
+        </div>
+        <div class="action-card" onclick="window.location.href='../pages/mystore.html'">
+            <i class="fas fa-store"></i>
+            <h4>My Store</h4>
+            <p>Manage your storefront</p>
+            <span class="card-link">Open Store →</span>
+        </div>
+        <div class="action-card" onclick="window.location.href='../pages/orders.html'">
+            <i class="fas fa-list"></i>
+            <h4>View Orders</h4>
+            <p>Check your orders</p>
+            <span class="card-link">View →</span>
+        </div>
+        <div class="action-card" onclick="window.location.href='../pages/wallet.html'">
+            <i class="fas fa-plus-circle"></i>
+            <h4>Add Funds</h4>
+            <p>Top up your wallet</p>
+            <span class="card-link">Add Funds →</span>
+        </div>
+    </div>
+
+    <!-- STATS SECTION -->
+<div class="stats-container">
+    <div class="wallet-bal">
+        <h3><i class="fa-solid fa-wallet"></i></h3>
+        <p id="walletBalance">GHS 0.00</p>
+        <h5>Wallet Balance</h5>
+        <button class="add-funds" onclick="window.location.href='../pages/wallet.html'">Wallet Topup</button>
+    </div>
+    <div class="total-sales">
+        <h3><i class="fa-solid fa-chart-line"></i></h3>
+        <p id="weeklySales">GHS 0.00</p>
+        <h5>Total Sales (Week)</h5>
+        <button class="view-sales" onclick="window.location.href='#buy-bundles'">Place Orders</button>
+    </div>
+    <div class="today-sales">
+        <h3><i class="fa-solid fa-calendar-day"></i></h3>
+        <p id="todaysSales">GHS 0.00</p>
+        <h5>Today's Sales</h5>
+        <button class="view-today-sales" onclick="window.location.href='../pages/orders.html'">View Orders</button>
+    </div>
+    <div class="complete" data-status="completed">
+        <h3><i class="fa-solid fa-check-circle"></i></h3>
+        <p id="completedCount">0</p>
+        <h5>Completed </h5>
+    </div>
+    <div class="processing" data-status="processing">
+        <h3><i class="fa-solid fa-spinner"></i></h3>
+        <p id="processingCount">0</p>
+        <h5>Processing </h5>
+    </div>
+    <div class="pending" data-status="pending">
+        <h3><i class="fa-solid fa-hourglass-half"></i></h3>
+        <p id="pendingCount">0</p>
+        <h5>Pending </h5>
+    </div>
+</div>
+
+</div>
+
+    <!-- BUY BUNDLES SECTION -->
+    <div class="buy-bundles-section" id="buy-bundles">
+        <div class="buy-header">
+            <h2><i class="fas fa-shopping-cart"></i> Buy Data Bundles</h2>
+            <p>Select a network, choose your mode, and add bundles to cart</p>
+        </div>
+
+        <div class="buy-content">
+            <!-- FORM SECTION -->
+            <div class="buy-form">
+                <!-- Network Selection -->
+                <div class="form-section">
+                    <h3>Select Network</h3>
+                    <div class="network-tabs" id="networkTabsContainer">
+                        <!-- Network tabs will be generated dynamically by JS -->
+                        <div class="network-tab active" data-network="MTN">MTN</div>
+                        <div class="network-tab" data-network="Telecel">Telecel</div>
+                        <div class="network-tab" data-network="AirtelTigo">AirtelTigo</div>
+                    </div>
+                    <div class="network-status-indicator" id="networkStatusIndicator" style="display: none;">
+                        <span class="status-dot"></span>
+                        <span class="status-text"></span>
+                    </div>
+                </div>
+
+                <!-- Mode Selection -->
+                <div class="form-section">
+                    <h3>Select Mode</h3>
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="single">📱 Single</button>
+                        <button class="mode-btn" data-mode="bulk">📦 Bulk</button>
+                        <button class="mode-btn" data-mode="excel">📄 Excel</button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Form Content -->
+                <div class="form-section" id="dynamicForm">
+                    <!-- Single Mode -->
+                    <div id="singleMode" class="mode-content show">
+                        <div class="form-group">
+                            <label for="phoneNumber">Phone Number</label>
+                            <input type="tel" id="phoneNumber" placeholder="0240000000" pattern="[0-9]{10}">
+                            <div class="error-msg" id="phoneError"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="bundleSize">Select Bundle Size</label>
+                            <select id="bundleSize">
+                                <option value="">-- Loading Bundles... --</option>
+                                <!-- Bundle options generated dynamically from admin panel -->
+                            </select>
+                            <div class="error-msg" id="bundleError"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bulk Mode -->
+                    <div id="bulkMode" class="mode-content" style="display:none;">
+                        <div class="form-group">
+                            <label for="bulkInput">Enter Phone Numbers with Bundle Sizes</label>
+                            <textarea id="bulkInput" placeholder="Format: Phone Number   Bundle Size&#10;Example:&#10;0555546229 2&#10;555546229 1&#10;0279001234     5&#10;&#10;Phone: 10 digits with 0 OR 9 digits without 0&#10;Supports multiple spaces and new lines"></textarea>
+                            <div class="error-msg" id="bulkError"></div>
+                        </div>
+                        <button class="btn-preview" id="bulkPreviewBtn">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <div class="preview-section" id="bulkPreview" style="display:none;">
+                            <h4 style="color:#024959;margin-bottom:15px;">Preview</h4>
+                            <div class="bulk-summary-stats">
+                                <div class="stat-box">
+                                    <div class="stat-number" id="bulkTotalCount">0</div>
+                                    <div class="stat-label">Total Entries</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number valid" id="bulkValidCount">0</div>
+                                    <div class="stat-label">Valid</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number invalid" id="bulkInvalidCount">0</div>
+                                    <div class="stat-label">Invalid</div>
+                                </div>
+                            </div>
+                            <table class="preview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Phone Number</th>
+                                        <th>Bundle Size</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bulkPreviewTable">
+                                </tbody>
+                            </table>
+                            <button class="btn-add-cart" id="bulkAddToCartBtn">
+                                <i class="fas fa-check-circle"></i> Add Valid Items to Cart
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Excel Mode -->
+                    <div id="excelMode" class="mode-content" style="display:none;">
+                        <!-- File Input Section -->
+                        <div class="excel-upload-card">
+                            <div class="excel-file-input-group">
+                                <input type="file" id="excelFile" accept=".xlsx,.csv" class="excel-file-input">
+                                <label for="excelFile" class="excel-file-label">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span id="fileNameDisplay">Choose Excel File (.xlsx or .csv)</span>
+                                </label>
+                                <button type="button" id="excelUploadBtn" class="excel-upload-button" disabled>
+                                    <i class="fas fa-upload"></i> Upload
+                                </button>
+                            </div>
+                            <small style=\"color:#999;display:block;margin-top:10px;\">\n                                Format: Phone Number | Bundle Size | Quantity (optional)\n                            </small>", "oldString": "                            <small style=\"color:#999;display:block;margin-top:10px;\">\n                                Format: Phone Number | Bundle Size (GB) | Quantity (optional)\n                            </small>
+                            <div class="error-msg" id="excelError"></div>
+                        </div>
+
+                        <!-- Loading Spinner -->
+                        <div id="excelLoading" class="excel-loading" style="display:none;">
+                            <div class="spinner"></div>
+                            <p>Parsing Excel file...</p>
+                        </div>
+
+                        <!-- Preview Section -->
+                        <div id="excelPreviewContainer" class="excel-preview-container" style="display:none;">
+                            <!-- Summary Stats -->
+                            <div class="excel-summary-stats">
+                                <div class="stat-box">
+                                    <div class="stat-number" id="totalNumbers">0</div>
+                                    <div class="stat-label">Total Numbers</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number valid" id="validNumbers">0</div>
+                                    <div class="stat-label">Valid</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number invalid" id="invalidNumbers">0</div>
+                                    <div class="stat-label">Invalid</div>
+                                </div>
+                            </div>
+
+                            <!-- Preview Table -->
+                            <div class="excel-table-wrapper">
+                                <h4 style="color:#024959;margin:0 0 15px 0;">Preview Data</h4>
+                                <table class="excel-preview-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Phone Number</th>
+                                            <th>Bundle Size</th>
+                                            <th>Quantity</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="excelTableBody">
+                                        <!-- Populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Action Button -->
+                            <button class="btn-add-cart-excel" id="addToCartExcelBtn">
+                                <i class="fas fa-check-circle"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Price Display -->
+                <div class="price-display" id="priceDisplay" style="display:none;">
+                    <div class="label">Total Price</div>
+                    <div class="amount" id="totalPrice">GHS 0.00</div>
+                </div>
+
+                <!-- Add to Cart Button -->
+                <button class="btn-add-cart" id="addToCartBtn">
+                    <i class="fas fa-plus-circle"></i> Add to Cart
+                </button>
+            </div>
+
+            <!-- CART SIDEBAR -->
+            <div class="cart-sidebar">
+                <h3><i class="fas fa-shopping-cart"></i> Cart <span id="cartCount">(0)</span></h3>
+                <div id="cartItems">
+                    <div class="empty-cart">Cart is empty</div>
+                </div>
+                <div class="cart-total" id="cartTotal" style="display:none;">
+                    <div class="label">Total</div>
+                    <div class="amount" id="cartTotalAmount">GHS 0.00</div>
+                </div>
+                <div class="cart-buttons">
+                    <button class="btn-checkout" id="checkoutBtn" style="display:none;">Make Payment</button>
+                    <button class="btn-clear-cart" id="clearCartBtn" style="display:none;">
+                        <i class="fas fa-trash"></i> Clear Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-section">
+            <h5>About KemDataplus</h5>
+            <p>Your trusted partner for instant data bundle purchases across all networks.</p>
+        </div>
+        <div class="footer-section">
+            <h5>Quick Links</h5>
+            <ul>
+                <li><a href="./dashboard.html">Dashboard</a></li>
+                <li><a href="../pages/orders.html">Orders</a></li>
+                <li><a href="../pages/api.html">API Documentation</a></li>
+                <li><a href="../pages/profile.html">Contact Support</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h5>Support</h5>
+            <ul>
+                <li><a href="../pages/profile.html">Help Center</a></li>
+                <li><a href="../pages/profile.html">Terms of Service</a></li>
+                <li><a href="../pages/profile.html">Privacy Policy</a></li>
+                <li><a href="../pages/profile.html">Contact Us</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h5>Follow Us</h5>
+            <div class="social-icons">
+                <a href="https://facebook.com"><i class="fab fa-facebook"></i></a>
+                <a href="https://twitter.com"><i class="fab fa-twitter"></i></a>
+                <a href="https://instagram.com"><i class="fab fa-instagram"></i></a>
+                <a href="https://linkedin.com"><i class="fab fa-linkedin"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2025 KemDataplus. All rights reserved. | Designed with <i class="fas fa-heart"></i> by KemDataplus Team</p>
+    </div>
+</footer>
+
+
+<script src="./js/api.js?v=2"></script>
+<script src="./js/dashboard-api.js?v=1"></script>
+<script src="./js/ordersData.js?v=3"></script>
+<script src="./js/dashboard.js?v=2"></script>
+<script>
+    // =====================
+    // AUTH & USER FUNCTIONS
+    // =====================
+    async function logout() {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch (e) {}
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('walletBalance');
+        window.location.replace('../pages/login.html');
+    }
+
+    async function loadUserData() {
+        // Load user from localStorage (set during login)
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const nameEl = document.getElementById('userName');
+        
+        if (nameEl && user.firstName) {
+            nameEl.textContent = user.firstName;
+        }
+        
+        const rankEl = document.getElementById('userRank');
+        if (rankEl && user.role) {
+            // Format role for display
+            const roleDisplay = user.role.replace('_', ' ').toLowerCase()
+                .replace(/\b\w/g, c => c.toUpperCase());
+            rankEl.textContent = roleDisplay;
+        }
+
+        // Set greeting based on time
+        const hour = new Date().getHours();
+        const greetingEl = document.getElementById('greetingText');
+        if (greetingEl) {
+            if (hour < 12) {
+                greetingEl.textContent = 'Good Morning';
+            } else if (hour < 17) {
+                greetingEl.textContent = 'Good Afternoon';
+            } else {
+                greetingEl.textContent = 'Good Evening';
+            }
+        }
+
+        // Initialize dashboard with API data
+        if (typeof DashboardAPI !== 'undefined') {
+            await DashboardAPI.initDashboard();
+        }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', loadUserData);
+</script>
+
+</body>
+</html>

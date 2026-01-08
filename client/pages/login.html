@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - KemDataplus</title>
+  <link rel="stylesheet" href="../public/css/dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #024959 0%, #F2C12E 50%, #593E25 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    .split-card {
+      display: flex;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      overflow: hidden;
+      max-width: 900px;
+      width: 100%;
+      min-height: 520px;
+    }
+    .side-panel {
+      background: linear-gradient(135deg, #024959 0%, #036c7f 100%);
+      color: #fff;
+      width: 40%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      position: relative;
+    }
+    .side-panel h1 {
+      font-size: 2.3rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      letter-spacing: 1px;
+      color: #F2C12E;
+    }
+    .side-panel p {
+      font-size: 1.15rem;
+      margin-bottom: 30px;
+      opacity: 0.95;
+    }
+    .side-panel img {
+      width: 80px;
+      margin-bottom: 18px;
+      border-radius: 50%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      border: 3px solid #F2AE30;
+    }
+    .auth-section {
+      width: 60%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 32px;
+      background: #fff;
+    }
+    .auth-container {
+      width: 100%;
+      max-width: 370px;
+      text-align: center;
+    }
+    .auth-container h2 {
+      color: #024959;
+      margin-bottom: 18px;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+    .auth-container form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .input-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-group i {
+      position: absolute;
+      left: 12px;
+      color: #024959;
+      font-size: 1.1rem;
+      opacity: 0.8;
+    }
+    .auth-container input {
+      padding: 12px 12px 12px 38px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      font-size: 1rem;
+      outline: none;
+      transition: border 0.2s;
+      width: 100%;
+      background: #f9f7f2;
+    }
+    .auth-container input:focus {
+      border-color: #F2AE30;
+      background: #fffef5;
+      box-shadow: 0 0 0 2px rgba(242, 174, 48, 0.2);
+    }
+    .auth-container button {
+      background: linear-gradient(90deg, #024959 0%, #036c7f 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(2, 73, 89, 0.15);
+    }
+    .auth-container button:hover {
+      background: linear-gradient(90deg, #F2AE30 0%, #F2C12E 100%);
+      color: #024959;
+      box-shadow: 0 4px 16px rgba(242, 174, 48, 0.3);
+    }
+    .switch-link {
+      margin-top: 18px;
+      color: #024959;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.98rem;
+      display: inline-block;
+      transition: color 0.2s;
+    }
+    .switch-link:hover {
+      color: #F2AE30;
+    }
+    .error-msg {
+      color: #d32f2f;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      display: none;
+    }
+    @media (max-width: 800px) {
+      .split-card {
+        flex-direction: column;
+        min-height: 0;
+        max-width: 98vw;
+      }
+      .side-panel, .auth-section {
+        width: 100%;
+        min-height: 0;
+        padding: 32px 12px;
+      }
+      .side-panel {
+        border-radius: 18px 18px 0 0;
+      }
+      .auth-section {
+        border-radius: 0 0 18px 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="split-card">
+    <div class="side-panel">
+      <img src="../public/img/kem.png" alt="KemDataplus Logo">
+      <h1>Welcome to KemDataplus</h1>
+      <p>Buy data bundles easily, securely, and instantly.<br>Join us and experience seamless connectivity!</p>
+      <i class="fas fa-wifi" style="font-size:2.5rem;opacity:0.7;"></i>
+    </div>
+    <div class="auth-section">
+      <div class="auth-container" id="loginBox">
+        <h2>Login</h2>
+        <div class="error-msg" id="loginError"></div>
+        <form id="loginForm">
+          <div class="input-group">
+            <i class="fas fa-user"></i>
+            <input type="text" id="loginUsername" placeholder="Username or Email" required>
+          </div>
+          <div class="input-group">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+          </div>
+          <button type="submit"><i class="fas fa-sign-in-alt"></i> Login</button>
+        </form>
+        <a href="/pages/forgot-password.html" style="display: block; text-align: center; margin: 10px 0; color: #F2C12E; font-size: 14px; text-decoration: none;">Forgot Password?</a>
+        <span class="switch-link" onclick="showRegister()">Don't have an account? Create one</span>
+      </div>
+      <div class="auth-container" id="registerBox" style="display:none;">
+        <h2>Create Account</h2>
+        <div class="error-msg" id="registerError"></div>
+        <form id="registerForm">
+          <div class="input-group">
+            <i class="fas fa-user-plus"></i>
+            <input type="text" id="registerUsername" placeholder="Username" required>
+          </div>
+          <div class="input-group">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="registerEmail" placeholder="Email" required>
+          </div>
+          <div class="input-group">
+            <i class="fas fa-phone"></i>
+            <input type="tel" id="registerPhone" placeholder="Phone Number" required>
+          </div>
+          <div class="input-group">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="registerPassword" placeholder="Password" required>
+          </div>
+          <div class="input-group">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="registerConfirm" placeholder="Confirm Password" required>
+          </div>
+          <button type="submit"><i class="fas fa-user-check"></i> Create Account</button>
+        </form>
+        <span class="switch-link" onclick="showLogin()">Already have an account? Login</span>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // =====================
+    // API CONFIGURATION
+    // =====================
+    const API_BASE = window.location.origin + '/api';
+
+    // =====================
+    // AUTH HELPER FUNCTIONS
+    // =====================
+    function setLoggedInUser(user) {
+      // Only store minimal user info for UI display
+      // Token is stored in httpOnly cookie by server
+      localStorage.setItem('currentUser', JSON.stringify({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }));
+    }
+
+    // =====================
+    // SHOW/HIDE FORMS
+    // =====================
+    function showRegister() {
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('registerBox').style.display = 'block';
+      clearErrors();
+    }
+
+    function showLogin() {
+      document.getElementById('registerBox').style.display = 'none';
+      document.getElementById('loginBox').style.display = 'block';
+      clearErrors();
+    }
+
+    function clearErrors() {
+      document.getElementById('loginError').style.display = 'none';
+      document.getElementById('registerError').style.display = 'none';
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+      el.style.background = '#f8d7da';
+      el.style.color = '#721c24';
+      el.style.border = '1px solid #f5c6cb';
+      el.style.padding = '10px';
+      el.style.borderRadius = '6px';
+    }
+
+    function showSuccess(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+      el.style.background = '#d4edda';
+      el.style.color = '#155724';
+      el.style.border = '1px solid #c3e6cb';
+      el.style.padding = '10px';
+      el.style.borderRadius = '6px';
+      el.style.marginBottom = '15px';
+    }
+
+    // =====================
+    // LOGIN HANDLER (API)
+    // =====================
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const submitBtn = this.querySelector('button[type="submit"]');
+
+      if (email === '' || password === '') {
+        showError('loginError', 'Please enter both email and password.');
+        return;
+      }
+
+      // Show loading
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // Important: enables httpOnly cookie
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.user) {
+          setLoggedInUser(data.user);
+          showSuccess('loginError', '✓ Login successful! Redirecting...');
+          
+          // Check for redirect parameter
+          const urlParams = new URLSearchParams(window.location.search);
+          const redirectTo = urlParams.get('redirect');
+          
+          // Redirect based on role - admin goes to admin dashboard, others to client dashboard
+          setTimeout(() => {
+            if (data.user.role === 'ADMIN') {
+              window.location.href = '../admin/dashboard.html';
+            } else if (redirectTo) {
+              window.location.href = redirectTo;
+            } else {
+              window.location.href = '../public/dashboard.html';
+            }
+          }, 1000);
+        } else {
+          showError('loginError', data.error || data.message || 'Invalid credentials. Please try again.');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showError('loginError', 'Connection error. Please check if the server is running.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+      }
+    });
+
+    // =====================
+    // REGISTER HANDLER (API)
+    // =====================
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const name = document.getElementById('registerUsername').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const phone = document.getElementById('registerPhone').value.trim();
+      const password = document.getElementById('registerPassword').value;
+      const confirm = document.getElementById('registerConfirm').value;
+      const submitBtn = this.querySelector('button[type="submit"]');
+
+      // Validation
+      if (name === '' || email === '' || phone === '' || password === '' || confirm === '') {
+        showError('registerError', 'Please fill in all fields.');
+        return;
+      }
+
+      if (name.length < 3) {
+        showError('registerError', 'Name must be at least 3 characters.');
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        showError('registerError', 'Please enter a valid email address.');
+        return;
+      }
+
+      // Accept 9 or 10 digit phone numbers
+      const phoneRegex = /^[0-9]{9,10}$/;
+      if (!phoneRegex.test(phone)) {
+        showError('registerError', 'Please enter a valid 9 or 10-digit phone number.');
+        return;
+      }
+
+      if (password.length < 6) {
+        showError('registerError', 'Password must be at least 6 characters.');
+        return;
+      }
+
+      if (password !== confirm) {
+        showError('registerError', 'Passwords do not match.');
+        return;
+      }
+
+      // Show loading
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name, email, phone, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showSuccess('registerError', '✓ Account created successfully! You can now login.');
+          this.reset();
+          setTimeout(() => {
+            showLogin();
+          }, 2000);
+        } else {
+          showError('registerError', data.message || 'Registration failed. Please try again.');
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        showError('registerError', 'Connection error. Please check if the server is running.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-user-check"></i> Create Account';
+      }
+    });
+
+    // =====================
+    // CHECK IF ALREADY LOGGED IN (via API)
+    // =====================
+    (async function checkAuth() {
+      try {
+        const response = await fetch(`${API_BASE}/auth/me`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const user = await response.json();
+          // Already logged in, redirect
+          if (user.role === 'ADMIN') {
+            window.location.href = '../admin/dashboard.html';
+          } else {
+            window.location.href = '../public/dashboard.html';
+          }
+        }
+      } catch (e) {
+        // Not logged in, stay on login page
+      }
+    })();
+</script>
+</body>
+</html>

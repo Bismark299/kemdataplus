@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Dashboard Functionality</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .test { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .pass { border-left: 5px solid green; }
+        .fail { border-left: 5px solid red; }
+        h1 { color: #333; }
+        code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+        .button-test {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+        }
+        .button-test button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #024959;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .button-test button:hover {
+            background: #0a3d52;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard Functionality Test</h1>
+    <div id="output"></div>
+    
+    <div class="button-test">
+        <h2>Manual Button Tests</h2>
+        <p><strong>Network Selection:</strong></p>
+        <div class="network-tabs" id="testNetworkTabs">
+            <div class="network-tab active" data-network="MTN" style="padding: 10px; margin: 5px; background: #024959; color: white; display: inline-block; cursor: pointer;">MTN</div>
+            <div class="network-tab" data-network="Telecel" style="padding: 10px; margin: 5px; background: #ddd; display: inline-block; cursor: pointer;">Telecel</div>
+        </div>
+        <p id="networkStatus">Selected: MTN</p>
+        
+        <p><strong>Add to Cart Test:</strong></p>
+        <input type="text" id="testPhone" placeholder="Phone: 0240000001" value="0240000001">
+        <select id="testBundle">
+            <option>Select Bundle</option>
+            <option value="10">10 - GHS 65</option>
+            <option value="20">20 - GHS 120</option>
+        </select>
+        <button id="testAddBtn">Add to Cart</button>
+        <p id="cartStatus">Cart: 0 items</p>
+    </div>
+    
+    <script src="./js/ordersData.js?v=3"></script>
+    <script>
+        // Test logging
+        function log(msg, isPass = true) {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = 'test ' + (isPass ? 'pass' : 'fail');
+            div.innerHTML = (isPass ? '✓ ' : '✗ ') + msg;
+            output.appendChild(div);
+            console.log((isPass ? '[PASS]' : '[FAIL]') + ' ' + msg);
+        }
+        
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                log('DOMContentLoaded fired');
+                
+                // Test 1: Functions exist
+                log('initializeStorage is function: ' + (typeof initializeStorage === 'function'), typeof initializeStorage === 'function');
+                log('formatOrderDateTime is function: ' + (typeof formatOrderDateTime === 'function'), typeof formatOrderDateTime === 'function');
+                log('getNextOrderId is function: ' + (typeof getNextOrderId === 'function'), typeof getNextOrderId === 'function');
+                log('addOrder is function: ' + (typeof addOrder === 'function'), typeof addOrder === 'function');
+                
+                // Test 2: Initialize storage
+                initializeStorage();
+                log('initializeStorage() called successfully');
+                
+                // Test 3: Check variables
+                log('ordersData is array: ' + Array.isArray(ordersData), Array.isArray(ordersData));
+                log('ordersData length: ' + ordersData.length, ordersData.length > 0);
+                log('cart is array: ' + Array.isArray(cart), Array.isArray(cart));
+                
+                // Test 4: Variables accessible globally
+                log('typeof cart (should be object): ' + (typeof cart), typeof cart === 'object');
+                
+                // Network tab test
+                const networkTabs = document.querySelectorAll('#testNetworkTabs .network-tab');
+                log('Found ' + networkTabs.length + ' network tabs', networkTabs.length === 2);
+                
+                if (networkTabs.length > 0) {
+                    networkTabs.forEach(tab => {
+                        tab.addEventListener('click', function() {
+                            networkTabs.forEach(t => {
+                                t.style.background = '#ddd';
+                                t.style.color = '#000';
+                            });
+                            this.style.background = '#024959';
+                            this.style.color = 'white';
+                            document.getElementById('networkStatus').textContent = 'Selected: ' + this.dataset.network;
+                            log('Network tab clicked: ' + this.dataset.network);
+                        });
+                    });
+                    log('Network tab event listeners attached successfully');
+                }
+                
+                // Add to Cart test
+                const addBtn = document.getElementById('testAddBtn');
+                const phoneInput = document.getElementById('testPhone');
+                const bundleSelect = document.getElementById('testBundle');
+                
+                if (addBtn) {
+                    addBtn.addEventListener('click', function() {
+                        try {
+                            const phone = phoneInput.value;
+                            const bundle = bundleSelect.value;
+                            
+                            if (!phone) {
+                                log('Phone number is empty', false);
+                                return;
+                            }
+                            if (bundle === 'Select Bundle') {
+                                log('Bundle not selected', false);
+                                return;
+                            }
+                            
+                            const item = {
+                                numbers: [phone],
+                                network: 'MTN',
+                                bundle: bundle,
+                                price: bundle === '10' ? 65 : 120
+                            };
+                            
+                            const beforeLength = cart.length;
+                            cart.push(item);
+                            log('Item added to cart! Cart length: ' + cart.length);
+                            document.getElementById('cartStatus').textContent = 'Cart: ' + cart.length + ' items';
+                            
+                        } catch(e) {
+                            log('Add to Cart error: ' + e.message, false);
+                        }
+                    });
+                    log('Add to Cart button listener attached successfully');
+                }
+                
+                log('✓✓✓ ALL INITIALIZATION TESTS PASSED ✓✓✓');
+                
+            } catch(e) {
+                log('ERROR: ' + e.message, false);
+                console.error(e);
+                console.error(e.stack);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Data Store - KemDataplus</title>
+    <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; min-height: 100vh; }
+        .store-banner { background: linear-gradient(135deg, var(--primary, #024959), var(--accent, #026773)); color: white; padding: 40px 20px; text-align: center; }
+        .store-logo { width: 80px; height: 80px; border-radius: 50%; background: white; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--primary, #024959); }
+        .store-name { font-size: 1.8rem; margin-bottom: 5px; }
+        .store-desc { opacity: 0.9; font-size: 1rem; max-width: 500px; margin: 0 auto; }
+        .store-contact { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .contact-btn { padding: 10px 20px; border-radius: 25px; text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px; transition: transform 0.2s; }
+        .contact-btn:hover { transform: scale(1.05); }
+        .contact-btn.whatsapp { background: #25D366; color: white; }
+        .contact-btn.phone { background: white; color: var(--primary, #024959); }
+        .products-section { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        .products-header { margin-bottom: 20px; }
+        .products-header h2 { color: #1e293b; font-size: 1.4rem; }
+        .network-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .network-tab { padding: 10px 20px; border: 2px solid #e2e8f0; border-radius: 25px; cursor: pointer; background: white; font-weight: 500; transition: all 0.2s; }
+        .network-tab.active { background: var(--primary, #024959); color: white; border-color: var(--primary, #024959); }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .product-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s; }
+        .product-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+        .product-card.out-of-stock { opacity: 0.7; }
+        .product-card.out-of-stock:hover { transform: none; }
+        .product-card.out-of-stock .product-price { color: #9ca3af; }
+        .out-of-stock-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background: #ef4444; color: white; padding: 8px 20px; font-size: 0.9rem; font-weight: 700; border-radius: 4px; z-index: 10; text-transform: uppercase; box-shadow: 0 2px 10px rgba(239,68,68,0.3); }
+        .buy-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .buy-btn:disabled:hover { background: #9ca3af; }
+        .product-network { padding: 8px 15px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .product-network.MTN { background: #ffc107; color: #000; }
+        .product-network.TELECEL { background: #e60000; color: white; }
+        .product-network.AIRTELTIGO { background: #003366; color: white; }
+        .product-body { padding: 20px; }
+        .product-name { font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 5px; }
+        .product-details { color: #64748b; font-size: 0.9rem; margin-bottom: 15px; }
+        .product-price { font-size: 1.5rem; font-weight: 700; color: var(--primary, #024959); margin-bottom: 15px; }
+        .buy-btn { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--primary, #024959); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .buy-btn:hover { background: var(--accent, #026773); }
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+        .empty-state i { font-size: 4rem; color: #e2e8f0; margin-bottom: 20px; }
+        .loading { text-align: center; padding: 60px; }
+        .loading i { font-size: 2rem; color: var(--primary, #024959); }
+        .error-state { text-align: center; padding: 60px 20px; }
+        .error-state i { font-size: 4rem; color: #ef4444; margin-bottom: 20px; }
+        .powered-by { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.85rem; }
+        .powered-by a { color: #024959; text-decoration: none; font-weight: 600; }
+        
+        /* Main Navigation Tabs */
+        .main-tabs { display: flex; justify-content: center; gap: 0; background: white; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+        .main-tab { padding: 15px 30px; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 500; color: #64748b; transition: all 0.2s; border-bottom: 3px solid transparent; }
+        .main-tab:hover { color: var(--primary, #024959); background: #f8fafc; }
+        .main-tab.active { color: var(--primary, #024959); border-bottom-color: var(--primary, #024959); }
+        .main-tab i { margin-right: 8px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Track Orders Section */
+        .track-section { max-width: 600px; margin: 0 auto; padding: 30px 20px; }
+        .track-card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .track-card h2 { color: #1e293b; margin-bottom: 10px; text-align: center; }
+        .track-card h2 i { color: var(--primary, #024959); margin-right: 10px; }
+        .track-form { display: flex; gap: 10px; margin-bottom: 20px; }
+        .track-form input { flex: 1; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+        .track-form input:focus { border-color: var(--primary, #024959); outline: none; }
+        .track-form button { padding: 15px 25px; background: var(--primary, #024959); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; white-space: nowrap; }
+        .track-form button:hover { background: var(--accent, #026773); }
+        .track-info { text-align: center; color: #64748b; padding: 20px; }
+        .track-info i { font-size: 3rem; color: #e2e8f0; margin-bottom: 15px; display: block; }
+        
+        /* Orders List */
+        .orders-list { display: flex; flex-direction: column; gap: 15px; }
+        .order-item { background: #f8fafc; border-radius: 10px; padding: 20px; border-left: 4px solid #e2e8f0; }
+        .order-item.pending { border-left-color: #f59e0b; }
+        .order-item.processing { border-left-color: #3b82f6; }
+        .order-item.completed { border-left-color: #10b981; }
+        .order-item.failed { border-left-color: #ef4444; }
+        .order-item.cancelled { border-left-color: #6b7280; }
+        .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+        .order-id { font-weight: 600; color: #1e293b; }
+        .order-status { padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 600; }
+        .order-status.pending { background: #fef3c7; color: #92400e; }
+        .order-status.processing { background: #dbeafe; color: #1e40af; }
+        .order-status.completed { background: #d1fae5; color: #065f46; }
+        .order-status.failed { background: #fee2e2; color: #991b1b; }
+        .order-status.cancelled { background: #f3f4f6; color: #374151; }
+        .order-details { color: #64748b; font-size: 0.9rem; }
+        .order-details strong { color: #1e293b; }
+        .order-amount { font-size: 1.2rem; font-weight: 600; color: var(--primary, #024959); margin-top: 10px; }
+        .order-date { color: #94a3b8; font-size: 0.85rem; margin-top: 5px; }
+        .status-message { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px; border-radius: 8px; font-size: 0.9rem; }
+        .status-message.pending { background: #fef3c7; color: #92400e; }
+        .status-message.processing { background: #dbeafe; color: #1e40af; }
+        .status-message.completed { background: #d1fae5; color: #065f46; }
+        .status-message.failed { background: #fee2e2; color: #991b1b; }
+        
+        /* Account Section */
+        .account-section { max-width: 600px; margin: 0 auto; padding: 30px 20px; }
+        .account-card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .account-card h2 { color: #1e293b; margin-bottom: 20px; text-align: center; }
+        .account-card h2 i { color: var(--primary, #024959); margin-right: 10px; }
+        .auth-tabs { display: flex; margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 2px solid #e2e8f0; }
+        .auth-tab { flex: 1; padding: 12px; border: none; background: white; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .auth-tab.active { background: var(--primary, #024959); color: white; }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        .auth-form .form-group input { border: 2px solid #e2e8f0; }
+        .auth-form .form-group input:focus { border-color: var(--primary, #024959); outline: none; }
+        .auth-btn { width: 100%; padding: 15px; background: var(--primary, #024959); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .auth-btn:hover { background: var(--accent, #026773); }
+        .auth-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; }
+        .profile-avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--primary, #024959); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .profile-info h3 { color: #1e293b; margin-bottom: 5px; }
+        .profile-info p { color: #64748b; font-size: 0.9rem; }
+        .profile-menu { display: flex; flex-direction: column; gap: 10px; }
+        .profile-menu-item { display: flex; align-items: center; gap: 15px; padding: 15px; background: #f8fafc; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: none; width: 100%; text-align: left; font-size: 1rem; }
+        .profile-menu-item:hover { background: #e2e8f0; }
+        .profile-menu-item i { width: 20px; color: var(--primary, #024959); }
+        .profile-menu-item.logout { color: #ef4444; }
+        .profile-menu-item.logout i { color: #ef4444; }
+        .order-store { font-size: 0.8rem; color: #64748b; margin-top: 3px; }
+        
+        /* Dashboard Stats */
+        .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: linear-gradient(135deg, var(--primary, #024959), var(--accent, #026773)); color: white; border-radius: 12px; padding: 20px; text-align: center; }
+        .stat-card i { font-size: 1.5rem; margin-bottom: 8px; opacity: 0.8; }
+        .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; margin-bottom: 5px; }
+        .stat-card .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        
+        /* Dashboard Sections */
+        .dashboard-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .dashboard-section h3 { color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .dashboard-section h3 i { color: var(--primary, #024959); }
+        .section-empty { text-align: center; padding: 30px; color: #94a3b8; }
+        .section-empty i { font-size: 2rem; margin-bottom: 10px; display: block; }
+        
+        /* Quick Reorder */
+        .quick-reorder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .reorder-card { background: #f8fafc; border-radius: 10px; padding: 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+        .reorder-card:hover { border-color: var(--primary, #024959); background: white; }
+        .reorder-icon { width: 45px; height: 45px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
+        .reorder-icon.MTN { background: #ffc107; color: #000; }
+        .reorder-icon.TELECEL { background: #e60000; color: white; }
+        .reorder-icon.AIRTELTIGO { background: #003366; color: white; }
+        .reorder-info { flex: 1; }
+        .reorder-name { font-weight: 600; color: #1e293b; font-size: 0.95rem; }
+        .reorder-details { font-size: 0.8rem; color: #64748b; }
+        .reorder-price { font-weight: 700; color: var(--primary, #024959); }
+        
+        /* Favorites */
+        .favorite-btn { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 50%; background: white; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 10; }
+        .favorite-btn:hover { transform: scale(1.1); }
+        .favorite-btn i { color: #e2e8f0; font-size: 1rem; transition: all 0.2s; }
+        .favorite-btn.active i { color: #ef4444; }
+        .product-card { position: relative; }
+        
+        /* Favorites Grid */
+        .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .favorite-item { background: #f8fafc; border-radius: 10px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .favorite-item:hover { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .favorite-item .fav-network { font-size: 0.7rem; font-weight: 600; padding: 4px 10px; border-radius: 10px; display: inline-block; margin-bottom: 8px; }
+        .favorite-item .fav-network.MTN { background: #ffc107; color: #000; }
+        .favorite-item .fav-network.TELECEL { background: #e60000; color: white; }
+        .favorite-item .fav-network.AIRTELTIGO { background: #003366; color: white; }
+        .favorite-item .fav-name { font-weight: 600; color: #1e293b; margin-bottom: 5px; }
+        .favorite-item .fav-price { color: var(--primary, #024959); font-weight: 700; }
+        .remove-fav { position: absolute; top: 5px; right: 5px; background: none; border: none; color: #94a3b8; cursor: pointer; }
+        .remove-fav:hover { color: #ef4444; }
+        
+        /* Recent Orders Mini */
+        .recent-order { display: flex; align-items: center; gap: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 10px; }
+        .recent-order:last-child { margin-bottom: 0; }
+        .recent-order-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .recent-order-status.completed { background: #10b981; }
+        .recent-order-status.pending { background: #f59e0b; }
+        .recent-order-status.processing { background: #3b82f6; }
+        .recent-order-status.failed { background: #ef4444; }
+        .recent-order-info { flex: 1; }
+        .recent-order-bundle { font-weight: 600; color: #1e293b; font-size: 0.95rem; }
+        .recent-order-meta { font-size: 0.8rem; color: #64748b; }
+        .recent-order-amount { font-weight: 600; color: var(--primary, #024959); }
+        
+        /* Welcome Banner */
+        .welcome-banner { background: linear-gradient(135deg, var(--primary, #024959), var(--accent, #026773)); border-radius: 12px; padding: 25px; color: white; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+        .welcome-text h2 { margin-bottom: 5px; font-size: 1.4rem; }
+        .welcome-text p { opacity: 0.9; }
+        .welcome-actions { display: flex; gap: 10px; }
+        .welcome-btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .welcome-btn.primary { background: white; color: var(--primary, #024959); }
+        .welcome-btn.secondary { background: rgba(255,255,255,0.2); color: white; }
+        .welcome-btn:hover { transform: translateY(-2px); }
+        
+        /* View All Link */
+        .view-all { color: var(--primary, #024959); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+        .view-all:hover { text-decoration: underline; }
+        
+        /* Login Required Gate - Landing Page */
+        .login-gate { max-width: 500px; margin: 40px auto; padding: 20px; text-align: center; }
+        .login-gate-card { background: white; border-radius: 16px; padding: 40px 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .login-gate-icon { width: 90px; height: 90px; margin: 0 auto 20px; background: linear-gradient(135deg, var(--primary, #024959), var(--accent, #026773)); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .login-gate-icon i { font-size: 2.2rem; color: white; }
+        .login-gate h2 { color: #1e293b; margin-bottom: 10px; font-size: 1.5rem; }
+        .login-gate p { color: #64748b; margin-bottom: 25px; line-height: 1.6; }
+        .login-gate-features { display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; text-align: left; }
+        .login-gate-feature { display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: #f8fafc; border-radius: 10px; }
+        .login-gate-feature i { color: var(--primary, #024959); font-size: 1rem; width: 20px; }
+        .login-gate-feature span { color: #475569; font-size: 0.9rem; }
+        .login-gate-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 30px; background: linear-gradient(135deg, var(--primary, #024959), var(--accent, #026773)); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(2, 73, 89, 0.3); }
+        .login-gate-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(2, 73, 89, 0.4); }
+        .login-gate-divider { display: flex; align-items: center; gap: 15px; margin: 20px 0; color: #94a3b8; font-size: 0.85rem; }
+        .login-gate-divider::before, .login-gate-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+        .login-gate-register { color: #64748b; font-size: 0.9rem; }
+        .login-gate-register a { color: var(--primary, #024959); text-decoration: none; font-weight: 600; }
+        .login-gate-register a:hover { text-decoration: underline; }
+        
+        /* Main navigation hidden when logged out */
+        .main-tabs.hidden { display: none; }
+        
+        /* Auth landing page section */
+        .auth-landing { display: block; }
+        .auth-landing.hidden { display: none; }
+        
+        /* Logged in content */
+        .logged-in-content { display: none; }
+        .logged-in-content.active { display: block; }
+        
+        /* User indicator in header */
+        .user-indicator { position: absolute; right: 20px; top: 20px; display: flex; align-items: center; gap: 10px; }
+        .user-btn { padding: 8px 15px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .user-btn:hover { background: rgba(255,255,255,0.2); }
+        .store-banner { position: relative; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; max-width: 400px; width: 100%; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #e2e8f0; }
+        .modal-header h3 { margin: 0; color: #1e293b; }
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #475569; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+        .modal-footer { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
+        .modal-footer button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+        .btn-cancel { background: #e2e8f0; color: #475569; }
+        .btn-order { background: var(--primary, #024959); color: white; }
+        @media (max-width: 600px) { .store-name { font-size: 1.4rem; } .products-grid { grid-template-columns: 1fr; } .main-tab { padding: 12px 15px; font-size: 0.9rem; } .main-tab span { display: none; } .track-form { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading store...</p></div>
+    <div id="errorState" class="error-state" style="display:none;"><i class="fas fa-store-slash"></i><h2>Store Not Found</h2><p>This store doesn't exist or has been disabled.</p></div>
+    <div id="storeContent" style="display:none;">
+        <div class="store-banner" id="storeBanner">
+            <div class="store-logo" id="storeLogo"><i class="fas fa-store"></i></div>
+            <h1 class="store-name" id="storeName">Data Store</h1>
+            <p class="store-desc" id="storeDesc"></p>
+            <div class="store-contact" id="storeContact"></div>
+        </div>
+        
+        <!-- Auth Landing Page (shown when NOT logged in) -->
+        <div id="authLanding" class="auth-landing">
+            <div class="login-gate">
+                <div class="login-gate-card">
+                    <div class="login-gate-icon">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <h2>Welcome to Our Store</h2>
+                    <p>Login or create an account to browse data bundles and make purchases.</p>
+                    <div class="login-gate-features">
+                        <div class="login-gate-feature">
+                            <i class="fas fa-tags"></i>
+                            <span>Access exclusive bundle prices</span>
+                        </div>
+                        <div class="login-gate-feature">
+                            <i class="fas fa-bolt"></i>
+                            <span>Fast & instant data delivery</span>
+                        </div>
+                        <div class="login-gate-feature">
+                            <i class="fas fa-history"></i>
+                            <span>Track all your orders easily</span>
+                        </div>
+                        <div class="login-gate-feature">
+                            <i class="fas fa-heart"></i>
+                            <span>Save your favorite bundles</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Embedded Auth Forms -->
+                    <div class="auth-tabs" style="margin-top: 25px;">
+                        <button class="auth-tab active" onclick="showLandingAuthForm('login')">Login</button>
+                        <button class="auth-tab" onclick="showLandingAuthForm('register')">Register</button>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <div id="landingLoginForm" class="auth-form active" style="text-align: left; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" id="landingLoginPhone" placeholder="0241234567" maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>PIN (4-6 digits)</label>
+                            <input type="password" id="landingLoginPin" placeholder="****" maxlength="6">
+                        </div>
+                        <button class="auth-btn" onclick="loginFromLanding()"><i class="fas fa-sign-in-alt"></i> Login</button>
+                    </div>
+                    
+                    <!-- Register Form -->
+                    <div id="landingRegisterForm" class="auth-form" style="text-align: left; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Phone Number *</label>
+                            <input type="tel" id="landingRegisterPhone" placeholder="0241234567" maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>Your Name (optional)</label>
+                            <input type="text" id="landingRegisterName" placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label>Create PIN (4-6 digits) *</label>
+                            <input type="password" id="landingRegisterPin" placeholder="****" maxlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm PIN *</label>
+                            <input type="password" id="landingRegisterPinConfirm" placeholder="****" maxlength="6">
+                        </div>
+                        <button class="auth-btn" onclick="registerFromLanding()"><i class="fas fa-user-plus"></i> Create Account</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Navigation Tabs (shown only when logged in) -->
+        <div class="main-tabs hidden" id="mainTabs">
+            <button class="main-tab active" onclick="showTab('products')"><i class="fas fa-box"></i> <span>Products</span></button>
+            <button class="main-tab" onclick="showTab('track')"><i class="fas fa-search"></i> <span>Track Order</span></button>
+            <button class="main-tab" onclick="showTab('account')" id="accountTab"><i class="fas fa-user"></i> <span id="accountTabText">Account</span></button>
+        </div>
+        
+        <!-- Logged In Content Container -->
+        <div id="loggedInContent" class="logged-in-content">
+        
+        <!-- Products Tab -->
+        <div id="productsTab" class="tab-content active">
+            <div id="productsContent" class="products-section">
+                <div class="products-header"><h2><i class="fas fa-box"></i> Available Bundles</h2></div>
+                <div class="network-tabs" id="networkTabs"></div>
+                <div id="productsEmpty" class="empty-state" style="display:none;"><i class="fas fa-box-open"></i><h3>No Products Available</h3><p>Check back later for available bundles.</p></div>
+                <div class="products-grid" id="productsGrid"></div>
+            </div>
+        </div>
+        
+        <!-- Track Order Tab (inside logged in content) -->
+        <div id="trackTab" class="tab-content">
+            <div class="track-section">
+                <div class="track-card">
+                    <h2><i class="fas fa-search-location"></i> Track Your Order</h2>
+                    <p style="text-align:center;color:#64748b;margin-bottom:20px;">Enter the phone number you used when placing your order</p>
+                    <div class="track-form">
+                        <input type="tel" id="trackPhone" placeholder="e.g. 0241234567" maxlength="10">
+                        <button onclick="trackOrders()"><i class="fas fa-search"></i> Track</button>
+                    </div>
+                    <div id="trackResults">
+                        <div class="track-info">
+                            <i class="fas fa-receipt"></i>
+                            <h3>Your Orders Will Appear Here</h3>
+                            <p>Enter your phone number and click Track to see your order history</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Tab -->
+        <div id="accountTabContent" class="tab-content">
+            <!-- Not Logged In View -->
+            <div id="authView" class="account-section">
+                <div class="account-card">
+                    <h2><i class="fas fa-user-circle"></i> My Account</h2>
+                    <p style="text-align:center;color:#64748b;margin-bottom:20px;">Create an account to easily track all your orders</p>
+                    
+                    <div class="auth-tabs">
+                        <button class="auth-tab active" onclick="showAuthForm('login')">Login</button>
+                        <button class="auth-tab" onclick="showAuthForm('register')">Register</button>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <div id="loginForm" class="auth-form active">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" id="loginPhone" placeholder="0241234567" maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>PIN (4-6 digits)</label>
+                            <input type="password" id="loginPin" placeholder="****" maxlength="6">
+                        </div>
+                        <button class="auth-btn" onclick="loginCustomer()"><i class="fas fa-sign-in-alt"></i> Login</button>
+                    </div>
+                    
+                    <!-- Register Form -->
+                    <div id="registerForm" class="auth-form">
+                        <div class="form-group">
+                            <label>Phone Number *</label>
+                            <input type="tel" id="registerPhone" placeholder="0241234567" maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>Your Name (optional)</label>
+                            <input type="text" id="registerName" placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label>Create PIN (4-6 digits) *</label>
+                            <input type="password" id="registerPin" placeholder="****" maxlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm PIN *</label>
+                            <input type="password" id="registerPinConfirm" placeholder="****" maxlength="6">
+                        </div>
+                        <button class="auth-btn" onclick="registerCustomer()"><i class="fas fa-user-plus"></i> Create Account</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logged In View - Dashboard -->
+            <div id="profileView" class="account-section" style="display:none; max-width: 900px;">
+                <!-- Welcome Banner -->
+                <div class="welcome-banner" id="welcomeBanner">
+                    <div class="welcome-text">
+                        <h2>👋 Welcome back, <span id="welcomeName">Customer</span>!</h2>
+                        <p>View your orders, favorites, and manage your account</p>
+                    </div>
+                    <div class="welcome-actions">
+                        <button class="welcome-btn primary" onclick="showTab('products')"><i class="fas fa-shopping-cart"></i> Shop Now</button>
+                        <button class="welcome-btn secondary" onclick="logoutCustomer()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                    </div>
+                </div>
+                
+                <!-- Stats Cards -->
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-receipt"></i>
+                        <div class="stat-value" id="statTotalOrders">0</div>
+                        <div class="stat-label">Total Orders</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-wallet"></i>
+                        <div class="stat-value" id="statTotalSpent">GHS 0</div>
+                        <div class="stat-label">Total Spent</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-heart"></i>
+                        <div class="stat-value" id="statFavorites">0</div>
+                        <div class="stat-label">Favorites</div>
+                    </div>
+                </div>
+                
+                <!-- Quick Reorder Section -->
+                <div class="dashboard-section" id="quickReorderSection">
+                    <h3><i class="fas fa-redo"></i> Quick Reorder</h3>
+                    <div id="quickReorderGrid" class="quick-reorder-grid">
+                        <div class="section-empty">
+                            <i class="fas fa-history"></i>
+                            <p>Your recently purchased bundles will appear here</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- My Favorites Section -->
+                <div class="dashboard-section" id="favoritesSection">
+                    <h3 style="justify-content: space-between;"><span><i class="fas fa-heart"></i> My Favorites</span></h3>
+                    <div id="favoritesGrid" class="favorites-grid">
+                        <div class="section-empty">
+                            <i class="fas fa-heart"></i>
+                            <p>Tap the heart icon on products to add favorites</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Orders Section -->
+                <div class="dashboard-section">
+                    <h3 style="justify-content: space-between;">
+                        <span><i class="fas fa-clock"></i> Recent Orders</span>
+                        <a href="#" class="view-all" onclick="showAllOrders(); return false;">View All</a>
+                    </h3>
+                    <div id="recentOrdersList">
+                        <div class="section-empty">
+                            <i class="fas fa-inbox"></i>
+                            <p>No orders yet</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Account Settings -->
+                <div class="dashboard-section">
+                    <h3><i class="fas fa-cog"></i> Account Settings</h3>
+                    <div class="profile-menu">
+                        <button class="profile-menu-item" onclick="showEditProfile()">
+                            <i class="fas fa-user-edit"></i>
+                            <span>Edit Profile</span>
+                        </button>
+                        <button class="profile-menu-item" onclick="showChangePin()">
+                            <i class="fas fa-key"></i>
+                            <span>Change PIN</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- All Orders Section (hidden by default) -->
+                <div id="myOrdersSection" class="dashboard-section" style="display:none;">
+                    <h3 style="justify-content: space-between;">
+                        <span><i class="fas fa-receipt"></i> All Orders</span>
+                        <a href="#" class="view-all" onclick="hideAllOrders(); return false;">← Back</a>
+                    </h3>
+                    <div id="myOrdersList"></div>
+                </div>
+                
+                <!-- Edit Profile Section -->
+                <div id="editProfileSection" class="dashboard-section" style="display:none;">
+                    <h3><i class="fas fa-user-edit"></i> Edit Profile</h3>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="editName" placeholder="Your name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email (optional)</label>
+                        <input type="email" id="editEmail" placeholder="email@example.com">
+                    </div>
+                    <button class="auth-btn" onclick="saveProfile()"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+                
+                <!-- Change PIN Section -->
+                <div id="changePinSection" class="dashboard-section" style="display:none;">
+                    <h3><i class="fas fa-key"></i> Change PIN</h3>
+                    <div class="form-group">
+                        <label>Current PIN</label>
+                        <input type="password" id="currentPin" placeholder="****" maxlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>New PIN (4-6 digits)</label>
+                        <input type="password" id="newPin" placeholder="****" maxlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm New PIN</label>
+                        <input type="password" id="confirmNewPin" placeholder="****" maxlength="6">
+                    </div>
+                    <button class="auth-btn" onclick="changePin()"><i class="fas fa-save"></i> Change PIN</button>
+                </div>
+            </div>
+        </div>
+        
+        </div><!-- End of loggedInContent -->
+        
+        <div class="powered-by">Powered by <a href="/">KemDataplus</a></div>
+    </div>
+    <div class="modal-overlay" id="orderModal">
+        <div class="modal">
+            <div class="modal-header"><h3>Order Bundle</h3></div>
+            <div class="modal-body">
+                <div id="orderBundleInfo" style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:15px;"></div>
+                <div class="form-group"><label>Your Name (optional)</label><input type="text" id="orderName" placeholder="John Doe"></div>
+                <div class="form-group"><label>Phone Number (to receive data) *</label><input type="tel" id="orderPhone" placeholder="0241234567" maxlength="10"></div>
+                
+                <!-- Payment Instructions -->
+                <div id="paymentInstructions" style="background:#fef9c3;padding:15px;border-radius:8px;margin-bottom:15px;display:none;">
+                    <h4 style="color:#854d0e;margin-bottom:8px;"><i class="fas fa-mobile-alt"></i> Payment Instructions</h4>
+                    <p style="color:#854d0e;font-size:0.9rem;margin-bottom:10px;">Send <strong id="paymentAmountText">GHS 0.00</strong> to:</p>
+                    <div style="background:white;padding:10px;border-radius:5px;margin-bottom:10px;">
+                        <p style="font-weight:600;font-size:1.1rem;" id="momoNumberDisplay">-</p>
+                        <p style="color:#666;font-size:0.9rem;" id="momoNameDisplay">-</p>
+                    </div>
+                    <p style="color:#854d0e;font-size:0.85rem;">After payment, enter the reference below and click "Confirm Order"</p>
+                </div>
+                
+                <div class="form-group" id="paymentRefGroup" style="display:none;">
+                    <label>MoMo Reference / Transaction ID *</label>
+                    <input type="text" id="paymentReference" placeholder="Enter MoMo reference">
+                </div>
+                
+                <div class="form-group"><label>Amount to Pay</label><input type="text" id="orderAmount" readonly style="background:#f8fafc;font-weight:600;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeOrderModal()">Cancel</button>
+                <button class="btn-order" onclick="submitOrder()"><i class="fas fa-shopping-cart"></i> Confirm Order</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let storeData = null;
+        let products = [];
+        let selectedProduct = null;
+        let customerOrders = [];
+        let currentCustomer = null; // Logged in customer
+        let customerFavorites = []; // Customer's favorite bundle IDs
+
+        // Get slug from URL
+        const pathParts = window.location.pathname.split('/');
+        const slug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+
+        // Tab Navigation
+        function showTab(tab) {
+            document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`.main-tab[onclick="showTab('${tab}')"]`).classList.add('active');
+            
+            // Handle account tab special naming
+            if (tab === 'account') {
+                document.getElementById('accountTabContent').classList.add('active');
+            } else {
+                document.getElementById(tab + 'Tab').classList.add('active');
+            }
+        }
+
+        async function loadStore() {
+            try {
+                const res = await fetch(`/api/store/${slug}`);
+                if (!res.ok) throw new Error('Not found');
+                storeData = await res.json();
+                
+                // Set theme colors
+                document.documentElement.style.setProperty('--primary', storeData.primaryColor || '#024959');
+                document.documentElement.style.setProperty('--accent', storeData.accentColor || '#026773');
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('storeContent').style.display = 'block';
+                
+                renderStore();
+                loadProducts();
+            } catch (e) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+            }
+        }
+
+        function renderStore() {
+            document.getElementById('pageTitle').textContent = storeData.name + ' - Data Store';
+            document.getElementById('storeName').textContent = storeData.name;
+            document.getElementById('storeDesc').textContent = storeData.description || '';
+            
+            // Contact buttons
+            let contactHtml = '';
+            if (storeData.contactWhatsapp || storeData.owner?.phone) {
+                const wa = storeData.contactWhatsapp || storeData.owner?.phone;
+                contactHtml += `<a href="https://wa.me/233${wa.replace(/^0/, '')}" class="contact-btn whatsapp" target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+            }
+            if (storeData.contactPhone || storeData.owner?.phone) {
+                const ph = storeData.contactPhone || storeData.owner?.phone;
+                contactHtml += `<a href="tel:${ph}" class="contact-btn phone"><i class="fas fa-phone"></i> Call</a>`;
+            }
+            document.getElementById('storeContact').innerHTML = contactHtml;
+        }
+
+        async function loadProducts() {
+            try {
+                const res = await fetch(`/api/store/${slug}/products`);
+                products = await res.json();
+                // Sort by dataAmount ascending
+                products.sort((a,b) => {
+                    const getGB = str => { const m = (str||'').match(/(\d+)/); return m ? parseInt(m[1]) : 0; };
+                    return getGB(a.bundle.dataAmount) - getGB(b.bundle.dataAmount);
+                });
+                renderProducts();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function getNetworkDisplayName(network) {
+            if (network === 'TELECEL') return 'Telecel';
+            if (network === 'AIRTELTIGO') return 'AirtelTigo';
+            return network;
+        }
+
+        function renderProducts(filter = 'all') {
+            const grid = document.getElementById('productsGrid');
+            const empty = document.getElementById('productsEmpty');
+            const tabs = document.getElementById('networkTabs');
+
+            if (products.length === 0) {
+                empty.style.display = 'block';
+                grid.style.display = 'none';
+                tabs.style.display = 'none';
+                return;
+            }
+
+            // Get unique networks
+            const networks = [...new Set(products.map(p => p.bundle.network))];
+            tabs.innerHTML = `<button class="network-tab ${filter === 'all' ? 'active' : ''}" onclick="renderProducts('all')">All Networks</button>` +
+                networks.map(n => `<button class="network-tab ${filter === n ? 'active' : ''}" onclick="renderProducts('${n}')">${getNetworkDisplayName(n)}</button>`).join('');
+
+            const filtered = filter === 'all' ? products : products.filter(p => p.bundle.network === filter);
+            
+            // Sort filtered products by dataAmount
+            filtered.sort((a,b) => {
+                const getGB = str => { const m = (str||'').match(/(\d+)/); return m ? parseInt(m[1]) : 0; };
+                return getGB(a.bundle.dataAmount) - getGB(b.bundle.dataAmount);
+            });
+
+            grid.innerHTML = filtered.map(p => {
+                const isFavorite = customerFavorites.includes(p.bundleId || p.bundle?.id || p.id);
+                const isOutOfStock = p.outOfStock || !p.bundle?.isActive;
+                return `
+                <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}">
+                    ${currentCustomer ? `<button class="favorite-btn ${isFavorite ? 'active' : ''}" onclick="toggleFavorite('${p.bundleId || p.bundle?.id || p.id}', event)" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}"><i class="fas fa-heart"></i></button>` : ''}
+                    <div class="product-network ${p.bundle.network}">${getNetworkDisplayName(p.bundle.network)}</div>
+                    ${isOutOfStock ? '<div class="out-of-stock-badge">OUT OF STOCK</div>' : ''}
+                    <div class="product-body">
+                        <div class="product-name">${p.displayName || p.bundle.name}</div>
+                        <div class="product-details">${p.bundle.dataAmount} • ${p.bundle.validity}</div>
+                        <div class="product-price">GHS ${p.price.toFixed(2)}</div>
+                        <button class="buy-btn" ${isOutOfStock ? 'disabled' : ''} onclick="openOrder('${p.bundleId || p.id}')"><i class="fas fa-shopping-cart"></i> ${isOutOfStock ? 'Unavailable' : 'Buy Now'}</button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function openOrder(productId) {
+            selectedProduct = products.find(p => p.id === productId || p.bundleId === productId);
+            document.getElementById('orderBundleInfo').innerHTML = `
+                <strong>${selectedProduct.displayName || selectedProduct.bundle.name}</strong><br>
+                <small>${selectedProduct.bundle.network} • ${selectedProduct.bundle.dataAmount}GB • ${selectedProduct.bundle.validity}</small>
+            `;
+            document.getElementById('orderAmount').value = `GHS ${selectedProduct.price.toFixed(2)}`;
+            document.getElementById('orderPhone').value = '';
+            document.getElementById('paymentReference').value = '';
+            
+            // Show payment instructions if store has MoMo number
+            const paymentInstructions = document.getElementById('paymentInstructions');
+            const paymentRefGroup = document.getElementById('paymentRefGroup');
+            
+            if (storeData.momoNumber) {
+                paymentInstructions.style.display = 'block';
+                paymentRefGroup.style.display = 'block';
+                document.getElementById('paymentAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
+                document.getElementById('momoNumberDisplay').textContent = storeData.momoNumber;
+                document.getElementById('momoNameDisplay').textContent = storeData.momoName || 'Mobile Money';
+            } else {
+                paymentInstructions.style.display = 'none';
+                paymentRefGroup.style.display = 'none';
+            }
+            
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.remove('active');
+            selectedProduct = null;
+        }
+
+        async function submitOrder() {
+            const phone = document.getElementById('orderPhone').value.trim();
+            const name = document.getElementById('orderName')?.value?.trim() || '';
+            const paymentReference = document.getElementById('paymentReference')?.value?.trim() || '';
+            
+            if (!phone || phone.length < 9) {
+                alert('Please enter a valid phone number');
+                return;
+            }
+
+            // If store has MoMo, require payment reference
+            if (storeData.momoNumber && !paymentReference) {
+                alert('Please enter the MoMo transaction reference after making payment');
+                return;
+            }
+
+            const submitBtn = document.querySelector('.btn-order');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                // Place order via API with bundleId
+                const res = await fetch(`/api/store/${slug}/order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bundleId: selectedProduct.bundleId || selectedProduct.bundle.id,
+                        phone: phone,
+                        name: name,
+                        paymentReference: paymentReference || null
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    closeOrderModal();
+                    showSuccessModal(data);
+                } else {
+                    alert(data.error || 'Order failed. Please try again.');
+                }
+            } catch (e) {
+                console.error('Order error:', e);
+                // Fallback to WhatsApp if API fails
+                const wa = storeData.contactWhatsapp || storeData.owner?.phone;
+                if (wa) {
+                    const msg = encodeURIComponent(
+                        `Hi! I want to order:\n\n` +
+                        `Bundle: ${selectedProduct.displayName || selectedProduct.bundle.name}\n` +
+                        `Data: ${selectedProduct.bundle.dataAmount}GB\n` +
+                        `Price: GHS ${selectedProduct.price.toFixed(2)}\n` +
+                        `Phone: ${phone}\n` +
+                        (paymentReference ? `Payment Ref: ${paymentReference}\n` : '') +
+                        `\nFrom: ${storeData.name}`
+                    );
+                    window.open(`https://wa.me/233${wa.replace(/^0/, '')}?text=${msg}`, '_blank');
+                    closeOrderModal();
+                } else {
+                    alert('Order failed. Please try again.');
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Confirm Order';
+            }
+        }
+
+        function showSuccessModal(orderData) {
+            const successHtml = `
+                <div class="modal-overlay active" id="successModal" onclick="closeSuccessModal(event)">
+                    <div class="modal" onclick="event.stopPropagation()">
+                        <div style="text-align:center; padding:30px;">
+                            <div style="width:80px;height:80px;background:#10b981;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-check" style="font-size:2rem;color:white;"></i>
+                            </div>
+                            <h2 style="color:#1e293b;margin-bottom:10px;">Order Placed!</h2>
+                            <p style="color:#64748b;margin-bottom:20px;">${orderData.message}</p>
+                            <div style="background:#f8fafc;padding:15px;border-radius:8px;text-align:left;margin-bottom:20px;">
+                                <p><strong>Bundle:</strong> ${orderData.order.bundle}</p>
+                                <p><strong>Phone:</strong> ${orderData.order.phone}</p>
+                                <p><strong>Amount:</strong> GHS ${orderData.order.amount.toFixed(2)}</p>
+                                <p><strong>Reference:</strong> ${orderData.order.orderId.slice(0,8).toUpperCase()}</p>
+                            </div>
+                            <p style="color:#64748b;font-size:0.9rem;margin-bottom:15px;">
+                                <i class="fas fa-info-circle"></i> You can track your order in the "Track Order" tab
+                            </p>
+                            <button onclick="closeSuccessModal(); showTab('track'); document.getElementById('trackPhone').value='${orderData.order.phone}'; trackOrders();" style="background:var(--primary);color:white;border:none;padding:12px 20px;border-radius:8px;font-size:1rem;cursor:pointer;margin-right:10px;">
+                                <i class="fas fa-search"></i> Track Order
+                            </button>
+                            <button onclick="closeSuccessModal()" style="background:#e2e8f0;color:#475569;border:none;padding:12px 20px;border-radius:8px;font-size:1rem;cursor:pointer;">Done</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', successHtml);
+        }
+
+        function closeSuccessModal(e) {
+            if (e && e.target.id !== 'successModal') return;
+            document.getElementById('successModal')?.remove();
+        }
+
+        // ============ ORDER TRACKING ============
+        async function trackOrders() {
+            const phone = document.getElementById('trackPhone').value.trim();
+            
+            if (!phone || phone.length < 9) {
+                alert('Please enter a valid phone number');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('trackResults');
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading orders...</p></div>';
+
+            try {
+                const res = await fetch(`/api/store/${slug}/orders?phone=${encodeURIComponent(phone)}`);
+                const orders = await res.json();
+
+                if (!res.ok) throw new Error(orders.error || 'Failed to load orders');
+
+                if (orders.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="track-info">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No Orders Found</h3>
+                            <p>No orders found for this phone number at this store.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                customerOrders = orders;
+                renderOrders();
+            } catch (e) {
+                resultsDiv.innerHTML = `
+                    <div class="track-info">
+                        <i class="fas fa-exclamation-circle" style="color:#ef4444;"></i>
+                        <h3>Error</h3>
+                        <p>${e.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderOrders() {
+            const resultsDiv = document.getElementById('trackResults');
+            
+            resultsDiv.innerHTML = `
+                <div class="orders-list">
+                    ${customerOrders.map(o => {
+                        const status = (o.status || 'PENDING').toLowerCase();
+                        const statusText = getStatusText(status);
+                        const statusMessage = getStatusMessage(status);
+                        
+                        return `
+                            <div class="order-item ${status}">
+                                <div class="order-header">
+                                    <div>
+                                        <div class="order-id">#${String(o.id).slice(0,8).toUpperCase()}</div>
+                                        <div class="order-date">${formatDate(o.createdAt)}</div>
+                                    </div>
+                                    <span class="order-status ${status}">${statusText}</span>
+                                </div>
+                                <div class="order-details">
+                                    <strong>${o.bundle}</strong> • ${o.network} • ${o.dataAmount}
+                                </div>
+                                <div class="order-amount">GHS ${Number(o.amount).toFixed(2)}</div>
+                                <div class="status-message ${status}">
+                                    <i class="fas ${getStatusIcon(status)}"></i>
+                                    ${statusMessage}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function getStatusText(status) {
+            const texts = {
+                'pending': 'Pending',
+                'processing': 'Processing',
+                'completed': 'Delivered',
+                'failed': 'Failed',
+                'cancelled': 'Cancelled',
+                'refunded': 'Refunded'
+            };
+            return texts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        function getStatusIcon(status) {
+            const icons = {
+                'pending': 'fa-clock',
+                'processing': 'fa-sync fa-spin',
+                'completed': 'fa-check-circle',
+                'failed': 'fa-times-circle',
+                'cancelled': 'fa-ban',
+                'refunded': 'fa-undo'
+            };
+            return icons[status] || 'fa-info-circle';
+        }
+
+        function getStatusMessage(status) {
+            const messages = {
+                'pending': 'Your order is being processed. Please wait...',
+                'processing': 'Your data is being sent to your phone...',
+                'completed': 'Data delivered successfully! Enjoy your bundle.',
+                'failed': 'Order failed. Please contact the store owner.',
+                'cancelled': 'This order was cancelled.',
+                'refunded': 'This order was refunded.'
+            };
+            return messages[status] || 'Status unknown';
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const day = date.getDate();
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day} ${month} ${year}, ${hours}:${minutes}`;
+        }
+
+        loadStore();
+        
+        // Allow tracking from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const trackPhoneParam = urlParams.get('track');
+        if (trackPhoneParam) {
+            setTimeout(() => {
+                showTab('track');
+                document.getElementById('trackPhone').value = trackPhoneParam;
+                trackOrders();
+            }, 1000);
+        }
+        
+        // Allow Enter key to track orders
+        document.getElementById('trackPhone').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') trackOrders();
+        });
+
+        // ============ CUSTOMER AUTHENTICATION ============
+        
+        // Check if customer is logged in on page load
+        async function checkCustomerAuth() {
+            try {
+                const res = await fetch('/api/store-customer/me', { credentials: 'include' });
+                if (res.ok) {
+                    currentCustomer = await res.json();
+                }
+            } catch (e) {
+                console.log('Not logged in');
+            }
+            // Always update UI to ensure correct state (landing vs logged in)
+            updateAccountUI();
+        }
+
+        // Update UI based on login state
+        function updateAccountUI() {
+            const authView = document.getElementById('authView');
+            const profileView = document.getElementById('profileView');
+            const accountTabText = document.getElementById('accountTabText');
+            const authLanding = document.getElementById('authLanding');
+            const mainTabs = document.getElementById('mainTabs');
+            const loggedInContent = document.getElementById('loggedInContent');
+            
+            if (currentCustomer) {
+                // Hide auth landing, show main content
+                authLanding.classList.add('hidden');
+                mainTabs.classList.remove('hidden');
+                loggedInContent.classList.add('active');
+                
+                authView.style.display = 'none';
+                profileView.style.display = 'block';
+                
+                // Update welcome text
+                const displayName = currentCustomer.name || 'Customer';
+                document.getElementById('welcomeName').textContent = displayName;
+                accountTabText.textContent = displayName.split(' ')[0];
+                
+                // Update stats
+                document.getElementById('statTotalOrders').textContent = currentCustomer.stats?.totalOrders || 0;
+                document.getElementById('statTotalSpent').textContent = 'GHS ' + (currentCustomer.stats?.totalSpent || 0).toFixed(0);
+                document.getElementById('statFavorites').textContent = currentCustomer.stats?.favoritesCount || 0;
+                
+                // Store favorites
+                customerFavorites = currentCustomer.favoriteIds || [];
+                
+                // Pre-fill order form with customer phone
+                const orderPhone = document.getElementById('orderPhone');
+                if (orderPhone) orderPhone.value = currentCustomer.phone;
+                const orderName = document.getElementById('orderName');
+                if (orderName && currentCustomer.name) orderName.value = currentCustomer.name;
+                
+                // Load dashboard data
+                loadDashboardData();
+                
+                // Re-render products to show heart icons
+                if (products.length > 0) renderProducts();
+            } else {
+                // Show auth landing, hide main content
+                authLanding.classList.remove('hidden');
+                mainTabs.classList.add('hidden');
+                loggedInContent.classList.remove('active');
+                
+                authView.style.display = 'block';
+                profileView.style.display = 'none';
+                accountTabText.textContent = 'Account';
+                customerFavorites = [];
+                
+                if (products.length > 0) renderProducts();
+            }
+        }
+        
+        // Load dashboard data (quick reorder, favorites, recent orders)
+        async function loadDashboardData() {
+            if (!currentCustomer) return;
+            
+            // Load recent purchases for quick reorder
+            try {
+                const reorderRes = await fetch('/api/store-customer/recent-purchases', { credentials: 'include' });
+                if (reorderRes.ok) {
+                    const recentPurchases = await reorderRes.json();
+                    renderQuickReorder(recentPurchases);
+                }
+            } catch (e) { console.log('Failed to load recent purchases'); }
+            
+            // Load favorites
+            try {
+                const favRes = await fetch('/api/store-customer/favorites', { credentials: 'include' });
+                if (favRes.ok) {
+                    const favorites = await favRes.json();
+                    renderFavorites(favorites);
+                }
+            } catch (e) { console.log('Failed to load favorites'); }
+            
+            // Load recent orders
+            try {
+                const ordersRes = await fetch('/api/store-customer/orders?limit=5', { credentials: 'include' });
+                if (ordersRes.ok) {
+                    const orders = await ordersRes.json();
+                    renderRecentOrders(orders);
+                }
+            } catch (e) { console.log('Failed to load recent orders'); }
+        }
+        
+        // Render Quick Reorder section
+        function renderQuickReorder(purchases) {
+            const container = document.getElementById('quickReorderGrid');
+            
+            if (!purchases || purchases.length === 0) {
+                container.innerHTML = `<div class="section-empty"><i class="fas fa-history"></i><p>Your recently purchased bundles will appear here</p></div>`;
+                return;
+            }
+            
+            container.innerHTML = purchases.map(p => `
+                <div class="reorder-card" onclick="quickReorder('${p.bundleId}')">
+                    <div class="reorder-icon ${p.bundle?.network || 'MTN'}">${(p.bundle?.dataAmount || '').replace(/[^0-9]/g, '')}GB</div>
+                    <div class="reorder-info">
+                        <div class="reorder-name">${p.bundle?.name || 'Data Bundle'}</div>
+                        <div class="reorder-details">${p.bundle?.network || 'MTN'} • ${p.bundle?.dataAmount || ''}</div>
+                    </div>
+                    <div class="reorder-price">GHS ${(p.lastAmount || 0).toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+        
+        // Render Favorites section
+        function renderFavorites(favorites) {
+            const container = document.getElementById('favoritesGrid');
+            
+            if (!favorites || favorites.length === 0) {
+                container.innerHTML = `<div class="section-empty"><i class="fas fa-heart"></i><p>Tap the heart icon on products to add favorites</p></div>`;
+                return;
+            }
+            
+            container.innerHTML = favorites.map(f => `
+                <div class="favorite-item" style="position:relative;" onclick="quickReorder('${f.bundleId}')">
+                    <button class="remove-fav" onclick="removeFavorite('${f.bundleId}', event)" title="Remove"><i class="fas fa-times"></i></button>
+                    <span class="fav-network ${f.bundle?.network || 'MTN'}">${f.bundle?.network || 'MTN'}</span>
+                    <div class="fav-name">${f.bundle?.name || 'Data Bundle'}</div>
+                    <div class="fav-price">${f.bundle?.dataAmount || ''}</div>
+                </div>
+            `).join('');
+        }
+        
+        // Render Recent Orders section
+        function renderRecentOrders(orders) {
+            const container = document.getElementById('recentOrdersList');
+            
+            if (!orders || orders.length === 0) {
+                container.innerHTML = `<div class="section-empty"><i class="fas fa-inbox"></i><p>No orders yet</p></div>`;
+                return;
+            }
+            
+            container.innerHTML = orders.slice(0, 5).map(o => {
+                const status = (o.status || 'PENDING').toLowerCase();
+                return `
+                <div class="recent-order">
+                    <div class="recent-order-status ${status}"></div>
+                    <div class="recent-order-info">
+                        <div class="recent-order-bundle">${o.bundle?.name || 'Data Bundle'}</div>
+                        <div class="recent-order-meta">${o.store?.name || 'Store'} • ${formatDate(o.createdAt)}</div>
+                    </div>
+                    <div class="recent-order-amount">GHS ${Number(o.amount || 0).toFixed(2)}</div>
+                </div>
+            `}).join('');
+        }
+        
+        // Toggle favorite
+        async function toggleFavorite(bundleId, event) {
+            event.stopPropagation();
+            if (!currentCustomer) {
+                alert('Please login to add favorites');
+                showTab('account');
+                return;
+            }
+            
+            const btn = event.currentTarget;
+            const isFavorite = btn.classList.contains('active');
+            
+            try {
+                if (isFavorite) {
+                    // Remove from favorites
+                    const res = await fetch(`/api/store-customer/favorites/${bundleId}?storefrontId=${storeData.id}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    });
+                    if (res.ok) {
+                        btn.classList.remove('active');
+                        customerFavorites = customerFavorites.filter(id => id !== bundleId);
+                        updateFavoritesCount(-1);
+                    }
+                } else {
+                    // Add to favorites
+                    const res = await fetch('/api/store-customer/favorites', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ bundleId, storefrontId: storeData.id })
+                    });
+                    if (res.ok) {
+                        btn.classList.add('active');
+                        customerFavorites.push(bundleId);
+                        updateFavoritesCount(1);
+                    }
+                }
+            } catch (e) {
+                console.error('Favorite toggle error:', e);
+            }
+        }
+        
+        // Remove favorite from favorites section
+        async function removeFavorite(bundleId, event) {
+            event.stopPropagation();
+            try {
+                const res = await fetch(`/api/store-customer/favorites/${bundleId}?storefrontId=${storeData.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    customerFavorites = customerFavorites.filter(id => id !== bundleId);
+                    updateFavoritesCount(-1);
+                    loadDashboardData(); // Refresh
+                    renderProducts(); // Update heart icons
+                }
+            } catch (e) {
+                console.error('Remove favorite error:', e);
+            }
+        }
+        
+        // Update favorites count
+        function updateFavoritesCount(delta) {
+            const el = document.getElementById('statFavorites');
+            const current = parseInt(el.textContent) || 0;
+            el.textContent = Math.max(0, current + delta);
+        }
+        
+        // Quick reorder - find product and open order modal
+        function quickReorder(bundleId) {
+            const product = products.find(p => (p.bundleId || p.bundle?.id || p.id) === bundleId);
+            if (product) {
+                openOrder(bundleId);
+            } else {
+                alert('This bundle is no longer available');
+            }
+        }
+        
+        // Show all orders
+        function showAllOrders() {
+            document.getElementById('quickReorderSection').style.display = 'none';
+            document.getElementById('favoritesSection').style.display = 'none';
+            document.getElementById('myOrdersSection').style.display = 'block';
+            showMyOrders();
+        }
+        
+        // Hide all orders
+        function hideAllOrders() {
+            document.getElementById('myOrdersSection').style.display = 'none';
+            document.getElementById('quickReorderSection').style.display = 'block';
+            document.getElementById('favoritesSection').style.display = 'block';
+        }
+
+        // Show auth form (login or register)
+        function showAuthForm(form) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            document.querySelector(`.auth-tab[onclick="showAuthForm('${form}')"]`).classList.add('active');
+            document.getElementById(form + 'Form').classList.add('active');
+        }
+
+        // Show auth form on landing page
+        function showLandingAuthForm(form) {
+            // Update tabs in landing auth
+            document.querySelectorAll('#authLanding .auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`#authLanding .auth-tab[onclick="showLandingAuthForm('${form}')"]`).classList.add('active');
+            
+            // Show/hide forms
+            document.getElementById('landingLoginForm').classList.remove('active');
+            document.getElementById('landingRegisterForm').classList.remove('active');
+            document.getElementById('landing' + form.charAt(0).toUpperCase() + form.slice(1) + 'Form').classList.add('active');
+        }
+
+        // Login from landing page
+        async function loginFromLanding() {
+            const phone = document.getElementById('landingLoginPhone').value.trim();
+            const pin = document.getElementById('landingLoginPin').value;
+
+            if (!phone || !pin) {
+                alert('Please enter phone number and PIN');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/store-customer/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, pin })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentCustomer = data.customer;
+                    updateAccountUI();
+                    showTab('products'); // Go to products after login
+                    
+                    // Clear form
+                    document.getElementById('landingLoginPhone').value = '';
+                    document.getElementById('landingLoginPin').value = '';
+                } else {
+                    alert(data.error || 'Login failed');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Register from landing page
+        async function registerFromLanding() {
+            const phone = document.getElementById('landingRegisterPhone').value.trim();
+            const name = document.getElementById('landingRegisterName').value.trim();
+            const pin = document.getElementById('landingRegisterPin').value;
+            const pinConfirm = document.getElementById('landingRegisterPinConfirm').value;
+
+            if (!phone || phone.length < 10) {
+                alert('Please enter a valid phone number');
+                return;
+            }
+
+            if (!pin || pin.length < 4) {
+                alert('PIN must be at least 4 digits');
+                return;
+            }
+
+            if (pin !== pinConfirm) {
+                alert('PINs do not match');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/store-customer/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, pin, name })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentCustomer = data.customer;
+                    updateAccountUI();
+                    showTab('products'); // Go to products after registration
+                    
+                    // Clear form
+                    document.getElementById('landingRegisterPhone').value = '';
+                    document.getElementById('landingRegisterName').value = '';
+                    document.getElementById('landingRegisterPin').value = '';
+                    document.getElementById('landingRegisterPinConfirm').value = '';
+                } else {
+                    alert(data.error || 'Registration failed');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Register customer
+        async function registerCustomer() {
+            const phone = document.getElementById('registerPhone').value.trim();
+            const name = document.getElementById('registerName').value.trim();
+            const pin = document.getElementById('registerPin').value;
+            const pinConfirm = document.getElementById('registerPinConfirm').value;
+
+            if (!phone || phone.length < 10) {
+                alert('Please enter a valid phone number');
+                return;
+            }
+
+            if (!pin || pin.length < 4) {
+                alert('PIN must be at least 4 digits');
+                return;
+            }
+
+            if (pin !== pinConfirm) {
+                alert('PINs do not match');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/store-customer/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, pin, name })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentCustomer = data.customer;
+                    updateAccountUI();
+                    alert('Account created successfully!');
+                    
+                    // Clear form
+                    document.getElementById('registerPhone').value = '';
+                    document.getElementById('registerName').value = '';
+                    document.getElementById('registerPin').value = '';
+                    document.getElementById('registerPinConfirm').value = '';
+                } else {
+                    alert(data.error || 'Registration failed');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Login customer
+        async function loginCustomer() {
+            const phone = document.getElementById('loginPhone').value.trim();
+            const pin = document.getElementById('loginPin').value;
+
+            if (!phone || !pin) {
+                alert('Please enter phone number and PIN');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/store-customer/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, pin })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentCustomer = data.customer;
+                    updateAccountUI();
+                    alert('Welcome back!');
+                    
+                    // Clear form
+                    document.getElementById('loginPhone').value = '';
+                    document.getElementById('loginPin').value = '';
+                } else {
+                    alert(data.error || 'Login failed');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Logout customer
+        async function logoutCustomer() {
+            try {
+                await fetch('/api/store-customer/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                currentCustomer = null;
+                updateAccountUI();
+                hideProfileSections();
+            } catch (e) {
+                console.error('Logout error:', e);
+            }
+        }
+
+        // Hide all profile sub-sections
+        function hideProfileSections() {
+            document.getElementById('myOrdersSection').style.display = 'none';
+            document.getElementById('editProfileSection').style.display = 'none';
+            document.getElementById('changePinSection').style.display = 'none';
+            document.getElementById('quickReorderSection').style.display = 'block';
+            document.getElementById('favoritesSection').style.display = 'block';
+        }
+
+        // Show my orders
+        async function showMyOrders() {
+            const section = document.getElementById('myOrdersSection');
+            const list = document.getElementById('myOrdersList');
+            
+            section.style.display = 'block';
+            list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading orders...</p></div>';
+
+            try {
+                const res = await fetch('/api/store-customer/orders', { credentials: 'include' });
+                const orders = await res.json();
+
+                if (!res.ok) throw new Error(orders.error || 'Failed to load orders');
+
+                if (orders.length === 0) {
+                    list.innerHTML = `
+                        <div class="track-info">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No Orders Yet</h3>
+                            <p>You haven't placed any orders yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = `
+                    <div class="orders-list">
+                        ${orders.map(o => {
+                            const status = (o.status || 'PENDING').toLowerCase();
+                            const statusText = getStatusText(status);
+                            const statusMessage = getStatusMessage(status);
+                            
+                            return `
+                                <div class="order-item ${status}">
+                                    <div class="order-header">
+                                        <div>
+                                            <div class="order-id">#${o.orderId || o.id}</div>
+                                            <div class="order-store"><i class="fas fa-store"></i> ${o.store?.name || 'Store'}</div>
+                                            <div class="order-date">${formatDate(o.createdAt)}</div>
+                                        </div>
+                                        <span class="order-status ${status}">${statusText}</span>
+                                    </div>
+                                    <div class="order-details">
+                                        <strong>${o.bundle?.name || 'Data Bundle'}</strong> • ${o.bundle?.network || 'N/A'} • ${o.bundle?.dataAmount || ''}
+                                    </div>
+                                    <div class="order-amount">GHS ${Number(o.amount || 0).toFixed(2)}</div>
+                                    <div class="status-message ${status}">
+                                        <i class="fas ${getStatusIcon(status)}"></i>
+                                        ${statusMessage}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } catch (e) {
+                list.innerHTML = `
+                    <div class="track-info">
+                        <i class="fas fa-exclamation-circle" style="color:#ef4444;"></i>
+                        <h3>Error</h3>
+                        <p>${e.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Show edit profile
+        function showEditProfile() {
+            document.getElementById('editProfileSection').style.display = 'block';
+            document.getElementById('editName').value = currentCustomer?.name || '';
+            document.getElementById('editEmail').value = currentCustomer?.email || '';
+            document.getElementById('editProfileSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Save profile
+        async function saveProfile() {
+            const name = document.getElementById('editName').value.trim();
+            const email = document.getElementById('editEmail').value.trim();
+
+            try {
+                const res = await fetch('/api/store-customer/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ name, email })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentCustomer = data.customer;
+                    updateAccountUI();
+                    alert('Profile updated!');
+                    document.getElementById('editProfileSection').style.display = 'none';
+                } else {
+                    alert(data.error || 'Update failed');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Show change PIN
+        function showChangePin() {
+            document.getElementById('changePinSection').style.display = 'block';
+            document.getElementById('currentPin').value = '';
+            document.getElementById('newPin').value = '';
+            document.getElementById('confirmNewPin').value = '';
+            document.getElementById('changePinSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Change PIN
+        async function changePin() {
+            const currentPin = document.getElementById('currentPin').value;
+            const newPin = document.getElementById('newPin').value;
+            const confirmNewPin = document.getElementById('confirmNewPin').value;
+
+            if (!currentPin || !newPin) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            if (newPin.length < 4) {
+                alert('New PIN must be at least 4 digits');
+                return;
+            }
+
+            if (newPin !== confirmNewPin) {
+                alert('New PINs do not match');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/store-customer/change-pin', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ currentPin, newPin })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert('PIN changed successfully!');
+                    document.getElementById('changePinSection').style.display = 'none';
+                } else {
+                    alert(data.error || 'Failed to change PIN');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Check auth on load
+        checkCustomerAuth();
+    </script>
+</body>
+</html>

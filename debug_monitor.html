@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Console Log Monitor</title>
+    <style>
+        body { font-family: monospace; background: #1e1e1e; color: #00ff00; padding: 20px; }
+        pre { background: #000; padding: 10px; border: 1px solid #00ff00; overflow-x: auto; }
+        .error { color: #ff0000; }
+        .warn { color: #ffff00; }
+        .info { color: #00ffff; }
+        iframe { width: 100%; height: 600px; border: 2px solid #00ff00; }
+        h1 { color: #00ff00; }
+        .console-area { background: #000; border: 2px solid #00ff00; padding: 10px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Dashboard Debug Monitor</h1>
+    <div class="console-area">
+        <p style="margin: 0;">Open Dashboard in iframe below. All console logs will be displayed here:</p>
+        <pre id="logs" style="height: 300px; overflow-y: auto;"></pre>
+    </div>
+    <h2>Dashboard Preview:</h2>
+    <iframe id="dashboardFrame" src="http://localhost:8000/dashboard.html?v=3"></iframe>
+    
+    <script>
+        const logsDiv = document.getElementById('logs');
+        
+        // Capture console output
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function appendLog(msg, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = `[${timestamp}] ${type.toUpperCase()}: ${msg}\n`;
+            logsDiv.textContent += line;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog(...args);
+            appendLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'info');
+        };
+        
+        console.error = function(...args) {
+            originalError(...args);
+            appendLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn(...args);
+            appendLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'warn');
+        };
+        
+        window.addEventListener('error', (event) => {
+            appendLog(`${event.message} at ${event.filename}:${event.lineno}`, 'error');
+        });
+        
+        appendLog('Dashboard Debug Monitor started');
+        
+        // Check iframe for errors
+        setTimeout(() => {
+            try {
+                const iframeDoc = document.getElementById('dashboardFrame').contentDocument;
+                if (iframeDoc) {
+                    appendLog('Dashboard loaded successfully', 'info');
+                } else {
+                    appendLog('Could not access dashboard iframe', 'warn');
+                }
+            } catch(e) {
+                appendLog('Cannot access iframe: ' + e.message, 'error');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

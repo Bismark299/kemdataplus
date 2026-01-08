@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal Test - Network Tab Toggle</title>
+    <style>
+        .network-tab { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            background: #ddd; 
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        .network-tab.active { 
+            background: #024959; 
+            color: white; 
+        }
+        .status { 
+            margin: 20px 0; 
+            padding: 10px; 
+            background: #f0f0f0; 
+            border: 1px solid #ccc; 
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test: Network Tab Toggle</h1>
+    
+    <h2>Network Tabs:</h2>
+    <div class="network-tabs">
+        <div class="network-tab active" data-network="MTN">MTN</div>
+        <div class="network-tab" data-network="Telecel">Telecel</div>
+        <div class="network-tab" data-network="Ishare">Ishare</div>
+        <div class="network-tab" data-network="Bigtime">Bigtime</div>
+    </div>
+    
+    <div class="status" id="status">
+        Status: Waiting for clicks...<br>
+        Selected Network: <strong>MTN</strong> (initial)
+    </div>
+    
+    <h2>Mode Buttons:</h2>
+    <div class="mode-buttons">
+        <button class="mode-btn active" data-mode="single">📱 Single</button>
+        <button class="mode-btn" data-mode="bulk">📦 Bulk</button>
+        <button class="mode-btn" data-mode="excel">📄 Excel</button>
+    </div>
+    
+    <div class="status" id="modeStatus">
+        Status: Waiting for clicks...<br>
+        Selected Mode: <strong>single</strong> (initial)
+    </div>
+    
+    <h2>Add to Cart Test:</h2>
+    <div>
+        <input type="text" id="testPhone" placeholder="Phone: 0240000001" value="0240000001">
+        <select id="testBundle">
+            <option>Select Bundle</option>
+            <option value="10">10GB - GHS 65</option>
+            <option value="20">20GB - GHS 120</option>
+        </select>
+        <button id="testAddBtn">Add to Cart</button>
+    </div>
+    
+    <div class="status" id="cartStatus">
+        Cart: Empty
+    </div>
+    
+    <script>
+        let currentNetwork = 'MTN';
+        let currentMode = 'single';
+        let cart = [];
+        
+        // Network tab toggle
+        document.querySelectorAll('.network-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                console.log('Network tab clicked:', this.dataset.network);
+                document.querySelectorAll('.network-tab').forEach(t => {
+                    t.classList.remove('active');
+                });
+                this.classList.add('active');
+                currentNetwork = this.dataset.network;
+                document.getElementById('status').innerHTML = `
+                    Status: Network changed<br>
+                    Selected Network: <strong>${currentNetwork}</strong>
+                `;
+            });
+        });
+        
+        // Mode button toggle
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log('Mode button clicked:', this.dataset.mode);
+                document.querySelectorAll('.mode-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+                currentMode = this.dataset.mode;
+                document.getElementById('modeStatus').innerHTML = `
+                    Status: Mode changed<br>
+                    Selected Mode: <strong>${currentMode}</strong>
+                `;
+            });
+        });
+        
+        // Add to cart
+        document.getElementById('testAddBtn').addEventListener('click', function() {
+            const phone = document.getElementById('testPhone').value;
+            const bundle = document.getElementById('testBundle').value;
+            
+            if (!phone || bundle === 'Select Bundle') {
+                alert('Please enter phone and select bundle');
+                return;
+            }
+            
+            const item = {
+                phone: phone,
+                bundle: bundle,
+                price: bundle === '10' ? 65 : 120,
+                id: Date.now()
+            };
+            
+            cart.push(item);
+            console.log('Item added to cart:', item);
+            document.getElementById('cartStatus').innerHTML = `
+                Cart: ${cart.length} item(s)<br>
+                Last item: Phone ${item.phone}, Bundle ${item.bundle}GB, Price: GHS ${item.price}
+            `;
+        });
+        
+        console.log('Page loaded successfully');
+        console.log('Waiting for user interaction...');
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "kemdataplus",
+  "version": "1.0.0",
+  "description": "KemDataplus - Data Bundle Reseller Platform",
+  "scripts": {
+    "start": "cd server && npm start",
+    "dev": "cd server && npm run dev",
+    "install:all": "cd server && npm install",
+    "build": "cd server && npm install && npx prisma generate",
+    "db:setup": "cd server && npx prisma generate && npx prisma db push",
+    "db:migrate": "cd server && npx prisma migrate deploy",
+    "db:seed": "cd server && npm run db:seed",
+    "postinstall": "npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "KemDataplus",
+  "license": "ISC"
+}

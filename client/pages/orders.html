@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders - KemDataplus</title>
+    <link rel="stylesheet" href="../public/css/dashboard.css">
+    <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
+    <style>
+        .orders-container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .orders-header {
+            background: linear-gradient(135deg, #024959 0%, #0a3d52 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .orders-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .orders-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        
+        .filters-bar {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .search-input, .filter-select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .search-input {
+            width: 100%;
+        }
+        
+        .search-input:focus, .filter-select:focus {
+            border-color: #F2C12E;
+            box-shadow: 0 0 0 3px rgba(242, 193, 46, 0.1);
+        }
+        
+        .filter-select {
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .orders-wrapper {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .orders-table th {
+            background: #024959;
+            color: white;
+            padding: 18px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-bottom: 3px solid #F2C12E;
+        }
+        
+        .orders-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.95rem;
+        }
+        
+        .orders-table tbody tr {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .orders-table tbody tr:hover {
+            background: #f8f8f8;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
+        }
+        
+        .order-id {
+            color: #F2C12E;
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+        
+        .agent-badge {
+            background: #f0f0f0;
+            color: #333;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        
+        .status-pending {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .btn-details {
+            background: #024959;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .btn-details:hover {
+            background: #F2C12E;
+            color: #024959;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(242, 193, 46, 0.3);
+        }
+
+        .btn-export {
+            background: #024959;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-export:hover {
+            background: #F2C12E;
+            color: #024959;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: slideUp 0.3s;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            color: #024959;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-close {
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        
+        .modal-close:hover {
+            color: #024959;
+        }
+        
+        .order-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #e8e8e8;
+            align-items: center;
+        }
+        
+        .order-detail-row strong {
+            color: #024959;
+            font-weight: 600;
+            flex: 0 0 40%;
+        }
+        
+        .order-detail-row span {
+            color: #333;
+            flex: 1;
+            text-align: right;
+        }
+        
+        .order-numbers-list {
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-left: 4px solid #F2C12E;
+        }
+        
+        .order-number-item {
+            padding: 10px;
+            background: white;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #eee;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .pagination button.active {
+            background: #F2C12E;
+            border-color: #F2C12E;
+            color: #024959;
+            font-weight: 700;
+        }
+        
+        .pagination button:hover {
+            border-color: #F2C12E;
+            color: #F2C12E;
+        }
+        
+        .no-orders {
+            text-align: center;
+            padding: 80px 20px;
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        #customDateRange {
+            display: flex !important;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 12px 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        
+        #customDateRange label {
+            font-size: 0.9rem;
+            margin: 0;
+            white-space: nowrap;
+            color: #024959;
+            font-weight: 500;
+        }
+        
+        #customDateRange input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 140px;
+        }
+        
+        /* Responsive Styles - Clean stacking like login page */
+        @media (max-width: 900px) {
+            .orders-container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+            
+            .orders-header {
+                padding: 25px 20px;
+                margin-bottom: 20px;
+                border-radius: 10px;
+            }
+            
+            .orders-header h1 {
+                font-size: 1.4rem;
+            }
+            
+            .orders-header p {
+                font-size: 0.9rem;
+            }
+            
+            .filters-bar {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            
+            .search-input {
+                grid-column: 1 / -1;
+            }
+            
+            .btn-export {
+                grid-column: 1 / -1;
+            }
+            
+            #customDateRange {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            
+            .orders-table th,
+            .orders-table td {
+                padding: 12px 10px;
+                font-size: 0.85rem;
+            }
+            
+            .modal-content {
+                width: 95%;
+                padding: 25px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .orders-container {
+                padding: 0 10px;
+                margin: 15px auto;
+            }
+            
+            .orders-header {
+                padding: 20px 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+            }
+            
+            .orders-header h1 {
+                font-size: 1.2rem;
+                margin-bottom: 5px;
+            }
+            
+            .orders-header p {
+                font-size: 0.85rem;
+            }
+            
+            .filters-bar {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                margin-bottom: 15px;
+            }
+            
+            .search-input, .filter-select {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .btn-export {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+            
+            #customDateRange {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+            
+            #customDateRange label {
+                font-size: 0.85rem;
+            }
+            
+            #customDateRange input[type="date"] {
+                padding: 8px;
+                font-size: 0.85rem;
+            }
+            
+            /* Table responsive - convert to cards on mobile */
+            .orders-wrapper {
+                overflow-x: auto;
+            }
+            
+            .orders-table th,
+            .orders-table td {
+                padding: 10px 8px;
+                font-size: 0.8rem;
+                white-space: nowrap;
+            }
+            
+            .order-id {
+                font-size: 0.9rem;
+            }
+            
+            .status-badge {
+                padding: 4px 10px;
+                font-size: 0.75rem;
+            }
+            
+            .btn-details {
+                padding: 6px 12px;
+                font-size: 0.75rem;
+            }
+            
+            .modal-content {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .modal-header {
+                font-size: 1.2rem;
+                margin-bottom: 15px;
+            }
+            
+            .order-detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 12px 0;
+            }
+            
+            .order-detail-row strong {
+                font-size: 0.85rem;
+                margin-bottom: 4px;
+            }
+            
+            .order-detail-row span {
+                text-align: left;
+                font-size: 0.9rem;
+            }
+            
+            .pagination {
+                gap: 5px;
+                margin-top: 15px;
+                padding: 15px;
+            }
+            
+            .pagination button {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <!-- HEADER -->
+        <div class="header-container">
+            <header>
+                <div><a href="../public/dashboard.html"><img src="../public/img/kem.png" alt="KemDataplus" class="logo"></a></div>
+                <input type="checkbox" id="check-box">
+                <div class="nav-links">
+                    <label for="check-box" class="menu-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </label>
+                    <div class="nav-menu">
+                        <div class="links">
+                            <a href="../public/dashboard.html">Dashboard</a>
+                            <a href="../public/dashboard.html#buy-bundles">Buy Bundles</a>
+                            <a href="./orders.html" class="active">Orders</a>
+                            <a href="./wallet.html">Wallet</a>
+                            <a href="./mystore.html">My Store</a>
+                            <a href="./api.html">API</a>
+                            <a href="./profile.html">Profile</a>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown">
+                        <img src="../public/img/kem.png" alt="Profile" class="profile-pic" id="profileBtn">
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a href="./profile.html"><i class="fas fa-user"></i> My Profile</a>
+                            <a href="./profile.html"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="./wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+                            <hr>
+                            <a href="#" onclick="logout(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                    <label for="check-box" class="close-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </label>
+                </div>
+            </header>
+        </div>
+
+        <!-- ORDERS CONTENT -->
+        <div class="orders-container">
+            <div class="orders-header">
+                <h1><i class="fas fa-list"></i> My Orders</h1>
+                <p>View and manage all your bundle purchases</p>
+            </div>
+
+            <!-- FILTERS -->
+            <div class="filters-bar">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search by Order ID or Phone Number...">
+                <select class="filter-select" id="networkFilter">
+                    <option value="">All Networks</option>
+                    <option value="MTN">MTN</option>
+                    <option value="Telecel">Telecel</option>
+                    <option value="AirtelTigo">AirtelTigo</option>
+                </select>
+                <select class="filter-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="processing">Processing</option>
+                    <option value="pending">Pending</option>
+                    <option value="failed">Failed</option>
+                </select>
+                <select class="filter-select" id="dateFilter">
+                    <option value="">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+                <button class="btn-export" id="exportBtn" onclick="exportToExcel()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+
+            <!-- CUSTOM DATE RANGE (Hidden by default) -->
+            <div id="customDateRange" style="display: none; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label style="color: #024959; font-weight: 600;">From:</label>
+                <input type="date" id="startDate" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; outline: none;">
+                <label style="color: #024959; font-weight: 600;">To:</label>
+                <input type="date" id="endDate" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; outline: none;">
+                <button class="btn-details" onclick="applyCustomDateRange()" style="background: #024959; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Apply</button>
+                <button class="btn-details" onclick="clearCustomDateRange()" style="background: #999; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Clear</button>
+            </div>
+
+            <!-- ORDERS TABLE -->
+            <div class="orders-wrapper">
+                <table class="orders-table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Date & Time</th>
+                            <th style="width: 10%;">Order #</th>
+                            <th style="width: 12%;">Recipient</th>
+                            <th style="width: 12%;">Network</th>
+                            <th style="width: 8%;">Data</th>
+                            <th style="width: 10%;">Total</th>
+                            <th style="width: 12%;">Payment</th>
+                            <th style="width: 12%;">Status</th>
+                            <th style="width: 8%;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINATION -->
+            <div class="pagination" id="paginationContainer"></div>
+        </div>
+    </div>
+
+    <!-- DETAILS MODAL -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 class="modal-header">Order Details</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="../public/js/dashboard-api.js"></script>
+    <script>
+        // Orders loaded from API
+        let orders = [];
+        let currentPage = 1;
+        let itemsPerPage = 100;
+        let filteredOrders = [];
+        let totalOrders = 0;
+
+        // Check if logged in via httpOnly cookie
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                return res.ok;
+            } catch {
+                return false;
+            }
+        }
+
+        // Redirect to login if not authenticated
+        async function requireAuth() {
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) {
+                window.location.href = '/pages/login.html';
+                return false;
+            }
+            return true;
+        }
+
+        // Format date helper
+        function formatOrderDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            try {
+                const date = new Date(dateStr);
+                const day = date.getDate();
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const month = months[date.getMonth()];
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                
+                // Add ordinal suffix
+                const ordinal = (d) => {
+                    if (d > 3 && d < 21) return 'th';
+                    switch (d % 10) {
+                        case 1: return 'st';
+                        case 2: return 'nd';
+                        case 3: return 'rd';
+                        default: return 'th';
+                    }
+                };
+                
+                return `${day}${ordinal(day)} ${month} ${year} at ${hours}:${minutes}`;
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
+        // Format order number with leading zeros
+        function formatOrderNumber(index, total) {
+            const orderNum = total - index;
+            return String(orderNum).padStart(4, '0');
+        }
+
+        // Load orders from API
+        async function loadOrdersFromAPI() {
+            const isAuthenticated = await requireAuth();
+            if (!isAuthenticated) return;
+            
+            try {
+                const response = await fetch('/api/orders?limit=500', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/pages/login.html';
+                        return;
+                    }
+                    throw new Error('Failed to fetch orders');
+                }
+                
+                const data = await response.json();
+                totalOrders = data.pagination?.total || data.orders?.length || 0;
+                
+                // Sort by date descending (newest first)
+                const sortedOrders = (data.orders || []).sort((a, b) => 
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+                
+                // Transform API orders to display format
+                orders = sortedOrders.map((order, idx) => {
+                    const bundle = order.bundle || {};
+                    return {
+                        id: formatOrderNumber(idx, totalOrders),
+                        rawId: order.id,
+                        dateTime: formatOrderDate(order.createdAt),
+                        createdAt: order.createdAt,
+                        recipient: order.recipientPhone || 'N/A',
+                        network: bundle.network || order.network || 'N/A',
+                        bundle: bundle.dataAmount || bundle.name || 'N/A',
+                        total: parseFloat(order.totalPrice) || 0,
+                        status: (order.status || 'PENDING').toLowerCase(),
+                        payment: order.payment || 'wallet',
+                        reference: order.reference || '-',
+                        agent: 'Self',
+                        phones: [order.recipientPhone || 'N/A']
+                    };
+                });
+                
+                filteredOrders = [...orders];
+                renderOrders();
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('ordersBody').innerHTML = 
+                    '<tr><td colspan="9" class="no-orders">Error loading orders. Please try again.</td></tr>';
+            }
+        }
+
+        // Refresh orders when page becomes visible (tab focus)
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                loadOrdersFromAPI();
+            }
+        });
+        
+        // Refresh orders every 30 seconds to catch status changes (reduced from 10s)
+        setInterval(loadOrdersFromAPI, 30000);
+
+        function renderOrders() {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageOrders = filteredOrders.slice(start, end);
+
+            const tbody = document.getElementById('ordersBody');
+            if(pageOrders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="no-orders">No orders found</td></tr>';
+                document.getElementById('paginationContainer').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = pageOrders.map(order => `
+                <tr>
+                    <td>${order.dateTime}</td>
+                    <td><span class="order-id">${order.id}</span></td>
+                    <td>${order.recipient}</td>
+                    <td>${order.network}</td>
+                    <td>${order.bundle}</td>
+                    <td>GHS ${order.total.toFixed(2)}</td>
+                    <td>${order.payment}</td>
+                    <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+                    <td><button class="btn-details" onclick="showDetails('${order.id}')">View</button></td>
+                </tr>
+            `).join('');
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+            const container = document.getElementById('paginationContainer');
+            
+            if(totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            for(let i = 1; i <= totalPages; i++) {
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderOrders();
+            document.querySelector('.orders-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showDetails(orderId) {
+            const order = orders.find(o => o.id === orderId || o.rawId === orderId);
+            if(!order) return;
+
+            const modal = document.getElementById('detailsModal');
+            const modalBody = document.getElementById('modalBody');
+
+            modalBody.innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span class="order-id" style="font-size: 1.8rem;">#${order.id}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Reference:</strong>
+                    <span>${order.reference}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Date & Time:</strong>
+                    <span>${order.dateTime}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Network:</strong>
+                    <span>${order.network}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Bundle Size:</strong>
+                    <span>${order.bundle}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Total Amount:</strong>
+                    <span style="color:#F2C12E;font-weight:bold;">GHS ${order.total.toFixed(2)}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Status:</strong>
+                    <span class="status-badge status-${order.status}">${order.status}</span>
+                </div>
+                <div class="order-detail-row">
+                    <strong>Payment Method:</strong>
+                    <span>${order.payment}</span>
+                </div>
+                <div style="margin-top:20px;">
+                    <strong>Recipient Phone Number:</strong>
+                    <div class="order-numbers-list">
+                        <div class="order-number-item">
+                            <span>${order.recipient}</span>
+                            <span style="color:${order.status === 'completed' ? '#4caf50' : '#f59e0b'};">
+                                <i class="fas fa-${order.status === 'completed' ? 'check' : 'clock'}"></i> ${order.status}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('detailsModal').classList.remove('show');
+        }
+
+        // Filters
+        document.getElementById('searchInput').addEventListener('input', function() {
+            filterOrders();
+        });
+
+        document.getElementById('statusFilter').addEventListener('change', function() {
+            filterOrders();
+        });
+
+        document.getElementById('networkFilter').addEventListener('change', function() {
+            filterOrders();
+        });
+
+        document.getElementById('dateFilter').addEventListener('change', function() {
+            const customRange = document.getElementById('customDateRange');
+            if (this.value === 'custom') {
+                customRange.style.display = 'flex';
+            } else {
+                customRange.style.display = 'none';
+                filterOrders();
+            }
+        });
+
+        function applyCustomDateRange() {
+            filterOrders();
+        }
+
+        function clearCustomDateRange() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('dateFilter').value = '';
+            document.getElementById('customDateRange').style.display = 'none';
+            filterOrders();
+        }
+
+        function filterOrders() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const network = document.getElementById('networkFilter').value;
+            const date = document.getElementById('dateFilter').value;
+
+            filteredOrders = orders.filter(order => {
+                const matchSearch = order.id.toLowerCase().includes(search) || 
+                                    order.recipient.includes(search) ||
+                                    (order.reference && order.reference.toLowerCase().includes(search));
+                const matchStatus = !status || order.status === status;
+                
+                // Network matching
+                let matchNetwork = true;
+                if (network) {
+                    const orderNet = (order.network || '').toUpperCase();
+                    if (network === 'MTN') matchNetwork = orderNet.includes('MTN');
+                    else if (network === 'Telecel') matchNetwork = orderNet.includes('TELECEL');
+                    else if (network === 'AirtelTigo') matchNetwork = orderNet.includes('AIRTELTIGO') || orderNet.includes('AIRTEL');
+                    else matchNetwork = false;
+                }
+                
+                const matchDate = !date || checkDateFilter(order, date);
+                return matchSearch && matchStatus && matchNetwork && matchDate;
+            });
+
+            currentPage = 1;
+            renderOrders();
+        }
+
+        function checkDateFilter(order, filterType) {
+            // Use the createdAt date from the order
+            const now = new Date();
+            const todayUTC = now.toISOString().split('T')[0];
+            
+            let orderDateObj;
+            if (order.createdAt) {
+                orderDateObj = new Date(order.createdAt);
+            } else {
+                // Fallback: try parsing the formatted date
+                const cleanedDate = order.dateTime
+                    .replace(/(\d+)(st|nd|rd|th)/g, '$1')
+                    .replace(' at ', ' ')
+                    .replace(' GMT', '');
+                orderDateObj = new Date(cleanedDate);
+            }
+            
+            // If date is invalid, return true (don't filter out)
+            if (isNaN(orderDateObj.getTime())) {
+                return true;
+            }
+            
+            const orderDateUTC = orderDateObj.toISOString().split('T')[0];
+            
+            if(filterType === 'today') {
+                // Compare UTC dates
+                return orderDateUTC === todayUTC;
+            } else if(filterType === 'week') {
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                return orderDateObj >= weekAgo && orderDateObj <= now;
+            } else if(filterType === 'month') {
+                const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                return orderDateObj >= monthAgo && orderDateObj <= now;
+            } else if(filterType === 'custom') {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                if (startDate && endDate) {
+                    const start = new Date(startDate + 'T00:00:00Z');
+                    const end = new Date(endDate + 'T23:59:59.999Z');
+                    return orderDateObj >= start && orderDateObj <= end;
+                }
+                return true;
+            }
+            return true;
+        }
+
+        // Profile Dropdown
+        document.getElementById('profileBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', () => {
+            document.getElementById('dropdownMenu').style.display = 'none';
+        });
+
+        // Close modal on outside click
+        document.getElementById('detailsModal').addEventListener('click', function(e) {
+            if(e.target === this) closeModal();
+        });
+
+        // Export to Excel function
+        function exportToExcel() {
+            if (filteredOrders.length === 0) {
+                alert('No orders to export');
+                return;
+            }
+
+            const data = [
+                ['Date & Time', 'Order #', 'Recipient', 'Network', 'Data', 'Total (GHS)', 'Payment', 'Status']
+            ];
+
+            filteredOrders.forEach(order => {
+                data.push([
+                    order.dateTime,
+                    order.id,
+                    order.recipient,
+                    order.network,
+                    order.bundle,
+                    order.total.toFixed(2),
+                    order.payment,
+                    order.status
+                ]);
+            });
+
+            // Create CSV content
+            let csv = data.map(row => 
+                row.map(cell => `"${cell}"`).join(',')
+            ).join('\n');
+
+            // Create blob and download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `orders_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            alert(`${filteredOrders.length} order(s) exported successfully!`);
+        }
+
+        // Initial render - load from API
+        loadOrdersFromAPI();
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            } catch (e) {}
+            localStorage.removeItem('currentUser');
+            window.location.href = './login.html';
+        }
+    </script>
+</body>
+</html>

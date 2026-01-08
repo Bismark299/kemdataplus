@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings - KemDataplus</title>
+    <link rel="stylesheet" href="../public/css/dashboard.css">
+    <script src="https://kit.fontawesome.com/56c0d51fb9.js" crossorigin="anonymous"></script>
+    <style>
+        .profile-container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .profile-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #ddd;
+            flex-wrap: wrap;
+        }
+        .profile-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            color: #666;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .profile-tab:hover {
+            color: #024959;
+        }
+        .profile-tab.active {
+            color: #F2C12E;
+            border-bottom-color: #F2C12E;
+        }
+        .profile-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: none;
+        }
+        .profile-content.show {
+            display: block;
+        }
+        .profile-content h2 {
+            color: #024959;
+            margin-bottom: 20px;
+        }
+        .profile-section {
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #024959;
+            font-weight: 600;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #F2C12E;
+            box-shadow: 0 0 0 3px rgba(242, 193, 46, 0.1);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .profile-pic-section {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .profile-pic-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid #F2C12E;
+            object-fit: cover;
+            margin-bottom: 15px;
+        }
+        .btn-pic-upload {
+            padding: 8px 16px;
+            background: #024959;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-pic-upload:hover {
+            background: #F2C12E;
+            color: #024959;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+        }
+        .btn-save {
+            padding: 12px 30px;
+            background: linear-gradient(90deg, #024959 0%, #F2C12E 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn-save:hover {
+            transform: translateY(-2px);
+        }
+        .success-msg {
+            background: #4caf50;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .error-msg {
+            background: #f44336;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+        .setting-info h4 {
+            color: #024959;
+            margin: 0 0 5px 0;
+        }
+        .setting-info p {
+            color: #999;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #ddd;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-switch.active {
+            background: #4caf50;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+        .toggle-switch.active::after {
+            left: 26px;
+        }
+        
+        /* Responsive Styles - Clean stacking like login page */
+        @media (max-width: 900px) {
+            .profile-container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+            
+            .profile-header {
+                padding: 25px 20px;
+                margin-bottom: 20px;
+                border-radius: 10px;
+            }
+            
+            .profile-header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .avatar-container {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .profile-info h2 {
+                font-size: 1.1rem;
+            }
+            
+            .profile-tabs {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            .profile-tab {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .setting-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .profile-container {
+                padding: 0 10px;
+                margin: 15px auto;
+            }
+            
+            .profile-header {
+                padding: 20px 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+            }
+            
+            .profile-header h1 {
+                font-size: 1.1rem;
+                margin-bottom: 10px;
+            }
+            
+            .profile-header p {
+                font-size: 0.85rem;
+            }
+            
+            .avatar-container {
+                width: 65px;
+                height: 65px;
+                margin-right: 12px;
+            }
+            
+            .profile-info h2 {
+                font-size: 1rem;
+                margin-bottom: 4px;
+            }
+            
+            .profile-info p {
+                font-size: 0.8rem;
+                margin: 2px 0;
+            }
+            
+            .profile-tabs {
+                gap: 6px;
+                margin-bottom: 15px;
+            }
+            
+            .profile-tab {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .profile-content {
+                padding: 15px;
+                border-radius: 8px;
+            }
+            
+            .profile-content h3 {
+                font-size: 1rem;
+                margin-bottom: 12px;
+            }
+            
+            .form-row {
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            
+            .form-input, .form-textarea {
+                font-size: 0.9rem;
+                padding: 10px;
+            }
+            
+            .btn-primary, .btn-secondary {
+                font-size: 0.85rem;
+                padding: 10px 15px;
+                margin-right: 10px;
+            }
+            
+            .form-section {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .setting-row {
+                padding: 12px 0;
+            }
+            
+            .setting-info h4 {
+                font-size: 0.9rem;
+            }
+            
+            .setting-info p {
+                font-size: 0.8rem;
+            }
+            
+            .toggle-switch {
+                width: 45px;
+                height: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <!-- HEADER -->
+        <div class="header-container">
+            <header>
+                <div><a href="../public/dashboard.html"><img src="../public/img/kem.png" alt="KemDataplus" class="logo"></a></div>
+                <input type="checkbox" id="check-box">
+                <div class="nav-links">
+                    <label for="check-box" class="menu-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </label>
+                    <div class="nav-menu">
+                        <div class="links">
+                            <a href="../public/dashboard.html">Dashboard</a>
+                            <a href="../public/dashboard.html#buy-bundles">Buy Bundles</a>
+                            <a href="./orders.html">Orders</a>
+                            <a href="./wallet.html">Wallet</a>
+                            <a href="./mystore.html">My Store</a>
+                            <a href="./api.html">API</a>
+                            <a href="./profile.html" class="active">Profile</a>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown">
+                        <img src="../public/img/kem.png" alt="Profile" class="profile-pic" id="profileBtn">
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a href="./profile.html"><i class="fas fa-user"></i> My Profile</a>
+                            <a href="./profile.html"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="./wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+                            <hr>
+                            <a href="#" onclick="logout(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                    <label for="check-box" class="close-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </label>
+                </div>
+            </header>
+        </div>
+
+        <!-- PROFILE CONTENT -->
+        <div class="profile-container">
+            <div class="profile-tabs">
+                <div class="profile-tab active" data-tab="profile"><i class="fas fa-user"></i> Profile</div>
+                <div class="profile-tab" data-tab="security"><i class="fas fa-lock"></i> Security</div>
+                <div class="profile-tab" data-tab="settings"><i class="fas fa-cog"></i> Settings</div>
+            </div>
+
+            <!-- PROFILE TAB -->
+            <div class="profile-content show" id="profileTab">
+                <h2><i class="fas fa-user"></i> My Profile</h2>
+                <div class="success-msg" id="profileSuccess"></div>
+                <div class="error-msg" id="profileError"></div>
+
+                <form id="profileForm">
+                    <!-- Profile Picture -->
+                    <div class="profile-pic-section">
+                        <img src="../public/img/kem.png" alt="Profile" class="profile-pic-avatar">
+                        <input type="file" id="profilePicInput" accept="image/*" style="display:none;">
+                        <button type="button" class="btn-pic-upload" onclick="document.getElementById('profilePicInput').click()">
+                            <i class="fas fa-camera"></i> Change Avatar
+                        </button>
+                    </div>
+
+                    <div class="profile-section">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="John" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" value="Doe" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Email Address</label>
+                                <input type="email" value="john.doe@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone Number</label>
+                                <input type="tel" value="0240000000" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Company/Business Name</label>
+                            <input type="text" value="Doe's Data Hub" placeholder="Your company name">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Country</label>
+                                <select required>
+                                    <option>Ghana</option>
+                                    <option>Nigeria</option>
+                                    <option>Kenya</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" value="Accra" placeholder="City">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Bio</label>
+                            <textarea rows="3" placeholder="Tell us about yourself...">Professional data bundle reseller</textarea>
+                        </div>
+
+                        <button type="submit" class="btn-save"><i class="fas fa-save"></i> Save Changes</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- SECURITY TAB -->
+            <div class="profile-content" id="securityTab">
+                <h2><i class="fas fa-lock"></i> Security Settings</h2>
+                <div class="success-msg" id="securitySuccess"></div>
+                <div class="error-msg" id="securityError"></div>
+
+                <form id="securityForm">
+                    <div class="profile-section">
+                        <h3 style="color:#024959;margin-bottom:15px;">Change Password</h3>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm Password</label>
+                                <input type="password" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-save"><i class="fas fa-save"></i> Update Password</button>
+                    </div>
+
+                    <div class="profile-section" style="margin-top:30px;border-top:1px solid #eee;padding-top:20px;">
+                        <h3 style="color:#024959;margin-bottom:15px;">Two-Factor Authentication</h3>
+                        <p style="color:#666;margin-bottom:15px;">Add an extra layer of security to your account</p>
+                        <button type="button" class="btn-save" id="btn2FA" onclick="toggle2FA()"><i class="fas fa-shield-alt"></i> Enable 2FA</button>
+                    </div>
+
+                    <div class="profile-section" style="margin-top:30px;border-top:1px solid #eee;padding-top:20px;">
+                        <h3 style="color:#024959;margin-bottom:15px;">Active Sessions</h3>
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <h4>Current Session</h4>
+                                <p>Chrome on Windows • 192.168.1.1</p>
+                            </div>
+                            <span style="color:#4caf50;font-weight:600;">Active Now</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- NOTIFICATIONS TAB -->
+
+
+            <!-- SETTINGS TAB -->
+            <div class="profile-content" id="settingsTab">
+                <h2><i class="fas fa-cog"></i> Account Settings</h2>
+                
+                <div class="profile-section">
+                    <h3 style="color:#024959;margin-bottom:15px;">Account Type</h3>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Account Tier</h4>
+                            <p>You are currently on the <strong id="accountTierDisplay">Premium</strong> plan</p>
+                        </div>
+                        <button class="btn-save" onclick="showUpgradeModal()" style="padding:8px 16px;font-size:0.9rem;">
+                            <i class="fas fa-arrow-up"></i> Upgrade
+                        </button>
+                    </div>
+                </div>
+
+                <div class="profile-section" style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
+                    <h3 style="color:#024959;margin-bottom:15px;">API Keys</h3>
+                    <div class="form-group">
+                        <label>Active API Key</label>
+                        <input type="text" id="settingsApiKey" value="pk_live_51234567890abcdef" readonly style="background:#f9f9f9;">
+                        <small style="color:#999;">Keep your API key secure. Never share it publicly.</small>
+                    </div>
+                    <button class="btn-save" onclick="regenerateApiKey()" style="margin-right:10px;">
+                        <i class="fas fa-sync"></i> Regenerate Key
+                    </button>
+                    <button class="btn-save" style="background:#024959;" onclick="copyApiKey()">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+
+                <div class="profile-section" style="border-top:1px solid #eee;padding-top:20px;margin-top:30px;">
+                    <h3 style="color:#024959;margin-bottom:15px;">Danger Zone</h3>
+                    <button type="button" class="btn-save" style="background:#f44336;width:100%;" onclick="deleteAccount()">
+                        <i class="fas fa-trash"></i> Delete Account
+                    </button>
+                    <small style="color:#999;display:block;margin-top:10px;">This action cannot be undone. All data will be permanently deleted.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =====================
+        // API CONFIGURATION
+        // =====================
+        const API_BASE = window.location.origin + '/api';
+        
+        // Check if logged in via httpOnly cookie
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                return res.ok;
+            } catch {
+                return false;
+            }
+        }
+        
+        async function requireAuth() {
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) {
+                window.location.href = '/pages/login.html';
+                return false;
+            }
+            return true;
+        }
+        
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            };
+            if (data) options.body = JSON.stringify(data);
+            
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            if (response.status === 401) {
+                window.location.href = '/pages/login.html';
+                throw new Error('Session expired');
+            }
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Request failed');
+            return result;
+        }
+        
+        // =====================
+        // USER DATA FROM API
+        // =====================
+        let userData = {
+            id: '',
+            name: '',
+            email: '',
+            phone: '',
+            role: 'AGENT',
+            twoFactorEnabled: false
+        };
+
+        async function loadUserFromAPI() {
+            const isAuthenticated = await requireAuth();
+            if (!isAuthenticated) return;
+            
+            try {
+                const user = await apiRequest('/users/me');
+                userData = {
+                    id: user.id,
+                    name: user.name || '',
+                    email: user.email || '',
+                    phone: user.phone || '',
+                    role: user.role || 'AGENT',
+                    firstName: user.name?.split(' ')[0] || '',
+                    lastName: user.name?.split(' ').slice(1).join(' ') || '',
+                    twoFactorEnabled: false,
+                    accountTier: user.role || 'AGENT'
+                };
+                loadProfileData();
+            } catch (error) {
+                console.error('Failed to load user:', error);
+                showToast('Failed to load profile data', 'error');
+            }
+        }
+
+        // =====================
+        // TOAST NOTIFICATION
+        // =====================
+        function showToast(message, type = 'success') {
+            let toast = document.getElementById('profileToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'profileToast';
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    padding: 15px 25px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 9999;
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: all 0.3s ease;
+                    max-width: 350px;
+                `;
+                document.body.appendChild(toast);
+            }
+            toast.style.background = type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#4CAF50';
+            toast.textContent = message;
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+            }, 10);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+            }, 3000);
+        }
+
+        // =====================
+        // LOAD PROFILE DATA
+        // =====================
+        function loadProfileData() {
+            const form = document.getElementById('profileForm');
+            const inputs = form.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], textarea, select');
+            
+            // Map form fields to userData
+            inputs.forEach((input, index) => {
+                if (index === 0 && userData.firstName) input.value = userData.firstName;
+                else if (index === 1 && userData.lastName) input.value = userData.lastName;
+                else if (index === 2 && userData.email) input.value = userData.email;
+                else if (index === 3 && userData.phone) input.value = userData.phone;
+            });
+
+            // Load 2FA status
+            update2FAButton();
+
+            // Load account tier
+            const tierText = document.getElementById('accountTierDisplay');
+            if (tierText) {
+                tierText.textContent = userData.accountTier || userData.role || 'AGENT';
+            }
+        }            // Load account tier
+            const tierText = document.querySelector('#settingsTab .setting-info p strong');
+            if (tierText) {
+                tierText.textContent = userData.accountTier || 'Premium';
+            }
+        }
+
+        // =====================
+        // TAB SWITCHING
+        // =====================
+        document.querySelectorAll('.profile-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.profile-content').forEach(c => c.classList.remove('show'));
+                this.classList.add('active');
+                document.getElementById(this.dataset.tab + 'Tab').classList.add('show');
+            });
+        });
+
+        // =====================
+        // PROFILE FORM - SAVE TO API
+        // =====================
+        document.getElementById('profileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const inputs = this.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], textarea, select');
+            
+            const firstName = inputs[0]?.value || '';
+            const lastName = inputs[1]?.value || '';
+            const phone = inputs[3]?.value || '';
+            
+            try {
+                await apiRequest('/users/me', 'PUT', {
+                    name: `${firstName} ${lastName}`.trim(),
+                    phone: phone
+                });
+                showToast('Profile updated successfully!');
+            } catch (error) {
+                showToast('Failed to update profile: ' + error.message, 'error');
+            }
+        });
+
+        // =====================
+        // SECURITY - PASSWORD (API)
+        // =====================
+        document.getElementById('securityForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const inputs = this.querySelectorAll('input[type="password"]');
+            const currentPwd = inputs[0].value;
+            const newPwd = inputs[1].value;
+            const confirmPwd = inputs[2].value;
+
+            if (newPwd.length < 6) {
+                showToast('New password must be at least 6 characters', 'error');
+                return;
+            }
+
+            if (newPwd !== confirmPwd) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+
+            try {
+                await apiRequest('/users/me/password', 'PUT', {
+                    currentPassword: currentPwd,
+                    newPassword: newPwd
+                });
+                showToast('Password changed successfully!');
+                this.reset();
+            } catch (error) {
+                showToast(error.message || 'Failed to change password', 'error');
+            }
+        });
+
+        // =====================
+        // 2FA TOGGLE
+        // =====================
+        function toggle2FA() {
+            userData.twoFactorEnabled = !userData.twoFactorEnabled;
+            saveUserData(userData);
+            update2FAButton();
+            
+            if (userData.twoFactorEnabled) {
+                showToast('Two-Factor Authentication enabled!');
+            } else {
+                showToast('Two-Factor Authentication disabled', 'warning');
+            }
+        }
+
+        function update2FAButton() {
+            const btn = document.getElementById('btn2FA');
+            if (btn) {
+                if (userData.twoFactorEnabled) {
+                    btn.innerHTML = '<i class="fas fa-shield-alt"></i> Disable 2FA';
+                    btn.style.background = '#f44336';
+                } else {
+                    btn.innerHTML = '<i class="fas fa-shield-alt"></i> Enable 2FA';
+                    btn.style.background = '';
+                }
+            }
+        }
+
+        // =====================
+        // UPGRADE PLAN
+        // =====================
+        function showUpgradeModal() {
+            const plans = ['Basic', 'Premium', 'Enterprise'];
+            const currentIndex = plans.indexOf(userData.accountTier);
+            
+            if (currentIndex >= plans.length - 1) {
+                showToast('You are already on the highest plan!', 'warning');
+                return;
+            }
+
+            const nextPlan = plans[currentIndex + 1];
+            if (confirm(`Upgrade to ${nextPlan} plan?\n\nThis would unlock additional features and better rates.`)) {
+                userData.accountTier = nextPlan;
+                saveUserData(userData);
+                
+                const tierText = document.querySelector('#settingsTab .setting-info p strong');
+                if (tierText) tierText.textContent = nextPlan;
+                
+                showToast(`Upgraded to ${nextPlan} plan!`);
+            }
+        }
+
+        // =====================
+        // API KEY MANAGEMENT
+        // =====================
+        async function regenerateApiKey() {
+            if (confirm('Are you sure you want to regenerate your API key?\n\nThis will invalidate your current key.')) {
+                try {
+                    // Generate new key and save via user profile API
+                    const newKey = 'kdp_sk_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                    
+                    // Update profile with new API key (if API supports it)
+                    // For now, store in userData
+                    userData.apiKey = newKey;
+                    saveUserData(userData);
+                    
+                    const apiKeyInput = document.querySelector('#settingsTab input[readonly]');
+                    if (apiKeyInput) apiKeyInput.value = newKey;
+                    
+                    showToast('New API key generated!');
+                } catch (error) {
+                    showToast('Failed to regenerate API key: ' + error.message, 'error');
+                }
+            }
+        }
+
+        function copyApiKey() {
+            const apiKeyInput = document.querySelector('#settingsTab input[readonly]');
+            if (apiKeyInput) {
+                navigator.clipboard.writeText(apiKeyInput.value).then(() => {
+                    showToast('API key copied to clipboard!');
+                }).catch(() => {
+                    apiKeyInput.select();
+                    document.execCommand('copy');
+                    showToast('API key copied to clipboard!');
+                });
+            }
+        }
+
+        // =====================
+        // DELETE ACCOUNT
+        // =====================
+        async function deleteAccount() {
+            const confirmation = prompt('This action cannot be undone!\n\nType "DELETE" to confirm account deletion:');
+            
+            if (confirmation === 'DELETE') {
+                try {
+                    await apiRequest('/users/me', 'DELETE');
+                    localStorage.removeItem('currentUser');
+                    showToast('Account deleted. Redirecting...');
+                    setTimeout(() => {
+                        window.location.href = './login.html';
+                    }, 2000);
+                } catch (error) {
+                    showToast('Failed to delete account: ' + error.message, 'error');
+                }
+            } else if (confirmation !== null) {
+                showToast('Deletion cancelled - text did not match', 'error');
+            }
+        }
+
+        // =====================
+        // PROFILE DROPDOWN
+        // =====================
+        document.getElementById('profileBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', () => {
+            document.getElementById('dropdownMenu').style.display = 'none';
+        });
+
+        // =====================
+        // LOGOUT FUNCTION
+        // =====================
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            } catch (e) {}
+            localStorage.removeItem('currentUser');
+            window.location.href = './login.html';
+        }
+
+        // =====================
+        // INITIALIZE
+        // =====================
+        document.addEventListener('DOMContentLoaded', loadUserFromAPI);
+    </script>
+</body>
+</html>

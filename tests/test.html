@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test</title>
+</head>
+<body>
+    <h1>Testing Dashboard</h1>
+    <button id="testBtn">Test Button</button>
+    <div id="output"></div>
+
+    <script src="./js/ordersData.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Loaded');
+            console.log('cart:', typeof cart, cart);
+            console.log('ordersData:', typeof ordersData, ordersData);
+            console.log('initializeStorage:', typeof initializeStorage);
+            
+            if (typeof initializeStorage === 'function') {
+                initializeStorage();
+                console.log('initializeStorage called');
+                console.log('cart after init:', typeof cart, cart);
+            }
+            
+            const output = document.getElementById('output');
+            output.innerHTML = `
+                <p>cart type: ${typeof cart}</p>
+                <p>ordersData type: ${typeof ordersData}</p>
+                <p>initializeStorage: ${typeof initializeStorage}</p>
+                <p>cart length: ${cart ? cart.length : 'undefined'}</p>
+            `;
+        });
+    </script>
+</body>
+</html>
