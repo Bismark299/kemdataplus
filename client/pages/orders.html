@@ -339,30 +339,32 @@
         }
         
         #customDateRange {
-            display: flex !important;
             gap: 12px;
-            align-items: center;
             margin-bottom: 20px;
-            padding: 12px 15px;
-            background: #f9f9f9;
+            padding: 15px;
+            background: white;
             border-radius: 8px;
-            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         
         #customDateRange label {
             font-size: 0.9rem;
-            margin: 0;
-            white-space: nowrap;
             color: #024959;
-            font-weight: 500;
+            font-weight: 600;
         }
         
         #customDateRange input[type="date"] {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 0.9rem;
-            min-width: 140px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        #customDateRange input[type="date"]:focus {
+            border-color: #F2C12E;
+            outline: none;
         }
         
         /* Responsive Styles - Clean stacking like login page */
@@ -466,6 +468,13 @@
             #customDateRange input[type="date"] {
                 padding: 8px;
                 font-size: 0.85rem;
+                width: 100%;
+                min-width: unset;
+                box-sizing: border-box;
+            }
+            
+            #customDateRange button {
+                width: 100%;
             }
             
             /* Table responsive on mobile */
@@ -615,13 +624,13 @@
             </div>
 
             <!-- CUSTOM DATE RANGE (Hidden by default) -->
-            <div id="customDateRange" style="display: none; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); align-items: center; gap: 10px; flex-wrap: wrap;">
-                <label style="color: #024959; font-weight: 600;">From:</label>
-                <input type="date" id="startDate" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; outline: none;">
-                <label style="color: #024959; font-weight: 600;">To:</label>
-                <input type="date" id="endDate" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; outline: none;">
-                <button class="btn-details" onclick="applyCustomDateRange()" style="background: #024959; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Apply</button>
-                <button class="btn-details" onclick="clearCustomDateRange()" style="background: #999; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Clear</button>
+            <div id="customDateRange" style="display: none;">
+                <label>From:</label>
+                <input type="date" id="startDate">
+                <label>To:</label>
+                <input type="date" id="endDate">
+                <button class="btn-details" onclick="applyCustomDateRange()">Apply</button>
+                <button class="btn-details" onclick="clearCustomDateRange()" style="background: #999;">Clear</button>
             </div>
 
             <!-- ORDERS TABLE -->
