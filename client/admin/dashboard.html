@@ -8184,10 +8184,17 @@
                 filtered = bundleTariffsData.filter(b => b.networkId === filterNetwork || b.network === filterNetwork);
             }
             
-            // Sort by capacity (ascending order)
+            // Sort by network first, then by capacity (ascending order)
             filtered = [...filtered].sort((a, b) => {
-                const capA = parseInt((a.capacity || '').replace(/\D/g, '')) || 0;
-                const capB = parseInt((b.capacity || '').replace(/\D/g, '')) || 0;
+                // First sort by network name
+                const netA = (a.network || '').toUpperCase();
+                const netB = (b.network || '').toUpperCase();
+                if (netA !== netB) {
+                    return netA.localeCompare(netB);
+                }
+                // Then sort by capacity (numeric)
+                const capA = parseFloat((a.capacity || '').replace(/[^\d.]/g, '')) || 0;
+                const capB = parseFloat((b.capacity || '').replace(/[^\d.]/g, '')) || 0;
                 return capA - capB;
             });
             
@@ -8603,7 +8610,7 @@
                 if (res.ok) {
                     showToast('Bundle added successfully!', 'success');
                     closeBundleModalAdd();
-                    loadBundles();
+                    await loadNetworksSection(); // Reload bundles from API
                 } else {
                     showToast(result.error || result.message || 'Failed to add bundle', 'error');
                 }
