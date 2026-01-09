@@ -28,7 +28,7 @@
     "cartOrder": true,
     "newRegistration": true,
     "websiteUpdate": false,
-    "mcbisAPI": false,
+    "mcbisAPI": true,
     "mcbisAutoSync": false
   }
 }
