@@ -21,14 +21,23 @@ const prisma = new PrismaClient();
 function getApiConfig() {
   try {
     const settingsPath = path.join(__dirname, '../../settings.json');
+    console.log('[DataHub] Reading settings from:', settingsPath);
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    return {
+    
+    const config = {
       url: settings.adminSettings?.mcbisApiUrl || settings.adminSettings?.apiUrl || 'https://datahub.mcbissolution.com/api/v1',
-      token: settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || process.env.DATAHUB_API_TOKEN
+      token: settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || process.env.DATAHUB_API_TOKEN || ''
     };
+    
+    console.log('[DataHub] API URL:', config.url);
+    console.log('[DataHub] Token present:', config.token ? 'YES (length: ' + config.token.length + ')' : 'NO');
+    
+    return config;
   } catch (e) {
+    console.log('[DataHub] Settings file error:', e.message);
+    console.log('[DataHub] Falling back to env variables');
     return {
-      url: 'https://datahub.mcbissolution.com/api/v1',
+      url: process.env.DATAHUB_API_URL || 'https://datahub.mcbissolution.com/api/v1',
       token: process.env.DATAHUB_API_TOKEN || ''
     };
   }
