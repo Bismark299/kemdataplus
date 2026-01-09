@@ -6,19 +6,27 @@ const path = require('path');
 const prisma = new PrismaClient();
 
 // Import multi-tenant services (optional - graceful fallback if not available)
-let pricingEngine, profitService, walletService, auditService, datahubService;
+let pricingEngine, profitService, walletService, auditService, datahubService, settingsController;
 try {
   pricingEngine = require('../services/pricing.service');
   profitService = require('../services/profit.service');
   walletService = require('../services/wallet.service');
   auditService = require('../services/audit.service');
   datahubService = require('../services/datahub.service');
+  settingsController = require('./settings.controller');
 } catch (e) {
   console.log('Multi-tenant services not available, using legacy mode');
 }
 
-// Helper to check if Mcbis API is enabled
+// Helper to check if Mcbis API is enabled (uses in-memory cache)
 function isMcbisEnabled() {
+  // Use the settings controller cache if available
+  if (settingsController && settingsController.getSiteSettings) {
+    const siteSettings = settingsController.getSiteSettings();
+    return siteSettings.mcbisAPI === true;
+  }
+  
+  // Fallback to file read
   try {
     const settingsPath = path.join(__dirname, '../../settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
