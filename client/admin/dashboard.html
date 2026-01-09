@@ -3857,6 +3857,7 @@
                             <option value="pending">Pending</option>
                             <option value="processing">Processing</option>
                             <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
@@ -3864,9 +3865,10 @@
                         <label>Filter By Payment:</label>
                         <select id="filterPayment">
                             <option value="">-- Select Status --</option>
-                            <option value="completed">Completed/Paid</option>
+                            <option value="completed">Paid</option>
                             <option value="pending">Pending</option>
                             <option value="failed">Failed</option>
+                            <option value="refunded">Refunded</option>
                         </select>
                     </div>
                 </div>
@@ -4056,13 +4058,13 @@
                         <select id="filterClaimStatus">
                             <option value="">All Status</option>
                             <option value="pending">Pending</option>
-                            <option value="claimed">Claimed</option>
-                            <option value="unclaimed">Unclaimed</option>
+                            <option value="completed">Approved</option>
+                            <option value="rejected">Rejected</option>
                         </select>
                         <select id="filterClaimNetwork">
                             <option value="">All Networks</option>
                             <option value="MTN">MTN</option>
-                            <option value="Vodafone">Vodafone</option>
+                            <option value="Telecel">Telecel</option>
                             <option value="AirtelTigo">AirtelTigo</option>
                         </select>
                         <select id="filterClaimDate">
@@ -4244,11 +4246,19 @@
                             <i class="fas fa-search"></i>
                             <input type="text" id="usersSearchInput" placeholder="Search users...">
                         </div>
+                        <select id="usersRoleFilter">
+                            <option value="">All Roles</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="PARTNER">Partner</option>
+                            <option value="SUPER_DEALER">Super Dealer</option>
+                            <option value="DEALER">Dealer</option>
+                            <option value="SUPER_AGENT">Super Agent</option>
+                            <option value="AGENT">Agent</option>
+                        </select>
                         <select id="usersStatusFilter">
                             <option value="">All Status</option>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
-                            <option value="suspended">Suspended</option>
                         </select>
                         <button class="btn-add-user" id="addUserBtn">
                             <i class="fas fa-plus"></i> Add User
@@ -6516,7 +6526,7 @@
             document.getElementById('statTotalBalance').textContent = 'GH₵ ' + totalBalance.toFixed(2);
         }
         
-        function renderUsersTable(searchTerm = '', statusFilter = '') {
+        function renderUsersTable(searchTerm = '', statusFilter = '', roleFilter = '') {
             const tbody = document.getElementById('usersTableBody');
             let filtered = [...usersData];
             
@@ -6531,6 +6541,10 @@
             
             if (statusFilter) {
                 filtered = filtered.filter(u => (u.status || 'active') === statusFilter);
+            }
+            
+            if (roleFilter) {
+                filtered = filtered.filter(u => (u.role || '').toUpperCase() === roleFilter.toUpperCase());
             }
             
             if (filtered.length === 0) {
@@ -6603,12 +6617,20 @@
         // User search and filter
         document.getElementById('usersSearchInput')?.addEventListener('input', function() {
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
-            renderUsersTable(this.value, statusFilter);
+            const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
+            renderUsersTable(this.value, statusFilter, roleFilter);
         });
         
         document.getElementById('usersStatusFilter')?.addEventListener('change', function() {
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
-            renderUsersTable(searchTerm, this.value);
+            const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
+            renderUsersTable(searchTerm, this.value, roleFilter);
+        });
+        
+        document.getElementById('usersRoleFilter')?.addEventListener('change', function() {
+            const searchTerm = document.getElementById('usersSearchInput')?.value || '';
+            const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
+            renderUsersTable(searchTerm, statusFilter, this.value);
         });
         
         // Add/Edit User Modal
@@ -7657,7 +7679,16 @@
             }
             
             if (typeFilter) {
-                filtered = filtered.filter(t => (t.type || '').toUpperCase() === typeFilter.toUpperCase());
+                // Filter by credit (positive amounts) or debit (negative amounts)
+                filtered = filtered.filter(t => {
+                    const txnType = (t.type || '').toLowerCase();
+                    const amount = t.amount || 0;
+                    const isCredit = amount > 0 || txnType === 'deposit' || txnType === 'refund' || txnType === 'transfer_in' || txnType === 'credit';
+                    
+                    if (typeFilter === 'credit') return isCredit;
+                    if (typeFilter === 'debit') return !isCredit;
+                    return true;
+                });
             }
             
             const tbody = document.getElementById('allTransactionsBody');
