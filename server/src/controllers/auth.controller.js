@@ -78,7 +78,7 @@ const authController = {
     }
   },
 
-  // Login user
+  // Login user with account lockout protection
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -93,7 +93,16 @@ const authController = {
       });
 
       if (!user) {
+        // Don't reveal if email exists or not
         return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Check if account is locked
+      if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+        const remainingMinutes = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
+        return res.status(423).json({ 
+          error: `Account locked. Try again in ${remainingMinutes} minutes.` 
+        });
       }
 
       if (!user.isActive) {
@@ -103,7 +112,41 @@ const authController = {
       const isValidPassword = await bcrypt.compare(password, user.password);
 
       if (!isValidPassword) {
+        // Track failed login attempts
+        const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+        const MAX_ATTEMPTS = 5;
+        
+        if (failedAttempts >= MAX_ATTEMPTS) {
+          // Lock account for 15 minutes
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: failedAttempts,
+              lockedUntil: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+            }
+          });
+          return res.status(423).json({ 
+            error: 'Account locked due to too many failed attempts. Try again in 15 minutes.' 
+          });
+        } else {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedLoginAttempts: failedAttempts }
+          });
+        }
+        
         return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Reset failed attempts on successful login
+      if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: 0,
+            lockedUntil: null
+          }
+        });
       }
 
       const token = generateToken(user.id);

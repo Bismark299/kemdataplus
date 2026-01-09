@@ -61,13 +61,14 @@ app.use('/api/', limiter);
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProduction ? 10 : 100,
-  message: { error: 'Too many login attempts, please try again later.' }
+  max: isProduction ? 5 : 100, // Only 5 login attempts per 15 min in production
+  message: { error: 'Too many login attempts, please try again in 15 minutes.' },
+  skipSuccessfulRequests: true // Don't count successful logins
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/store-customer/login', authLimiter); // Also protect store customer login
 
-// Security middleware
+// Security middleware with enhanced headers
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
@@ -79,8 +80,25 @@ app.use(helmet({
       "font-src": ["'self'", "https://ka-f.fontawesome.com", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com", "data:"],
       "connect-src": ["'self'", "https://ka-f.fontawesome.com"],
     }
-  }
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  xssFilter: true,
+  hidePoweredBy: true
 }));
+
+// Additional security headers
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  next();
+});
 
 // CORS configuration - STRICT in production
 const allowedOrigins = isProduction 

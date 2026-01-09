@@ -206,7 +206,10 @@
           </div>
           <div class="input-group">
             <i class="fas fa-lock"></i>
-            <input type="password" id="registerPassword" placeholder="Password" required>
+            <input type="password" id="registerPassword" placeholder="Password" required minlength="8">
+            <small style="display:block; color:#888; font-size:11px; margin-top:4px; padding-left:35px;">
+              Min 8 chars, 1 uppercase, 1 lowercase, 1 number
+            </small>
           </div>
           <div class="input-group">
             <i class="fas fa-lock"></i>
@@ -388,8 +391,21 @@
         return;
       }
 
-      if (password.length < 6) {
-        showError('registerError', 'Password must be at least 6 characters.');
+      // Strong password validation
+      if (password.length < 8) {
+        showError('registerError', 'Password must be at least 8 characters.');
+        return;
+      }
+      if (!/[A-Z]/.test(password)) {
+        showError('registerError', 'Password must contain at least one uppercase letter.');
+        return;
+      }
+      if (!/[a-z]/.test(password)) {
+        showError('registerError', 'Password must contain at least one lowercase letter.');
+        return;
+      }
+      if (!/[0-9]/.test(password)) {
+        showError('registerError', 'Password must contain at least one number.');
         return;
       }
 
