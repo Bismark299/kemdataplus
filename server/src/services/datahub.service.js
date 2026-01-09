@@ -18,29 +18,41 @@ const path = require('path');
 const prisma = new PrismaClient();
 
 // Helper to get API config from settings
+// Priority: Environment variables > settings.json > defaults
 function getApiConfig() {
+  // Check environment variables FIRST (more reliable for cloud deployment)
+  if (process.env.DATAHUB_API_TOKEN) {
+    console.log('[DataHub] Using environment variables for config');
+    return {
+      url: process.env.DATAHUB_API_URL || 'https://datahub.mcbissolution.com/api/v1',
+      token: process.env.DATAHUB_API_TOKEN
+    };
+  }
+  
+  // Fallback to settings.json
   try {
     const settingsPath = path.join(__dirname, '../../settings.json');
     console.log('[DataHub] Reading settings from:', settingsPath);
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     
-    const config = {
-      url: settings.adminSettings?.mcbisApiUrl || settings.adminSettings?.apiUrl || 'https://datahub.mcbissolution.com/api/v1',
-      token: settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || process.env.DATAHUB_API_TOKEN || ''
-    };
+    const token = settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || '';
     
-    console.log('[DataHub] API URL:', config.url);
-    console.log('[DataHub] Token present:', config.token ? 'YES (length: ' + config.token.length + ')' : 'NO');
-    
-    return config;
+    if (token) {
+      console.log('[DataHub] Using settings.json for config');
+      return {
+        url: settings.adminSettings?.mcbisApiUrl || settings.adminSettings?.apiUrl || 'https://datahub.mcbissolution.com/api/v1',
+        token: token
+      };
+    }
   } catch (e) {
     console.log('[DataHub] Settings file error:', e.message);
-    console.log('[DataHub] Falling back to env variables');
-    return {
-      url: process.env.DATAHUB_API_URL || 'https://datahub.mcbissolution.com/api/v1',
-      token: process.env.DATAHUB_API_TOKEN || ''
-    };
   }
+  
+  console.log('[DataHub] WARNING: No API token found!');
+  return {
+    url: 'https://datahub.mcbissolution.com/api/v1',
+    token: ''
+  };
 }
 
 // Network mapping (our system -> API)
