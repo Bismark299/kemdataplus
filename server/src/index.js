@@ -241,11 +241,68 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 KemDataplus Server running on port ${PORT}`);
   console.log(`📚 API available at /api`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Start auto-sync background job
+  startAutoSync();
 });
+
+// ============================================
+// AUTO-SYNC: Background job for order status
+// ============================================
+const settingsController = require('./controllers/settings.controller');
+const datahubService = require('./services/datahub.service');
+
+let autoSyncInterval = null;
+const AUTO_SYNC_INTERVAL_MS = 1 * 60 * 1000; // 1 minute
+
+function startAutoSync() {
+  // Clear any existing interval
+  if (autoSyncInterval) {
+    clearInterval(autoSyncInterval);
+  }
+  
+  // Check settings and start if enabled
+  const checkAndSync = async () => {
+    try {
+      const siteSettings = settingsController.getSiteSettings();
+      
+      if (siteSettings.mcbisAPI && siteSettings.mcbisAutoSync) {
+        console.log(`[AutoSync] Running auto-sync for pending orders...`);
+        const result = await datahubService.syncAllPendingOrders();
+        
+        if (result.synced > 0) {
+          console.log(`[AutoSync] Synced ${result.synced} orders`);
+          
+          // Log any status changes
+          result.results.forEach(r => {
+            if (r.success && r.previousStatus !== r.newStatus) {
+              console.log(`[AutoSync] Order ${r.orderId}: ${r.previousStatus} → ${r.newStatus}`);
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`[AutoSync] Error:`, error.message);
+    }
+  };
+  
+  // Run immediately on startup, then every interval
+  setTimeout(checkAndSync, 10000); // First run after 10 seconds
+  autoSyncInterval = setInterval(checkAndSync, AUTO_SYNC_INTERVAL_MS);
+  
+  console.log(`🔄 Auto-sync initialized (every ${AUTO_SYNC_INTERVAL_MS / 1000}s)`);
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  
+  // Stop auto-sync
+  if (autoSyncInterval) {
+    clearInterval(autoSyncInterval);
+    console.log('Auto-sync stopped');
+  }
+  
   server.close(() => {
     console.log('Server closed');
     process.exit(0);

@@ -247,9 +247,29 @@ const datahubService = {
   async checkOrderStatus(reference) {
     try {
       const result = await apiRequest(`/checkOrderStatus/${reference}`);
+      
+      // Log the raw response to debug status mapping
+      console.log(`[DataHub] checkOrderStatus raw response:`, JSON.stringify(result, null, 2));
+      
+      // MCBIS API returns: 
+      // { 
+      //   message: "...", 
+      //   data: { 
+      //     status: "success",  ← This means API call succeeded, NOT order status!
+      //     order: { 
+      //       status: "pending|processing|completed|failed"  ← THIS is the order status!
+      //     } 
+      //   } 
+      // }
+      
+      // CRITICAL: Use data.order.status (actual order status), NOT data.status (API call status)
+      const orderStatus = result.data?.order?.status || result.data?.status || 'unknown';
+      
+      console.log(`[DataHub] Extracted order status: ${orderStatus}`);
+      
       return {
         success: true,
-        status: result.data?.status || result.data?.order?.status,
+        status: orderStatus,
         order: result.data?.order,
         raw: result
       };
@@ -272,11 +292,16 @@ const datahubService = {
    * @param {string} params.orderId - Internal order ID (optional)
    */
   async placeOrder({ network, phone, amount, orderId }) {
+    console.log(`[DataHub] ========== PLACE ORDER START ==========`);
+    console.log(`[DataHub] Input: network=${network}, phone=${phone}, amount=${amount}, orderId=${orderId}`);
+    
     // Map network to API format
     const apiNetwork = NETWORK_MAP[network];
     if (!apiNetwork) {
+      console.error(`[DataHub] ERROR: Unsupported network: ${network}`);
       throw new Error(`Unsupported network: ${network}`);
     }
+    console.log(`[DataHub] Network mapped: ${network} -> ${apiNetwork}`);
 
     // Format phone number (remove country code if present)
     let formattedPhone = phone.replace(/\s+/g, '');
@@ -285,19 +310,27 @@ const datahubService = {
     } else if (formattedPhone.startsWith('233')) {
       formattedPhone = '0' + formattedPhone.slice(3);
     }
+    console.log(`[DataHub] Phone formatted: ${phone} -> ${formattedPhone}`);
 
     // Generate reference
     const reference = generateReference();
+    console.log(`[DataHub] Reference generated: ${reference}`);
+
+    // Build payload
+    const payload = {
+      network: apiNetwork,
+      reference: reference,
+      receiver: formattedPhone,
+      amount: amount
+    };
+    console.log(`[DataHub] PAYLOAD:`, JSON.stringify(payload, null, 2));
 
     try {
-      const result = await apiRequest('/placeOrder', 'POST', {
-        network: apiNetwork,
-        reference: reference,
-        receiver: formattedPhone,
-        amount: amount
-      });
+      console.log(`[DataHub] Calling API: POST /placeOrder`);
+      const result = await apiRequest('/placeOrder', 'POST', payload);
 
       // Log successful order
+      console.log(`[DataHub] API SUCCESS:`, JSON.stringify(result, null, 2));
       console.log(`[DataHub] Order placed: ${reference} - ${amount}GB to ${formattedPhone} (${apiNetwork})`);
 
       return {
@@ -308,7 +341,8 @@ const datahubService = {
         data: result.data
       };
     } catch (error) {
-      console.error(`[DataHub] Order failed: ${error.message}`);
+      console.error(`[DataHub] API FAILED:`, error.message);
+      console.error(`[DataHub] Full error:`, error);
       return {
         success: false,
         reference: reference,
@@ -325,6 +359,9 @@ const datahubService = {
    * @param {string} orderId - Our internal order ID
    */
   async processOrder(orderId) {
+    console.log(`[DataHub] ========== PROCESS ORDER START ==========`);
+    console.log(`[DataHub] Processing order ID: ${orderId}`);
+    
     // Get order from database
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -332,10 +369,21 @@ const datahubService = {
     });
 
     if (!order) {
+      console.error(`[DataHub] ERROR: Order not found: ${orderId}`);
       throw new Error('Order not found');
     }
 
+    console.log(`[DataHub] Order found:`, {
+      id: order.id,
+      status: order.status,
+      recipientPhone: order.recipientPhone,
+      bundle: order.bundle?.name,
+      network: order.bundle?.network,
+      dataAmount: order.bundle?.dataAmount
+    });
+
     if (order.status === 'COMPLETED') {
+      console.log(`[DataHub] Order already completed, skipping`);
       throw new Error('Order already completed');
     }
 
@@ -347,6 +395,7 @@ const datahubService = {
         dataAmount = parseInt(match[1]);
       }
     }
+    console.log(`[DataHub] Data amount extracted: ${dataAmount}GB`);
 
     // Place order via API
     const result = await this.placeOrder({
@@ -356,18 +405,27 @@ const datahubService = {
       orderId: orderId
     });
 
+    console.log(`[DataHub] placeOrder result:`, result);
+
     // Update order in database
     const newStatus = result.success ? 'PROCESSING' : 'FAILED';
+    console.log(`[DataHub] Updating order status to: ${newStatus}`);
+    console.log(`[DataHub] Storing API reference: ${result.reference}`);
     
     await prisma.order.update({
       where: { id: orderId },
       data: {
         status: newStatus,
-        reference: result.reference,
-        apiResponse: JSON.stringify(result),
-        updatedAt: new Date()
+        // CRITICAL: Store the MCBIS API reference for status checks
+        // This is the reference returned by McbisSolution, NOT our internal ORD-xxx reference
+        externalReference: result.reference,
+        apiSentAt: new Date(),
+        updatedAt: new Date(),
+        ...(result.success ? {} : { failureReason: result.error })
       }
     });
+
+    console.log(`[DataHub] Order updated in database`);
 
     // Log to audit
     await prisma.auditLog.create({
@@ -383,6 +441,8 @@ const datahubService = {
         }
       }
     }).catch(() => {}); // Don't fail if audit fails
+
+    console.log(`[DataHub] ========== PROCESS ORDER END ==========`);
 
     return {
       orderId,
@@ -402,11 +462,14 @@ const datahubService = {
       where: { id: orderId }
     });
 
-    if (!order || !order.reference) {
-      return { success: false, error: 'Order or reference not found' };
+    // Use externalReference (the MCBIS reference) not reference (our internal ORD-xxx)
+    if (!order || !order.externalReference) {
+      return { success: false, error: 'Order or API reference not found' };
     }
 
-    const statusResult = await this.checkOrderStatus(order.reference);
+    console.log(`[DataHub] Checking status for API reference: ${order.externalReference}`);
+    const statusResult = await this.checkOrderStatus(order.externalReference);
+    console.log(`[DataHub] API returned status: ${statusResult.status}`);
 
     if (statusResult.success) {
       // Map API status to our status
@@ -420,9 +483,14 @@ const datahubService = {
       }
 
       if (newStatus !== order.status) {
+        console.log(`[DataHub] Status change: ${order.status} → ${newStatus}`);
         await prisma.order.update({
           where: { id: orderId },
-          data: { status: newStatus }
+          data: { 
+            status: newStatus,
+            externalStatus: statusResult.status,
+            ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+          }
         });
       }
 
@@ -438,17 +506,21 @@ const datahubService = {
   },
 
   /**
-   * Sync all pending orders
+   * Sync all pending orders that have an external reference (were pushed to API)
+   * Runs every minute via auto-sync
    */
   async syncAllPendingOrders() {
     const pendingOrders = await prisma.order.findMany({
       where: {
         status: { in: ['PROCESSING', 'PENDING'] },
-        reference: { not: null }
+        // Only sync orders that were actually pushed to API (have externalReference)
+        externalReference: { not: null }
       },
       take: 50 // Limit to prevent API overload
     });
 
+    console.log(`[DataHub] Found ${pendingOrders.length} orders with API references to sync`);
+    
     const results = [];
     for (const order of pendingOrders) {
       try {

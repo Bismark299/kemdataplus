@@ -29,6 +29,6 @@
     "newRegistration": true,
     "websiteUpdate": false,
     "mcbisAPI": true,
-    "mcbisAutoSync": false
+    "mcbisAutoSync": true
   }
 }

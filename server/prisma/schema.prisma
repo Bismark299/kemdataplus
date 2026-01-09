@@ -376,7 +376,7 @@ model BundlePriceHistory {
 }
 
 // ============================================
-// ORDER MODEL (Extended)
+// ORDER MODEL (Extended with Financial Safety)
 // ============================================
 
 model Order {
@@ -407,6 +407,33 @@ model Order {
   processedBy    String?
   failureReason  String?
   
+  // ============================================
+  // FINANCIAL SAFETY FIELDS
+  // ============================================
+  
+  // External API tracking
+  externalReference String?   @unique // Reference from external provider (MCBIS)
+  externalStatus    String?   // Status from external provider
+  apiSentAt         DateTime? // When order was sent to external API
+  apiConfirmedAt    DateTime? // When external API confirmed completion
+  
+  // Retry control
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  nextRetryAt       DateTime? // When to retry failed order
+  
+  // Locking (prevents concurrent processing)
+  lockedAt          DateTime?
+  lockedBy          String?   // Server instance that holds the lock
+  lockExpiresAt     DateTime?
+  
+  // Idempotency
+  idempotencyKey    String?   @unique // Links to IdempotencyKey
+  
+  // Wallet deduction tracking (CRITICAL)
+  walletDeducted    Boolean   @default(false) // True = wallet was charged
+  walletDeductedAt  DateTime? // When wallet was charged
+  
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -422,6 +449,9 @@ model Order {
   @@index([reference])
   @@index([status])
   @@index([createdAt])
+  @@index([externalReference])
+  @@index([nextRetryAt])
+  @@index([lockedAt])
   @@map("orders")
 }
 
@@ -787,4 +817,77 @@ model CustomerFavorite {
   @@index([customerId])
   @@index([bundleId])
   @@map("customer_favorites")
+}
+
+// ============================================
+// FINANCIAL SAFETY MODELS
+// ============================================
+
+// Idempotency keys prevent duplicate operations
+model IdempotencyKey {
+  id              String    @id @default(uuid())
+  key             String    @unique
+  operationType   String
+  userId          String
+  orderId         String?
+  requestHash     String
+  responseData    Json?
+  status          String    @default("PENDING") // PENDING, COMPLETED, FAILED
+  lockedAt        DateTime?
+  lockedBy        String?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+// API audit log for all external API interactions
+model ApiAuditLog {
+  id                  String    @id @default(uuid())
+  orderId             String
+  idempotencyKey      String?
+  operation           String
+  externalReference   String?
+  requestUrl          String
+  requestMethod       String
+  requestHeadersHash  String?
+  requestPayloadHash  String
+  requestPayload      Json?
+  responseStatus      Int?
+  responsePayloadHash String?
+  responsePayload     Json?
+  responseTimeMs      Int?
+  retryNumber         Int       @default(0)
+  errorMessage        String?
+  errorCode           String?
+  serverInstance      String?
+  createdAt           DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([externalReference])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+  @@index([operation])
+  @@map("api_audit_logs")
+}
+
+// Order state transition history
+model OrderStateTransition {
+  id            String    @id @default(uuid())
+  orderId       String
+  fromState     String
+  toState       String
+  triggeredBy   String
+  triggerSource String
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_state_transitions")
 }
