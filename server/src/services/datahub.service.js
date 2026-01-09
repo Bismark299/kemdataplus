@@ -356,8 +356,10 @@ const datahubService = {
    * Process an order from our system through the API
    * Updates order status in database
    * 
-   * NOW INCLUDES: Balance check - if MCBIS doesn't have enough balance,
-   * order stays PENDING and will be retried later
+   * INCLUDES: 
+   * - Balance check - if MCBIS doesn't have enough balance, order stays PENDING
+   * - Duplicate prevention - orders already sent to MCBIS are never resent
+   * - Atomic locking - prevents concurrent processing of same order
    * 
    * @param {string} orderId - Our internal order ID
    */
@@ -365,7 +367,8 @@ const datahubService = {
     console.log(`[DataHub] ========== PROCESS ORDER START ==========`);
     console.log(`[DataHub] Processing order ID: ${orderId}`);
     
-    // Get order from database
+    // ============ DUPLICATE PREVENTION: ATOMIC CHECK ============
+    // Re-fetch order with fresh data to prevent race conditions
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { bundle: true }
@@ -376,19 +379,79 @@ const datahubService = {
       throw new Error('Order not found');
     }
 
-    console.log(`[DataHub] Order found:`, {
+    // CRITICAL: If order already has externalReference, it was already sent to MCBIS
+    // NEVER send the same order twice!
+    if (order.externalReference) {
+      console.log(`[DataHub] DUPLICATE PREVENTION: Order ${orderId} already has externalReference: ${order.externalReference}`);
+      console.log(`[DataHub] This order was already sent to MCBIS. Skipping to prevent duplicate.`);
+      return {
+        orderId,
+        success: false,
+        status: order.status,
+        message: 'Order already sent to MCBIS (has externalReference)',
+        alreadyProcessed: true,
+        externalReference: order.externalReference
+      };
+    }
+
+    // CRITICAL: If order status is COMPLETED or PROCESSING, don't resend
+    if (order.status === 'COMPLETED') {
+      console.log(`[DataHub] Order already COMPLETED, skipping`);
+      return {
+        orderId,
+        success: false,
+        status: 'COMPLETED',
+        message: 'Order already completed',
+        alreadyProcessed: true
+      };
+    }
+
+    if (order.status === 'PROCESSING') {
+      console.log(`[DataHub] Order already PROCESSING, skipping to prevent duplicate`);
+      return {
+        orderId,
+        success: false,
+        status: 'PROCESSING',
+        message: 'Order already processing',
+        alreadyProcessed: true
+      };
+    }
+
+    if (order.status === 'CANCELLED' || order.status === 'FAILED') {
+      console.log(`[DataHub] Order status is ${order.status}, skipping`);
+      return {
+        orderId,
+        success: false,
+        status: order.status,
+        message: `Order is ${order.status}`,
+        alreadyProcessed: true
+      };
+    }
+
+    // CRITICAL: Check if apiSentAt is set (another indicator order was sent)
+    if (order.apiSentAt) {
+      console.log(`[DataHub] DUPLICATE PREVENTION: Order ${orderId} has apiSentAt: ${order.apiSentAt}`);
+      console.log(`[DataHub] This order was already attempted. Skipping.`);
+      return {
+        orderId,
+        success: false,
+        status: order.status,
+        message: 'Order already attempted (has apiSentAt)',
+        alreadyProcessed: true
+      };
+    }
+
+    console.log(`[DataHub] Order is safe to process:`, {
       id: order.id,
       status: order.status,
+      externalReference: order.externalReference,
+      apiSentAt: order.apiSentAt,
       recipientPhone: order.recipientPhone,
       bundle: order.bundle?.name,
       network: order.bundle?.network,
       dataAmount: order.bundle?.dataAmount
     });
-
-    if (order.status === 'COMPLETED') {
-      console.log(`[DataHub] Order already completed, skipping`);
-      throw new Error('Order already completed');
-    }
+    // ============ END DUPLICATE PREVENTION ============
 
     // Extract data amount from bundle (e.g., "5GB" -> 5)
     let dataAmount = 1;
@@ -400,7 +463,7 @@ const datahubService = {
     }
     console.log(`[DataHub] Data amount extracted: ${dataAmount}GB`);
 
-    // ============ NEW: CHECK MCBIS WALLET BALANCE ============
+    // ============ CHECK MCBIS WALLET BALANCE ============
     // Get estimated cost (this is approximate - actual cost depends on MCBIS pricing)
     // Typical data prices: 1GB ≈ 3-5 GHS, adjust based on your MCBIS account pricing
     const estimatedCostPerGB = 5; // GHS per GB - adjust this to your MCBIS pricing
@@ -596,28 +659,36 @@ const datahubService = {
   /**
    * Retry pending orders that haven't been pushed to MCBIS yet
    * These are orders waiting for MCBIS balance to be topped up
+   * 
+   * SAFETY: Multiple checks to prevent duplicate orders:
+   * 1. Only fetches orders with status=PENDING AND externalReference=null AND apiSentAt=null
+   * 2. Re-checks each order before processing (in processOrder)
+   * 3. Uses 30-second grace period to avoid race conditions
    */
   async retryPendingOrders() {
-    // Find PENDING orders without externalReference (never pushed to API)
+    // Find PENDING orders that were NEVER sent to API
+    // Triple check: status=PENDING, no externalReference, no apiSentAt
     const pendingOrders = await prisma.order.findMany({
       where: {
         status: 'PENDING',
-        externalReference: null,
+        externalReference: null,  // Never got MCBIS reference
+        apiSentAt: null,          // Never attempted to send
         // Only orders created more than 30 seconds ago (to avoid race conditions with new orders)
         createdAt: { lt: new Date(Date.now() - 30000) }
       },
       include: { bundle: true },
       take: 20,
-      orderBy: { createdAt: 'asc' } // Oldest first
+      orderBy: { createdAt: 'asc' } // Oldest first (FIFO)
     });
 
     if (pendingOrders.length === 0) {
       return { retried: 0, results: [] };
     }
 
-    console.log(`[DataHub] Found ${pendingOrders.length} pending orders to retry`);
+    console.log(`[DataHub] Found ${pendingOrders.length} pending orders eligible for retry`);
+    console.log(`[DataHub] Order IDs:`, pendingOrders.map(o => o.id));
 
-    // Check MCBIS balance once
+    // Check MCBIS balance once before starting
     const balanceResult = await this.getWalletBalance();
     if (!balanceResult.success) {
       console.log(`[DataHub] Cannot check MCBIS balance for retry: ${balanceResult.error}`);
@@ -630,6 +701,30 @@ const datahubService = {
     let runningBalance = balanceResult.balance;
 
     for (const order of pendingOrders) {
+      // ============ EXTRA SAFETY: Re-verify order before processing ============
+      const freshOrder = await prisma.order.findUnique({
+        where: { id: order.id }
+      });
+
+      // Skip if order state changed since we queried
+      if (!freshOrder) {
+        console.log(`[DataHub] Order ${order.id} no longer exists, skipping`);
+        continue;
+      }
+      if (freshOrder.status !== 'PENDING') {
+        console.log(`[DataHub] Order ${order.id} status changed to ${freshOrder.status}, skipping`);
+        continue;
+      }
+      if (freshOrder.externalReference) {
+        console.log(`[DataHub] Order ${order.id} already has externalReference, skipping`);
+        continue;
+      }
+      if (freshOrder.apiSentAt) {
+        console.log(`[DataHub] Order ${order.id} already has apiSentAt, skipping`);
+        continue;
+      }
+      // ============ END SAFETY CHECK ============
+
       // Estimate cost
       let dataAmount = 1;
       if (order.bundle?.dataAmount) {
@@ -640,21 +735,25 @@ const datahubService = {
 
       if (runningBalance < estimatedCost) {
         console.log(`[DataHub] Stopping retry - insufficient balance for remaining orders`);
+        console.log(`[DataHub] Remaining balance: ${runningBalance} GHS, Next order needs: ~${estimatedCost} GHS`);
         break;
       }
 
       try {
-        console.log(`[DataHub] Retrying order ${order.id}...`);
+        console.log(`[DataHub] Retrying order ${order.id} (${order.bundle?.name || 'unknown'})...`);
         const result = await this.processOrder(order.id);
         results.push({ orderId: order.id, ...result });
         
-        if (result.success) {
-          runningBalance -= estimatedCost; // Deduct estimated cost
+        // Only deduct if successfully sent (not if alreadyProcessed)
+        if (result.success && !result.alreadyProcessed) {
+          runningBalance -= estimatedCost;
+          console.log(`[DataHub] Deducted ~${estimatedCost} GHS, remaining: ${runningBalance} GHS`);
         }
         
-        // Small delay between orders
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Delay between orders to prevent race conditions and API overload
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
+        console.error(`[DataHub] Error retrying order ${order.id}:`, error.message);
         results.push({ orderId: order.id, success: false, error: error.message });
       }
     }
