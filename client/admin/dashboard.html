@@ -16,6 +16,9 @@
             background: #f5f7fa;
             min-height: 100vh;
         }
+        /* Hide main content initially to prevent flash */
+        .main-content { opacity: 0; transition: opacity 0.15s; }
+        .main-content.ready { opacity: 1; }
         
         /* ===== SIDEBAR ===== */
         .sidebar {
@@ -9142,7 +9145,15 @@
             
             // Set all site setting toggles
             Object.keys(siteSettings).forEach(key => {
-                const toggleId = 'toggle' + key.charAt(0).toUpperCase() + key.slice(1);
+                // Handle special cases for toggle IDs (mcbisAPI -> toggleMcbisApi, etc.)
+                let toggleId;
+                if (key === 'mcbisAPI') {
+                    toggleId = 'toggleMcbisApi';
+                } else if (key === 'mcbisAutoSync') {
+                    toggleId = 'toggleMcbisAutoSync';
+                } else {
+                    toggleId = 'toggle' + key.charAt(0).toUpperCase() + key.slice(1);
+                }
                 setToggleState(toggleId, siteSettings[key]);
             });
             
@@ -9184,8 +9195,15 @@
         async function toggleSiteSetting(setting) {
             siteSettings[setting] = !siteSettings[setting];
             
-            // Build toggle ID from setting name
-            const toggleId = 'toggle' + setting.charAt(0).toUpperCase() + setting.slice(1);
+            // Build toggle ID from setting name (handle special cases)
+            let toggleId;
+            if (setting === 'mcbisAPI') {
+                toggleId = 'toggleMcbisApi';
+            } else if (setting === 'mcbisAutoSync') {
+                toggleId = 'toggleMcbisAutoSync';
+            } else {
+                toggleId = 'toggle' + setting.charAt(0).toUpperCase() + setting.slice(1);
+            }
             setToggleState(toggleId, siteSettings[setting]);
             
             // Update status texts
@@ -9679,6 +9697,9 @@
         
         // Restore section from URL hash on page load/refresh
         restoreSectionFromHash();
+        
+        // Show main content after initialization (prevents flash)
+        document.querySelector('.main-content')?.classList.add('ready');
     </script>
 </body>
 </html>
