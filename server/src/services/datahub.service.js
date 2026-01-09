@@ -356,6 +356,9 @@ const datahubService = {
    * Process an order from our system through the API
    * Updates order status in database
    * 
+   * NOW INCLUDES: Balance check - if MCBIS doesn't have enough balance,
+   * order stays PENDING and will be retried later
+   * 
    * @param {string} orderId - Our internal order ID
    */
   async processOrder(orderId) {
@@ -396,6 +399,53 @@ const datahubService = {
       }
     }
     console.log(`[DataHub] Data amount extracted: ${dataAmount}GB`);
+
+    // ============ NEW: CHECK MCBIS WALLET BALANCE ============
+    // Get estimated cost (this is approximate - actual cost depends on MCBIS pricing)
+    // Typical data prices: 1GB ≈ 3-5 GHS, adjust based on your MCBIS account pricing
+    const estimatedCostPerGB = 5; // GHS per GB - adjust this to your MCBIS pricing
+    const estimatedOrderCost = dataAmount * estimatedCostPerGB;
+    
+    console.log(`[DataHub] Estimated order cost: ${estimatedOrderCost} GHS (${dataAmount}GB × ${estimatedCostPerGB} GHS/GB)`);
+    
+    // Check MCBIS wallet balance
+    const balanceResult = await this.getWalletBalance();
+    
+    if (!balanceResult.success) {
+      console.log(`[DataHub] WARNING: Could not check MCBIS balance: ${balanceResult.error}`);
+      // Continue anyway if we can't check balance - let MCBIS API handle it
+    } else {
+      const mcbisBalance = balanceResult.balance;
+      console.log(`[DataHub] MCBIS wallet balance: ${mcbisBalance} GHS`);
+      
+      if (mcbisBalance < estimatedOrderCost) {
+        console.log(`[DataHub] INSUFFICIENT MCBIS BALANCE!`);
+        console.log(`[DataHub] Required: ${estimatedOrderCost} GHS, Available: ${mcbisBalance} GHS`);
+        console.log(`[DataHub] Order ${orderId} will stay PENDING until balance is topped up`);
+        
+        // Update order with insufficient balance note
+        await prisma.order.update({
+          where: { id: orderId },
+          data: {
+            failureReason: `MCBIS balance insufficient (${mcbisBalance} GHS < ${estimatedOrderCost} GHS needed). Will retry when topped up.`,
+            updatedAt: new Date()
+          }
+        });
+        
+        return {
+          orderId,
+          success: false,
+          status: 'PENDING',
+          message: `MCBIS wallet insufficient. Balance: ${mcbisBalance} GHS, Required: ~${estimatedOrderCost} GHS. Order will retry automatically.`,
+          insufficientBalance: true,
+          mcbisBalance: mcbisBalance,
+          requiredAmount: estimatedOrderCost
+        };
+      }
+      
+      console.log(`[DataHub] Balance sufficient. Proceeding with order...`);
+    }
+    // ============ END BALANCE CHECK ============
 
     // Place order via API
     const result = await this.placeOrder({
@@ -510,6 +560,10 @@ const datahubService = {
    * Runs every minute via auto-sync
    */
   async syncAllPendingOrders() {
+    // First, try to process orders that are PENDING and haven't been pushed yet
+    // (likely due to insufficient MCBIS balance earlier)
+    await this.retryPendingOrders();
+    
     const pendingOrders = await prisma.order.findMany({
       where: {
         status: { in: ['PROCESSING', 'PENDING'] },
@@ -537,6 +591,76 @@ const datahubService = {
       synced: results.length,
       results
     };
+  },
+
+  /**
+   * Retry pending orders that haven't been pushed to MCBIS yet
+   * These are orders waiting for MCBIS balance to be topped up
+   */
+  async retryPendingOrders() {
+    // Find PENDING orders without externalReference (never pushed to API)
+    const pendingOrders = await prisma.order.findMany({
+      where: {
+        status: 'PENDING',
+        externalReference: null,
+        // Only orders created more than 30 seconds ago (to avoid race conditions with new orders)
+        createdAt: { lt: new Date(Date.now() - 30000) }
+      },
+      include: { bundle: true },
+      take: 20,
+      orderBy: { createdAt: 'asc' } // Oldest first
+    });
+
+    if (pendingOrders.length === 0) {
+      return { retried: 0, results: [] };
+    }
+
+    console.log(`[DataHub] Found ${pendingOrders.length} pending orders to retry`);
+
+    // Check MCBIS balance once
+    const balanceResult = await this.getWalletBalance();
+    if (!balanceResult.success) {
+      console.log(`[DataHub] Cannot check MCBIS balance for retry: ${balanceResult.error}`);
+      return { retried: 0, error: balanceResult.error };
+    }
+
+    console.log(`[DataHub] MCBIS balance for retry: ${balanceResult.balance} GHS`);
+
+    const results = [];
+    let runningBalance = balanceResult.balance;
+
+    for (const order of pendingOrders) {
+      // Estimate cost
+      let dataAmount = 1;
+      if (order.bundle?.dataAmount) {
+        const match = order.bundle.dataAmount.match(/(\d+)/);
+        if (match) dataAmount = parseInt(match[1]);
+      }
+      const estimatedCost = dataAmount * 5; // 5 GHS per GB estimate
+
+      if (runningBalance < estimatedCost) {
+        console.log(`[DataHub] Stopping retry - insufficient balance for remaining orders`);
+        break;
+      }
+
+      try {
+        console.log(`[DataHub] Retrying order ${order.id}...`);
+        const result = await this.processOrder(order.id);
+        results.push({ orderId: order.id, ...result });
+        
+        if (result.success) {
+          runningBalance -= estimatedCost; // Deduct estimated cost
+        }
+        
+        // Small delay between orders
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        results.push({ orderId: order.id, success: false, error: error.message });
+      }
+    }
+
+    console.log(`[DataHub] Retry complete: ${results.length} orders attempted`);
+    return { retried: results.length, results };
   }
 };
 
