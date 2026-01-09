@@ -2,162 +2,384 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Login - KemDataplus</title>
-  <link rel="stylesheet" href="../public/css/dashboard.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    /* ===== CSS VARIABLES ===== */
+    :root {
+      --primary: #024959;
+      --primary-light: #036c7f;
+      --accent: #F2C12E;
+      --accent-dark: #d4a520;
+      --secondary: #593E25;
+      --success: #10b981;
+      --danger: #ef4444;
+      --white: #ffffff;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-500: #64748b;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html { font-size: 16px; }
+    
     body {
-      background: linear-gradient(135deg, #024959 0%, #F2C12E 50%, #593E25 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 50%, var(--secondary) 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+      padding: 16px;
+      overflow-x: hidden;
     }
+    
+    /* ===== SPLIT CARD ===== */
     .split-card {
       display: flex;
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
       overflow: hidden;
       max-width: 900px;
       width: 100%;
       min-height: 520px;
     }
+    
+    /* ===== SIDE PANEL ===== */
     .side-panel {
-      background: linear-gradient(135deg, #024959 0%, #036c7f 100%);
-      color: #fff;
-      width: 40%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: var(--white);
+      width: 42%;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px 24px;
+      padding: 40px 28px;
       position: relative;
+      text-align: center;
     }
-    .side-panel h1 {
-      font-size: 2.3rem;
-      font-weight: 700;
-      margin-bottom: 18px;
-      letter-spacing: 1px;
-      color: #F2C12E;
+    
+    .side-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.5;
     }
-    .side-panel p {
-      font-size: 1.15rem;
-      margin-bottom: 30px;
-      opacity: 0.95;
-    }
+    
+    .side-panel > * { position: relative; z-index: 1; }
+    
     .side-panel img {
-      width: 80px;
-      margin-bottom: 18px;
+      width: 85px;
+      height: 85px;
+      margin-bottom: 20px;
       border-radius: 50%;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-      border: 3px solid #F2AE30;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      border: 4px solid var(--accent);
+      object-fit: cover;
     }
-    .auth-section {
-      width: 60%;
+    
+    .side-panel h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+    
+    .side-panel p {
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      opacity: 0.95;
+      line-height: 1.6;
+    }
+    
+    .side-features {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+      width: 100%;
+      max-width: 220px;
+    }
+    
+    .side-feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+    
+    .side-feature i {
+      width: 28px;
+      height: 28px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 40px 32px;
-      background: #fff;
+      font-size: 0.8rem;
+      color: var(--accent);
     }
+    
+    /* ===== AUTH SECTION ===== */
+    .auth-section {
+      width: 58%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 36px;
+      background: var(--white);
+    }
+    
     .auth-container {
       width: 100%;
-      max-width: 370px;
+      max-width: 360px;
+    }
+    
+    .auth-container h2 {
+      color: var(--primary);
+      margin-bottom: 8px;
+      font-size: 1.75rem;
+      font-weight: 700;
       text-align: center;
     }
-    .auth-container h2 {
-      color: #024959;
-      margin-bottom: 18px;
-      font-size: 2rem;
-      font-weight: 600;
+    
+    .auth-subtitle {
+      color: var(--gray-500);
+      font-size: 0.9rem;
+      text-align: center;
+      margin-bottom: 24px;
     }
+    
     .auth-container form {
       display: flex;
       flex-direction: column;
       gap: 16px;
-      margin-top: 10px;
     }
+    
+    /* ===== INPUT GROUPS ===== */
     .input-group {
+      position: relative;
+    }
+    
+    .input-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+    
+    .input-wrapper {
       position: relative;
       display: flex;
       align-items: center;
     }
-    .input-group i {
+    
+    .input-wrapper i {
       position: absolute;
-      left: 12px;
-      color: #024959;
-      font-size: 1.1rem;
-      opacity: 0.8;
+      left: 14px;
+      color: var(--gray-500);
+      font-size: 1rem;
+      pointer-events: none;
     }
+    
     .auth-container input {
-      padding: 12px 12px 12px 38px;
-      border-radius: 8px;
-      border: 1px solid #e0e0e0;
+      width: 100%;
+      padding: 14px 14px 14px 42px;
+      border-radius: 10px;
+      border: 2px solid var(--gray-200);
       font-size: 1rem;
       outline: none;
-      transition: border 0.2s;
-      width: 100%;
-      background: #f9f7f2;
+      transition: all 0.2s;
+      background: var(--gray-50);
     }
+    
     .auth-container input:focus {
-      border-color: #F2AE30;
-      background: #fffef5;
-      box-shadow: 0 0 0 2px rgba(242, 174, 48, 0.2);
+      border-color: var(--accent);
+      background: var(--white);
+      box-shadow: 0 0 0 4px rgba(242, 193, 46, 0.15);
     }
-    .auth-container button {
-      background: linear-gradient(90deg, #024959 0%, #036c7f 100%);
-      color: #fff;
+    
+    .auth-container input::placeholder {
+      color: var(--gray-500);
+    }
+    
+    .input-hint {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      margin-top: 4px;
+      padding-left: 2px;
+    }
+    
+    /* ===== BUTTONS ===== */
+    .auth-container button[type="submit"] {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: var(--white);
       border: none;
-      border-radius: 8px;
-      padding: 12px;
+      border-radius: 10px;
+      padding: 14px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 2px 8px rgba(2, 73, 89, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
     }
-    .auth-container button:hover {
-      background: linear-gradient(90deg, #F2AE30 0%, #F2C12E 100%);
-      color: #024959;
-      box-shadow: 0 4px 16px rgba(242, 174, 48, 0.3);
+    
+    .auth-container button[type="submit"]:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(2, 73, 89, 0.25);
     }
-    .switch-link {
-      margin-top: 18px;
-      color: #024959;
-      cursor: pointer;
-      text-decoration: underline;
-      font-size: 0.98rem;
-      display: inline-block;
+    
+    .auth-container button[type="submit"]:active {
+      transform: translateY(0);
+    }
+    
+    .auth-container button[type="submit"]:disabled {
+      background: var(--gray-500);
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* ===== LINKS ===== */
+    .forgot-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      color: var(--primary-light);
+      font-size: 0.9rem;
+      text-decoration: none;
       transition: color 0.2s;
     }
-    .switch-link:hover {
-      color: #F2AE30;
+    
+    .forgot-link:hover {
+      color: var(--accent-dark);
     }
+    
+    .switch-link {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      color: var(--gray-500);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    
+    .switch-link span {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    
+    .switch-link:hover span {
+      color: var(--accent-dark);
+    }
+    
+    /* ===== ERROR/SUCCESS MESSAGES ===== */
     .error-msg {
-      color: #d32f2f;
-      font-size: 0.95rem;
-      margin-bottom: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
       display: none;
+      padding: 12px 14px;
+      border-radius: 10px;
+      text-align: center;
     }
+    
+    .error-msg.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+    
+    .error-msg.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    
+    /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 800px) {
+      body {
+        padding: 12px;
+        align-items: flex-start;
+        padding-top: 20px;
+      }
+      
       .split-card {
         flex-direction: column;
-        min-height: 0;
-        max-width: 98vw;
+        min-height: auto;
+        max-width: 100%;
       }
-      .side-panel, .auth-section {
-        width: 100%;
-        min-height: 0;
-        padding: 32px 12px;
-      }
+      
       .side-panel {
-        border-radius: 18px 18px 0 0;
+        width: 100%;
+        padding: 32px 24px;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       }
+      
+      .side-panel h1 {
+        font-size: 1.5rem;
+      }
+      
+      .side-panel p {
+        font-size: 0.9rem;
+        margin-bottom: 16px;
+      }
+      
+      .side-features {
+        display: none;
+      }
+      
       .auth-section {
-        border-radius: 0 0 18px 18px;
+        width: 100%;
+        padding: 28px 20px 36px;
+        border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+      }
+      
+      .auth-container h2 {
+        font-size: 1.5rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .side-panel {
+        padding: 24px 16px;
+      }
+      
+      .side-panel img {
+        width: 70px;
+        height: 70px;
+      }
+      
+      .side-panel h1 {
+        font-size: 1.35rem;
+      }
+      
+      .auth-section {
+        padding: 24px 16px 32px;
+      }
+      
+      .auth-container input {
+        padding: 12px 12px 12px 40px;
       }
     }
   </style>
@@ -167,57 +389,97 @@
     <div class="side-panel">
       <img src="../public/img/kem.png" alt="KemDataplus Logo">
       <h1>Welcome to KemDataplus</h1>
-      <p>Buy data bundles easily, securely, and instantly.<br>Join us and experience seamless connectivity!</p>
-      <i class="fas fa-wifi" style="font-size:2.5rem;opacity:0.7;"></i>
+      <p>Buy data bundles easily, securely, and instantly. Join us for seamless connectivity!</p>
+      <div class="side-features">
+        <div class="side-feature">
+          <i class="fas fa-bolt"></i>
+          <span>Instant Data Delivery</span>
+        </div>
+        <div class="side-feature">
+          <i class="fas fa-shield-alt"></i>
+          <span>Secure Transactions</span>
+        </div>
+        <div class="side-feature">
+          <i class="fas fa-tags"></i>
+          <span>Best Bundle Prices</span>
+        </div>
+        <div class="side-feature">
+          <i class="fas fa-headset"></i>
+          <span>24/7 Support</span>
+        </div>
+      </div>
     </div>
+    
     <div class="auth-section">
       <div class="auth-container" id="loginBox">
-        <h2>Login</h2>
+        <h2>Sign In</h2>
+        <p class="auth-subtitle">Enter your credentials to access your account</p>
         <div class="error-msg" id="loginError"></div>
         <form id="loginForm">
           <div class="input-group">
-            <i class="fas fa-user"></i>
-            <input type="text" id="loginUsername" placeholder="Username or Email" required>
+            <label for="loginUsername">Email Address</label>
+            <div class="input-wrapper">
+              <i class="fas fa-envelope"></i>
+              <input type="email" id="loginUsername" placeholder="you@example.com" required autocomplete="email">
+            </div>
           </div>
           <div class="input-group">
-            <i class="fas fa-lock"></i>
-            <input type="password" id="loginPassword" placeholder="Password" required>
+            <label for="loginPassword">Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock"></i>
+              <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+            </div>
           </div>
-          <button type="submit"><i class="fas fa-sign-in-alt"></i> Login</button>
+          <button type="submit"><i class="fas fa-sign-in-alt"></i> Sign In</button>
         </form>
-        <a href="/pages/forgot-password.html" style="display: block; text-align: center; margin: 10px 0; color: #F2C12E; font-size: 14px; text-decoration: none;">Forgot Password?</a>
-        <span class="switch-link" onclick="showRegister()">Don't have an account? Create one</span>
+        <a href="/pages/forgot-password.html" class="forgot-link">Forgot your password?</a>
+        <p class="switch-link" onclick="showRegister()">Don't have an account? <span>Create one</span></p>
       </div>
+      
       <div class="auth-container" id="registerBox" style="display:none;">
         <h2>Create Account</h2>
+        <p class="auth-subtitle">Join KemDataplus and start buying bundles</p>
         <div class="error-msg" id="registerError"></div>
         <form id="registerForm">
           <div class="input-group">
-            <i class="fas fa-user-plus"></i>
-            <input type="text" id="registerUsername" placeholder="Username" required>
+            <label for="registerUsername">Full Name</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user"></i>
+              <input type="text" id="registerUsername" placeholder="John Doe" required autocomplete="name">
+            </div>
           </div>
           <div class="input-group">
-            <i class="fas fa-envelope"></i>
-            <input type="email" id="registerEmail" placeholder="Email" required>
+            <label for="registerEmail">Email Address</label>
+            <div class="input-wrapper">
+              <i class="fas fa-envelope"></i>
+              <input type="email" id="registerEmail" placeholder="you@example.com" required autocomplete="email">
+            </div>
           </div>
           <div class="input-group">
-            <i class="fas fa-phone"></i>
-            <input type="tel" id="registerPhone" placeholder="Phone Number" required>
+            <label for="registerPhone">Phone Number</label>
+            <div class="input-wrapper">
+              <i class="fas fa-phone"></i>
+              <input type="tel" id="registerPhone" placeholder="0241234567" required autocomplete="tel">
+            </div>
           </div>
           <div class="input-group">
-            <i class="fas fa-lock"></i>
-            <input type="password" id="registerPassword" placeholder="Password" required minlength="8">
-            <small style="display:block; color:#888; font-size:11px; margin-top:4px; padding-left:35px;">
-              Min 8 chars, 1 uppercase, 1 lowercase, 1 number
-            </small>
+            <label for="registerPassword">Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock"></i>
+              <input type="password" id="registerPassword" placeholder="••••••••" required minlength="8" autocomplete="new-password">
+            </div>
+            <span class="input-hint">Min 8 chars, uppercase, lowercase & number</span>
           </div>
           <div class="input-group">
-            <i class="fas fa-lock"></i>
-            <input type="password" id="registerConfirm" placeholder="Confirm Password" required>
+            <label for="registerConfirm">Confirm Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock"></i>
+              <input type="password" id="registerConfirm" placeholder="••••••••" required autocomplete="new-password">
+            </div>
           </div>
-          <button type="submit"><i class="fas fa-user-check"></i> Create Account</button>
+          <button type="submit"><i class="fas fa-user-plus"></i> Create Account</button>
         </form>
-        <span class="switch-link" onclick="showLogin()">Already have an account? Login</span>
+        <p class="switch-link" onclick="showLogin()">Already have an account? <span>Sign in</span></p>
       </div>
     </div>
   </div>
@@ -265,24 +527,15 @@
     function showError(id, msg) {
       const el = document.getElementById(id);
       el.textContent = msg;
+      el.className = 'error-msg error';
       el.style.display = msg ? 'block' : 'none';
-      el.style.background = '#f8d7da';
-      el.style.color = '#721c24';
-      el.style.border = '1px solid #f5c6cb';
-      el.style.padding = '10px';
-      el.style.borderRadius = '6px';
     }
 
     function showSuccess(id, msg) {
       const el = document.getElementById(id);
       el.textContent = msg;
+      el.className = 'error-msg success';
       el.style.display = 'block';
-      el.style.background = '#d4edda';
-      el.style.color = '#155724';
-      el.style.border = '1px solid #c3e6cb';
-      el.style.padding = '10px';
-      el.style.borderRadius = '6px';
-      el.style.marginBottom = '15px';
     }
 
     // =====================

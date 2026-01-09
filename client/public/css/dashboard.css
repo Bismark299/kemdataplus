@@ -1,7 +1,93 @@
 /* ==============================================
    KEMDATAPLUS - MAIN STYLESHEET
-   Clean, organized CSS with working mobile nav
+   Unified Design System with CSS Variables
+   Mobile-first responsive design
    ============================================== */
+
+/* ===== CSS VARIABLES - DESIGN SYSTEM ===== */
+:root {
+    /* Primary Colors */
+    --primary: #024959;
+    --primary-dark: #01363f;
+    --primary-light: #036c7f;
+    
+    /* Accent Colors */
+    --accent: #F2C12E;
+    --accent-dark: #d4a520;
+    --accent-light: #f5d060;
+    
+    /* Secondary */
+    --secondary: #593E25;
+    
+    /* Status Colors */
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --info: #3b82f6;
+    --info-light: #dbeafe;
+    
+    /* Neutrals */
+    --white: #ffffff;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+    
+    /* Typography */
+    --font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    
+    /* Font Sizes */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+    
+    /* Spacing */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-full: 9999px;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.12);
+    --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.15);
+    
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition: 0.2s ease;
+    --transition-slow: 0.3s ease;
+}
 
 /* ===== RESET & BASE STYLES ===== */
 * {
@@ -10,15 +96,23 @@
     box-sizing: border-box;
 }
 
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
-    background-color: #024959;
-    font-family: Arial, sans-serif;
+    background-color: var(--primary);
+    font-family: var(--font-family);
     overflow-x: hidden;
     min-height: 100vh;
+    max-width: 100vw;
+    color: var(--gray-800);
+    line-height: 1.5;
 }
 
 .background {
-    background: linear-gradient(135deg, #024959 0%, #F2C12E 50%, #593E25 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 50%, var(--secondary) 100%);
     min-height: 100vh;
     max-width: 1200px;
     display: flex;
@@ -30,9 +124,9 @@ body {
 .header-container {
     display: flex;
     justify-content: center;
-    background-color: #F2AE30;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    color: #024959;
+    background-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    color: var(--primary);
     min-height: 60px;
     position: sticky;
     top: 0;
@@ -43,7 +137,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px 15px;
+    padding: var(--space-2) var(--space-4);
     width: 100%;
     max-width: 1200px;
 }
@@ -65,7 +159,7 @@ header div img {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
 }
 
 /* Menu & Close Icons - Hidden on Desktop */
@@ -73,8 +167,8 @@ header div img {
 .close-icon {
     display: none;
     cursor: pointer;
-    padding: 10px;
-    color: #024959;
+    padding: var(--space-3);
+    color: var(--primary);
     font-size: 1.5rem;
     z-index: 1002;
 }
@@ -87,21 +181,21 @@ header div img {
 
 .nav-menu .links {
     display: flex;
-    gap: 20px;
+    gap: var(--space-5);
     align-items: center;
 }
 
 .links a {
     text-decoration: none;
-    color: white;
-    font-weight: bold;
-    padding: 8px 12px;
-    border-radius: 5px;
-    transition: all 0.3s ease;
+    color: var(--white);
+    font-weight: 600;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    transition: all var(--transition);
 }
 
 .links a:hover {
-    color: #F2C12E;
+    color: var(--accent);
     background: rgba(2, 73, 89, 0.1);
 }
 
