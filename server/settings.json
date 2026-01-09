@@ -10,8 +10,8 @@
     "emailNotify": true,
     "smsNotify": false,
     "maintenance": false,
-    "apiUrl": "",
-    "apiKey": ""
+    "apiUrl": "https://datahub.mcbissolution.com/api/v1",
+    "apiKey": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f"
   },
   "siteSettings": {
     "masterAPI": true,

@@ -20,6 +20,7 @@ const adminRoutes = require('./routes/admin.routes');
 const storefrontRoutes = require('./routes/storefront.routes');
 const momoRoutes = require('./routes/momo.routes');
 const storeCustomerRoutes = require('./routes/store-customer.routes');
+const datahubRoutes = require('./routes/datahub.routes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -145,6 +146,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/storefronts', storefrontRoutes);
 app.use('/api/momo', momoRoutes);
 app.use('/api/store-customer', storeCustomerRoutes);
+app.use('/api/datahub', datahubRoutes);
 
 // Public storefront route (no auth required)
 app.use('/api', storefrontRoutes);
