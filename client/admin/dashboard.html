@@ -9330,11 +9330,22 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    showToast(`✅ Connected! Balance: GHS ${data.balance}, ${data.productsCount} products`, 'success');
+                    showToast(`✅ Connected! Balance: GHS ${data.balance}`, 'success');
                     document.getElementById('mcbisBalanceDisplay').style.display = 'block';
                     document.getElementById('mcbisBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
                 } else {
-                    showToast(`❌ Connection failed: ${data.error || 'Unknown error'}`, 'error');
+                    // Show detailed error info
+                    let errorMsg = data.error || 'Unknown error';
+                    if (data.hint) {
+                        errorMsg += ` (Hint: ${data.hint})`;
+                    }
+                    showToast(`❌ Connection failed: ${errorMsg}`, 'error');
+                    console.error('Mcbis API Test Failed:', data);
+                    
+                    // Show preview if available
+                    if (data.responsePreview) {
+                        console.log('API Response Preview:', data.responsePreview);
+                    }
                 }
             } catch (err) {
                 showToast('❌ Connection error: ' + err.message, 'error');

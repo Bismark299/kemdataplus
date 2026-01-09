@@ -54,6 +54,8 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
   const config = getApiConfig();
   const url = `${config.url}${endpoint}`;
   
+  console.log(`[DataHub] Request: ${method} ${url}`);
+  
   const options = {
     method,
     headers: {
@@ -69,10 +71,25 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
 
   try {
     const response = await fetch(url, options);
-    const data = await response.json();
+    const text = await response.text();
+    
+    // Check if response is HTML (error page)
+    if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+      console.error(`[DataHub] Received HTML instead of JSON. Status: ${response.status}`);
+      throw new Error(`API returned HTML error page. Check API URL and token. Status: ${response.status}`);
+    }
+    
+    // Try to parse JSON
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      console.error(`[DataHub] Invalid JSON response:`, text.substring(0, 200));
+      throw new Error(`Invalid JSON response from API`);
+    }
     
     if (!response.ok) {
-      throw new Error(data.message || `API Error: ${response.status}`);
+      throw new Error(data.message || data.error || `API Error: ${response.status}`);
     }
     
     return data;
@@ -90,6 +107,71 @@ function generateReference() {
 }
 
 const datahubService = {
+  /**
+   * Test connection and return raw response details for debugging
+   */
+  async testConnection() {
+    const config = getApiConfig();
+    const url = `${config.url}/walletBalance`;
+    
+    console.log('[DataHub Test] Testing connection...');
+    console.log('[DataHub Test] URL:', url);
+    console.log('[DataHub Test] Token (first 10 chars):', config.token?.substring(0, 10) + '...');
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.token}`
+        }
+      });
+      
+      const text = await response.text();
+      console.log('[DataHub Test] Status:', response.status);
+      console.log('[DataHub Test] Response (first 500 chars):', text.substring(0, 500));
+      
+      // Check if HTML
+      if (text.startsWith('<!DOCTYPE') || text.startsWith('<html') || text.includes('<html')) {
+        return {
+          success: false,
+          error: `API returned HTML (likely error page). Status: ${response.status}`,
+          status: response.status,
+          hint: response.status === 401 ? 'Token might be invalid or expired' : 
+                response.status === 404 ? 'API endpoint not found - check URL' :
+                'Check API URL and token',
+          responsePreview: text.substring(0, 300)
+        };
+      }
+      
+      // Try to parse JSON
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        return {
+          success: false,
+          error: 'Response is not valid JSON',
+          responsePreview: text.substring(0, 300)
+        };
+      }
+      
+      return {
+        success: true,
+        message: 'Connection successful!',
+        data: data,
+        balance: data.data?.walletBalance
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        hint: 'Network error - check if API URL is correct'
+      };
+    }
+  },
+
   /**
    * Get API wallet balance
    */

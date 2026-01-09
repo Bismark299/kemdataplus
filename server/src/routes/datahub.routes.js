@@ -95,22 +95,29 @@ router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res, next
 
 /**
  * POST /api/datahub/test
- * Test API connection (Admin only)
+ * Test API connection with detailed debugging (Admin only)
  */
 router.post('/test', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    const balanceResult = await datahubService.getWalletBalance();
-    const productsResult = await datahubService.getProducts();
+    // Use the detailed test connection method
+    const testResult = await datahubService.testConnection();
     
-    res.json({
-      success: balanceResult.success && productsResult.success,
-      connection: balanceResult.success ? 'OK' : 'FAILED',
-      balance: balanceResult.balance,
-      productsCount: productsResult.count,
-      message: balanceResult.success 
-        ? `Connected! Balance: GHS ${balanceResult.balance}, ${productsResult.count} products available`
-        : `Connection failed: ${balanceResult.error}`
-    });
+    if (testResult.success) {
+      res.json({
+        success: true,
+        connection: 'OK',
+        balance: testResult.balance,
+        message: `Connected! Balance: GHS ${testResult.balance}`
+      });
+    } else {
+      res.json({
+        success: false,
+        connection: 'FAILED',
+        error: testResult.error,
+        hint: testResult.hint,
+        responsePreview: testResult.responsePreview
+      });
+    }
   } catch (error) {
     res.json({
       success: false,
