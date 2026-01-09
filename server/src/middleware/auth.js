@@ -42,7 +42,8 @@ const authenticate = async (req, res, next) => {
         name: true,
         role: true,
         isActive: true,
-        tenantId: true
+        tenantId: true,
+        passwordChangedAt: true
       }
     });
 
@@ -52,6 +53,22 @@ const authenticate = async (req, res, next) => {
 
     if (!user.isActive) {
       return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
+    // Token invalidation check: if password was changed after token was issued
+    if (user.passwordChangedAt && decoded.iat) {
+      const passwordChangedTimestamp = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      if (decoded.iat < passwordChangedTimestamp) {
+        res.clearCookie('token', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict'
+        });
+        return res.status(401).json({ 
+          error: 'Password was recently changed. Please login again.',
+          code: 'PASSWORD_CHANGED'
+        });
+      }
     }
 
     req.user = user;

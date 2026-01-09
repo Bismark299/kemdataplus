@@ -38,6 +38,7 @@ const userController = {
       if (phone) updateData.phone = phone;
 
       // Handle password change
+      let passwordChanged = false;
       if (currentPassword && newPassword) {
         const user = await prisma.user.findUnique({
           where: { id: req.user.id }
@@ -49,6 +50,9 @@ const userController = {
         }
 
         updateData.password = await bcrypt.hash(newPassword, 12);
+        // Track password change time for token invalidation
+        updateData.passwordChangedAt = new Date();
+        passwordChanged = true;
       }
 
       const updatedUser = await prisma.user.update({
@@ -63,10 +67,25 @@ const userController = {
         }
       });
 
-      res.json({
-        message: 'Profile updated successfully',
+      // If password was changed, inform user they need to re-login
+      const response = {
+        message: passwordChanged 
+          ? 'Password changed successfully. Please login again with your new password.'
+          : 'Profile updated successfully',
         user: updatedUser
-      });
+      };
+      
+      // Clear the auth cookie if password changed
+      if (passwordChanged) {
+        res.clearCookie('token', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict'
+        });
+        response.requireRelogin = true;
+      }
+
+      res.json(response);
     } catch (error) {
       next(error);
     }
@@ -153,9 +172,36 @@ const userController = {
     try {
       const { name, phone, role, isActive } = req.body;
 
+      // Whitelist allowed fields only
+      const updateData = {};
+      if (name !== undefined) updateData.name = name;
+      if (phone !== undefined) updateData.phone = phone;
+      
+      // Role changes require extra validation
+      if (role !== undefined) {
+        // Only allow valid roles
+        const validRoles = ['USER', 'AGENT', 'ADMIN'];
+        if (!validRoles.includes(role)) {
+          return res.status(400).json({ error: 'Invalid role' });
+        }
+        // Prevent changing own role (must be done by another admin)
+        if (req.params.id === req.user.id) {
+          return res.status(400).json({ error: 'Cannot change your own role' });
+        }
+        updateData.role = role;
+      }
+      
+      // isActive changes require validation
+      if (isActive !== undefined) {
+        if (req.params.id === req.user.id && isActive === false) {
+          return res.status(400).json({ error: 'Cannot deactivate your own account' });
+        }
+        updateData.isActive = isActive;
+      }
+
       const updatedUser = await prisma.user.update({
         where: { id: req.params.id },
-        data: { name, phone, role, isActive },
+        data: updateData,
         select: {
           id: true,
           email: true,
@@ -178,6 +224,22 @@ const userController = {
   // Deactivate user (admin)
   async deactivateUser(req, res, next) {
     try {
+      // Prevent admin from deactivating themselves
+      if (req.params.id === req.user.id) {
+        return res.status(400).json({ error: 'Cannot deactivate your own account' });
+      }
+
+      // Check if target is the last active admin
+      const targetUser = await prisma.user.findUnique({ where: { id: req.params.id } });
+      if (targetUser?.role === 'ADMIN') {
+        const activeAdminCount = await prisma.user.count({
+          where: { role: 'ADMIN', isActive: true }
+        });
+        if (activeAdminCount <= 1) {
+          return res.status(400).json({ error: 'Cannot deactivate the last active admin' });
+        }
+      }
+
       await prisma.user.update({
         where: { id: req.params.id },
         data: { isActive: false }

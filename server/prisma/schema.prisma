@@ -156,6 +156,7 @@ model User {
   lastLoginIp      String?
   failedLoginAttempts Int        @default(0)
   lockedUntil      DateTime?
+  passwordChangedAt DateTime?     // Track when password was last changed for token invalidation
   
   // Password Reset
   resetToken       String?       @unique

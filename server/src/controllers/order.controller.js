@@ -97,11 +97,14 @@ const orderController = {
   // Get order by ID
   async getOrderById(req, res, next) {
     try {
+      // Build where clause - admins can see any order, users only their own
+      const whereClause = { id: req.params.id };
+      if (req.user.role !== 'ADMIN') {
+        whereClause.userId = req.user.id;
+      }
+      
       const order = await prisma.order.findFirst({
-        where: {
-          id: req.params.id,
-          userId: req.user.role === 'ADMIN' ? undefined : req.user.id
-        },
+        where: whereClause,
         include: {
           bundle: true,
           user: {
@@ -191,37 +194,50 @@ const orderController = {
       // Use SERVER price ONLY - never trust frontend
       const totalPrice = Number((unitPrice * quantity).toFixed(2));
       const totalCost = Number((baseCost * quantity).toFixed(2));
-
-      // Get user's wallet
-      const wallet = await prisma.wallet.findUnique({
-        where: { userId }
-      });
-
-      if (!wallet) {
-        return res.status(400).json({ error: 'Wallet not found' });
-      }
-
-      // Check if wallet is frozen (multi-tenant feature)
-      if (wallet.isFrozen) {
-        return res.status(403).json({ 
-          error: 'Your wallet is frozen. Please contact support.',
-          code: 'WALLET_FROZEN'
-        });
-      }
-
-      if (wallet.balance < totalPrice) {
-        return res.status(400).json({ 
-          error: 'Insufficient balance',
-          required: totalPrice,
-          available: wallet.balance
-        });
-      }
-
       const orderReference = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
 
-      // Create order and deduct balance in transaction
-      const [order] = await prisma.$transaction([
-        prisma.order.create({
+      // RACE CONDITION FIX: Use serializable transaction with atomic balance check
+      // This prevents double-spend by ensuring balance check and deduction are atomic
+      let order;
+      try {
+        order = await prisma.$transaction(async (tx) => {
+          // Get wallet with lock (inside transaction)
+          const wallet = await tx.wallet.findUnique({
+            where: { userId }
+          });
+
+          if (!wallet) {
+            throw new Error('WALLET_NOT_FOUND');
+          }
+
+          // Check if wallet is frozen
+          if (wallet.isFrozen) {
+            throw new Error('WALLET_FROZEN');
+          }
+
+          // Check balance INSIDE transaction
+          if (wallet.balance < totalPrice) {
+            throw new Error('INSUFFICIENT_BALANCE');
+          }
+
+          // Atomic balance deduction - will fail if concurrent update changed balance
+          const updatedWallet = await tx.wallet.update({
+            where: { 
+              id: wallet.id,
+              // Optimistic lock: ensure balance hasn't changed
+              balance: { gte: totalPrice }
+            },
+            data: {
+              balance: { decrement: totalPrice }
+            }
+          });
+
+          if (!updatedWallet) {
+            throw new Error('INSUFFICIENT_BALANCE');
+          }
+
+          // Create order
+          const newOrder = await tx.order.create({
           data: {
             userId,
             bundleId,
@@ -244,24 +260,45 @@ const orderController = {
               }
             }
           }
-        }),
-        prisma.wallet.update({
-          where: { id: wallet.id },
-          data: {
-            balance: { decrement: totalPrice }
-          }
-        }),
-        prisma.transaction.create({
-          data: {
-            walletId: wallet.id,
-            type: 'PURCHASE',
-            amount: -totalPrice,
-            status: 'COMPLETED',
-            reference: orderReference,
-            description: `Purchase: ${bundle.name} x${quantity}`
-          }
-        })
-      ]);
+          });
+
+          // Create transaction record
+          await tx.transaction.create({
+            data: {
+              walletId: wallet.id,
+              type: 'PURCHASE',
+              amount: -totalPrice,
+              status: 'COMPLETED',
+              reference: orderReference,
+              description: `Purchase: ${bundle.name} x${quantity}`
+            }
+          });
+
+          return newOrder;
+        }, {
+          // Serializable isolation level prevents concurrent modifications
+          isolationLevel: 'Serializable',
+          timeout: 10000 // 10 second timeout
+        });
+      } catch (txError) {
+        // Handle specific transaction errors
+        if (txError.message === 'WALLET_NOT_FOUND') {
+          return res.status(400).json({ error: 'Wallet not found' });
+        }
+        if (txError.message === 'WALLET_FROZEN') {
+          return res.status(403).json({ 
+            error: 'Your wallet is frozen. Please contact support.',
+            code: 'WALLET_FROZEN'
+          });
+        }
+        if (txError.message === 'INSUFFICIENT_BALANCE') {
+          return res.status(400).json({ 
+            error: 'Insufficient balance',
+            required: totalPrice
+          });
+        }
+        throw txError; // Re-throw unexpected errors
+      }
 
       // Audit logging (multi-tenant)
       if (auditService) {

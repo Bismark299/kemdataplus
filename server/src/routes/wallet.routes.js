@@ -1,8 +1,19 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const walletController = require('../controllers/wallet.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 const { depositValidation, paginationValidation } = require('../middleware/validators');
+
+// Rate limiter for sensitive wallet operations (deposits, transfers, funds)
+const walletOperationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 operations per 15 min
+  message: { error: 'Too many wallet operations. Please wait before trying again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip // Rate limit per user when authenticated
+});
 
 // GET /api/wallet - Get current user's wallet
 router.get('/', authenticate, walletController.getWallet);
@@ -23,7 +34,7 @@ router.get('/claims', authenticate, walletController.getUserClaims);
 router.get('/deposits', authenticate, authorize('ADMIN'), walletController.getAllDeposits);
 
 // POST /api/wallet/deposit - Request deposit (client submits claim)
-router.post('/deposit', authenticate, depositValidation, walletController.requestDeposit);
+router.post('/deposit', authenticate, walletOperationLimiter, depositValidation, walletController.requestDeposit);
 
 // POST /api/wallet/deposit/:id/confirm - Confirm deposit with verification (admin)
 router.post('/deposit/:id/confirm', authenticate, authorize('ADMIN'), walletController.confirmDeposit);
@@ -32,12 +43,12 @@ router.post('/deposit/:id/confirm', authenticate, authorize('ADMIN'), walletCont
 router.post('/deposit/:id/reject', authenticate, authorize('ADMIN'), walletController.rejectDeposit);
 
 // POST /api/wallet/fund - Fund user wallet (admin)
-router.post('/fund', authenticate, authorize('ADMIN'), walletController.fundUserWallet);
+router.post('/fund', authenticate, authorize('ADMIN'), walletOperationLimiter, walletController.fundUserWallet);
 
 // POST /api/wallet/deduct - Deduct from user wallet (admin)
-router.post('/deduct', authenticate, authorize('ADMIN'), walletController.deductUserWallet);
+router.post('/deduct', authenticate, authorize('ADMIN'), walletOperationLimiter, walletController.deductUserWallet);
 
 // POST /api/wallet/transfer - Transfer to another user
-router.post('/transfer', authenticate, walletController.transfer);
+router.post('/transfer', authenticate, walletOperationLimiter, walletController.transfer);
 
 module.exports = router;

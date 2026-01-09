@@ -1,8 +1,19 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const orderController = require('../controllers/order.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 const { createOrderValidation, paginationValidation } = require('../middleware/validators');
+
+// Rate limiter for order creation (prevents rapid automated purchases)
+const orderCreationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 orders per minute
+  message: { error: 'Too many orders created. Please wait a moment before trying again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip
+});
 
 // GET /api/orders - Get user's orders
 router.get('/', authenticate, paginationValidation, orderController.getOrders);
@@ -11,7 +22,7 @@ router.get('/', authenticate, paginationValidation, orderController.getOrders);
 router.get('/:id', authenticate, orderController.getOrderById);
 
 // POST /api/orders - Create new order
-router.post('/', authenticate, createOrderValidation, orderController.createOrder);
+router.post('/', authenticate, orderCreationLimiter, createOrderValidation, orderController.createOrder);
 
 // POST /api/orders/:id/cancel - Cancel order
 router.post('/:id/cancel', authenticate, orderController.cancelOrder);
