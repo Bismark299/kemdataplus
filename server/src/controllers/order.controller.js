@@ -36,6 +36,54 @@ function isMcbisEnabled() {
   }
 }
 
+// Helper to check if API is enabled for a specific network
+function isNetworkApiEnabled(network) {
+  // Get site settings
+  let siteSettings;
+  if (settingsController && settingsController.getSiteSettings) {
+    siteSettings = settingsController.getSiteSettings();
+  } else {
+    // Fallback to file read
+    try {
+      const settingsPath = path.join(__dirname, '../../settings.json');
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      siteSettings = settings.siteSettings || {};
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Check master API first
+  if (!siteSettings.mcbisAPI) {
+    console.log(`[Mcbis] Master API is OFF, not pushing order`);
+    return false;
+  }
+  
+  // Normalize network name for lookup
+  const networkLower = (network || '').toLowerCase();
+  
+  // Check network-specific setting
+  if (networkLower === 'mtn') {
+    const enabled = siteSettings.mtnAPI === true;
+    console.log(`[Mcbis] MTN API enabled: ${enabled}`);
+    return enabled;
+  }
+  if (networkLower === 'telecel' || networkLower === 'vodafone') {
+    const enabled = siteSettings.telecelAPI === true;
+    console.log(`[Mcbis] Telecel API enabled: ${enabled}`);
+    return enabled;
+  }
+  if (networkLower === 'airteltigo' || networkLower === 'at') {
+    const enabled = siteSettings.airteltigoAPI === true;
+    console.log(`[Mcbis] AirtelTigo API enabled: ${enabled}`);
+    return enabled;
+  }
+  
+  // Unknown network - default to disabled
+  console.log(`[Mcbis] Unknown network '${network}', not pushing to API`);
+  return false;
+}
+
 /**
  * STRICT ORDER RULES - DO NOT MODIFY
  * ===================================
@@ -313,17 +361,23 @@ const orderController = {
         });
       }
 
-      // AUTO-PROCESS via Mcbis API if enabled
+      // AUTO-PROCESS via Mcbis API if enabled for this network
       let apiResult = null;
-      if (isMcbisEnabled() && datahubService) {
+      const orderNetwork = order.bundle?.network || bundle.network;
+      
+      console.log(`[Mcbis] Order ${order.id} - Network: ${orderNetwork}`);
+      
+      if (isNetworkApiEnabled(orderNetwork) && datahubService) {
         try {
-          console.log(`[Mcbis] Auto-processing order ${order.id}`);
+          console.log(`[Mcbis] Auto-processing order ${order.id} (${orderNetwork})`);
           apiResult = await datahubService.processOrder(order.id);
           console.log(`[Mcbis] Order ${order.id} result:`, apiResult);
         } catch (apiError) {
           console.error(`[Mcbis] Auto-process failed for ${order.id}:`, apiError.message);
           // Don't fail the order - just log the error
         }
+      } else {
+        console.log(`[Mcbis] Not auto-processing order ${order.id} - API disabled for ${orderNetwork}`);
       }
 
       res.status(201).json({
