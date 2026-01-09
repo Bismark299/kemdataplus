@@ -4955,6 +4955,65 @@
                         </div>
                     </div>
 
+                    <!-- Mcbis API Integration Card -->
+                    <div class="settings-card" style="border: 2px solid #024959;">
+                        <div class="settings-section-title" style="color: #024959;">
+                            <i class="fas fa-plug"></i> Mcbis Data API Integration
+                        </div>
+                        <p style="color: #6b7280; margin-bottom: 15px; font-size: 0.9rem;">
+                            Connect to McbisSolution DataHub API for automatic order processing.
+                        </p>
+                        
+                        <!-- API Toggle -->
+                        <div class="settings-grid settings-grid-2" style="margin-bottom: 20px;">
+                            <div class="setting-card" style="border: 2px solid #10b981;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #10b981;"><i class="fas fa-robot"></i> Auto-Process Orders</h4>
+                                    <p id="mcbisApiStatus">When ON, orders automatically sent to Mcbis API</p>
+                                </div>
+                                <div class="toggle-switch" id="toggleMcbisApi" data-site-setting="mcbisAPI"></div>
+                            </div>
+                            <div class="setting-card">
+                                <div class="setting-card-info">
+                                    <h4><i class="fas fa-sync"></i> Auto-Sync Status</h4>
+                                    <p>Automatically check and update order status</p>
+                                </div>
+                                <div class="toggle-switch" id="toggleMcbisAutoSync" data-site-setting="mcbisAutoSync"></div>
+                            </div>
+                        </div>
+
+                        <!-- API Credentials -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-link"></i> API URL</label>
+                                <input type="text" id="mcbisApiUrl" value="https://datahub.mcbissolution.com/api/v1" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-key"></i> API Token</label>
+                                <input type="password" id="mcbisApiToken" placeholder="Enter your Mcbis API token" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- API Status & Actions -->
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" class="btn-fund" onclick="testMcbisConnection()" style="background: #024959;">
+                                <i class="fas fa-plug"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn-fund" onclick="checkMcbisBalance()" style="background: #10b981;">
+                                <i class="fas fa-wallet"></i> Check Balance
+                            </button>
+                            <button type="button" class="btn-fund" onclick="syncAllMcbisOrders()" style="background: #f59e0b;">
+                                <i class="fas fa-sync"></i> Sync All Orders
+                            </button>
+                        </div>
+
+                        <!-- API Balance Display -->
+                        <div id="mcbisBalanceDisplay" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #024959, #036c7f); border-radius: 8px; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">Mcbis API Balance</div>
+                            <div style="font-size: 1.8rem; font-weight: 700;" id="mcbisBalanceAmount">GHS 0.00</div>
+                        </div>
+                    </div>
+
                     <!-- MoMo Numbers Card -->
                     <div class="settings-card">
                         <div class="settings-section-title">Payment MoMo Numbers</div>
@@ -9092,6 +9151,9 @@
             
             // Render MoMo numbers
             renderMomoNumbers();
+            
+            // Load Mcbis settings
+            loadMcbisSettings();
         }
         
         function updateSettingStatusTexts() {
@@ -9239,6 +9301,10 @@
             adminSettings.apiUrl = document.getElementById('settingApiUrl')?.value || '';
             adminSettings.apiKey = document.getElementById('settingApiKey')?.value || '';
             
+            // Gather Mcbis API settings
+            adminSettings.mcbisApiUrl = document.getElementById('mcbisApiUrl')?.value || 'https://datahub.mcbissolution.com/api/v1';
+            adminSettings.mcbisApiToken = document.getElementById('mcbisApiToken')?.value || '';
+            
             // Clean empty MoMo numbers
             adminSettings.momoNumbers = (adminSettings.momoNumbers || []).filter(n => n && n.trim());
             
@@ -9253,6 +9319,95 @@
             const success = await saveSettingsToAPI();
             if (success) {
                 showToast('Settings saved successfully!');
+            }
+        }
+
+        // ========== MCBIS API FUNCTIONS ==========
+        async function testMcbisConnection() {
+            showToast('Testing Mcbis API connection...', 'info');
+            try {
+                const res = await adminFetch('/api/datahub/test', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(`✅ Connected! Balance: GHS ${data.balance}, ${data.productsCount} products`, 'success');
+                    document.getElementById('mcbisBalanceDisplay').style.display = 'block';
+                    document.getElementById('mcbisBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                } else {
+                    showToast(`❌ Connection failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (err) {
+                showToast('❌ Connection error: ' + err.message, 'error');
+            }
+        }
+
+        async function checkMcbisBalance() {
+            try {
+                const res = await adminFetch('/api/datahub/balance');
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('mcbisBalanceDisplay').style.display = 'block';
+                    document.getElementById('mcbisBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    showToast(`API Balance: GHS ${data.balance}`, 'success');
+                } else {
+                    showToast('Failed to get balance: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                showToast('Error checking balance: ' + err.message, 'error');
+            }
+        }
+
+        async function syncAllMcbisOrders() {
+            showToast('Syncing all pending orders...', 'info');
+            try {
+                const res = await adminFetch('/api/datahub/sync-all', { method: 'POST' });
+                const data = await res.json();
+                
+                showToast(`Synced ${data.synced || 0} orders`, 'success');
+                
+                // Refresh orders table
+                await loadStats();
+            } catch (err) {
+                showToast('Sync error: ' + err.message, 'error');
+            }
+        }
+
+        async function processMcbisOrder(orderId) {
+            if (!confirm('Process this order via Mcbis API?')) return;
+            
+            showToast('Processing order...', 'info');
+            try {
+                const res = await adminFetch(`/api/datahub/process/${orderId}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(`✅ Order sent! Ref: ${data.apiReference}`, 'success');
+                    await loadStats();
+                } else {
+                    showToast(`❌ Failed: ${data.error || data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        // Load Mcbis settings on page load
+        function loadMcbisSettings() {
+            if (adminSettings.mcbisApiUrl) {
+                document.getElementById('mcbisApiUrl').value = adminSettings.mcbisApiUrl;
+            }
+            if (adminSettings.mcbisApiToken) {
+                document.getElementById('mcbisApiToken').value = adminSettings.mcbisApiToken;
+            }
+            // Update toggle states
+            const mcbisToggle = document.getElementById('toggleMcbisApi');
+            const syncToggle = document.getElementById('toggleMcbisAutoSync');
+            if (mcbisToggle && siteSettings.mcbisAPI) {
+                mcbisToggle.classList.add('active');
+            }
+            if (syncToggle && siteSettings.mcbisAutoSync) {
+                syncToggle.classList.add('active');
             }
         }
 

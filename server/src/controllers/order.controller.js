@@ -1,17 +1,31 @@
 const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 
 const prisma = new PrismaClient();
 
 // Import multi-tenant services (optional - graceful fallback if not available)
-let pricingEngine, profitService, walletService, auditService;
+let pricingEngine, profitService, walletService, auditService, datahubService;
 try {
   pricingEngine = require('../services/pricing.service');
   profitService = require('../services/profit.service');
   walletService = require('../services/wallet.service');
   auditService = require('../services/audit.service');
+  datahubService = require('../services/datahub.service');
 } catch (e) {
   console.log('Multi-tenant services not available, using legacy mode');
+}
+
+// Helper to check if Mcbis API is enabled
+function isMcbisEnabled() {
+  try {
+    const settingsPath = path.join(__dirname, '../../settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return settings.siteSettings?.mcbisAPI === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 /**
@@ -254,9 +268,24 @@ const orderController = {
         });
       }
 
+      // AUTO-PROCESS via Mcbis API if enabled
+      let apiResult = null;
+      if (isMcbisEnabled() && datahubService) {
+        try {
+          console.log(`[Mcbis] Auto-processing order ${order.id}`);
+          apiResult = await datahubService.processOrder(order.id);
+          console.log(`[Mcbis] Order ${order.id} result:`, apiResult);
+        } catch (apiError) {
+          console.error(`[Mcbis] Auto-process failed for ${order.id}:`, apiError.message);
+          // Don't fail the order - just log the error
+        }
+      }
+
       res.status(201).json({
         message: 'Order created successfully',
-        order
+        order,
+        apiProcessed: apiResult?.success || false,
+        apiReference: apiResult?.apiReference || null
       });
     } catch (error) {
       next(error);

@@ -11,7 +11,9 @@
     "smsNotify": false,
     "maintenance": false,
     "apiUrl": "https://datahub.mcbissolution.com/api/v1",
-    "apiKey": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f"
+    "apiKey": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f",
+    "mcbisApiUrl": "https://datahub.mcbissolution.com/api/v1",
+    "mcbisApiToken": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f"
   },
   "siteSettings": {
     "masterAPI": true,
@@ -25,6 +27,8 @@
     "excelImport": false,
     "cartOrder": true,
     "newRegistration": true,
-    "websiteUpdate": false
+    "websiteUpdate": false,
+    "mcbisAPI": false,
+    "mcbisAutoSync": false
   }
 }

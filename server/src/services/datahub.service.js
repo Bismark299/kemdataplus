@@ -13,11 +13,26 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
 const prisma = new PrismaClient();
 
-// API Configuration
-const API_BASE_URL = 'https://datahub.mcbissolution.com/api/v1';
-const API_TOKEN = process.env.DATAHUB_API_TOKEN || '44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f';
+// Helper to get API config from settings
+function getApiConfig() {
+  try {
+    const settingsPath = path.join(__dirname, '../../settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return {
+      url: settings.adminSettings?.mcbisApiUrl || settings.adminSettings?.apiUrl || 'https://datahub.mcbissolution.com/api/v1',
+      token: settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || process.env.DATAHUB_API_TOKEN
+    };
+  } catch (e) {
+    return {
+      url: 'https://datahub.mcbissolution.com/api/v1',
+      token: process.env.DATAHUB_API_TOKEN || ''
+    };
+  }
+}
 
 // Network mapping (our system -> API)
 const NETWORK_MAP = {
@@ -36,14 +51,15 @@ const NETWORK_MAP = {
  * Make API request to McbisSolution
  */
 async function apiRequest(endpoint, method = 'GET', body = null) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const config = getApiConfig();
+  const url = `${config.url}${endpoint}`;
   
   const options = {
     method,
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_TOKEN}`
+      'Authorization': `Bearer ${config.token}`
     }
   };
 
