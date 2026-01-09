@@ -179,8 +179,8 @@ const userController = {
       
       // Role changes require extra validation
       if (role !== undefined) {
-        // Only allow valid roles
-        const validRoles = ['USER', 'AGENT', 'ADMIN'];
+        // Only allow valid roles - must match enum Role in schema.prisma
+        const validRoles = ['ADMIN', 'PARTNER', 'SUPER_DEALER', 'DEALER', 'SUPER_AGENT', 'AGENT'];
         if (!validRoles.includes(role)) {
           return res.status(400).json({ error: 'Invalid role' });
         }
