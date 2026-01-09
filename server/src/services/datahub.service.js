@@ -68,9 +68,11 @@ const NETWORK_MAP = {
   'AT': 'atbigtime'
 };
 
+const axios = require('axios');
+
 /**
- * Make API request to McbisSolution
- * Uses browser-like headers to avoid Cloudflare blocking
+ * Make API request to McbisSolution using axios
+ * Axios handles redirects and cookies better than native fetch
  */
 async function apiRequest(endpoint, method = 'GET', body = null) {
   const config = getApiConfig();
@@ -78,50 +80,47 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
   
   console.log(`[DataHub] Request: ${method} ${url}`);
   
-  const options = {
-    method,
+  const axiosConfig = {
+    method: method.toLowerCase(),
+    url: url,
     headers: {
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'application/json',
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${config.token}`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
+      'User-Agent': 'KemDataplus/1.0'
+    },
+    timeout: 30000,
+    maxRedirects: 5
   };
 
   if (body && method !== 'GET') {
-    options.body = JSON.stringify(body);
+    axiosConfig.data = body;
   }
 
   try {
-    const response = await fetch(url, options);
-    const text = await response.text();
-    
-    // Check if response is HTML (error page)
-    if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
-      console.error(`[DataHub] Received HTML instead of JSON. Status: ${response.status}`);
-      throw new Error(`API returned HTML error page. Check API URL and token. Status: ${response.status}`);
-    }
-    
-    // Try to parse JSON
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (parseError) {
-      console.error(`[DataHub] Invalid JSON response:`, text.substring(0, 200));
-      throw new Error(`Invalid JSON response from API`);
-    }
-    
-    if (!response.ok) {
-      throw new Error(data.message || data.error || `API Error: ${response.status}`);
-    }
-    
-    return data;
+    const response = await axios(axiosConfig);
+    console.log(`[DataHub] Response status: ${response.status}`);
+    return response.data;
   } catch (error) {
-    console.error(`DataHub API Error [${endpoint}]:`, error.message);
-    throw error;
+    // Handle axios errors
+    if (error.response) {
+      // Server responded with error status
+      const text = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+      
+      // Check if response is HTML (Cloudflare page)
+      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
+        console.error(`[DataHub] Cloudflare blocking detected. Status: ${error.response.status}`);
+        throw new Error(`API returned HTML (likely Cloudflare). Status: ${error.response.status}. Contact McbisSolution to whitelist server IP.`);
+      }
+      
+      const errorMsg = error.response.data?.message || error.response.data?.error || `API Error: ${error.response.status}`;
+      throw new Error(errorMsg);
+    } else if (error.request) {
+      // Request made but no response
+      throw new Error('No response from API server');
+    } else {
+      throw new Error(error.message);
+    }
   }
 }
 
@@ -140,56 +139,60 @@ const datahubService = {
     const config = getApiConfig();
     const url = `${config.url}/walletBalance`;
     
-    console.log('[DataHub Test] Testing connection...');
+    console.log('[DataHub Test] Testing connection with axios...');
     console.log('[DataHub Test] URL:', url);
     console.log('[DataHub Test] Token (first 10 chars):', config.token?.substring(0, 10) + '...');
     
     try {
-      const response = await fetch(url, {
-        method: 'GET',
+      const response = await axios({
+        method: 'get',
+        url: url,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.token}`
-        }
+          'Authorization': `Bearer ${config.token}`,
+          'User-Agent': 'KemDataplus/1.0'
+        },
+        timeout: 30000
       });
       
-      const text = await response.text();
       console.log('[DataHub Test] Status:', response.status);
-      console.log('[DataHub Test] Response (first 500 chars):', text.substring(0, 500));
-      
-      // Check if HTML
-      if (text.startsWith('<!DOCTYPE') || text.startsWith('<html') || text.includes('<html')) {
-        return {
-          success: false,
-          error: `API returned HTML (likely error page). Status: ${response.status}`,
-          status: response.status,
-          hint: response.status === 401 ? 'Token might be invalid or expired' : 
-                response.status === 404 ? 'API endpoint not found - check URL' :
-                'Check API URL and token',
-          responsePreview: text.substring(0, 300)
-        };
-      }
-      
-      // Try to parse JSON
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        return {
-          success: false,
-          error: 'Response is not valid JSON',
-          responsePreview: text.substring(0, 300)
-        };
-      }
+      console.log('[DataHub Test] Response:', JSON.stringify(response.data).substring(0, 200));
       
       return {
         success: true,
         message: 'Connection successful!',
-        data: data,
-        balance: data.data?.walletBalance
+        data: response.data,
+        balance: response.data?.data?.walletBalance
       };
     } catch (error) {
+      console.error('[DataHub Test] Error:', error.message);
+      
+      if (error.response) {
+        const text = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+        console.log('[DataHub Test] Error response:', text.substring(0, 300));
+        
+        // Check if HTML (Cloudflare)
+        if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
+          return {
+            success: false,
+            error: `API returned HTML (likely Cloudflare). Status: ${error.response.status}`,
+            status: error.response.status,
+            hint: 'Cloudflare is blocking the request. Contact McbisSolution to whitelist server IP.',
+            responsePreview: text.substring(0, 300)
+          };
+        }
+        
+        return {
+          success: false,
+          error: error.response.data?.message || `API Error: ${error.response.status}`,
+          status: error.response.status,
+          hint: error.response.status === 401 ? 'Token might be invalid or expired' : 
+                error.response.status === 404 ? 'API endpoint not found - check URL' :
+                'Check API URL and token'
+        };
+      }
+      
       return {
         success: false,
         error: error.message,
