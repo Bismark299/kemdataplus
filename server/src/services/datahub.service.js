@@ -70,6 +70,7 @@ const NETWORK_MAP = {
 
 /**
  * Make API request to McbisSolution
+ * Uses browser-like headers to avoid Cloudflare blocking
  */
 async function apiRequest(endpoint, method = 'GET', body = null) {
   const config = getApiConfig();
@@ -80,9 +81,13 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
   const options = {
     method,
     headers: {
-      'Accept': 'application/json',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.token}`
+      'Authorization': `Bearer ${config.token}`,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
     }
   };
 
