@@ -859,6 +859,34 @@ const orderGroupService = {
       }
 
       try {
+        // ============ ATOMIC LOCK: Claim this item BEFORE calling API ============
+        // This prevents race conditions where two requests try to process same item
+        const claimResult = await prisma.orderItem.updateMany({
+          where: {
+            id: item.id,
+            apiSentAt: null,  // Only claim if not already claimed!
+            status: 'PENDING'
+          },
+          data: {
+            apiSentAt: new Date()  // Mark as claimed
+          }
+        });
+        
+        // If count is 0, another request already claimed this item
+        if (claimResult.count === 0) {
+          console.log(`[OrderGroup] ATOMIC LOCK: ${item.reference} already claimed by another request`);
+          skipped++;
+          results.push({
+            itemId: item.id,
+            reference: item.reference,
+            skipped: true,
+            reason: 'Already being processed (atomic lock)'
+          });
+          continue;
+        }
+        
+        console.log(`[OrderGroup] ATOMIC LOCK: Claimed ${item.reference} for processing`);
+        
         // Place order via selected API provider
         const result = await apiService.placeOrder({
           network: network,

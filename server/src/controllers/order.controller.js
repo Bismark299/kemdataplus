@@ -368,14 +368,24 @@ const orderController = {
       
       if (apiProvider && isNetworkApiEnabled(orderNetwork)) {
         try {
-          // DUPLICATE PREVENTION: Check if order already has externalReference
-          const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
-          if (freshOrder.externalReference) {
-            console.log(`[API] SKIP: Order ${order.id} already has externalReference: ${freshOrder.externalReference}`);
-          } else if (freshOrder.status !== 'PENDING') {
-            console.log(`[API] SKIP: Order ${order.id} status is ${freshOrder.status}, not PENDING`);
+          // ============ ATOMIC LOCK: Claim this order BEFORE calling API ============
+          const claimResult = await prisma.order.updateMany({
+            where: {
+              id: order.id,
+              apiSentAt: null,  // Only claim if not already claimed!
+              status: 'PENDING',
+              externalReference: null
+            },
+            data: {
+              apiSentAt: new Date()  // Mark as claimed
+            }
+          });
+          
+          // If count is 0, another request already claimed this order
+          if (claimResult.count === 0) {
+            console.log(`[API] ATOMIC LOCK: Order ${order.id} already claimed by another request`);
           } else {
-            console.log(`[API:${apiProvider.name}] Processing order ${order.id} (${orderNetwork})`);
+            console.log(`[API:${apiProvider.name}] ATOMIC LOCK: Claimed order ${order.id} for processing`);
             
             // Extract data amount
             let dataAmount = 1;
@@ -398,16 +408,28 @@ const orderController = {
               data: {
                 status: result.success ? 'PROCESSING' : 'PENDING',
                 externalReference: result.reference || null,
-                apiSentAt: result.success ? new Date() : null
+                // apiSentAt already set by atomic lock
               }
             });
+            
+            // If failed, clear apiSentAt so it can be retried
+            if (!result.success) {
+              await prisma.order.update({
+                where: { id: order.id },
+                data: { apiSentAt: null }
+              });
+            }
             
             apiResult = result;
             console.log(`[API:${apiProvider.name}] Order ${order.id} result:`, result.success ? 'SUCCESS' : result.error);
           }
         } catch (apiError) {
           console.error(`[API] Auto-process failed for ${order.id}:`, apiError.message);
-          // Don't fail the order - just log the error
+          // Clear apiSentAt on error so order can be retried
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { apiSentAt: null }
+          }).catch(() => {});
         }
       } else {
         console.log(`[API] Not processing order ${order.id} - ${apiProvider ? `${orderNetwork} API disabled` : 'No provider enabled'}`);
