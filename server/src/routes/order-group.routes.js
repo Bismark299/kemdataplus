@@ -452,6 +452,7 @@ router.post('/admin/:id/process', authenticate, authorize('ADMIN'), async (req, 
 /**
  * PUT /api/order-groups/admin/item/:itemId/status
  * Update individual order item status (admin)
+ * Supports both OrderItem and legacy Order tables
  */
 router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
@@ -470,37 +471,68 @@ router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async
       });
     }
     
-    // Update item status
-    const item = await prisma.orderItem.update({
-      where: { id: itemId },
-      data: { 
-        status,
-        processedAt: status === 'COMPLETED' ? new Date() : undefined
-      },
-      include: {
-        orderGroup: { select: { displayId: true } }
+    // Try to update OrderItem first
+    try {
+      const item = await prisma.orderItem.update({
+        where: { id: itemId },
+        data: { 
+          status,
+          processedAt: status === 'COMPLETED' ? new Date() : undefined
+        },
+        include: {
+          orderGroup: { select: { displayId: true } }
+        }
+      });
+      
+      console.log(`[Admin] Updated OrderItem ${itemId} status to ${status}`);
+      
+      return res.json({
+        success: true,
+        message: `Item status updated to ${status}`,
+        item: {
+          id: item.id,
+          status: item.status,
+          displayId: item.orderGroup.displayId
+        }
+      });
+    } catch (itemError) {
+      // If OrderItem not found, try legacy Order table
+      if (itemError.code === 'P2025') {
+        try {
+          const order = await prisma.order.update({
+            where: { id: itemId },
+            data: { 
+              status,
+              processedAt: status === 'COMPLETED' ? new Date() : undefined
+            }
+          });
+          
+          console.log(`[Admin] Updated legacy Order ${itemId} status to ${status}`);
+          
+          return res.json({
+            success: true,
+            message: `Order status updated to ${status}`,
+            item: {
+              id: order.id,
+              status: order.status,
+              displayId: order.displayId || order.id.substring(0, 8).toUpperCase()
+            }
+          });
+        } catch (orderError) {
+          if (orderError.code === 'P2025') {
+            return res.status(404).json({
+              error: 'Order not found in either OrderItem or Order table',
+              code: 'NOT_FOUND'
+            });
+          }
+          throw orderError;
+        }
       }
-    });
-    
-    console.log(`[Admin] Updated item ${itemId} status to ${status}`);
-    
-    res.json({
-      success: true,
-      message: `Item status updated to ${status}`,
-      item: {
-        id: item.id,
-        status: item.status,
-        displayId: item.orderGroup.displayId
-      }
-    });
+      throw itemError;
+    }
     
   } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        error: 'Order item not found',
-        code: 'NOT_FOUND'
-      });
-    }
+    console.error('[Admin] Status update error:', error);
     next(error);
   }
 });
