@@ -181,6 +181,7 @@ model User {
   momoReceived     MomoTransaction[] @relation("MomoRecipient")
   momoInitiated    MomoTransaction[] @relation("MomoInitiator")
   momoClaimed      MomoTransaction[] @relation("MomoClaimer")
+  pendingPayments  PendingPayment[]
 
   @@index([tenantId])
   @@index([parentUserId])
@@ -996,4 +997,30 @@ model OrderStateTransition {
   @@index([orderId])
   @@index([createdAt])
   @@map("order_state_transitions")
+}
+
+// ============================================
+// PAYMENT GATEWAY MODELS
+// ============================================
+
+// Pending payments from Paystack/other gateways
+model PendingPayment {
+  id            String    @id @default(uuid())
+  reference     String    @unique  // Payment gateway reference
+  userId        String
+  amount        Float                // Amount in GHS
+  provider      String    @default("PAYSTACK") // PAYSTACK, MOMO, etc.
+  status        String    @default("PENDING")  // PENDING, COMPLETED, FAILED, EXPIRED
+  channel       String?              // mobile_money, card, bank_transfer
+  metadata      Json?                // Additional data from gateway
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+  
+  user          User      @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([status])
+  @@index([reference])
+  @@index([createdAt])
+  @@map("pending_payments")
 }

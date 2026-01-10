@@ -16,7 +16,9 @@
     "mcbisApiToken": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f",
     "easyDataApiUrl": "https://easydatagh.pro/wp-json/custom/v1",
     "easyDataUsername": "Kwaku Oteng",
-    "easyDataPassword": "Kj65PzHvCQEsIo0WM19RB6Nw"
+    "easyDataPassword": "Kj65PzHvCQEsIo0WM19RB6Nw",
+    "paystackSecretKey": "",
+    "paystackPublicKey": ""
   },
   "siteSettings": {
     "masterAPI": false,

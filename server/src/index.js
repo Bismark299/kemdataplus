@@ -39,6 +39,7 @@ const momoRoutes = require('./routes/momo.routes');
 const storeCustomerRoutes = require('./routes/store-customer.routes');
 const datahubRoutes = require('./routes/datahub.routes');
 const easydataRoutes = require('./routes/easydata.routes');
+const paystackRoutes = require('./routes/paystack.routes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -185,6 +186,7 @@ app.use('/api/momo', momoRoutes);
 app.use('/api/store-customer', storeCustomerRoutes);
 app.use('/api/datahub', datahubRoutes);
 app.use('/api/easydata', easydataRoutes);
+app.use('/api/paystack', paystackRoutes);
 
 // Public storefront route (no auth required)
 app.use('/api', storefrontRoutes);

@@ -938,6 +938,219 @@
                 font-size: 1.8rem;
             }
         }
+        
+        /* ===== PAYSTACK TOP-UP STYLES ===== */
+        .topup-amounts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        
+        .amount-btn {
+            padding: 14px 8px;
+            border: 2px solid var(--gray-200, #e2e8f0);
+            background: white;
+            border-radius: var(--radius, 8px);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--gray-700, #334155);
+        }
+        
+        .amount-btn:hover {
+            border-color: var(--accent, #F2C12E);
+            background: #fffbf0;
+        }
+        
+        .amount-btn.selected {
+            border-color: var(--primary, #024959);
+            background: var(--primary, #024959);
+            color: white;
+        }
+        
+        .paystack-info {
+            background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+            border: 1px solid #38bdf8;
+            border-radius: var(--radius, 8px);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .paystack-info h4 {
+            color: #0369a1;
+            margin: 0 0 10px 0;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .paystack-info p {
+            color: #075985;
+            font-size: 0.85rem;
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        .paystack-info ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+            color: #075985;
+            font-size: 0.85rem;
+        }
+        
+        .paystack-info li {
+            margin-bottom: 5px;
+        }
+        
+        .payment-channel-select {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        
+        .channel-btn {
+            padding: 12px 8px;
+            border: 2px solid var(--gray-200, #e2e8f0);
+            background: white;
+            border-radius: var(--radius, 8px);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .channel-btn i {
+            font-size: 1.3rem;
+            display: block;
+            margin-bottom: 4px;
+            color: var(--gray-500, #64748b);
+        }
+        
+        .channel-btn span {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600, #475569);
+        }
+        
+        .channel-btn:hover {
+            border-color: var(--accent, #F2C12E);
+        }
+        
+        .channel-btn.selected {
+            border-color: var(--primary, #024959);
+            background: #f0f9ff;
+        }
+        
+        .channel-btn.selected i {
+            color: var(--primary, #024959);
+        }
+        
+        .btn-paystack {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00C3F7 0%, #0088cc 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius, 8px);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-paystack:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.3);
+        }
+        
+        .btn-paystack:disabled {
+            background: var(--gray-400, #94a3b8);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .recent-payments {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200, #e2e8f0);
+        }
+        
+        .recent-payments h4 {
+            color: var(--primary, #024959);
+            margin-bottom: 14px;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .payment-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--gray-50, #f8fafc);
+            border-radius: var(--radius, 8px);
+            margin-bottom: 8px;
+        }
+        
+        .payment-item .payment-amount {
+            font-weight: 700;
+            color: var(--success, #10b981);
+        }
+        
+        .payment-item .payment-status {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: var(--radius-full, 9999px);
+            font-weight: 600;
+        }
+        
+        .payment-item .payment-status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .payment-item .payment-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        @media (max-width: 600px) {
+            .topup-amounts {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .amount-btn {
+                padding: 12px 6px;
+                font-size: 0.85rem;
+            }
+            
+            .payment-channel-select {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .channel-btn {
+                padding: 10px 6px;
+            }
+            
+            .channel-btn i {
+                font-size: 1.1rem;
+            }
+            
+            .channel-btn span {
+                font-size: 0.7rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -996,7 +1209,10 @@
                     <div class="topup-section">
                         <!-- Wallet Tabs -->
                         <div class="wallet-tabs">
-                            <button class="wallet-tab active" data-tab="claimMomo">
+                            <button class="wallet-tab active" data-tab="instantTopup">
+                                <i class="fas fa-bolt"></i> Instant Top Up
+                            </button>
+                            <button class="wallet-tab" data-tab="claimMomo">
                                 <i class="fas fa-receipt"></i> Claim MoMo
                             </button>
                             <button class="wallet-tab" data-tab="sendFunds">
@@ -1007,8 +1223,70 @@
                         <div class="success-msg" id="successMsg">✓ Operation successful!</div>
                         <div class="error-msg" id="errorMsg">✗ An error occurred. Please try again.</div>
 
-                        <!-- CLAIM MOMO TAB (Now Primary) -->
-                        <div class="tab-content active" id="claimMomoTab">
+                        <!-- INSTANT TOP UP TAB (Paystack) -->
+                        <div class="tab-content active" id="instantTopupTab">
+                            <div class="paystack-info">
+                                <h4><i class="fas fa-bolt"></i> Instant Wallet Top Up</h4>
+                                <p>Top up your wallet instantly using:</p>
+                                <ul>
+                                    <li><strong>Mobile Money</strong> - MTN, Telecel, AirtelTigo</li>
+                                    <li><strong>Bank Card</strong> - Visa, Mastercard</li>
+                                    <li><strong>Bank Transfer</strong> - Ghana banks</li>
+                                </ul>
+                            </div>
+                            
+                            <form id="paystackTopupForm">
+                                <div class="form-group">
+                                    <label>Select Amount (GHS)</label>
+                                    <div class="topup-amounts">
+                                        <button type="button" class="amount-btn" data-amount="10">GHS 10</button>
+                                        <button type="button" class="amount-btn" data-amount="20">GHS 20</button>
+                                        <button type="button" class="amount-btn" data-amount="50">GHS 50</button>
+                                        <button type="button" class="amount-btn" data-amount="100">GHS 100</button>
+                                        <button type="button" class="amount-btn" data-amount="200">GHS 200</button>
+                                        <button type="button" class="amount-btn" data-amount="500">GHS 500</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Or Enter Custom Amount</label>
+                                    <input type="number" id="paystackAmount" placeholder="Enter amount (min GHS 1)" min="1" max="10000" step="0.01">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Payment Method</label>
+                                    <div class="payment-channel-select">
+                                        <button type="button" class="channel-btn selected" data-channel="mobile_money">
+                                            <i class="fas fa-mobile-alt"></i>
+                                            <span>MoMo</span>
+                                        </button>
+                                        <button type="button" class="channel-btn" data-channel="card">
+                                            <i class="fas fa-credit-card"></i>
+                                            <span>Card</span>
+                                        </button>
+                                        <button type="button" class="channel-btn" data-channel="bank_transfer">
+                                            <i class="fas fa-university"></i>
+                                            <span>Bank</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn-paystack" id="paystackPayBtn">
+                                    <i class="fas fa-lock"></i> Pay Securely with Paystack
+                                </button>
+                            </form>
+                            
+                            <!-- Recent Payments -->
+                            <div class="recent-payments">
+                                <h4><i class="fas fa-history"></i> Recent Top Ups</h4>
+                                <div id="recentPaymentsList">
+                                    <div class="no-pending">No recent payments</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CLAIM MOMO TAB -->
+                        <div class="tab-content" id="claimMomoTab">
                             <div class="claim-info">
                                 <h4><i class="fas fa-info-circle"></i> How to Add Funds via MoMo</h4>
                                 <ol>
@@ -1743,6 +2021,159 @@
             document.getElementById('dropdownMenu').style.display = 'none';
         });
 
+        // ========== PAYSTACK INTEGRATION ==========
+        let paystackPublicKey = '';
+        let selectedChannel = 'mobile_money';
+        let selectedAmount = 0;
+        
+        // Load Paystack public key
+        async function loadPaystackKey() {
+            try {
+                const data = await apiRequest('/paystack/public-key');
+                paystackPublicKey = data.publicKey || '';
+                if (!paystackPublicKey) {
+                    console.warn('Paystack not configured');
+                }
+            } catch (e) {
+                console.warn('Could not load Paystack key:', e);
+            }
+        }
+        
+        // Quick amount selection
+        document.querySelectorAll('.amount-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedAmount = parseFloat(this.dataset.amount);
+                document.getElementById('paystackAmount').value = selectedAmount;
+            });
+        });
+        
+        // Channel selection
+        document.querySelectorAll('.channel-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedChannel = this.dataset.channel;
+            });
+        });
+        
+        // Custom amount input clears quick selection
+        document.getElementById('paystackAmount').addEventListener('input', function() {
+            if (this.value) {
+                document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+                selectedAmount = parseFloat(this.value) || 0;
+            }
+        });
+        
+        // Paystack form submission
+        document.getElementById('paystackTopupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const amount = selectedAmount || parseFloat(document.getElementById('paystackAmount').value);
+            
+            if (!amount || amount < 1) {
+                showError('Please enter a valid amount (min GHS 1)');
+                return;
+            }
+            
+            if (amount > 10000) {
+                showError('Maximum top-up is GHS 10,000');
+                return;
+            }
+            
+            if (!paystackPublicKey) {
+                showError('Payment system not available. Please use MoMo claim instead.');
+                return;
+            }
+            
+            const payBtn = document.getElementById('paystackPayBtn');
+            payBtn.disabled = true;
+            payBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                // Initialize payment via backend
+                const result = await apiRequest('/paystack/initialize', 'POST', {
+                    amount: amount,
+                    channel: selectedChannel
+                });
+                
+                if (result.authorizationUrl) {
+                    // Redirect to Paystack payment page
+                    window.location.href = result.authorizationUrl;
+                } else {
+                    throw new Error('Failed to get payment URL');
+                }
+            } catch (error) {
+                showError(error.message || 'Failed to initialize payment');
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<i class="fas fa-lock"></i> Pay Securely with Paystack';
+            }
+        });
+        
+        // Check for payment callback
+        async function checkPaymentCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentStatus = urlParams.get('payment');
+            const reference = urlParams.get('reference') || urlParams.get('trxref');
+            
+            if (paymentStatus === 'callback' && reference) {
+                // Verify payment
+                try {
+                    showSuccess('Verifying payment...');
+                    const result = await apiRequest(`/paystack/verify/${reference}`);
+                    
+                    if (result.status === 'success') {
+                        showSuccess(`Payment successful! GHS ${result.amount.toFixed(2)} added to your wallet.`);
+                        // Refresh wallet data
+                        await loadWalletData();
+                        await loadPaymentHistory();
+                    } else {
+                        showError('Payment verification failed. Please contact support if amount was deducted.');
+                    }
+                } catch (error) {
+                    showError('Could not verify payment. Please check your balance or contact support.');
+                }
+                
+                // Clear URL params
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+        
+        // Load recent payments
+        async function loadPaymentHistory() {
+            try {
+                const data = await apiRequest('/paystack/history');
+                const payments = data.payments || [];
+                renderRecentPayments(payments);
+            } catch (e) {
+                console.warn('Could not load payment history');
+            }
+        }
+        
+        function renderRecentPayments(payments) {
+            const container = document.getElementById('recentPaymentsList');
+            
+            if (!payments || payments.length === 0) {
+                container.innerHTML = '<div class="no-pending">No recent payments</div>';
+                return;
+            }
+            
+            container.innerHTML = payments.slice(0, 5).map(p => {
+                const statusClass = p.status === 'completed' ? 'completed' : 'pending';
+                const statusText = p.status === 'completed' ? 'Completed' : 'Pending';
+                return `
+                    <div class="payment-item">
+                        <div>
+                            <div class="payment-amount">+GHS ${parseFloat(p.amount).toFixed(2)}</div>
+                            <div style="font-size: 0.8rem; color: #64748b;">${formatDateTimeUTC(p.createdAt)}</div>
+                        </div>
+                        <span class="payment-status ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             const isAuthenticated = await checkAuth();
@@ -1753,7 +2184,12 @@
             await loadWalletData();
             await loadPendingClaims();
             await loadMomoSettings();
+            await loadPaystackKey();
+            await loadPaymentHistory();
             renderRecentTransfers();
+            
+            // Check for payment callback
+            await checkPaymentCallback();
         });
 
         // Logout function
