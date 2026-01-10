@@ -5055,7 +5055,7 @@
                         <!-- API Settings Section -->
                         <div class="settings-section-title">API Settings</div>
                         <div class="master-toggle-row">
-                            <span class="master-toggle-label">Master API</span>
+                            <span class="master-toggle-label">Master API (EasyDataGH)</span>
                             <div class="toggle-switch active" id="toggleMasterAPI" data-site-setting="masterAPI"></div>
                         </div>
                         <div class="settings-grid">
@@ -5202,6 +5202,56 @@
                         <div id="mcbisBalanceDisplay" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #024959, #036c7f); border-radius: 8px; color: white;">
                             <div style="font-size: 0.85rem; opacity: 0.9;">Mcbis API Balance</div>
                             <div style="font-size: 1.8rem; font-weight: 700;" id="mcbisBalanceAmount">GHS 0.00</div>
+                        </div>
+                    </div>
+
+                    <!-- EasyDataGH API Integration Card -->
+                    <div class="settings-card" style="border: 2px solid #10b981;">
+                        <div class="settings-section-title" style="color: #10b981;">
+                            <i class="fas fa-bolt"></i> EasyDataGH API Integration (Master API)
+                        </div>
+                        <p style="color: #6b7280; margin-bottom: 15px; font-size: 0.9rem;">
+                            Primary API for automatic order processing. When Master API is ON, orders go to EasyDataGH.
+                        </p>
+                        
+                        <!-- API Status -->
+                        <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #10b981;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-info-circle" style="color: #10b981;"></i>
+                                <span style="color: #166534; font-weight: 500;">Master API toggle (above) controls EasyDataGH</span>
+                            </div>
+                        </div>
+
+                        <!-- API Credentials (Read-only display) -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-link"></i> API URL</label>
+                                <input type="text" id="easyDataApiUrl" value="https://easydatagh.pro/wp-json/custom/v1" readonly style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #e5e7eb;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-user"></i> Username</label>
+                                <input type="text" id="easyDataUsername" placeholder="API Username" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
+                            </div>
+                            <div>
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-key"></i> Password</label>
+                                <input type="password" id="easyDataPassword" placeholder="API Password" autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- API Actions -->
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" class="btn-fund" onclick="testEasyDataConnection()" style="background: #10b981;">
+                                <i class="fas fa-plug"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn-fund" onclick="checkEasyDataBalance()" style="background: #059669;">
+                                <i class="fas fa-wallet"></i> Check Balance
+                            </button>
+                        </div>
+
+                        <!-- API Balance Display -->
+                        <div id="easyDataBalanceDisplay" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #059669, #10b981); border-radius: 8px; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">EasyDataGH API Balance</div>
+                            <div style="font-size: 1.8rem; font-weight: 700;" id="easyDataBalanceAmount">GHS 0.00</div>
                         </div>
                     </div>
 
@@ -9892,6 +9942,42 @@
                 await loadStats();
             } catch (err) {
                 showToast('Sync error: ' + err.message, 'error');
+            }
+        }
+
+        // ========== EASYDATA API FUNCTIONS ==========
+        async function testEasyDataConnection() {
+            showToast('Testing EasyDataGH API connection...', 'info');
+            try {
+                const res = await adminFetch('/api/easydata/test', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(`✅ Connected! Balance: GHS ${data.balance}`, 'success');
+                    document.getElementById('easyDataBalanceDisplay').style.display = 'block';
+                    document.getElementById('easyDataBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                } else {
+                    showToast(`❌ Connection failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (err) {
+                showToast('❌ Connection error: ' + err.message, 'error');
+            }
+        }
+
+        async function checkEasyDataBalance() {
+            try {
+                const res = await adminFetch('/api/easydata/balance');
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('easyDataBalanceDisplay').style.display = 'block';
+                    document.getElementById('easyDataBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    showToast(`EasyDataGH Balance: GHS ${data.balance}`, 'success');
+                } else {
+                    showToast('Failed to get balance: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                showToast('Error checking balance: ' + err.message, 'error');
             }
         }
 

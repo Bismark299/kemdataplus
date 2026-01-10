@@ -13,11 +13,14 @@
     "apiUrl": "https://datahub.mcbissolution.com/api/v1",
     "apiKey": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f",
     "mcbisApiUrl": "https://datahub.mcbissolution.com/api/v1",
-    "mcbisApiToken": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f"
+    "mcbisApiToken": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f",
+    "easyDataApiUrl": "https://easydatagh.pro/wp-json/custom/v1",
+    "easyDataUsername": "Kwaku Oteng",
+    "easyDataPassword": "Kj65PzHvCQEsIo0WM19RB6Nw"
   },
   "siteSettings": {
-    "masterAPI": true,
-    "mtnAPI": true,
+    "masterAPI": false,
+    "mtnAPI": false,
     "telecelAPI": false,
     "airteltigoAPI": false,
     "placeOrders": true,

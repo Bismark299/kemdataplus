@@ -666,17 +666,22 @@ const orderGroupService = {
    * ============================================================
    * PROCESS ORDER ITEMS VIA API
    * ============================================================
-   * Sends each PENDING item to MCBIS API for fulfillment.
+   * Sends each PENDING item to external API for fulfillment.
+   * 
+   * Priority (Either/Or):
+   * - masterAPI ON  → Use EasyDataGH API
+   * - mcbisAPI ON   → Use MCBIS API (only if masterAPI is OFF)
+   * - Both OFF      → Orders stay PENDING (manual processing)
    * 
    * Rules:
    * - Only processes PENDING items (not PROCESSING, COMPLETED, etc.)
-   * - Checks mcbisAPI master toggle
    * - Checks network-specific toggle (mtnAPI, telecelAPI, airteltigoAPI)
-   * - Checks MCBIS wallet balance BEFORE each item
+   * - Checks API wallet balance BEFORE each item
    * - Items stay PENDING if API disabled or insufficient balance
    */
   async processOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
+    const easyDataService = require('./easydata.service');
     const fs = require('fs');
     const path = require('path');
     
@@ -691,10 +696,21 @@ const orderGroupService = {
       }
     };
     
+    // Determine which API provider to use
+    const getApiProvider = (siteSettings) => {
+      if (siteSettings.masterAPI) {
+        return 'EASYDATA'; // masterAPI = EasyDataGH
+      }
+      if (siteSettings.mcbisAPI) {
+        return 'MCBIS';
+      }
+      return null; // No API enabled
+    };
+    
     // Helper to check if network API is enabled
-    const isNetworkApiEnabled = (network, siteSettings) => {
-      if (!siteSettings.mcbisAPI) {
-        console.log(`[OrderGroup] Master mcbisAPI is OFF`);
+    const isNetworkApiEnabled = (network, siteSettings, provider) => {
+      if (!provider) {
+        console.log(`[OrderGroup] No API provider enabled (masterAPI and mcbisAPI both OFF)`);
         return false;
       }
       
@@ -733,31 +749,88 @@ const orderGroupService = {
     console.log(`[OrderGroup] Processing ${orderGroup.items.length} PENDING items for ${orderGroup.displayId}`);
 
     const siteSettings = getSiteSettings();
+    const apiProvider = getApiProvider(siteSettings);
     const results = [];
     let skipped = 0;
     
-    // Get MCBIS balance once at the start
-    let mcbisBalance = 0;
-    try {
-      const balanceResult = await datahubService.getWalletBalance();
-      mcbisBalance = balanceResult.success ? balanceResult.balance : 0;
-      console.log(`[OrderGroup] MCBIS wallet balance: ${mcbisBalance} GHS`);
-    } catch (e) {
-      console.log(`[OrderGroup] Could not fetch MCBIS balance: ${e.message}`);
+    console.log(`[OrderGroup] API Provider: ${apiProvider || 'NONE'}`);
+    
+    // Get API balance once at the start
+    let apiBalance = 0;
+    let apiService = null;
+    
+    if (apiProvider === 'EASYDATA') {
+      apiService = easyDataService;
+      try {
+        const balanceResult = await easyDataService.getWalletBalance();
+        apiBalance = balanceResult.success ? balanceResult.balance : 0;
+        console.log(`[OrderGroup] EasyDataGH wallet balance: ${apiBalance} GHS`);
+      } catch (e) {
+        console.log(`[OrderGroup] Could not fetch EasyDataGH balance: ${e.message}`);
+      }
+    } else if (apiProvider === 'MCBIS') {
+      apiService = datahubService;
+      try {
+        const balanceResult = await datahubService.getWalletBalance();
+        apiBalance = balanceResult.success ? balanceResult.balance : 0;
+        console.log(`[OrderGroup] MCBIS wallet balance: ${apiBalance} GHS`);
+      } catch (e) {
+        console.log(`[OrderGroup] Could not fetch MCBIS balance: ${e.message}`);
+      }
     }
 
     for (const item of orderGroup.items) {
       const network = item.bundle?.network || 'MTN';
       
-      // Check 1: Is network API enabled?
-      if (!isNetworkApiEnabled(network, siteSettings)) {
-        console.log(`[OrderGroup] Skipping ${item.reference}: ${network} API disabled`);
+      // DUPLICATE PREVENTION CHECK 1: Already has externalReference (sent to API before)
+      if (item.externalReference) {
+        console.log(`[OrderGroup] SKIP DUPLICATE: ${item.reference} already has externalReference: ${item.externalReference}`);
         skipped++;
         results.push({
           itemId: item.id,
           reference: item.reference,
           skipped: true,
-          reason: `${network} API is disabled`
+          reason: 'Already sent to API (has externalReference)'
+        });
+        continue;
+      }
+      
+      // DUPLICATE PREVENTION CHECK 2: apiSentAt is set (attempted before)
+      if (item.apiSentAt) {
+        console.log(`[OrderGroup] SKIP DUPLICATE: ${item.reference} has apiSentAt: ${item.apiSentAt}`);
+        skipped++;
+        results.push({
+          itemId: item.id,
+          reference: item.reference,
+          skipped: true,
+          reason: 'Already attempted (has apiSentAt)'
+        });
+        continue;
+      }
+      
+      // DUPLICATE PREVENTION CHECK 3: Re-fetch fresh status (race condition protection)
+      const freshItem = await prisma.orderItem.findUnique({ where: { id: item.id } });
+      if (freshItem.status !== 'PENDING') {
+        console.log(`[OrderGroup] SKIP: ${item.reference} status changed to ${freshItem.status}`);
+        skipped++;
+        results.push({
+          itemId: item.id,
+          reference: item.reference,
+          skipped: true,
+          reason: `Status is ${freshItem.status}, not PENDING`
+        });
+        continue;
+      }
+      
+      // Check 4: Is network API enabled?
+      if (!isNetworkApiEnabled(network, siteSettings, apiProvider)) {
+        console.log(`[OrderGroup] Skipping ${item.reference}: ${network} API disabled or no provider`);
+        skipped++;
+        results.push({
+          itemId: item.id,
+          reference: item.reference,
+          skipped: true,
+          reason: apiProvider ? `${network} API is disabled` : 'No API provider enabled'
         });
         continue;
       }
@@ -769,25 +842,25 @@ const orderGroupService = {
         if (match) dataAmount = parseInt(match[1]);
       }
       
-      // Estimate MCBIS cost (rough estimate: ~3.9 GHS per 1GB for MTN)
+      // Estimate cost (rough estimate: ~3.9 GHS per 1GB for MTN)
       const estimatedCost = item.baseCost || (dataAmount * 3.9);
       
-      // Check 3: Is MCBIS balance sufficient?
-      if (mcbisBalance < estimatedCost) {
-        console.log(`[OrderGroup] Skipping ${item.reference}: Insufficient MCBIS balance (need ${estimatedCost}, have ${mcbisBalance})`);
+      // Check 3: Is API balance sufficient?
+      if (apiBalance < estimatedCost) {
+        console.log(`[OrderGroup] Skipping ${item.reference}: Insufficient ${apiProvider} balance (need ${estimatedCost}, have ${apiBalance})`);
         skipped++;
         results.push({
           itemId: item.id,
           reference: item.reference,
           skipped: true,
-          reason: `Insufficient MCBIS balance (need ${estimatedCost}, have ${mcbisBalance})`
+          reason: `Insufficient ${apiProvider} balance (need ${estimatedCost}, have ${apiBalance})`
         });
         continue;
       }
 
       try {
-        // Place order via API
-        const result = await datahubService.placeOrder({
+        // Place order via selected API provider
+        const result = await apiService.placeOrder({
           network: network,
           phone: item.recipientPhone,
           amount: dataAmount,
@@ -805,12 +878,17 @@ const orderGroupService = {
           itemId: item.id,
           reference: item.reference,
           success: result.success,
-          externalReference: result.reference
+          externalReference: result.reference,
+          provider: apiProvider
         });
         
-        // Deduct estimated cost from balance tracker
+        // Deduct estimated cost from balance tracker (or use new_balance from API)
         if (result.success) {
-          mcbisBalance -= estimatedCost;
+          if (result.newBalance !== undefined) {
+            apiBalance = result.newBalance;
+          } else {
+            apiBalance -= estimatedCost;
+          }
         }
 
         // Delay between API calls
@@ -820,14 +898,14 @@ const orderGroupService = {
         console.error(`[OrderGroup] Error processing item ${item.id}:`, error.message);
         
         // Check if it's an insufficient balance error from API
-        if (error.message.includes('Insufficient wallet balance')) {
-          console.log(`[OrderGroup] MCBIS balance depleted, stopping further processing`);
+        if (error.message.includes('Insufficient') || error.message.includes('balance')) {
+          console.log(`[OrderGroup] ${apiProvider} balance depleted, stopping further processing`);
           skipped++;
           results.push({
             itemId: item.id,
             reference: item.reference,
             skipped: true,
-            reason: 'MCBIS balance depleted'
+            reason: `${apiProvider} balance depleted`
           });
           // Stop processing remaining items
           break;
@@ -847,11 +925,12 @@ const orderGroupService = {
       }
     }
 
-    console.log(`[OrderGroup] Processed: ${results.filter(r => !r.skipped).length}, Skipped: ${skipped}`);
+    console.log(`[OrderGroup] Provider: ${apiProvider || 'NONE'}, Processed: ${results.filter(r => !r.skipped).length}, Skipped: ${skipped}`);
 
     return {
       orderGroupId,
       displayId: orderGroup.displayId,
+      provider: apiProvider,
       processed: results.filter(r => !r.skipped).length,
       skipped,
       results

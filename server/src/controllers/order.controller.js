@@ -6,56 +6,54 @@ const path = require('path');
 const prisma = new PrismaClient();
 
 // Import multi-tenant services (optional - graceful fallback if not available)
-let pricingEngine, profitService, walletService, auditService, datahubService, settingsController;
+let pricingEngine, profitService, walletService, auditService, datahubService, easyDataService, settingsController;
 try {
   pricingEngine = require('../services/pricing.service');
   profitService = require('../services/profit.service');
   walletService = require('../services/wallet.service');
   auditService = require('../services/audit.service');
   datahubService = require('../services/datahub.service');
+  easyDataService = require('../services/easydata.service');
   settingsController = require('./settings.controller');
 } catch (e) {
   console.log('Multi-tenant services not available, using legacy mode');
 }
 
-// Helper to check if Mcbis API is enabled (uses in-memory cache)
-function isMcbisEnabled() {
-  // Use the settings controller cache if available
+// Helper to get site settings
+function getSiteSettings() {
   if (settingsController && settingsController.getSiteSettings) {
-    const siteSettings = settingsController.getSiteSettings();
-    return siteSettings.mcbisAPI === true;
+    return settingsController.getSiteSettings();
   }
-  
-  // Fallback to file read
   try {
     const settingsPath = path.join(__dirname, '../../settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    return settings.siteSettings?.mcbisAPI === true;
+    return settings.siteSettings || {};
   } catch (e) {
-    return false;
+    return {};
   }
+}
+
+// Either/Or API Provider Selection
+// masterAPI ON → EasyDataGH, mcbisAPI ON → MCBIS, Both OFF → null
+function getApiProvider() {
+  const siteSettings = getSiteSettings();
+  if (siteSettings.masterAPI === true) {
+    return { name: 'EASYDATA', service: easyDataService };
+  }
+  if (siteSettings.mcbisAPI === true) {
+    return { name: 'MCBIS', service: datahubService };
+  }
+  return null;
 }
 
 // Helper to check if API is enabled for a specific network
 function isNetworkApiEnabled(network) {
-  // Get site settings
-  let siteSettings;
-  if (settingsController && settingsController.getSiteSettings) {
-    siteSettings = settingsController.getSiteSettings();
-  } else {
-    // Fallback to file read
-    try {
-      const settingsPath = path.join(__dirname, '../../settings.json');
-      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      siteSettings = settings.siteSettings || {};
-    } catch (e) {
-      return false;
-    }
-  }
+  const siteSettings = getSiteSettings();
+  const provider = getApiProvider();
   
-  // Check master API first
-  if (!siteSettings.mcbisAPI) {
-    console.log(`[Mcbis] Master API is OFF, not pushing order`);
+  // No provider enabled
+  if (!provider) {
+    console.log(`[API] No API provider enabled (masterAPI and mcbisAPI both OFF)`);
     return false;
   }
   
@@ -65,22 +63,22 @@ function isNetworkApiEnabled(network) {
   // Check network-specific setting
   if (networkLower === 'mtn') {
     const enabled = siteSettings.mtnAPI === true;
-    console.log(`[Mcbis] MTN API enabled: ${enabled}`);
+    console.log(`[API:${provider.name}] MTN API enabled: ${enabled}`);
     return enabled;
   }
   if (networkLower === 'telecel' || networkLower === 'vodafone') {
     const enabled = siteSettings.telecelAPI === true;
-    console.log(`[Mcbis] Telecel API enabled: ${enabled}`);
+    console.log(`[API:${provider.name}] Telecel API enabled: ${enabled}`);
     return enabled;
   }
   if (networkLower === 'airteltigo' || networkLower === 'at') {
     const enabled = siteSettings.airteltigoAPI === true;
-    console.log(`[Mcbis] AirtelTigo API enabled: ${enabled}`);
+    console.log(`[API:${provider.name}] AirtelTigo API enabled: ${enabled}`);
     return enabled;
   }
   
   // Unknown network - default to disabled
-  console.log(`[Mcbis] Unknown network '${network}', not pushing to API`);
+  console.log(`[API:${provider.name}] Unknown network '${network}', not pushing to API`);
   return false;
 }
 
@@ -361,23 +359,58 @@ const orderController = {
         });
       }
 
-      // AUTO-PROCESS via Mcbis API if enabled for this network
+      // AUTO-PROCESS via API (Either/Or: masterAPI → EasyData, mcbisAPI → MCBIS)
       let apiResult = null;
       const orderNetwork = order.bundle?.network || bundle.network;
+      const apiProvider = getApiProvider();
       
-      console.log(`[Mcbis] Order ${order.id} - Network: ${orderNetwork}`);
+      console.log(`[API] Order ${order.id} - Network: ${orderNetwork}, Provider: ${apiProvider?.name || 'NONE'}`);
       
-      if (isNetworkApiEnabled(orderNetwork) && datahubService) {
+      if (apiProvider && isNetworkApiEnabled(orderNetwork)) {
         try {
-          console.log(`[Mcbis] Auto-processing order ${order.id} (${orderNetwork})`);
-          apiResult = await datahubService.processOrder(order.id);
-          console.log(`[Mcbis] Order ${order.id} result:`, apiResult);
+          // DUPLICATE PREVENTION: Check if order already has externalReference
+          const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
+          if (freshOrder.externalReference) {
+            console.log(`[API] SKIP: Order ${order.id} already has externalReference: ${freshOrder.externalReference}`);
+          } else if (freshOrder.status !== 'PENDING') {
+            console.log(`[API] SKIP: Order ${order.id} status is ${freshOrder.status}, not PENDING`);
+          } else {
+            console.log(`[API:${apiProvider.name}] Processing order ${order.id} (${orderNetwork})`);
+            
+            // Extract data amount
+            let dataAmount = 1;
+            if (bundle.dataAmount) {
+              const match = bundle.dataAmount.match(/(\d+)/);
+              if (match) dataAmount = parseInt(match[1]);
+            }
+            
+            // Place order via selected API
+            const result = await apiProvider.service.placeOrder({
+              network: orderNetwork,
+              phone: order.recipientPhone,
+              amount: dataAmount,
+              orderId: order.id
+            });
+            
+            // Update order with result
+            await prisma.order.update({
+              where: { id: order.id },
+              data: {
+                status: result.success ? 'PROCESSING' : 'PENDING',
+                externalReference: result.reference || null,
+                apiSentAt: result.success ? new Date() : null
+              }
+            });
+            
+            apiResult = result;
+            console.log(`[API:${apiProvider.name}] Order ${order.id} result:`, result.success ? 'SUCCESS' : result.error);
+          }
         } catch (apiError) {
-          console.error(`[Mcbis] Auto-process failed for ${order.id}:`, apiError.message);
+          console.error(`[API] Auto-process failed for ${order.id}:`, apiError.message);
           // Don't fail the order - just log the error
         }
       } else {
-        console.log(`[Mcbis] Not auto-processing order ${order.id} - API disabled for ${orderNetwork}`);
+        console.log(`[API] Not processing order ${order.id} - ${apiProvider ? `${orderNetwork} API disabled` : 'No provider enabled'}`);
       }
 
       res.status(201).json({
