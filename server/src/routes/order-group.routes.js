@@ -508,6 +508,7 @@ router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async
 /**
  * POST /api/order-groups/admin/item/:itemId/cancel
  * Cancel individual order item and refund (admin)
+ * Supports both new OrderItem (from OrderGroup) and legacy Order records
  */
 router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
@@ -516,24 +517,99 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
     
-    // Get item with order group info
-    const item = await prisma.orderItem.findUnique({
+    // Try to find as OrderItem first (new system)
+    let item = await prisma.orderItem.findUnique({
       where: { id: itemId },
       include: {
         orderGroup: {
-          include: { user: true }
+          include: { 
+            user: true,
+            items: true // Get all items to check group status
+          }
         }
       }
     });
     
+    let isLegacyOrder = false;
+    let legacyOrder = null;
+    
+    // If not found as OrderItem, try legacy Order table
     if (!item) {
+      legacyOrder = await prisma.order.findUnique({
+        where: { id: itemId },
+        include: { user: true }
+      });
+      
+      if (legacyOrder) {
+        isLegacyOrder = true;
+      }
+    }
+    
+    if (!item && !legacyOrder) {
       return res.status(404).json({
         error: 'Order item not found',
         code: 'NOT_FOUND'
       });
     }
     
-    // Check if already cancelled or completed
+    // Handle LEGACY ORDER cancellation
+    if (isLegacyOrder) {
+      if (legacyOrder.status === 'CANCELLED') {
+        return res.status(400).json({
+          error: 'Order already cancelled',
+          code: 'ALREADY_CANCELLED'
+        });
+      }
+      
+      if (legacyOrder.status === 'COMPLETED') {
+        return res.status(400).json({
+          error: 'Cannot cancel completed order',
+          code: 'CANNOT_CANCEL_COMPLETED'
+        });
+      }
+      
+      const refundAmount = legacyOrder.totalPrice || legacyOrder.unitPrice || 0;
+      
+      await prisma.$transaction(async (tx) => {
+        // Update legacy order status
+        await tx.order.update({
+          where: { id: itemId },
+          data: { status: 'CANCELLED' }
+        });
+        
+        // Refund to wallet
+        if (refundAmount > 0) {
+          const wallet = await tx.wallet.findUnique({ where: { userId: legacyOrder.userId } });
+          
+          if (wallet) {
+            await tx.wallet.update({
+              where: { userId: legacyOrder.userId },
+              data: { balance: { increment: refundAmount } }
+            });
+            
+            await tx.transaction.create({
+              data: {
+                walletId: wallet.id,
+                amount: refundAmount,
+                type: 'REFUND',
+                description: `Refund for cancelled order ${legacyOrder.reference}`,
+                reference: `REFUND-${legacyOrder.reference}-${Date.now()}`
+              }
+            });
+          }
+        }
+      });
+      
+      console.log(`[Admin] Cancelled legacy order ${itemId}, refunded ${refundAmount}`);
+      
+      return res.json({
+        success: true,
+        message: `Order cancelled and GHS ${refundAmount.toFixed(2)} refunded`,
+        refundAmount
+      });
+    }
+    
+    // Handle NEW OrderItem cancellation
     if (item.status === 'CANCELLED') {
       return res.status(400).json({
         error: 'Item already cancelled',
@@ -548,10 +624,9 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
       });
     }
     
-    // Refund amount
     const refundAmount = item.totalPrice || item.unitPrice || 0;
     
-    // Transaction: Update item + refund wallet
+    // Transaction: Update item + update group status + refund wallet
     await prisma.$transaction(async (tx) => {
       // Update item status
       await tx.orderItem.update({
@@ -559,26 +634,54 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
         data: { status: 'CANCELLED' }
       });
       
-      // Refund to wallet
-      if (refundAmount > 0) {
-        // Get wallet first
-        const wallet = await tx.wallet.findUnique({ where: { userId: item.orderGroup.userId } });
-        
-        await tx.wallet.update({
-          where: { userId: item.orderGroup.userId },
-          data: { balance: { increment: refundAmount } }
-        });
-        
-        // Create refund transaction record
-        await tx.transaction.create({
-          data: {
-            walletId: wallet.id,
-            amount: refundAmount,
-            type: 'REFUND',
-            description: `Refund for cancelled item ${item.reference}`,
-            reference: `REFUND-${item.reference}`
+      // Check if ALL items in the group are now cancelled - update group status
+      const allItems = item.orderGroup.items;
+      const otherItems = allItems.filter(i => i.id !== itemId);
+      const allOthersCancelled = otherItems.every(i => i.status === 'CANCELLED');
+      
+      if (allOthersCancelled || allItems.length === 1) {
+        // All items cancelled, update group status
+        await tx.orderGroup.update({
+          where: { id: item.orderGroupId },
+          data: { 
+            status: 'CANCELLED',
+            summaryStatus: 'CANCELLED'
           }
         });
+      } else {
+        // Calculate new summary status
+        const remainingStatuses = otherItems.map(i => i.status);
+        let newSummary = 'PENDING';
+        if (remainingStatuses.every(s => s === 'COMPLETED')) newSummary = 'COMPLETED';
+        else if (remainingStatuses.some(s => s === 'COMPLETED' || s === 'PROCESSING')) newSummary = 'PROCESSING';
+        else if (remainingStatuses.every(s => s === 'CANCELLED' || s === 'FAILED')) newSummary = 'CANCELLED';
+        
+        await tx.orderGroup.update({
+          where: { id: item.orderGroupId },
+          data: { summaryStatus: newSummary }
+        });
+      }
+      
+      // Refund to wallet
+      if (refundAmount > 0) {
+        const wallet = await tx.wallet.findUnique({ where: { userId: item.orderGroup.userId } });
+        
+        if (wallet) {
+          await tx.wallet.update({
+            where: { userId: item.orderGroup.userId },
+            data: { balance: { increment: refundAmount } }
+          });
+          
+          await tx.transaction.create({
+            data: {
+              walletId: wallet.id,
+              amount: refundAmount,
+              type: 'REFUND',
+              description: `Refund for cancelled item ${item.reference}`,
+              reference: `REFUND-${item.reference}-${Date.now()}`
+            }
+          });
+        }
       }
     });
     
