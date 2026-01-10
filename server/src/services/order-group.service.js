@@ -380,11 +380,13 @@ const orderGroupService = {
    * GET ALL ORDERS FOR CLIENT
    * ============================================================
    * Returns paginated list of orders for a user.
+   * Combines new OrderGroup orders with legacy Order table for backwards compatibility.
    */
   async getOrdersForClient(userId, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
 
-    const [orders, total] = await Promise.all([
+    // Fetch from BOTH OrderGroup and legacy Order tables
+    const [orderGroups, legacyOrders, orderGroupCount, legacyOrderCount] = await Promise.all([
       prisma.orderGroup.findMany({
         where: { userId },
         include: {
@@ -397,52 +399,98 @@ const orderGroupService = {
             orderBy: { itemIndex: 'asc' }
           }
         },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
+        orderBy: { createdAt: 'desc' }
       }),
-      prisma.orderGroup.count({ where: { userId } })
+      prisma.order.findMany({
+        where: { userId },
+        include: {
+          bundle: {
+            select: { name: true, network: true, dataAmount: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.orderGroup.count({ where: { userId } }),
+      prisma.order.count({ where: { userId } })
     ]);
 
-    return {
-      orders: orders.map(order => {
-        // Calculate summary status
-        const statuses = order.items.map(i => i.status);
-        let summaryStatus = 'PENDING';
-        if (statuses.every(s => s === 'COMPLETED')) summaryStatus = 'COMPLETED';
-        else if (statuses.every(s => s === 'FAILED')) summaryStatus = 'FAILED';
-        else if (statuses.some(s => s === 'PROCESSING' || s === 'COMPLETED')) summaryStatus = 'PROCESSING';
-        else if (statuses.every(s => s === 'CANCELLED')) summaryStatus = 'CANCELLED';
+    // Convert OrderGroups to standard format
+    const formattedOrderGroups = orderGroups.map(order => {
+      const statuses = order.items.map(i => i.status);
+      let summaryStatus = 'PENDING';
+      if (statuses.every(s => s === 'COMPLETED')) summaryStatus = 'COMPLETED';
+      else if (statuses.every(s => s === 'FAILED')) summaryStatus = 'FAILED';
+      else if (statuses.some(s => s === 'PROCESSING' || s === 'COMPLETED')) summaryStatus = 'PROCESSING';
+      else if (statuses.every(s => s === 'CANCELLED')) summaryStatus = 'CANCELLED';
 
-        return {
-          orderId: order.displayId,
-          itemCount: order.itemCount,
-          isBatch: order.itemCount > 1,
-          totalAmount: order.totalAmount,
-          status: summaryStatus,
-          createdAt: order.createdAt,
-          // Full items list for display
-          items: order.items.map(item => ({
-            id: item.id,
-            reference: item.reference,
-            recipientPhone: item.recipientPhone,
-            price: item.totalPrice || item.unitPrice || 0,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            status: item.status,
-            bundle: item.bundle?.name || 'Unknown',
-            network: item.bundle?.network || 'MTN',
-            dataAmount: item.bundle?.dataAmount || '',
-            failureReason: item.failureReason
-          })),
-          // Preview of first item
-          preview: order.items[0] ? {
-            bundle: order.items[0].bundle?.name,
-            network: order.items[0].bundle?.network,
-            phone: order.items[0].recipientPhone
-          } : null
-        };
-      }),
+      return {
+        orderId: order.displayId,
+        itemCount: order.itemCount,
+        isBatch: order.itemCount > 1,
+        totalAmount: order.totalAmount,
+        status: summaryStatus,
+        createdAt: order.createdAt,
+        isLegacy: false,
+        items: order.items.map(item => ({
+          id: item.id,
+          reference: item.reference,
+          recipientPhone: item.recipientPhone,
+          price: item.totalPrice || item.unitPrice || 0,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          status: item.status,
+          bundle: item.bundle?.name || 'Unknown',
+          network: item.bundle?.network || 'MTN',
+          dataAmount: item.bundle?.dataAmount || '',
+          failureReason: item.failureReason
+        })),
+        preview: order.items[0] ? {
+          bundle: order.items[0].bundle?.name,
+          network: order.items[0].bundle?.network,
+          phone: order.items[0].recipientPhone
+        } : null
+      };
+    });
+
+    // Convert legacy Orders to standard format (each order = single item group)
+    const formattedLegacyOrders = legacyOrders.map(order => ({
+      orderId: order.reference,
+      itemCount: 1,
+      isBatch: false,
+      totalAmount: order.totalPrice || 0,
+      status: order.status,
+      createdAt: order.createdAt,
+      isLegacy: true,
+      items: [{
+        id: order.id,
+        reference: order.reference,
+        recipientPhone: order.recipientPhone,
+        price: order.totalPrice || order.unitPrice || 0,
+        unitPrice: order.unitPrice,
+        totalPrice: order.totalPrice,
+        status: order.status,
+        bundle: order.bundle?.name || 'Unknown',
+        network: order.bundle?.network || 'MTN',
+        dataAmount: order.bundle?.dataAmount || '',
+        failureReason: order.failureReason
+      }],
+      preview: {
+        bundle: order.bundle?.name,
+        network: order.bundle?.network,
+        phone: order.recipientPhone
+      }
+    }));
+
+    // Combine and sort by date (newest first)
+    const allOrders = [...formattedOrderGroups, ...formattedLegacyOrders]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Apply pagination to combined list
+    const total = allOrders.length;
+    const paginatedOrders = allOrders.slice(skip, skip + limit);
+
+    return {
+      orders: paginatedOrders,
       pagination: {
         page,
         limit,

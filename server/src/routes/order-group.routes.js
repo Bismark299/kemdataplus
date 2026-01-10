@@ -231,6 +231,7 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
 /**
  * GET /api/admin/order-groups
  * Get all orders (admin) - Returns flat list compatible with admin dashboard
+ * Combines OrderGroup items with legacy Order table
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
@@ -240,27 +241,41 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 200));
     const compact = req.query.compact === 'true';
 
-    // Fetch all order groups with items
-    const orderGroups = await prisma.orderGroup.findMany({
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, phone: true, role: true }
-        },
-        items: {
-          include: {
-            bundle: {
-              select: { id: true, name: true, network: true, dataAmount: true }
-            }
+    // Fetch both OrderGroups AND legacy Orders
+    const [orderGroups, legacyOrders] = await Promise.all([
+      prisma.orderGroup.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, role: true }
           },
-          orderBy: { itemIndex: 'asc' }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit
-    });
+          items: {
+            include: {
+              bundle: {
+                select: { id: true, name: true, network: true, dataAmount: true }
+              }
+            },
+            orderBy: { itemIndex: 'asc' }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.order.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, role: true }
+          },
+          bundle: {
+            select: { id: true, name: true, network: true, dataAmount: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
 
-    // Flatten into individual order items for dashboard compatibility
+    // Flatten OrderGroups into individual order items for dashboard compatibility
     const orders = [];
+    
+    // Add OrderGroup items
     orderGroups.forEach(group => {
       group.items.forEach(item => {
         orders.push({
@@ -292,8 +307,8 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
           recipientPhone: item.recipientPhone,
           phone: item.recipientPhone,
           quantity: 1,
-          totalPrice: item.price,
-          total: item.price,
+          totalPrice: item.totalPrice || item.unitPrice || 0,
+          total: item.totalPrice || item.unitPrice || 0,
           status: item.status,
           
           // Timestamps
@@ -304,14 +319,66 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
           isBatchItem: group.itemCount > 1,
           batchSize: group.itemCount,
           failureReason: item.failureReason,
-          externalReference: item.externalReference
+          externalReference: item.externalReference,
+          isLegacy: false
         });
       });
     });
 
+    // Add legacy orders
+    legacyOrders.forEach(order => {
+      orders.push({
+        id: order.id,
+        orderGroupId: null,
+        displayId: order.reference,
+        reference: order.reference,
+        
+        // Customer info
+        userId: order.userId,
+        user: order.user,
+        customerName: order.user?.name || 'N/A',
+        customerEmail: order.user?.email || 'N/A',
+        customerPhone: order.user?.phone || 'N/A',
+        
+        // Bundle info
+        bundleId: order.bundleId,
+        bundle: order.bundle ? {
+          id: order.bundle.id,
+          name: order.bundle.name,
+          network: order.bundle.network,
+          dataAmount: order.bundle.dataAmount
+        } : null,
+        network: order.bundle?.network || 'MTN',
+        dataAmount: order.bundle?.dataAmount || '1GB',
+        
+        // Order details
+        recipientPhone: order.recipientPhone,
+        phone: order.recipientPhone,
+        quantity: order.quantity || 1,
+        totalPrice: order.totalPrice || 0,
+        total: order.totalPrice || 0,
+        status: order.status,
+        
+        // Timestamps
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        
+        // Additional fields
+        isBatchItem: false,
+        batchSize: 1,
+        failureReason: order.failureReason,
+        externalReference: order.externalReference,
+        isLegacy: true
+      });
+    });
+
+    // Sort all orders by date (newest first) and apply limit
+    orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const limitedOrders = orders.slice(0, limit);
+
     res.json({
-      orders,
-      total: orders.length
+      orders: limitedOrders,
+      total: limitedOrders.length
     });
 
   } catch (error) {
