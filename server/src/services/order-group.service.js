@@ -1080,6 +1080,204 @@ const orderGroupService = {
       success: true,
       message: `Order ${orderGroup.displayId} cancelled and refunded`
     };
+  },
+
+  /**
+   * ============================================================
+   * SYNC ORDER ITEM STATUS FROM EXTERNAL API
+   * ============================================================
+   * Checks the status of an OrderItem from MCBIS or EasyDataGH API
+   * and updates the local status accordingly.
+   */
+  async syncOrderItemStatus(itemId) {
+    const item = await prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: { orderGroup: true }
+    });
+
+    if (!item) {
+      return { success: false, error: 'OrderItem not found' };
+    }
+
+    if (!item.externalReference) {
+      return { success: false, error: 'No external reference - order not sent to API yet' };
+    }
+
+    console.log(`[Sync] Checking status for item ${item.reference}, externalRef: ${item.externalReference}`);
+
+    // Determine which API to check based on the reference prefix or apiProvider field
+    let apiResult;
+    try {
+      // Try to detect API from reference pattern or try both
+      const datahubService = require('./datahub.service');
+      const easyDataService = require('./easydata.service');
+      
+      // MCBIS references typically start with KDP- or numeric, EasyData with ED-
+      // But safer to try MCBIS first since it's the most common
+      apiResult = await datahubService.checkOrderStatus(item.externalReference);
+      
+      if (!apiResult.success || apiResult.status === 'unknown') {
+        // Try EasyDataGH as fallback
+        const easyResult = await easyDataService.checkOrderStatus(item.externalReference);
+        if (easyResult.success) {
+          apiResult = {
+            success: true,
+            status: easyResult.orderStatus,
+            provider: 'EASYDATA'
+          };
+        }
+      } else {
+        apiResult.provider = 'MCBIS';
+      }
+    } catch (error) {
+      console.error(`[Sync] API check failed:`, error.message);
+      return { success: false, error: error.message };
+    }
+
+    if (!apiResult.success) {
+      return { success: false, error: apiResult.error || 'API check failed' };
+    }
+
+    console.log(`[Sync] API returned status: ${apiResult.status} (provider: ${apiResult.provider})`);
+
+    // Map external status to our status
+    let newStatus = item.status;
+    const externalStatus = (apiResult.status || '').toLowerCase();
+    
+    if (externalStatus === 'success' || externalStatus === 'completed' || externalStatus === 'delivered') {
+      newStatus = 'COMPLETED';
+    } else if (externalStatus === 'failed' || externalStatus === 'error' || externalStatus === 'rejected') {
+      newStatus = 'FAILED';
+    } else if (externalStatus === 'pending' || externalStatus === 'processing' || externalStatus === 'queued') {
+      newStatus = 'PROCESSING';
+    }
+
+    const statusChanged = newStatus !== item.status;
+    
+    if (statusChanged) {
+      console.log(`[Sync] Status change: ${item.status} → ${newStatus}`);
+      
+      await prisma.orderItem.update({
+        where: { id: itemId },
+        data: {
+          status: newStatus,
+          externalStatus: apiResult.status,
+          ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+        }
+      });
+
+      // Update OrderGroup summary status
+      await this.recalculateGroupStatus(item.orderGroupId);
+    }
+
+    return {
+      success: true,
+      itemId,
+      previousStatus: item.status,
+      newStatus,
+      externalStatus: apiResult.status,
+      statusChanged,
+      provider: apiResult.provider
+    };
+  },
+
+  /**
+   * Recalculate OrderGroup summary status based on all items
+   */
+  async recalculateGroupStatus(orderGroupId) {
+    const items = await prisma.orderItem.findMany({
+      where: { orderGroupId }
+    });
+
+    if (items.length === 0) return;
+
+    const statusCounts = {
+      PENDING: 0,
+      PROCESSING: 0,
+      COMPLETED: 0,
+      FAILED: 0,
+      CANCELLED: 0
+    };
+
+    items.forEach(item => {
+      if (statusCounts[item.status] !== undefined) {
+        statusCounts[item.status]++;
+      }
+    });
+
+    let summaryStatus = 'MIXED';
+    
+    if (statusCounts.COMPLETED === items.length) {
+      summaryStatus = 'COMPLETED';
+    } else if (statusCounts.FAILED === items.length) {
+      summaryStatus = 'FAILED';
+    } else if (statusCounts.CANCELLED === items.length) {
+      summaryStatus = 'CANCELLED';
+    } else if (statusCounts.PENDING === items.length) {
+      summaryStatus = 'PENDING';
+    } else if (statusCounts.PROCESSING > 0 || statusCounts.PENDING > 0) {
+      summaryStatus = 'PROCESSING';
+    }
+
+    await prisma.orderGroup.update({
+      where: { id: orderGroupId },
+      data: { summaryStatus }
+    });
+
+    console.log(`[Sync] Updated OrderGroup ${orderGroupId} summaryStatus to ${summaryStatus}`);
+  },
+
+  /**
+   * Sync ALL processing/pending OrderItems that have externalReference
+   * Call this periodically or via admin action
+   */
+  async syncAllProcessingItems() {
+    console.log(`[Sync] Starting sync of all processing OrderItems...`);
+    
+    const items = await prisma.orderItem.findMany({
+      where: {
+        status: { in: ['PROCESSING', 'PENDING'] },
+        externalReference: { not: null }
+      },
+      take: 100 // Limit to prevent API overload
+    });
+
+    console.log(`[Sync] Found ${items.length} items to sync`);
+
+    const results = [];
+    let completed = 0;
+    let failed = 0;
+    let unchanged = 0;
+
+    for (const item of items) {
+      try {
+        const result = await this.syncOrderItemStatus(item.id);
+        results.push({ itemId: item.id, reference: item.reference, ...result });
+        
+        if (result.statusChanged) {
+          if (result.newStatus === 'COMPLETED') completed++;
+          else if (result.newStatus === 'FAILED') failed++;
+        } else {
+          unchanged++;
+        }
+        
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
+      }
+    }
+
+    console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged`);
+
+    return {
+      success: true,
+      total: items.length,
+      completed,
+      failed,
+      unchanged,
+      results
+    };
   }
 };
 
