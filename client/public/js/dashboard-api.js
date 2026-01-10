@@ -382,7 +382,7 @@
         const orderDate = new Date(order.createdAt);
         const orderDateUTC = orderDate.toISOString().split('T')[0];
         
-        // Only count today's orders for status stats (fresh day, fresh start)
+        // Only count TODAY's orders for status stats
         if (orderDateUTC === todayUTC) {
           const status = (order.status || '').toUpperCase();
           if (status === 'COMPLETED') stats.completed++;

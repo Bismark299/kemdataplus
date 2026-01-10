@@ -506,6 +506,109 @@ router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async
 });
 
 /**
+ * POST /api/order-groups/admin/item/:itemId/complete
+ * Complete individual order item (admin)
+ * Supports both new OrderItem (from OrderGroup) and legacy Order records
+ */
+router.post('/admin/item/:itemId/complete', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    // Try to find as OrderItem first (new system)
+    let item = await prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: {
+        orderGroup: {
+          include: { items: true }
+        }
+      }
+    });
+    
+    let isLegacyOrder = false;
+    let legacyOrder = null;
+    
+    // If not found as OrderItem, try legacy Order table
+    if (!item) {
+      legacyOrder = await prisma.order.findUnique({
+        where: { id: itemId }
+      });
+      
+      if (legacyOrder) {
+        isLegacyOrder = true;
+      }
+    }
+    
+    if (!item && !legacyOrder) {
+      return res.status(404).json({
+        error: 'Order item not found',
+        code: 'NOT_FOUND'
+      });
+    }
+    
+    // Handle LEGACY ORDER completion
+    if (isLegacyOrder) {
+      await prisma.order.update({
+        where: { id: itemId },
+        data: { 
+          status: 'COMPLETED',
+          processedAt: new Date()
+        }
+      });
+      
+      console.log(`[Admin] Completed legacy order ${itemId}`);
+      
+      return res.json({
+        success: true,
+        message: 'Order marked as completed'
+      });
+    }
+    
+    // Handle NEW OrderItem completion
+    await prisma.$transaction(async (tx) => {
+      // Update item status
+      await tx.orderItem.update({
+        where: { id: itemId },
+        data: { 
+          status: 'COMPLETED',
+          processedAt: new Date()
+        }
+      });
+      
+      // Update group summary status
+      const allItems = item.orderGroup.items;
+      const updatedStatuses = allItems.map(i => i.id === itemId ? 'COMPLETED' : i.status);
+      
+      let newStatus = 'PENDING';
+      if (updatedStatuses.every(s => s === 'COMPLETED')) newStatus = 'COMPLETED';
+      else if (updatedStatuses.some(s => s === 'COMPLETED' || s === 'PROCESSING')) newStatus = 'PROCESSING';
+      else if (updatedStatuses.every(s => s === 'FAILED')) newStatus = 'FAILED';
+      else if (updatedStatuses.every(s => s === 'CANCELLED')) newStatus = 'CANCELLED';
+      
+      await tx.orderGroup.update({
+        where: { id: item.orderGroupId },
+        data: { 
+          summaryStatus: newStatus,
+          status: newStatus
+        }
+      });
+    });
+    
+    console.log(`[Admin] Completed item ${itemId}`);
+    
+    res.json({
+      success: true,
+      message: 'Order item marked as completed'
+    });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /api/order-groups/admin/item/:itemId/cancel
  * Cancel individual order item and refund (admin)
  * Supports both new OrderItem (from OrderGroup) and legacy Order records
@@ -691,6 +794,74 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
       success: true,
       message: `Item cancelled and GHS ${refundAmount.toFixed(2)} refunded`,
       refundAmount
+    });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/order-groups/admin/complete-all-processing
+ * Complete ALL orders with PROCESSING status (admin)
+ * Works with both OrderItem (new system) and legacy Order records
+ */
+router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    // Update all PROCESSING OrderItems to COMPLETED
+    const orderItemsResult = await prisma.orderItem.updateMany({
+      where: { status: 'PROCESSING' },
+      data: { 
+        status: 'COMPLETED',
+        processedAt: new Date()
+      }
+    });
+    
+    // Update all PROCESSING legacy Orders to COMPLETED
+    const legacyOrdersResult = await prisma.order.updateMany({
+      where: { status: 'PROCESSING' },
+      data: { 
+        status: 'COMPLETED',
+        processedAt: new Date()
+      }
+    });
+    
+    // Update OrderGroup summaryStatus for affected groups
+    const processingGroups = await prisma.orderGroup.findMany({
+      where: { summaryStatus: 'PROCESSING' },
+      include: { items: true }
+    });
+    
+    for (const group of processingGroups) {
+      const statuses = group.items.map(i => i.status);
+      let newStatus = 'PENDING';
+      if (statuses.every(s => s === 'COMPLETED')) newStatus = 'COMPLETED';
+      else if (statuses.every(s => s === 'FAILED')) newStatus = 'FAILED';
+      else if (statuses.every(s => s === 'CANCELLED')) newStatus = 'CANCELLED';
+      else if (statuses.some(s => s === 'COMPLETED' || s === 'PROCESSING')) newStatus = 'PROCESSING';
+      
+      await prisma.orderGroup.update({
+        where: { id: group.id },
+        data: { 
+          summaryStatus: newStatus,
+          status: newStatus
+        }
+      });
+    }
+    
+    const totalCompleted = orderItemsResult.count + legacyOrdersResult.count;
+    
+    console.log(`[Admin] Completed ${totalCompleted} processing orders (${orderItemsResult.count} items, ${legacyOrdersResult.count} legacy)`);
+    
+    res.json({
+      success: true,
+      message: `${totalCompleted} order(s) marked as completed`,
+      count: totalCompleted,
+      orderItems: orderItemsResult.count,
+      legacyOrders: legacyOrdersResult.count
     });
     
   } catch (error) {

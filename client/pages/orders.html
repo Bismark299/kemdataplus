@@ -1161,15 +1161,22 @@
             return true;
         }
 
-        // Stats
+        // Stats - counts only TODAY's orders
         function updateStats() {
-            // Count items across all orders
-            let totalItems = 0;
+            const now = new Date();
+            const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString().split('T')[0];
+            
+            // Filter to today's orders only
+            const todayOrders = orderGroups.filter(g => {
+                const orderDate = new Date(g.createdAt);
+                const orderDateUTC = orderDate.toISOString().split('T')[0];
+                return orderDateUTC === todayUTC;
+            });
+            
             let completed = 0;
             let pending = 0;
             
-            orderGroups.forEach(g => {
-                totalItems += g.itemCount || 1;
+            todayOrders.forEach(g => {
                 if (g.items && g.items.length > 0) {
                     g.items.forEach(item => {
                         if (item.status === 'COMPLETED') completed++;
@@ -1182,9 +1189,10 @@
                 }
             });
             
+            // Total spent is still from all orders
             const totalSpent = orderGroups.reduce((sum, g) => sum + (g.totalAmount || 0), 0);
             
-            document.getElementById('totalOrders').textContent = orderGroups.length;
+            document.getElementById('totalOrders').textContent = todayOrders.length;
             document.getElementById('completedItems').textContent = completed;
             document.getElementById('pendingItems').textContent = pending;
             document.getElementById('totalSpent').textContent = 'GHS ' + totalSpent.toFixed(2);

@@ -8773,32 +8773,65 @@
         }
         
         async function bulkComplete() {
+            // Check if any orders are selected
             const selected = getSelectedOrders();
-            if (selected.length === 0) {
-                showToast('Please select orders first', 'error');
-                return;
-            }
-            const confirmed = await showConfirmModal({
-                title: 'Complete Selected Orders',
-                message: `Mark ${selected.length} order(s) as completed?`,
-                type: 'success',
-                confirmText: 'Complete All',
-                cancelText: 'Cancel'
-            });
-            if (!confirmed) return;
-            let success = 0;
-            for (const id of selected) {
+            
+            // If orders are selected, complete only those
+            if (selected.length > 0) {
+                const confirmed = await showConfirmModal({
+                    title: 'Complete Selected Orders',
+                    message: `Mark ${selected.length} selected order(s) as completed?`,
+                    type: 'success',
+                    confirmText: 'Complete Selected',
+                    cancelText: 'Cancel'
+                });
+                if (!confirmed) return;
+                let success = 0;
+                for (const id of selected) {
+                    try {
+                        // Try new OrderItem endpoint first, fallback to legacy
+                        let res = await adminFetch(`/api/order-groups/admin/item/${id}/complete`, {
+                            method: 'POST'
+                        });
+                        if (!res.ok) {
+                            res = await adminFetch(`/api/orders/${id}/status`, {
+                                method: 'PUT',
+                                body: JSON.stringify({ status: 'COMPLETED' })
+                            });
+                        }
+                        if (res.ok) success++;
+                    } catch {}
+                }
+                loadStats();
+                document.getElementById('selectAll').checked = false;
+                showToast(`${success} order(s) completed`);
+            } else {
+                // No orders selected - complete ALL processing orders
+                const confirmed = await showConfirmModal({
+                    title: 'Complete All Processing Orders',
+                    message: 'Mark ALL orders with PROCESSING status as COMPLETED?',
+                    type: 'success',
+                    confirmText: 'Complete All Processing',
+                    cancelText: 'Cancel'
+                });
+                if (!confirmed) return;
+                
                 try {
-                    const res = await adminFetch(`/api/orders/${id}/status`, {
-                        method: 'PUT',
-                        body: JSON.stringify({ status: 'COMPLETED' })
+                    const res = await adminFetch('/api/order-groups/admin/complete-all-processing', {
+                        method: 'POST'
                     });
-                    if (res.ok) success++;
-                } catch {}
+                    if (res.ok) {
+                        const result = await res.json();
+                        showToast(result.message || 'Processing orders completed');
+                    } else {
+                        const err = await res.json();
+                        showToast('Error: ' + (err.error || 'Failed to complete orders'), 'error');
+                    }
+                } catch (err) {
+                    showToast('Error completing orders', 'error');
+                }
+                loadStats();
             }
-            loadStats();
-            document.getElementById('selectAll').checked = false;
-            showToast(`${success} order(s) completed`);
         }
 
         async function bulkCancel() {
