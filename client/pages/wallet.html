@@ -223,9 +223,10 @@
         .transaction-item {
             display: flex;
             align-items: center;
-            padding: 14px 12px;
+            padding: 12px 10px;
             border-bottom: 1px solid var(--gray-100, #f1f5f9);
             transition: background 0.2s;
+            overflow: hidden;
         }
         
         .transaction-item:active {
@@ -237,14 +238,14 @@
         }
         
         .transaction-icon {
-            font-size: 1.1rem;
-            width: 42px;
-            height: 42px;
+            font-size: 0.9rem;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: var(--radius, 8px);
-            margin-right: 14px;
+            margin-right: 10px;
             flex-shrink: 0;
         }
         
@@ -261,13 +262,14 @@
         .transaction-details {
             flex: 1;
             min-width: 0;
+            overflow: hidden;
         }
         
         .transaction-description {
             color: var(--gray-800, #1e293b);
             font-weight: 600;
             margin-bottom: 2px;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -275,14 +277,15 @@
         
         .transaction-date {
             color: var(--gray-500, #64748b);
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }
         
         .transaction-amount {
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 0.85rem;
             flex-shrink: 0;
-            margin-left: 10px;
+            margin-left: 8px;
+            white-space: nowrap;
         }
         
         .transaction-amount.debit { color: var(--danger, #ef4444); }
@@ -828,26 +831,26 @@
             }
             
             .transaction-item {
-                padding: 12px 8px;
+                padding: 10px 6px;
             }
             
             .transaction-icon {
-                width: 38px;
-                height: 38px;
-                font-size: 1rem;
-                margin-right: 12px;
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+                margin-right: 8px;
             }
             
             .transaction-description {
-                font-size: 0.85rem;
-            }
-            
-            .transaction-date {
                 font-size: 0.75rem;
             }
             
+            .transaction-date {
+                font-size: 0.65rem;
+            }
+            
             .transaction-amount {
-                font-size: 0.95rem;
+                font-size: 0.8rem;
             }
             
             .sidebar-card {
