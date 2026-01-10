@@ -47,6 +47,8 @@ function getApiProvider() {
 }
 
 // Helper to check if API is enabled for a specific network
+// SIMPLIFIED: If master API (mcbisAPI or masterAPI) is ON, push ALL networks
+// Network-specific toggles (mtnAPI, telecelAPI, airteltigoAPI) are for DISABLING specific networks
 function isNetworkApiEnabled(network) {
   const siteSettings = getSiteSettings();
   const provider = getApiProvider();
@@ -57,29 +59,32 @@ function isNetworkApiEnabled(network) {
     return false;
   }
   
-  // Normalize network name for lookup
+  // Provider is enabled - check if this specific network is disabled
   const networkLower = (network || '').toLowerCase();
   
-  // Check network-specific setting
+  // Check network-specific setting (only if explicitly set to FALSE)
   if (networkLower === 'mtn') {
-    const enabled = siteSettings.mtnAPI === true;
+    // mtnAPI defaults to TRUE if master API is on
+    const enabled = siteSettings.mtnAPI !== false;
     console.log(`[API:${provider.name}] MTN API enabled: ${enabled}`);
     return enabled;
   }
   if (networkLower === 'telecel' || networkLower === 'vodafone') {
-    const enabled = siteSettings.telecelAPI === true;
+    // telecelAPI defaults to TRUE if master API is on
+    const enabled = siteSettings.telecelAPI !== false;
     console.log(`[API:${provider.name}] Telecel API enabled: ${enabled}`);
     return enabled;
   }
   if (networkLower === 'airteltigo' || networkLower === 'at') {
-    const enabled = siteSettings.airteltigoAPI === true;
+    // airteltigoAPI defaults to TRUE if master API is on
+    const enabled = siteSettings.airteltigoAPI !== false;
     console.log(`[API:${provider.name}] AirtelTigo API enabled: ${enabled}`);
     return enabled;
   }
   
-  // Unknown network - default to disabled
-  console.log(`[API:${provider.name}] Unknown network '${network}', not pushing to API`);
-  return false;
+  // Unknown network - allow by default if provider is enabled
+  console.log(`[API:${provider.name}] Network '${network}' - allowing (provider enabled)`);
+  return true;
 }
 
 /**

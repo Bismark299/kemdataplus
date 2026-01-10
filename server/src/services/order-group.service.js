@@ -708,6 +708,7 @@ const orderGroupService = {
     };
     
     // Helper to check if network API is enabled
+    // SIMPLIFIED: If master API is ON, push ALL networks unless specifically disabled
     const isNetworkApiEnabled = (network, siteSettings, provider) => {
       if (!provider) {
         console.log(`[OrderGroup] No API provider enabled (masterAPI and mcbisAPI both OFF)`);
@@ -716,17 +717,19 @@ const orderGroupService = {
       
       const networkLower = (network || '').toLowerCase();
       
+      // Network toggles now default to TRUE - only disable if explicitly set to FALSE
       if (networkLower === 'mtn') {
-        return siteSettings.mtnAPI === true;
+        return siteSettings.mtnAPI !== false;
       }
       if (networkLower === 'telecel' || networkLower === 'vodafone') {
-        return siteSettings.telecelAPI === true;
+        return siteSettings.telecelAPI !== false;
       }
       if (networkLower === 'airteltigo' || networkLower === 'at') {
-        return siteSettings.airteltigoAPI === true;
+        return siteSettings.airteltigoAPI !== false;
       }
       
-      return false;
+      // Unknown network - allow if provider is enabled
+      return true;
     };
     
     const orderGroup = await prisma.orderGroup.findUnique({
