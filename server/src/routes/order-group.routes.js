@@ -18,7 +18,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const orderGroupService = require('../services/order-group.service');
 
 // ============================================================
@@ -38,7 +38,7 @@ const orderGroupService = require('../services/order-group.service');
  *   idempotencyKey: "unique-key-from-client" (optional but recommended)
  * }
  */
-router.post('/', authenticateToken, async (req, res, next) => {
+router.post('/', authenticate, async (req, res, next) => {
   try {
     const { items, idempotencyKey } = req.body;
     const userId = req.user.id;
@@ -149,7 +149,7 @@ router.post('/', authenticateToken, async (req, res, next) => {
  * - page: number (default 1)
  * - limit: number (default 20, max 100)
  */
-router.get('/', authenticateToken, async (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -171,7 +171,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
  * GET /api/order-groups/:id
  * Get single order details
  */
-router.get('/:id', authenticateToken, async (req, res, next) => {
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const orderId = req.params.id;
@@ -196,7 +196,7 @@ router.get('/:id', authenticateToken, async (req, res, next) => {
  * POST /api/order-groups/:id/cancel
  * Cancel an order (only if all items are PENDING)
  */
-router.post('/:id/cancel', authenticateToken, async (req, res, next) => {
+router.post('/:id/cancel', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const orderId = req.params.id;
@@ -232,7 +232,7 @@ router.post('/:id/cancel', authenticateToken, async (req, res, next) => {
  * GET /api/admin/order-groups
  * Get all orders (admin)
  */
-router.get('/admin/all', authenticateToken, requireAdmin, async (req, res, next) => {
+router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
@@ -294,7 +294,7 @@ router.get('/admin/all', authenticateToken, requireAdmin, async (req, res, next)
  * GET /api/admin/order-groups/:id
  * Get order details (admin view)
  */
-router.get('/admin/:id', authenticateToken, requireAdmin, async (req, res, next) => {
+router.get('/admin/:id', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
     const orderId = req.params.id;
     const order = await orderGroupService.getOrderForAdmin(orderId);
@@ -317,7 +317,7 @@ router.get('/admin/:id', authenticateToken, requireAdmin, async (req, res, next)
  * POST /api/admin/order-groups/:id/process
  * Manually process order items (admin)
  */
-router.post('/admin/:id/process', authenticateToken, requireAdmin, async (req, res, next) => {
+router.post('/admin/:id/process', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
     const orderId = req.params.id;
 
