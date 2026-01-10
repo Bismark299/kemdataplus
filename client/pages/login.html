@@ -486,6 +486,18 @@
   
   <script>
     // =====================
+    // CHECK SESSION EXPIRED
+    // =====================
+    (function() {
+      if (sessionStorage.getItem('sessionExpired') === 'true') {
+        sessionStorage.removeItem('sessionExpired');
+        setTimeout(() => {
+          alert('Your session expired due to inactivity. Please log in again.');
+        }, 100);
+      }
+    })();
+    
+    // =====================
     // API CONFIGURATION
     // =====================
     const API_BASE = window.location.origin + '/api';

@@ -684,5 +684,6 @@
         document.getElementById('priceFilter').addEventListener('click',e=>{if(e.target.classList.contains('network-btn')){document.querySelectorAll('#priceFilter .network-btn').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');renderProducts(e.target.dataset.network);}});
         (async()=>{if(await checkAuth()){loadStore()}else{window.location.href='login.html?redirect=mystore.html'}})();
     </script>
+    <script src="../public/js/session-timeout.js"></script>
 </body>
 </html>
