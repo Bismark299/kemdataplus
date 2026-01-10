@@ -19,16 +19,20 @@ try {
   console.log('Multi-tenant services not available, using legacy mode');
 }
 
-// Helper to get site settings
+// Helper to get site settings (use settingsController's cached version if available)
 function getSiteSettings() {
   if (settingsController && settingsController.getSiteSettings) {
-    return settingsController.getSiteSettings();
+    const settings = settingsController.getSiteSettings();
+    console.log(`[getSiteSettings] Using settingsController cache:`, JSON.stringify(settings));
+    return settings;
   }
   try {
     const settingsPath = path.join(__dirname, '../../settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    console.log(`[getSiteSettings] Using file:`, JSON.stringify(settings.siteSettings));
     return settings.siteSettings || {};
   } catch (e) {
+    console.log(`[getSiteSettings] Error:`, e.message);
     return {};
   }
 }
@@ -37,12 +41,23 @@ function getSiteSettings() {
 // masterAPI ON → EasyDataGH, mcbisAPI ON → MCBIS, Both OFF → null
 function getApiProvider() {
   const siteSettings = getSiteSettings();
-  if (siteSettings.masterAPI === true) {
+  
+  // Debug log to see what settings we have
+  console.log(`[API] Settings check - masterAPI: ${siteSettings.masterAPI}, mcbisAPI: ${siteSettings.mcbisAPI}`);
+  
+  // Check masterAPI (accepts true, "true", 1)
+  if (siteSettings.masterAPI === true || siteSettings.masterAPI === 'true' || siteSettings.masterAPI === 1) {
+    console.log(`[API] Using EasyDataGH provider`);
     return { name: 'EASYDATA', service: easyDataService };
   }
-  if (siteSettings.mcbisAPI === true) {
+  
+  // Check mcbisAPI (accepts true, "true", 1)
+  if (siteSettings.mcbisAPI === true || siteSettings.mcbisAPI === 'true' || siteSettings.mcbisAPI === 1) {
+    console.log(`[API] Using MCBIS provider`);
     return { name: 'MCBIS', service: datahubService };
   }
+  
+  console.log(`[API] No API provider enabled`);
   return null;
 }
 
