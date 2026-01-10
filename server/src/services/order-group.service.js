@@ -719,7 +719,7 @@ const orderGroupService = {
     };
     
     // Helper to check if network API is enabled
-    // SIMPLIFIED: If master API is ON, push ALL networks unless specifically disabled
+    // Provider-specific toggles: easydata_mtnAPI, mcbis_mtnAPI, etc.
     const isNetworkApiEnabled = (network, siteSettings, provider) => {
       if (!provider) {
         console.log(`[OrderGroup] No API provider enabled (masterAPI and mcbisAPI both OFF)`);
@@ -727,21 +727,25 @@ const orderGroupService = {
       }
       
       const networkLower = (network || '').toLowerCase();
+      const providerPrefix = provider === 'EASYDATA' ? 'easydata' : 'mcbis';
       
-      // Network toggles now default to TRUE - only disable if explicitly set to FALSE
+      // Check provider-specific network toggle
       if (networkLower === 'mtn') {
-        const enabled = siteSettings.mtnAPI !== false;
-        console.log(`[OrderGroup] MTN API check: mtnAPI=${siteSettings.mtnAPI}, enabled=${enabled}`);
+        const toggleKey = `${providerPrefix}_mtnAPI`;
+        const enabled = siteSettings[toggleKey] !== false;
+        console.log(`[OrderGroup] MTN API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
         return enabled;
       }
       if (networkLower === 'telecel' || networkLower === 'vodafone') {
-        const enabled = siteSettings.telecelAPI !== false;
-        console.log(`[OrderGroup] Telecel API check: telecelAPI=${siteSettings.telecelAPI}, enabled=${enabled}`);
+        const toggleKey = `${providerPrefix}_telecelAPI`;
+        const enabled = siteSettings[toggleKey] !== false;
+        console.log(`[OrderGroup] Telecel API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
         return enabled;
       }
       if (networkLower === 'airteltigo' || networkLower === 'at') {
-        const enabled = siteSettings.airteltigoAPI !== false;
-        console.log(`[OrderGroup] AirtelTigo API check: airteltigoAPI=${siteSettings.airteltigoAPI}, enabled=${enabled}`);
+        const toggleKey = `${providerPrefix}_airteltigoAPI`;
+        const enabled = siteSettings[toggleKey] !== false;
+        console.log(`[OrderGroup] AirtelTigo API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
         return enabled;
       }
       

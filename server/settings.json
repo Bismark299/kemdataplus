@@ -22,9 +22,14 @@
   },
   "siteSettings": {
     "masterAPI": false,
-    "mtnAPI": false,
-    "telecelAPI": false,
-    "airteltigoAPI": false,
+    "easydata_mtnAPI": true,
+    "easydata_telecelAPI": true,
+    "easydata_airteltigoAPI": true,
+    "mcbisAPI": false,
+    "mcbis_mtnAPI": true,
+    "mcbis_telecelAPI": true,
+    "mcbis_airteltigoAPI": true,
+    "mcbisAutoSync": false,
     "placeOrders": true,
     "loadWallet": false,
     "claimWallet": true,
@@ -32,8 +37,6 @@
     "excelImport": false,
     "cartOrder": true,
     "newRegistration": true,
-    "websiteUpdate": false,
-    "mcbisAPI": false,
-    "mcbisAutoSync": false
+    "websiteUpdate": false
   }
 }

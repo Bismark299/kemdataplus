@@ -62,8 +62,7 @@ function getApiProvider() {
 }
 
 // Helper to check if API is enabled for a specific network
-// SIMPLIFIED: If master API (mcbisAPI or masterAPI) is ON, push ALL networks
-// Network-specific toggles (mtnAPI, telecelAPI, airteltigoAPI) are for DISABLING specific networks
+// Provider-specific toggles: easydata_mtnAPI, mcbis_mtnAPI, etc.
 function isNetworkApiEnabled(network) {
   const siteSettings = getSiteSettings();
   const provider = getApiProvider();
@@ -74,26 +73,26 @@ function isNetworkApiEnabled(network) {
     return false;
   }
   
-  // Provider is enabled - check if this specific network is disabled
   const networkLower = (network || '').toLowerCase();
+  const providerPrefix = provider.name === 'EASYDATA' ? 'easydata' : 'mcbis';
   
-  // Check network-specific setting (only if explicitly set to FALSE)
+  // Check provider-specific network toggle
   if (networkLower === 'mtn') {
-    // mtnAPI defaults to TRUE if master API is on
-    const enabled = siteSettings.mtnAPI !== false;
-    console.log(`[API:${provider.name}] MTN API enabled: ${enabled}`);
+    const toggleKey = `${providerPrefix}_mtnAPI`;
+    const enabled = siteSettings[toggleKey] !== false;
+    console.log(`[API:${provider.name}] MTN API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
     return enabled;
   }
   if (networkLower === 'telecel' || networkLower === 'vodafone') {
-    // telecelAPI defaults to TRUE if master API is on
-    const enabled = siteSettings.telecelAPI !== false;
-    console.log(`[API:${provider.name}] Telecel API enabled: ${enabled}`);
+    const toggleKey = `${providerPrefix}_telecelAPI`;
+    const enabled = siteSettings[toggleKey] !== false;
+    console.log(`[API:${provider.name}] Telecel API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
     return enabled;
   }
   if (networkLower === 'airteltigo' || networkLower === 'at') {
-    // airteltigoAPI defaults to TRUE if master API is on
-    const enabled = siteSettings.airteltigoAPI !== false;
-    console.log(`[API:${provider.name}] AirtelTigo API enabled: ${enabled}`);
+    const toggleKey = `${providerPrefix}_airteltigoAPI`;
+    const enabled = siteSettings[toggleKey] !== false;
+    console.log(`[API:${provider.name}] AirtelTigo API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
     return enabled;
   }
   

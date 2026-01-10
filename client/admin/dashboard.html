@@ -5052,38 +5052,8 @@
                     <div class="settings-card">
                         <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 25px;">Site Settings</h3>
                         
-                        <!-- API Settings Section -->
-                        <div class="settings-section-title">API Settings</div>
-                        <div class="master-toggle-row">
-                            <span class="master-toggle-label">Master API (EasyDataGH)</span>
-                            <div class="toggle-switch active" id="toggleMasterAPI" data-site-setting="masterAPI"></div>
-                        </div>
-                        <div class="settings-grid">
-                            <div class="setting-card">
-                                <div class="setting-card-info">
-                                    <h4>MTN Orders</h4>
-                                    <p id="mtnApiStatus">Orders are sent to API</p>
-                                </div>
-                                <div class="toggle-switch active" id="toggleMtnAPI" data-site-setting="mtnAPI"></div>
-                            </div>
-                            <div class="setting-card">
-                                <div class="setting-card-info">
-                                    <h4>Telecel Orders</h4>
-                                    <p id="telecelApiStatus">Orders are NOT sent to API</p>
-                                </div>
-                                <div class="toggle-switch" id="toggleTelecelAPI" data-site-setting="telecelAPI"></div>
-                            </div>
-                            <div class="setting-card">
-                                <div class="setting-card-info">
-                                    <h4>AirtelTigo Orders</h4>
-                                    <p id="airteltigoApiStatus">Orders are NOT sent to API</p>
-                                </div>
-                                <div class="toggle-switch" id="toggleAirtelTigoAPI" data-site-setting="airteltigoAPI"></div>
-                            </div>
-                        </div>
-
                         <!-- Wallet & Order Settings -->
-                        <div class="settings-section-title" style="margin-top: 30px;">Wallet & Order Settings</div>
+                        <div class="settings-section-title">Wallet & Order Settings</div>
                         <div class="master-toggle-row">
                             <span class="master-toggle-label">Place Orders</span>
                             <div class="toggle-switch active" id="togglePlaceOrders" data-site-setting="placeOrders"></div>
@@ -5146,24 +5116,127 @@
                         </div>
                     </div>
 
+                    <!-- EasyDataGH API Integration Card -->
+                    <div class="settings-card" style="border: 2px solid #10b981;">
+                        <div class="settings-section-title" style="color: #10b981;">
+                            <i class="fas fa-bolt"></i> EasyDataGH API (Primary)
+                        </div>
+                        <p style="color: #6b7280; margin-bottom: 15px; font-size: 0.9rem;">
+                            When Master API is ON, orders automatically go to EasyDataGH.
+                        </p>
+                        
+                        <!-- Master Toggle -->
+                        <div class="master-toggle-row" style="background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                            <span class="master-toggle-label" style="font-weight: 600;"><i class="fas fa-power-off"></i> Master API (ON/OFF)</span>
+                            <div class="toggle-switch" id="toggleMasterAPI" data-site-setting="masterAPI"></div>
+                        </div>
+
+                        <!-- Network Toggles for EasyDataGH -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="font-weight: 600; margin-bottom: 10px; color: #374151;"><i class="fas fa-network-wired"></i> Network-Specific Controls</div>
+                            <div class="settings-grid">
+                                <div class="setting-card" style="border-left: 3px solid #f59e0b;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #f59e0b;">MTN Orders</h4>
+                                        <p id="easydataMtnApiStatus">Push MTN orders to EasyDataGH</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleEasydataMtnAPI" data-site-setting="easydata_mtnAPI"></div>
+                                </div>
+                                <div class="setting-card" style="border-left: 3px solid #ef4444;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #ef4444;">Telecel Orders</h4>
+                                        <p id="easydataTelecelApiStatus">Push Telecel orders to EasyDataGH</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleEasydataTelecelAPI" data-site-setting="easydata_telecelAPI"></div>
+                                </div>
+                                <div class="setting-card" style="border-left: 3px solid #3b82f6;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #3b82f6;">AirtelTigo Orders</h4>
+                                        <p id="easydataAirteltigoApiStatus">Push AirtelTigo orders to EasyDataGH</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleEasydataAirtelTigoAPI" data-site-setting="easydata_airteltigoAPI"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- API Credentials -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-link"></i> API URL</label>
+                                <input type="text" id="easyDataApiUrl" value="https://easydatagh.pro/wp-json/custom/v1" readonly style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #e5e7eb;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-user"></i> Username</label>
+                                <input type="text" id="easyDataUsername" placeholder="API Username" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
+                            </div>
+                            <div>
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-key"></i> Password</label>
+                                <input type="password" id="easyDataPassword" placeholder="API Password" autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- API Actions -->
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" class="btn-fund" onclick="testEasyDataConnection()" style="background: #10b981;">
+                                <i class="fas fa-plug"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn-fund" onclick="checkEasyDataBalance()" style="background: #059669;">
+                                <i class="fas fa-wallet"></i> Check Balance
+                            </button>
+                        </div>
+
+                        <!-- API Balance Display -->
+                        <div id="easyDataBalanceDisplay" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">EasyDataGH API Balance</div>
+                            <div style="font-size: 1.8rem; font-weight: 700;" id="easyDataBalanceAmount">GHS 0.00</div>
+                        </div>
+                    </div>
+
                     <!-- Mcbis API Integration Card -->
                     <div class="settings-card" style="border: 2px solid #024959;">
                         <div class="settings-section-title" style="color: #024959;">
-                            <i class="fas fa-plug"></i> Mcbis Data API Integration
+                            <i class="fas fa-plug"></i> Mcbis Data API (Secondary)
                         </div>
                         <p style="color: #6b7280; margin-bottom: 15px; font-size: 0.9rem;">
-                            Connect to McbisSolution DataHub API for automatic order processing.
+                            When MCBIS API is ON (and Master OFF), orders go to McbisSolution DataHub.
                         </p>
                         
-                        <!-- API Toggle -->
-                        <div class="settings-grid settings-grid-2" style="margin-bottom: 20px;">
-                            <div class="setting-card" style="border: 2px solid #10b981;">
-                                <div class="setting-card-info">
-                                    <h4 style="color: #10b981;"><i class="fas fa-robot"></i> Auto-Process Orders</h4>
-                                    <p id="mcbisApiStatus">When ON, orders automatically sent to Mcbis API</p>
+                        <!-- API Master Toggle -->
+                        <div class="master-toggle-row" style="background: #f0f9ff; border: 1px solid #024959; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                            <span class="master-toggle-label" style="font-weight: 600;"><i class="fas fa-power-off"></i> MCBIS API (ON/OFF)</span>
+                            <div class="toggle-switch" id="toggleMcbisApi" data-site-setting="mcbisAPI"></div>
+                        </div>
+
+                        <!-- Network Toggles for MCBIS -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="font-weight: 600; margin-bottom: 10px; color: #374151;"><i class="fas fa-network-wired"></i> Network-Specific Controls</div>
+                            <div class="settings-grid">
+                                <div class="setting-card" style="border-left: 3px solid #f59e0b;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #f59e0b;">MTN Orders</h4>
+                                        <p id="mcbisMtnApiStatus">Push MTN orders to MCBIS</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleMcbisMtnAPI" data-site-setting="mcbis_mtnAPI"></div>
                                 </div>
-                                <div class="toggle-switch" id="toggleMcbisApi" data-site-setting="mcbisAPI"></div>
+                                <div class="setting-card" style="border-left: 3px solid #ef4444;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #ef4444;">Telecel Orders</h4>
+                                        <p id="mcbisTelecelApiStatus">Push Telecel orders to MCBIS</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleMcbisTelecelAPI" data-site-setting="mcbis_telecelAPI"></div>
+                                </div>
+                                <div class="setting-card" style="border-left: 3px solid #3b82f6;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #3b82f6;">AirtelTigo Orders</h4>
+                                        <p id="mcbisAirteltigoApiStatus">Push AirtelTigo orders to MCBIS</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleMcbisAirtelTigoAPI" data-site-setting="mcbis_airteltigoAPI"></div>
+                                </div>
                             </div>
+                        </div>
+
+                        <!-- Auto-Sync Toggle -->
+                        <div class="settings-grid settings-grid-2" style="margin-bottom: 15px;">
                             <div class="setting-card">
                                 <div class="setting-card-info">
                                     <h4><i class="fas fa-sync"></i> Auto-Sync Status</h4>
@@ -5204,56 +5277,7 @@
                             <div style="font-size: 1.8rem; font-weight: 700;" id="mcbisBalanceAmount">GHS 0.00</div>
                         </div>
                     </div>
-
-                    <!-- EasyDataGH API Integration Card -->
-                    <div class="settings-card" style="border: 2px solid #10b981;">
-                        <div class="settings-section-title" style="color: #10b981;">
-                            <i class="fas fa-bolt"></i> EasyDataGH API Integration (Master API)
-                        </div>
-                        <p style="color: #6b7280; margin-bottom: 15px; font-size: 0.9rem;">
-                            Primary API for automatic order processing. When Master API is ON, orders go to EasyDataGH.
-                        </p>
-                        
-                        <!-- API Status -->
-                        <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #10b981;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <i class="fas fa-info-circle" style="color: #10b981;"></i>
-                                <span style="color: #166534; font-weight: 500;">Master API toggle (above) controls EasyDataGH</span>
-                            </div>
-                        </div>
-
-                        <!-- API Credentials (Read-only display) -->
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                            <div style="margin-bottom: 15px;">
-                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-link"></i> API URL</label>
-                                <input type="text" id="easyDataApiUrl" value="https://easydatagh.pro/wp-json/custom/v1" readonly style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #e5e7eb;">
-                            </div>
-                            <div style="margin-bottom: 15px;">
-                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-user"></i> Username</label>
-                                <input type="text" id="easyDataUsername" placeholder="API Username" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
-                            </div>
-                            <div>
-                                <label style="font-weight: 600; display: block; margin-bottom: 8px;"><i class="fas fa-key"></i> Password</label>
-                                <input type="password" id="easyDataPassword" placeholder="API Password" autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;">
-                            </div>
-                        </div>
-
-                        <!-- API Actions -->
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button type="button" class="btn-fund" onclick="testEasyDataConnection()" style="background: #10b981;">
-                                <i class="fas fa-plug"></i> Test Connection
-                            </button>
-                            <button type="button" class="btn-fund" onclick="checkEasyDataBalance()" style="background: #059669;">
-                                <i class="fas fa-wallet"></i> Check Balance
-                            </button>
-                        </div>
-
-                        <!-- API Balance Display -->
-                        <div id="easyDataBalanceDisplay" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #059669, #10b981); border-radius: 8px; color: white;">
-                            <div style="font-size: 0.85rem; opacity: 0.9;">EasyDataGH API Balance</div>
-                            <div style="font-size: 1.8rem; font-weight: 700;" id="easyDataBalanceAmount">GHS 0.00</div>
-                        </div>
-                    </div>
+                </div>
 
                     <!-- MoMo Numbers Card -->
                     <div class="settings-card">
@@ -9641,10 +9665,15 @@
         
         // Site Settings Object
         let siteSettings = {
-            masterAPI: true,
-            mtnAPI: true,
-            telecelAPI: false,
-            airteltigoAPI: false,
+            masterAPI: false,
+            easydata_mtnAPI: true,
+            easydata_telecelAPI: true,
+            easydata_airteltigoAPI: true,
+            mcbisAPI: false,
+            mcbis_mtnAPI: true,
+            mcbis_telecelAPI: true,
+            mcbis_airteltigoAPI: true,
+            mcbisAutoSync: false,
             placeOrders: true,
             loadWallet: false,
             claimWallet: true,
@@ -9684,6 +9713,18 @@
                     toggleId = 'toggleMcbisApi';
                 } else if (key === 'mcbisAutoSync') {
                     toggleId = 'toggleMcbisAutoSync';
+                } else if (key === 'easydata_mtnAPI') {
+                    toggleId = 'toggleEasydataMtnAPI';
+                } else if (key === 'easydata_telecelAPI') {
+                    toggleId = 'toggleEasydataTelecelAPI';
+                } else if (key === 'easydata_airteltigoAPI') {
+                    toggleId = 'toggleEasydataAirtelTigoAPI';
+                } else if (key === 'mcbis_mtnAPI') {
+                    toggleId = 'toggleMcbisMtnAPI';
+                } else if (key === 'mcbis_telecelAPI') {
+                    toggleId = 'toggleMcbisTelecelAPI';
+                } else if (key === 'mcbis_airteltigoAPI') {
+                    toggleId = 'toggleMcbisAirtelTigoAPI';
                 } else {
                     toggleId = 'toggle' + key.charAt(0).toUpperCase() + key.slice(1);
                 }
@@ -9701,10 +9742,21 @@
         }
         
         function updateSettingStatusTexts() {
-            // API statuses
-            document.getElementById('mtnApiStatus').textContent = siteSettings.mtnAPI ? 'Orders are sent to API' : 'Orders are NOT sent to API';
-            document.getElementById('telecelApiStatus').textContent = siteSettings.telecelAPI ? 'Orders are sent to API' : 'Orders are NOT sent to API';
-            document.getElementById('airteltigoApiStatus').textContent = siteSettings.airteltigoAPI ? 'Orders are sent to API' : 'Orders are NOT sent to API';
+            // EasyDataGH network statuses
+            const easydataMtnEl = document.getElementById('easydataMtnApiStatus');
+            const easydataTelecelEl = document.getElementById('easydataTelecelApiStatus');
+            const easydataAirteltigoEl = document.getElementById('easydataAirteltigoApiStatus');
+            if (easydataMtnEl) easydataMtnEl.textContent = siteSettings.easydata_mtnAPI !== false ? 'Push MTN orders to EasyDataGH' : 'MTN orders NOT pushed';
+            if (easydataTelecelEl) easydataTelecelEl.textContent = siteSettings.easydata_telecelAPI !== false ? 'Push Telecel orders to EasyDataGH' : 'Telecel orders NOT pushed';
+            if (easydataAirteltigoEl) easydataAirteltigoEl.textContent = siteSettings.easydata_airteltigoAPI !== false ? 'Push AirtelTigo orders to EasyDataGH' : 'AirtelTigo orders NOT pushed';
+            
+            // MCBIS network statuses
+            const mcbisMtnEl = document.getElementById('mcbisMtnApiStatus');
+            const mcbisTelecelEl = document.getElementById('mcbisTelecelApiStatus');
+            const mcbisAirteltigoEl = document.getElementById('mcbisAirteltigoApiStatus');
+            if (mcbisMtnEl) mcbisMtnEl.textContent = siteSettings.mcbis_mtnAPI !== false ? 'Push MTN orders to MCBIS' : 'MTN orders NOT pushed';
+            if (mcbisTelecelEl) mcbisTelecelEl.textContent = siteSettings.mcbis_telecelAPI !== false ? 'Push Telecel orders to MCBIS' : 'Telecel orders NOT pushed';
+            if (mcbisAirteltigoEl) mcbisAirteltigoEl.textContent = siteSettings.mcbis_airteltigoAPI !== false ? 'Push AirtelTigo orders to MCBIS' : 'AirtelTigo orders NOT pushed';
             
             // Wallet & Order statuses
             document.getElementById('loadWalletStatus').textContent = siteSettings.loadWallet ? 'Agents can load wallet' : 'Agents CANNOT load wallet';
@@ -9734,6 +9786,18 @@
                 toggleId = 'toggleMcbisApi';
             } else if (setting === 'mcbisAutoSync') {
                 toggleId = 'toggleMcbisAutoSync';
+            } else if (setting === 'easydata_mtnAPI') {
+                toggleId = 'toggleEasydataMtnAPI';
+            } else if (setting === 'easydata_telecelAPI') {
+                toggleId = 'toggleEasydataTelecelAPI';
+            } else if (setting === 'easydata_airteltigoAPI') {
+                toggleId = 'toggleEasydataAirtelTigoAPI';
+            } else if (setting === 'mcbis_mtnAPI') {
+                toggleId = 'toggleMcbisMtnAPI';
+            } else if (setting === 'mcbis_telecelAPI') {
+                toggleId = 'toggleMcbisTelecelAPI';
+            } else if (setting === 'mcbis_airteltigoAPI') {
+                toggleId = 'toggleMcbisAirtelTigoAPI';
             } else {
                 toggleId = 'toggle' + setting.charAt(0).toUpperCase() + setting.slice(1);
             }
