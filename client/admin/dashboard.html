@@ -8137,7 +8137,7 @@
                     bundleSize: bundleSize,
                     amount: parseFloat(order.totalPrice || order.total || order.amount || 0),
                     status: (order.status || 'PENDING').toLowerCase(),
-                    paymentStatus: (order.paymentStatus || order.payment || 'pending').toLowerCase(),
+                    paymentStatus: (order.paymentStatus || order.payment || 'COMPLETED').toLowerCase(),
                     agent: userName,
                     agentCode: agentCode,
                     reference: order.reference || order.txId || '-'
