@@ -66,7 +66,7 @@ router.post('/initialize', authenticate, async (req, res, next) => {
 
 /**
  * GET /api/paystack/verify/:reference
- * Verify a payment transaction
+ * Verify a payment transaction and credit wallet if successful
  * Requires authentication
  */
 router.get('/verify/:reference', authenticate, async (req, res, next) => {
@@ -79,10 +79,25 @@ router.get('/verify/:reference', authenticate, async (req, res, next) => {
     
     const result = await paystackService.verifyPayment(reference);
     
-    // If payment is successful but not yet credited, process it
+    // If payment is successful, credit wallet (handles idempotency internally)
     if (result.success && result.metadata?.userId === req.user.id) {
-      // The webhook should have handled this, but double-check
       console.log(`[Paystack] Manual verification for ${reference}: ${result.status}`);
+      
+      // Process like a webhook to credit wallet
+      const webhookResult = await paystackService.processWebhook({
+        event: 'charge.success',
+        data: {
+          reference,
+          amount: result.amount * 100, // Convert back to pesewas
+          metadata: result.metadata,
+          paid_at: result.paidAt,
+          channel: result.channel
+        }
+      });
+      
+      if (webhookResult.processed) {
+        console.log(`[Paystack] ✅ Wallet credited via manual verification`);
+      }
     }
     
     res.json(result);
