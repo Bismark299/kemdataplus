@@ -182,10 +182,34 @@
     return await apiRequest(`/order-groups/${orderId}/cancel`, 'POST');
   }
 
-  // Legacy: Get orders (old API - still works)
+  // Get orders using OrderGroup API (consistent with orders page)
   async function getOrders(page = 1, limit = 50) {
     try {
-      return await apiRequest(`/orders?page=${page}&limit=${limit}`);
+      const data = await apiRequest(`/order-groups?page=${page}&limit=${limit}`);
+      // Flatten OrderGroups to items for backwards compatibility
+      const flatOrders = [];
+      // API returns 'orders' not 'orderGroups'
+      const orderGroups = data.orders || data.orderGroups || [];
+      
+      orderGroups.forEach(group => {
+        if (group.items && group.items.length > 0) {
+          group.items.forEach(item => {
+            flatOrders.push({
+              id: item.id,
+              displayId: group.orderId || group.displayId,
+              recipientPhone: item.recipientPhone,
+              bundleId: item.bundleId,
+              status: item.status,
+              reference: item.reference,
+              totalPrice: item.totalPrice || item.unitPrice || item.price || (group.totalAmount / group.items.length),
+              createdAt: group.createdAt,
+              network: item.network || item.bundle?.network,
+              dataAmount: item.dataAmount || item.bundle?.dataAmount
+            });
+          });
+        }
+      });
+      return { orders: flatOrders, pagination: data.pagination || {} };
     } catch (error) {
       console.error('Failed to get orders:', error);
       return { orders: [], pagination: {} };
@@ -247,10 +271,10 @@
   }
 
   /**
-   * Process checkout for cart items using batch OrderGroup API
-   * Creates a single order with multiple items for atomic processing
+   * Process checkout for cart items using OrderGroup (batch) API
+   * Creates a single order with multiple items - all share one Order ID
    * @param {Array} cartItems - Array of cart items with network, bundle (capacity), numbers
-   * @returns {Object} - Result with success status and order details
+   * @returns {Object} - Result with success status, orderId, and items
    */
   async function processCheckout(cartItems) {
     if (!cartItems || cartItems.length === 0) {
@@ -260,26 +284,22 @@
     // Load bundles for ID lookup
     bundleCache = await getBundles();
 
-    // Build items array for batch order
+    // Build items array for OrderGroup API
     const orderItems = [];
-    const itemErrors = [];
-
+    
     for (const item of cartItems) {
       const phones = item.numbers || [item.phone];
+      
+      // Find the bundle ID for this network/capacity combination
       const bundleId = await findBundleId(item.network, item.bundle);
       
       if (!bundleId) {
-        // Track which items couldn't find bundles
-        for (const phone of phones) {
-          itemErrors.push({
-            phone,
-            bundle: `${item.network} ${item.bundle}GB`,
-            error: `Bundle not found: ${item.network} ${item.bundle}GB`
-          });
-        }
-        continue;
+        return { 
+          success: false, 
+          error: `Bundle not found: ${item.network} ${item.bundle}GB` 
+        };
       }
-
+      
       // Add each phone as a separate order item
       for (const phone of phones) {
         orderItems.push({
@@ -290,55 +310,50 @@
       }
     }
 
-    // If no valid items, return error
     if (orderItems.length === 0) {
-      return {
-        success: false,
-        error: itemErrors[0]?.error || 'No valid items in cart',
-        failed: itemErrors
-      };
+      return { success: false, error: 'No valid items to order' };
     }
 
     try {
-      // Generate idempotency key for this checkout session
+      // Create OrderGroup (batch order) with all items
       const idempotencyKey = `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const result = await createOrderGroup(orderItems, idempotencyKey);
       
-      // Create batch order using new OrderGroup API
-      const response = await createOrderGroup(orderItems, idempotencyKey);
-      
-      // Build success result
-      const results = {
-        success: true,
-        orderId: response.orderId,
-        displayId: response.orderId, // ORD-XXXXXX format
-        isBatch: response.itemCount > 1,
-        itemCount: response.itemCount,
-        totalAmount: response.totalAmount,
-        successful: response.items?.map(item => ({
-          phone: item.recipientPhone,
-          reference: item.reference,
-          status: item.status,
-          price: item.price
-        })) || [],
-        failed: itemErrors,
-        totalSpent: response.totalAmount
-      };
-
-      // If some items failed bundle lookup but order succeeded
-      if (itemErrors.length > 0) {
-        results.partialSuccess = true;
+      if (result.duplicate) {
+        return {
+          success: true,
+          duplicate: true,
+          orderId: result.order.orderId,
+          message: 'Order already exists (duplicate prevention)',
+          totalSpent: result.order.totalAmount,
+          itemCount: result.order.itemCount
+        };
       }
-
-      return results;
-    } catch (error) {
-      // Handle API errors
+      
       return {
-        success: false,
-        error: error.message || 'Failed to create order',
-        failed: [...itemErrors, ...orderItems.map(item => ({
-          phone: item.recipientPhone,
-          error: error.message
-        }))]
+        success: true,
+        orderId: result.order.orderId,
+        itemCount: result.order.itemCount,
+        totalSpent: result.order.totalAmount,
+        items: result.order.items || [],
+        message: result.message
+      };
+      
+    } catch (error) {
+      console.error('Checkout error:', error);
+      
+      // Handle specific errors
+      if (error.message.includes('INSUFFICIENT_BALANCE') || error.message.includes('Insufficient')) {
+        return { 
+          success: false, 
+          error: 'Insufficient wallet balance',
+          code: 'INSUFFICIENT_BALANCE'
+        };
+      }
+      
+      return { 
+        success: false, 
+        error: error.message || 'Failed to create order'
       };
     }
   }
@@ -369,20 +384,22 @@
         
         // Only count today's orders for status stats (fresh day, fresh start)
         if (orderDateUTC === todayUTC) {
-          const status = order.status.toLowerCase();
-          if (status === 'completed') stats.completed++;
-          else if (status === 'processing') stats.processing++;
-          else if (status === 'pending') stats.pending++;
-          else if (status === 'failed') stats.failed++;
+          const status = (order.status || '').toUpperCase();
+          if (status === 'COMPLETED') stats.completed++;
+          else if (status === 'PROCESSING') stats.processing++;
+          else if (status === 'PENDING') stats.pending++;
+          else if (status === 'FAILED') stats.failed++;
         }
 
         // Calculate sales (today and weekly)
-        if (order.status === 'COMPLETED' || order.status === 'completed') {
+        const status = (order.status || '').toUpperCase();
+        if (status === 'COMPLETED') {
+          const price = order.totalPrice || 0;
           if (orderDateUTC === todayUTC) {
-            stats.todaySales += order.totalPrice;
+            stats.todaySales += price;
           }
           if (orderDate.toISOString() >= weekAgo) {
-            stats.weeklySales += order.totalPrice;
+            stats.weeklySales += price;
           }
         }
       });

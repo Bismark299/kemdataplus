@@ -230,59 +230,88 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
 
 /**
  * GET /api/admin/order-groups
- * Get all orders (admin)
+ * Get all orders (admin) - Returns flat list compatible with admin dashboard
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
 
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const skip = (page - 1) * limit;
+    const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 200));
+    const compact = req.query.compact === 'true';
 
-    const [orders, total] = await Promise.all([
-      prisma.orderGroup.findMany({
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, role: true }
-          },
-          items: {
-            include: {
-              bundle: { select: { name: true, network: true } }
-            },
-            orderBy: { itemIndex: 'asc' }
-          }
+    // Fetch all order groups with items
+    const orderGroups = await prisma.orderGroup.findMany({
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, phone: true, role: true }
         },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
-      }),
-      prisma.orderGroup.count()
-    ]);
+        items: {
+          include: {
+            bundle: {
+              select: { id: true, name: true, network: true, dataAmount: true }
+            }
+          },
+          orderBy: { itemIndex: 'asc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+
+    // Flatten into individual order items for dashboard compatibility
+    const orders = [];
+    orderGroups.forEach(group => {
+      group.items.forEach(item => {
+        orders.push({
+          // Use item ID as primary ID for dashboard
+          id: item.id,
+          orderGroupId: group.id,
+          displayId: group.displayId,
+          reference: item.reference,
+          
+          // Customer info
+          userId: group.userId,
+          user: group.user,
+          customerName: group.user?.name || 'N/A',
+          customerEmail: group.user?.email || 'N/A',
+          customerPhone: group.user?.phone || 'N/A',
+          
+          // Bundle info (compatible with old format)
+          bundleId: item.bundleId,
+          bundle: item.bundle ? {
+            id: item.bundle.id,
+            name: item.bundle.name,
+            network: item.bundle.network,
+            dataAmount: item.bundle.dataAmount
+          } : null,
+          network: item.bundle?.network || 'MTN',
+          dataAmount: item.bundle?.dataAmount || '1GB',
+          
+          // Order details
+          recipientPhone: item.recipientPhone,
+          phone: item.recipientPhone,
+          quantity: 1,
+          totalPrice: item.price,
+          total: item.price,
+          status: item.status,
+          
+          // Timestamps
+          createdAt: group.createdAt,
+          updatedAt: group.updatedAt,
+          
+          // Additional fields for display
+          isBatchItem: group.itemCount > 1,
+          batchSize: group.itemCount,
+          failureReason: item.failureReason,
+          externalReference: item.externalReference
+        });
+      });
+    });
 
     res.json({
-      orders: orders.map(order => ({
-        id: order.id,
-        displayId: order.displayId,
-        customer: order.user,
-        itemCount: order.itemCount,
-        totalAmount: order.totalAmount,
-        status: order.summaryStatus,
-        createdAt: order.createdAt,
-        items: order.items.map(i => ({
-          reference: i.reference,
-          bundle: i.bundle?.name,
-          phone: i.recipientPhone,
-          status: i.status
-        }))
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
+      orders,
+      total: orders.length
     });
 
   } catch (error) {
@@ -348,6 +377,152 @@ router.post('/admin/:id/process', authenticate, authorize('ADMIN'), async (req, 
       ...result
     });
 
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/order-groups/admin/item/:itemId/status
+ * Update individual order item status (admin)
+ */
+router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    const { status } = req.body;
+    
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    // Validate status
+    const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+        code: 'INVALID_STATUS'
+      });
+    }
+    
+    // Update item status
+    const item = await prisma.orderItem.update({
+      where: { id: itemId },
+      data: { 
+        status,
+        processedAt: status === 'COMPLETED' ? new Date() : undefined
+      },
+      include: {
+        orderGroup: { select: { displayId: true } }
+      }
+    });
+    
+    console.log(`[Admin] Updated item ${itemId} status to ${status}`);
+    
+    res.json({
+      success: true,
+      message: `Item status updated to ${status}`,
+      item: {
+        id: item.id,
+        status: item.status,
+        displayId: item.orderGroup.displayId
+      }
+    });
+    
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        error: 'Order item not found',
+        code: 'NOT_FOUND'
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /api/order-groups/admin/item/:itemId/cancel
+ * Cancel individual order item and refund (admin)
+ */
+router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    // Get item with order group info
+    const item = await prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: {
+        orderGroup: {
+          include: { user: true }
+        }
+      }
+    });
+    
+    if (!item) {
+      return res.status(404).json({
+        error: 'Order item not found',
+        code: 'NOT_FOUND'
+      });
+    }
+    
+    // Check if already cancelled or completed
+    if (item.status === 'CANCELLED') {
+      return res.status(400).json({
+        error: 'Item already cancelled',
+        code: 'ALREADY_CANCELLED'
+      });
+    }
+    
+    if (item.status === 'COMPLETED') {
+      return res.status(400).json({
+        error: 'Cannot cancel completed item',
+        code: 'CANNOT_CANCEL_COMPLETED'
+      });
+    }
+    
+    // Refund amount
+    const refundAmount = item.totalPrice || item.unitPrice || 0;
+    
+    // Transaction: Update item + refund wallet
+    await prisma.$transaction(async (tx) => {
+      // Update item status
+      await tx.orderItem.update({
+        where: { id: itemId },
+        data: { status: 'CANCELLED' }
+      });
+      
+      // Refund to wallet
+      if (refundAmount > 0) {
+        // Get wallet first
+        const wallet = await tx.wallet.findUnique({ where: { userId: item.orderGroup.userId } });
+        
+        await tx.wallet.update({
+          where: { userId: item.orderGroup.userId },
+          data: { balance: { increment: refundAmount } }
+        });
+        
+        // Create refund transaction record
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: refundAmount,
+            type: 'REFUND',
+            description: `Refund for cancelled item ${item.reference}`,
+            reference: `REFUND-${item.reference}`
+          }
+        });
+      }
+    });
+    
+    console.log(`[Admin] Cancelled item ${itemId}, refunded ${refundAmount}`);
+    
+    res.json({
+      success: true,
+      message: `Item cancelled and GHS ${refundAmount.toFixed(2)} refunded`,
+      refundAmount
+    });
+    
   } catch (error) {
     next(error);
   }

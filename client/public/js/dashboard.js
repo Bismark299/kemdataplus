@@ -733,9 +733,16 @@
   ---------------------------*/
   function bindCartButtons() {
     if (refs.clearCartBtn) {
-      refs.clearCartBtn.addEventListener('click', () => {
+      refs.clearCartBtn.addEventListener('click', async () => {
         if (!cart.length) { showInlineNotice('Cart is already empty'); return; }
-        if (!confirm('Are you sure you want to clear the cart?')) return;
+        const confirmed = await showConfirmModal({
+          title: 'Clear Cart',
+          message: 'Are you sure you want to remove all items from your cart?',
+          type: 'warning',
+          confirmText: 'Clear Cart',
+          cancelText: 'Keep Items'
+        });
+        if (!confirmed) return;
         cart = [];
         persistCart();
         renderCart();
@@ -746,6 +753,56 @@
     if (refs.checkoutBtn) {
       refs.checkoutBtn.addEventListener('click', checkoutHandler);
     }
+  }
+  
+  // Professional Confirm Modal for dashboard
+  let confirmModalResolve = null;
+  function showConfirmModal(options = {}) {
+    return new Promise((resolve) => {
+      confirmModalResolve = resolve;
+      let modal = document.getElementById('dashConfirmModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'dashConfirmModal';
+        modal.innerHTML = `
+          <div class="confirm-modal">
+            <div class="confirm-modal-header">
+              <div class="confirm-modal-icon ${options.type || 'warning'}">
+                <i class="fas ${options.type === 'danger' ? 'fa-trash-alt' : options.type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+              </div>
+              <h3 class="confirm-modal-title">${options.title || 'Confirm'}</h3>
+            </div>
+            <p class="confirm-modal-message">${options.message || 'Are you sure?'}</p>
+            <div class="confirm-modal-footer">
+              <button class="confirm-modal-btn cancel"><i class="fas fa-times"></i> ${options.cancelText || 'Cancel'}</button>
+              <button class="confirm-modal-btn confirm ${options.type || ''}"><i class="fas fa-check"></i> ${options.confirmText || 'Confirm'}</button>
+            </div>
+          </div>
+        `;
+        modal.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:9999;display:flex;justify-content:center;align-items:center;padding:20px;`;
+        const modalStyles = document.createElement('style');
+        modalStyles.textContent = `#dashConfirmModal .confirm-modal{background:white;border-radius:16px;max-width:420px;width:100%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);animation:slideUp 0.3s ease}#dashConfirmModal .confirm-modal-header{padding:24px 24px 0;text-align:center}#dashConfirmModal .confirm-modal-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.75rem}#dashConfirmModal .confirm-modal-icon.warning{background:#fef3c7;color:#f59e0b}#dashConfirmModal .confirm-modal-icon.danger{background:#fee2e2;color:#ef4444}#dashConfirmModal .confirm-modal-icon.success{background:#d1fae5;color:#10b981}#dashConfirmModal .confirm-modal-title{font-size:1.25rem;font-weight:700;color:#1f2937;margin-bottom:8px}#dashConfirmModal .confirm-modal-message{color:#6b7280;font-size:0.95rem;line-height:1.5;padding:0 24px;text-align:center}#dashConfirmModal .confirm-modal-footer{display:flex;gap:12px;padding:20px 24px 24px}#dashConfirmModal .confirm-modal-btn{flex:1;padding:14px 20px;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}#dashConfirmModal .confirm-modal-btn.cancel{background:#f3f4f6;color:#4b5563}#dashConfirmModal .confirm-modal-btn.confirm{background:#3b82f6;color:white}#dashConfirmModal .confirm-modal-btn.confirm.danger{background:#ef4444}#dashConfirmModal .confirm-modal-btn.confirm.warning{background:#f59e0b}@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}`;
+        document.head.appendChild(modalStyles);
+        document.body.appendChild(modal);
+        modal.querySelector('.confirm-modal-btn.cancel').onclick = () => closeConfirmModalDash(false);
+        modal.querySelector('.confirm-modal-btn.confirm').onclick = () => closeConfirmModalDash(true);
+        modal.onclick = (e) => { if (e.target === modal) closeConfirmModalDash(false); };
+      } else {
+        modal.querySelector('.confirm-modal-title').textContent = options.title || 'Confirm';
+        modal.querySelector('.confirm-modal-message').textContent = options.message || 'Are you sure?';
+        modal.querySelector('.confirm-modal-icon').className = `confirm-modal-icon ${options.type || 'warning'}`;
+        modal.querySelector('.confirm-modal-icon i').className = `fas ${options.type === 'danger' ? 'fa-trash-alt' : options.type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'}`;
+        modal.querySelector('.confirm-modal-btn.confirm').className = `confirm-modal-btn confirm ${options.type || ''}`;
+        modal.querySelector('.confirm-modal-btn.confirm').innerHTML = `<i class="fas fa-check"></i> ${options.confirmText || 'Confirm'}`;
+        modal.querySelector('.confirm-modal-btn.cancel').innerHTML = `<i class="fas fa-times"></i> ${options.cancelText || 'Cancel'}`;
+        modal.style.display = 'flex';
+      }
+    });
+  }
+  function closeConfirmModalDash(result) {
+    const modal = document.getElementById('dashConfirmModal');
+    if (modal) modal.style.display = 'none';
+    if (confirmModalResolve) { confirmModalResolve(result); confirmModalResolve = null; }
   }
 
   async function checkoutHandler() {

@@ -119,9 +119,10 @@ const orderGroupService = {
       if (!item.bundleId) throw new Error('bundleId is required for each item');
       if (!item.recipientPhone) throw new Error('recipientPhone is required for each item');
 
-      // Get bundle with pricing
+      // Get bundle with pricing (include prices like order.controller.js)
       const bundle = await prisma.bundle.findUnique({
-        where: { id: item.bundleId }
+        where: { id: item.bundleId },
+        include: { prices: true }
       });
 
       if (!bundle) {
@@ -138,16 +139,8 @@ const orderGroupService = {
         select: { role: true }
       });
 
-      // Get price for user's role
-      const rolePrice = await prisma.rolePrice.findUnique({
-        where: {
-          bundleId_role_tenantId: {
-            bundleId: bundle.id,
-            role: user.role,
-            tenantId: tenantId || 'default'
-          }
-        }
-      });
+      // Get price for user's role from bundle's prices array
+      const rolePrice = bundle.prices.find(p => p.role === user.role);
 
       const unitPrice = rolePrice?.price || bundle.basePrice;
       const quantity = item.quantity || 1;
@@ -253,7 +246,6 @@ const orderGroupService = {
           walletId: wallet.id,
           type: 'PURCHASE',
           amount: -grandTotal,
-          balanceAfter: wallet.balance - grandTotal,
           reference: displayId,
           description: `Order ${displayId} - ${validatedItems.length} item(s)`,
           status: 'COMPLETED'
@@ -399,7 +391,7 @@ const orderGroupService = {
           items: {
             include: {
               bundle: {
-                select: { name: true, network: true }
+                select: { name: true, network: true, dataAmount: true }
               }
             },
             orderBy: { itemIndex: 'asc' }
@@ -429,6 +421,20 @@ const orderGroupService = {
           totalAmount: order.totalAmount,
           status: summaryStatus,
           createdAt: order.createdAt,
+          // Full items list for display
+          items: order.items.map(item => ({
+            id: item.id,
+            reference: item.reference,
+            recipientPhone: item.recipientPhone,
+            price: item.totalPrice || item.unitPrice || 0,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            status: item.status,
+            bundle: item.bundle?.name || 'Unknown',
+            network: item.bundle?.network || 'MTN',
+            dataAmount: item.bundle?.dataAmount || '',
+            failureReason: item.failureReason
+          })),
           // Preview of first item
           preview: order.items[0] ? {
             bundle: order.items[0].bundle?.name,
@@ -612,19 +618,59 @@ const orderGroupService = {
    * ============================================================
    * PROCESS ORDER ITEMS VIA API
    * ============================================================
-   * Sends each item to MCBIS API for fulfillment.
+   * Sends each PENDING item to MCBIS API for fulfillment.
+   * 
+   * Rules:
+   * - Only processes PENDING items (not PROCESSING, COMPLETED, etc.)
+   * - Checks mcbisAPI master toggle
+   * - Checks network-specific toggle (mtnAPI, telecelAPI, airteltigoAPI)
+   * - Checks MCBIS wallet balance BEFORE each item
+   * - Items stay PENDING if API disabled or insufficient balance
    */
   async processOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Helper to get site settings
+    const getSiteSettings = () => {
+      try {
+        const settingsPath = path.join(__dirname, '../../settings.json');
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        return settings.siteSettings || {};
+      } catch (e) {
+        return {};
+      }
+    };
+    
+    // Helper to check if network API is enabled
+    const isNetworkApiEnabled = (network, siteSettings) => {
+      if (!siteSettings.mcbisAPI) {
+        console.log(`[OrderGroup] Master mcbisAPI is OFF`);
+        return false;
+      }
+      
+      const networkLower = (network || '').toLowerCase();
+      
+      if (networkLower === 'mtn') {
+        return siteSettings.mtnAPI === true;
+      }
+      if (networkLower === 'telecel' || networkLower === 'vodafone') {
+        return siteSettings.telecelAPI === true;
+      }
+      if (networkLower === 'airteltigo' || networkLower === 'at') {
+        return siteSettings.airteltigoAPI === true;
+      }
+      
+      return false;
+    };
     
     const orderGroup = await prisma.orderGroup.findUnique({
       where: { id: orderGroupId },
       include: {
         items: {
           where: {
-            status: 'PENDING',
-            externalReference: null,
-            apiSentAt: null
+            status: 'PENDING' // Only process PENDING items
           },
           include: { bundle: true }
         }
@@ -632,30 +678,75 @@ const orderGroupService = {
     });
 
     if (!orderGroup || orderGroup.items.length === 0) {
-      return { processed: 0, results: [] };
+      console.log(`[OrderGroup] No PENDING items to process for ${orderGroupId}`);
+      return { processed: 0, skipped: 0, results: [] };
     }
 
-    console.log(`[OrderGroup] Processing ${orderGroup.items.length} items for ${orderGroup.displayId}`);
+    console.log(`[OrderGroup] Processing ${orderGroup.items.length} PENDING items for ${orderGroup.displayId}`);
 
+    const siteSettings = getSiteSettings();
     const results = [];
-    for (const item of orderGroup.items) {
-      try {
-        // Extract data amount
-        let dataAmount = 1;
-        if (item.bundle?.dataAmount) {
-          const match = item.bundle.dataAmount.match(/(\d+)/);
-          if (match) dataAmount = parseInt(match[1]);
-        }
+    let skipped = 0;
+    
+    // Get MCBIS balance once at the start
+    let mcbisBalance = 0;
+    try {
+      const balanceResult = await datahubService.getWalletBalance();
+      mcbisBalance = balanceResult.success ? balanceResult.balance : 0;
+      console.log(`[OrderGroup] MCBIS wallet balance: ${mcbisBalance} GHS`);
+    } catch (e) {
+      console.log(`[OrderGroup] Could not fetch MCBIS balance: ${e.message}`);
+    }
 
+    for (const item of orderGroup.items) {
+      const network = item.bundle?.network || 'MTN';
+      
+      // Check 1: Is network API enabled?
+      if (!isNetworkApiEnabled(network, siteSettings)) {
+        console.log(`[OrderGroup] Skipping ${item.reference}: ${network} API disabled`);
+        skipped++;
+        results.push({
+          itemId: item.id,
+          reference: item.reference,
+          skipped: true,
+          reason: `${network} API is disabled`
+        });
+        continue;
+      }
+      
+      // Check 2: Extract data amount and estimate cost
+      let dataAmount = 1;
+      if (item.bundle?.dataAmount) {
+        const match = item.bundle.dataAmount.match(/(\d+)/);
+        if (match) dataAmount = parseInt(match[1]);
+      }
+      
+      // Estimate MCBIS cost (rough estimate: ~3.9 GHS per 1GB for MTN)
+      const estimatedCost = item.baseCost || (dataAmount * 3.9);
+      
+      // Check 3: Is MCBIS balance sufficient?
+      if (mcbisBalance < estimatedCost) {
+        console.log(`[OrderGroup] Skipping ${item.reference}: Insufficient MCBIS balance (need ${estimatedCost}, have ${mcbisBalance})`);
+        skipped++;
+        results.push({
+          itemId: item.id,
+          reference: item.reference,
+          skipped: true,
+          reason: `Insufficient MCBIS balance (need ${estimatedCost}, have ${mcbisBalance})`
+        });
+        continue;
+      }
+
+      try {
         // Place order via API
         const result = await datahubService.placeOrder({
-          network: item.bundle?.network || 'MTN',
+          network: network,
           phone: item.recipientPhone,
           amount: dataAmount,
           orderId: item.id
         });
 
-        // Update item status
+        // Update item status based on result
         await this.updateItemStatus(item.id, {
           status: result.success ? 'PROCESSING' : 'FAILED',
           externalReference: result.reference,
@@ -668,12 +759,31 @@ const orderGroupService = {
           success: result.success,
           externalReference: result.reference
         });
+        
+        // Deduct estimated cost from balance tracker
+        if (result.success) {
+          mcbisBalance -= estimatedCost;
+        }
 
         // Delay between API calls
         await new Promise(resolve => setTimeout(resolve, 500));
 
       } catch (error) {
         console.error(`[OrderGroup] Error processing item ${item.id}:`, error.message);
+        
+        // Check if it's an insufficient balance error from API
+        if (error.message.includes('Insufficient wallet balance')) {
+          console.log(`[OrderGroup] MCBIS balance depleted, stopping further processing`);
+          skipped++;
+          results.push({
+            itemId: item.id,
+            reference: item.reference,
+            skipped: true,
+            reason: 'MCBIS balance depleted'
+          });
+          // Stop processing remaining items
+          break;
+        }
         
         await this.updateItemStatus(item.id, {
           status: 'FAILED',
@@ -689,10 +799,13 @@ const orderGroupService = {
       }
     }
 
+    console.log(`[OrderGroup] Processed: ${results.filter(r => !r.skipped).length}, Skipped: ${skipped}`);
+
     return {
       orderGroupId,
       displayId: orderGroup.displayId,
-      processed: results.length,
+      processed: results.filter(r => !r.skipped).length,
+      skipped,
       results
     };
   },
@@ -761,7 +874,6 @@ const orderGroupService = {
             walletId: wallet.id,
             type: 'REFUND',
             amount: orderGroup.totalAmount,
-            balanceAfter: wallet.balance + orderGroup.totalAmount,
             reference: `REFUND-${orderGroup.displayId}`,
             description: `Refund for cancelled order ${orderGroup.displayId}`,
             status: 'COMPLETED'

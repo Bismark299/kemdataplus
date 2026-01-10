@@ -539,15 +539,132 @@
         }
         
         /* ===== TRANSACTION FILTER ===== */
-        .transaction-filter {
+        .transaction-filters {
+            background: var(--gray-50, #f8fafc);
+            padding: 16px;
+            border-radius: var(--radius, 8px);
+            margin-bottom: 16px;
+        }
+        
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 140px;
+        }
+        
+        .filter-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600, #475569);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-group select,
+        .filter-group input[type="date"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--gray-200, #e2e8f0);
+            border-radius: var(--radius, 8px);
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .filter-group select:focus,
+        .filter-group input[type="date"]:focus {
+            border-color: var(--accent, #F2C12E);
+            box-shadow: 0 0 0 3px rgba(242, 193, 46, 0.1);
+        }
+        
+        .filter-actions-row {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-200, #e2e8f0);
+        }
+        
+        .btn-filter-action {
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius, 8px);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-filter-apply {
+            background: var(--primary, #024959);
+            color: white;
+        }
+        
+        .btn-filter-apply:hover {
+            background: var(--primary-light, #036c7f);
+        }
+        
+        .btn-filter-clear {
+            background: var(--gray-200, #e2e8f0);
+            color: var(--gray-700, #334155);
+        }
+        
+        .btn-filter-clear:hover {
+            background: var(--gray-300, #cbd5e1);
+        }
+        
+        .filter-summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--primary, #024959);
+            color: white;
+            border-radius: var(--radius, 8px);
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+        
+        .filter-summary i {
+            color: var(--accent, #F2C12E);
+        }
+        
+        .transaction-count {
+            font-size: 0.8rem;
+            color: var(--gray-500, #64748b);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        /* Quick filter pills */
+        .quick-filters {
             display: flex;
             gap: 8px;
             margin-bottom: 16px;
             flex-wrap: wrap;
         }
         
-        .filter-btn {
-            padding: 8px 14px;
+        .quick-filter-btn {
+            padding: 8px 16px;
             border: 2px solid var(--gray-200, #e2e8f0);
             background: white;
             border-radius: var(--radius-full, 9999px);
@@ -558,11 +675,15 @@
             color: var(--gray-600, #475569);
         }
         
-        .filter-btn.active,
-        .filter-btn:active {
+        .quick-filter-btn.active {
             background: var(--primary, #024959);
             color: white;
             border-color: var(--primary, #024959);
+        }
+        
+        .quick-filter-btn:hover:not(.active) {
+            border-color: var(--primary, #024959);
+            color: var(--primary, #024959);
         }
         
         /* ===== RESPONSIVE STYLES ===== */
@@ -578,6 +699,30 @@
             
             .wallet-sidebar {
                 order: -1;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                align-items: start;
+            }
+            
+            .wallet-sidebar .sidebar-card {
+                margin-bottom: 0;
+            }
+            
+            .wallet-sidebar h3 {
+                grid-column: 1 / -1;
+                margin-top: 8px;
+            }
+            
+            .wallet-sidebar .quick-actions {
+                grid-column: 1 / -1;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            
+            .wallet-sidebar > div:last-child {
+                grid-column: 1 / -1;
             }
             
             .wallet-header {
@@ -602,6 +747,14 @@
             .history-section,
             .wallet-sidebar {
                 padding: 18px;
+            }
+            
+            .filter-row {
+                gap: 10px;
+            }
+            
+            .filter-group {
+                min-width: 120px;
             }
         }
         
@@ -628,6 +781,15 @@
             
             .wallet-content {
                 gap: 12px;
+            }
+            
+            .wallet-sidebar {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            
+            .wallet-sidebar .quick-actions {
+                grid-template-columns: 1fr 1fr 1fr;
             }
             
             .topup-section,
@@ -698,7 +860,11 @@
             
             .quick-btn {
                 padding: 10px;
-                font-size: 0.85rem;
+                font-size: 0.8rem;
+            }
+            
+            .quick-btn i {
+                display: none;
             }
             
             .momo-number-display {
@@ -720,11 +886,56 @@
             .claim-info ol {
                 font-size: 0.8rem;
             }
+            
+            /* Filters on mobile */
+            .transaction-filters {
+                padding: 14px;
+            }
+            
+            .filter-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .filter-group {
+                min-width: 100%;
+            }
+            
+            .filter-actions-row {
+                flex-direction: column;
+            }
+            
+            .btn-filter-action {
+                justify-content: center;
+            }
+            
+            .quick-filters {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 8px;
+                margin-bottom: 12px;
+            }
+            
+            .quick-filter-btn {
+                flex-shrink: 0;
+            }
         }
         
-        @media (max-width: 380px) {
+        @media (max-width: 400px) {
+            .wallet-sidebar {
+                grid-template-columns: 1fr;
+            }
+            
+            .wallet-sidebar .quick-actions {
+                grid-template-columns: 1fr;
+            }
+            
             .payment-methods {
                 grid-template-columns: 1fr;
+            }
+            
+            .wallet-balance {
+                font-size: 1.8rem;
             }
         }
     </style>
@@ -749,6 +960,7 @@
                             <a href="./mystore.html">My Store</a>
                             <a href="./api.html">API</a>
                             <a href="./profile.html">Profile</a>
+                            <a href="#" onclick="logout(); return false;" class="mobile-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </div>
                     <div class="profile-dropdown">
@@ -897,8 +1109,61 @@
                     </div>
 
                     <!-- TRANSACTION HISTORY -->
-                    <div class="history-section" style="margin-top:30px;">
+                    <div class="history-section" style="margin-top:20px;">
                         <h2><i class="fas fa-history"></i> Transaction History</h2>
+                        
+                        <!-- Quick Filters -->
+                        <div class="quick-filters">
+                            <button class="quick-filter-btn active" data-type="all" onclick="setQuickFilter('all')">All</button>
+                            <button class="quick-filter-btn" data-type="credit" onclick="setQuickFilter('credit')">
+                                <i class="fas fa-arrow-down" style="color:#10b981;"></i> Credits
+                            </button>
+                            <button class="quick-filter-btn" data-type="debit" onclick="setQuickFilter('debit')">
+                                <i class="fas fa-arrow-up" style="color:#ef4444;"></i> Debits
+                            </button>
+                        </div>
+                        
+                        <!-- Advanced Filters -->
+                        <div class="transaction-filters">
+                            <div class="filter-row">
+                                <div class="filter-group">
+                                    <label>Type</label>
+                                    <select id="filterType">
+                                        <option value="">All Types</option>
+                                        <option value="credit">Credits Only</option>
+                                        <option value="debit">Debits Only</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label>From Date</label>
+                                    <input type="date" id="filterDateFrom">
+                                </div>
+                                <div class="filter-group">
+                                    <label>To Date</label>
+                                    <input type="date" id="filterDateTo">
+                                </div>
+                            </div>
+                            <div class="filter-actions-row">
+                                <button class="btn-filter-action btn-filter-clear" onclick="clearFilters()">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                                <button class="btn-filter-action btn-filter-apply" onclick="applyFilters()">
+                                    <i class="fas fa-filter"></i> Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Summary -->
+                        <div class="filter-summary" id="filterSummary" style="display:none;">
+                            <i class="fas fa-filter"></i>
+                            <span id="filterSummaryText">Showing filtered results</span>
+                        </div>
+                        
+                        <!-- Transaction Count -->
+                        <div class="transaction-count" id="transactionCount">
+                            <i class="fas fa-list"></i> <span>0 transactions</span>
+                        </div>
+                        
                         <div id="transactionsList">
                             <!-- Populated by JavaScript -->
                         </div>
@@ -1007,7 +1272,13 @@
         // ========== WALLET DATA FROM API ==========
         let walletBalance = 0;
         let transactions = [];
+        let filteredTransactions = [];
         let currentUser = {};
+        let currentFilters = {
+            type: '',
+            dateFrom: '',
+            dateTo: ''
+        };
         
         async function loadWalletData() {
             if (!requireAuth()) return;
@@ -1019,10 +1290,12 @@
                 updateBalanceDisplay();
                 
                 // Get transactions
-                const txnData = await apiRequest('/wallet/transactions?limit=50');
+                const txnData = await apiRequest('/wallet/transactions?limit=100');
                 transactions = txnData.transactions || [];
+                filteredTransactions = [...transactions];
                 renderTransactions();
                 updateSpendingStats();
+                updateTransactionCount();
                 
                 // Get user profile
                 const userData = await apiRequest('/users/me');
@@ -1080,13 +1353,17 @@
         // Render transactions
         function renderTransactions() {
             const container = document.getElementById('transactionsList');
-            if (!transactions || transactions.length === 0) {
-                container.innerHTML = '<div class="no-transactions">No transactions yet</div>';
+            const dataToRender = filteredTransactions.length > 0 || hasActiveFilters() ? filteredTransactions : transactions;
+            
+            if (!dataToRender || dataToRender.length === 0) {
+                const message = hasActiveFilters() ? 'No transactions match your filters' : 'No transactions yet';
+                container.innerHTML = `<div class="no-transactions"><i class="fas fa-inbox"></i>${message}</div>`;
+                updateTransactionCount();
                 return;
             }
 
-            container.innerHTML = transactions.map(txn => {
-                const isCredit = txn.type === 'DEPOSIT' || txn.type === 'REFUND' || txn.type === 'TRANSFER_IN' || txn.amount > 0;
+            container.innerHTML = dataToRender.map(txn => {
+                const isCredit = txn.type === 'DEPOSIT' || txn.type === 'REFUND' || txn.type === 'TRANSFER_IN' || txn.type === 'PROFIT_CREDIT' || txn.type === 'COMMISSION' || txn.amount > 0;
                 const displayType = isCredit ? 'credit' : 'debit';
                 const amount = Math.abs(txn.amount);
                 return `
@@ -1105,6 +1382,125 @@
                     </div>
                 </div>
             `}).join('');
+            
+            updateTransactionCount();
+        }
+        
+        // ========== TRANSACTION FILTERS ==========
+        function hasActiveFilters() {
+            return currentFilters.type !== '' || currentFilters.dateFrom !== '' || currentFilters.dateTo !== '';
+        }
+        
+        function updateTransactionCount() {
+            const countEl = document.getElementById('transactionCount');
+            const dataToCount = hasActiveFilters() ? filteredTransactions : transactions;
+            const count = dataToCount ? dataToCount.length : 0;
+            countEl.innerHTML = `<i class="fas fa-list"></i> <span>${count} transaction${count !== 1 ? 's' : ''}</span>`;
+        }
+        
+        function setQuickFilter(type) {
+            // Update button states
+            document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
+            });
+            
+            // Update type dropdown
+            document.getElementById('filterType').value = type === 'all' ? '' : type;
+            
+            // Apply filter
+            currentFilters.type = type === 'all' ? '' : type;
+            applyFilters();
+        }
+        
+        function applyFilters() {
+            // Get filter values
+            currentFilters.type = document.getElementById('filterType').value;
+            currentFilters.dateFrom = document.getElementById('filterDateFrom').value;
+            currentFilters.dateTo = document.getElementById('filterDateTo').value;
+            
+            // Filter transactions
+            filteredTransactions = transactions.filter(txn => {
+                // Type filter
+                if (currentFilters.type) {
+                    const isCredit = txn.type === 'DEPOSIT' || txn.type === 'REFUND' || txn.type === 'TRANSFER_IN' || txn.type === 'PROFIT_CREDIT' || txn.type === 'COMMISSION' || txn.amount > 0;
+                    if (currentFilters.type === 'credit' && !isCredit) return false;
+                    if (currentFilters.type === 'debit' && isCredit) return false;
+                }
+                
+                // Date from filter
+                if (currentFilters.dateFrom) {
+                    const txnDate = new Date(txn.createdAt);
+                    const fromDate = new Date(currentFilters.dateFrom);
+                    fromDate.setHours(0, 0, 0, 0);
+                    if (txnDate < fromDate) return false;
+                }
+                
+                // Date to filter
+                if (currentFilters.dateTo) {
+                    const txnDate = new Date(txn.createdAt);
+                    const toDate = new Date(currentFilters.dateTo);
+                    toDate.setHours(23, 59, 59, 999);
+                    if (txnDate > toDate) return false;
+                }
+                
+                return true;
+            });
+            
+            // Update quick filter buttons
+            document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+                if (currentFilters.type === '' && btn.dataset.type === 'all') {
+                    btn.classList.add('active');
+                } else if (currentFilters.type === btn.dataset.type) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update filter summary
+            updateFilterSummary();
+            
+            // Re-render
+            renderTransactions();
+        }
+        
+        function clearFilters() {
+            // Reset filter values
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            
+            currentFilters = { type: '', dateFrom: '', dateTo: '' };
+            filteredTransactions = [...transactions];
+            
+            // Reset quick filter buttons
+            document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === 'all');
+            });
+            
+            // Hide filter summary
+            document.getElementById('filterSummary').style.display = 'none';
+            
+            renderTransactions();
+        }
+        
+        function updateFilterSummary() {
+            const summary = document.getElementById('filterSummary');
+            const text = document.getElementById('filterSummaryText');
+            
+            if (!hasActiveFilters()) {
+                summary.style.display = 'none';
+                return;
+            }
+            
+            let parts = [];
+            if (currentFilters.type === 'credit') parts.push('Credits only');
+            if (currentFilters.type === 'debit') parts.push('Debits only');
+            if (currentFilters.dateFrom) parts.push(`From ${currentFilters.dateFrom}`);
+            if (currentFilters.dateTo) parts.push(`To ${currentFilters.dateTo}`);
+            
+            text.textContent = `Filtered: ${parts.join(' • ')} (${filteredTransactions.length} results)`;
+            summary.style.display = 'flex';
         }
 
         // ========== SEND FUNDS ==========

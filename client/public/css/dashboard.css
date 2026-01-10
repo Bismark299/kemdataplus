@@ -332,6 +332,23 @@ header div img {
         color: #F2C12E;
     }
     
+    /* Mobile Logout Button Styling */
+    .nav-menu .links a.mobile-logout {
+        margin-top: 20px;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        color: #f87171;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .nav-menu .links a.mobile-logout:hover {
+        background: rgba(239, 68, 68, 0.25);
+        color: #fca5a5;
+    }
+    
     /* Hide profile dropdown on mobile nav */
     .profile-dropdown {
         display: none;
@@ -445,10 +462,10 @@ header div img {
     transform: translateY(-3px);
 }
 
-/* ===== STATS SECTION ===== */
+/* ===== STATS SECTION - REDESIGNED FOR MOBILE ===== */
 .stats-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 15px;
     max-width: 1200px;
     margin: 30px auto;
@@ -456,6 +473,20 @@ header div img {
     background: linear-gradient(135deg, #f0f4f8 0%, #e8f1f7 100%);
     border-radius: 12px;
     width: 95%;
+}
+
+/* First row: 3 main stats */
+.stats-container .wallet-bal,
+.stats-container .total-sales,
+.stats-container .today-sales {
+    grid-column: span 1;
+}
+
+/* Second row: 3 status stats */
+.stats-container .complete,
+.stats-container .pending,
+.stats-container .processing {
+    grid-column: span 1;
 }
 
 .wallet-bal,
@@ -470,21 +501,39 @@ header div img {
     justify-content: center;
     background-color: #024959;
     padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     text-align: center;
     min-height: 140px;
     color: white;
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle gradient overlay for visual interest */
+.wallet-bal::before,
+.total-sales::before,
+.today-sales::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: rgba(242, 193, 46, 0.1);
+    border-radius: 50%;
+    transform: translate(30%, -30%);
 }
 
 .stats-container > div:hover {
     background-color: #035970;
-    transform: translateY(-5px);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .stats-container > div i {
-    font-size: 1.5em;
+    font-size: 1.75em;
     margin-bottom: 10px;
     color: #F2C12E;
 }
@@ -501,39 +550,43 @@ header div img {
 }
 
 .stats-container div p {
-    font-size: 0.9rem;
-    margin: 3px 0;
+    font-size: 1.1rem;
+    margin: 5px 0;
+    font-weight: 700;
+    color: #F2C12E;
 }
 
 .stats-container div h5 {
-    font-size: 0.75rem;
-    margin: 3px 0;
-    opacity: 0.8;
+    font-size: 0.8rem;
+    margin: 5px 0;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .stats-container button {
-    margin-top: 10px;
-    padding: 8px 15px;
+    margin-top: auto;
+    padding: 8px 16px;
     border: none;
-    border-radius: 5px;
+    border-radius: 20px;
     background-color: #F2C12E;
     color: #024959;
     font-weight: bold;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     transition: all 0.3s ease;
 }
 
 .stats-container button:hover {
     background-color: #F2AE30;
-    transform: translateY(-3px);
+    transform: scale(1.05);
 }
 
 /* ===== QUICK ACTIONS ===== */
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
     max-width: 1200px;
     margin: 30px auto;
@@ -542,23 +595,36 @@ header div img {
 
 .action-card {
     background: white;
-    padding: 20px;
-    border-radius: 12px;
+    padding: 24px 20px;
+    border-radius: 16px;
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
     cursor: pointer;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 160px;
 }
 
 .action-card:hover {
     transform: translateY(-8px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    border-color: #F2C12E;
 }
 
 .action-card i {
     font-size: 2.5rem;
     color: #F2C12E;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(242, 193, 46, 0.15) 0%, rgba(2, 73, 89, 0.1) 100%);
+    border-radius: 50%;
 }
 
 .action-card h4 {
@@ -1486,15 +1552,34 @@ header div img {
     }
     
     .stats-container {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         padding: 15px;
         gap: 12px;
     }
     
     .quick-actions {
         grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
+        gap: 15px;
         padding: 0 15px;
+    }
+    
+    .action-card {
+        padding: 20px 15px;
+        min-height: 140px;
+    }
+    
+    .action-card i {
+        font-size: 2rem;
+        width: 50px;
+        height: 50px;
+    }
+    
+    .action-card h4 {
+        font-size: 1rem;
+    }
+    
+    .action-card p {
+        font-size: 0.8rem;
     }
     
     .buy-bundles-section {
@@ -1563,9 +1648,14 @@ header div img {
     }
     
     .stats-container {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, 1fr);
         padding: 12px;
         gap: 10px;
+    }
+    
+    /* Make wallet card span full width on mobile */
+    .stats-container .wallet-bal {
+        grid-column: span 2;
     }
     
     .wallet-bal,
@@ -1574,31 +1664,61 @@ header div img {
     .complete,
     .pending,
     .processing {
-        padding: 12px 8px;
-        min-height: 120px;
+        padding: 12px 10px;
+        min-height: 110px;
     }
     
-    .stats-container div h2 {
-        font-size: 1.2em;
+    .stats-container > div i {
+        font-size: 1.5em;
+        margin-bottom: 6px;
+    }
+    
+    .stats-container div p {
+        font-size: 1rem;
+    }
+    
+    .stats-container div h5 {
+        font-size: 0.7rem;
     }
     
     .stats-container button {
-        padding: 6px 10px;
+        padding: 6px 12px;
         font-size: 0.7rem;
     }
     
     .quick-actions {
-        grid-template-columns: 1fr;
-        gap: 10px;
-        padding: 0 10px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 12px;
     }
     
     .action-card {
-        padding: 15px;
+        padding: 16px 12px;
+        min-height: 130px;
+        border-radius: 12px;
     }
     
     .action-card i {
-        font-size: 2rem;
+        font-size: 1.75rem;
+        width: 45px;
+        height: 45px;
+        margin-bottom: 8px;
+    }
+    
+    .action-card h4 {
+        font-size: 0.9rem;
+        margin: 6px 0 4px 0;
+    }
+    
+    .action-card p {
+        font-size: 0.75rem;
+        margin: 0;
+        display: none;
+    }
+    
+    .action-card .card-link {
+        font-size: 0.75rem;
+        margin-top: auto;
     }
     
     .buy-bundles-section {
@@ -1656,8 +1776,68 @@ header div img {
         font-size: 0.9rem;
     }
     
+    /* Stats redesign for very small screens */
     .stats-container {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 10px;
+        margin: 15px auto;
+    }
+    
+    /* Wallet card spans full width */
+    .stats-container .wallet-bal {
+        grid-column: span 2;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 12px 16px;
+        min-height: 80px;
+    }
+    
+    .stats-container .wallet-bal > * {
+        margin: 0;
+    }
+    
+    .stats-container .wallet-bal i {
+        font-size: 2rem;
+    }
+    
+    .stats-container .wallet-bal p {
+        font-size: 1.25rem;
+    }
+    
+    .stats-container .wallet-bal h5 {
+        display: none;
+    }
+    
+    /* Compact cards for other stats */
+    .total-sales,
+    .today-sales,
+    .complete,
+    .pending,
+    .processing {
+        padding: 10px 8px;
+        min-height: 90px;
+    }
+    
+    .stats-container > div i {
+        font-size: 1.25em;
+        margin-bottom: 4px;
+    }
+    
+    .stats-container div p {
+        font-size: 0.95rem;
+        margin: 2px 0;
+    }
+    
+    .stats-container div h5 {
+        font-size: 0.65rem;
+        margin: 2px 0;
+    }
+    
+    .stats-container button {
+        padding: 5px 10px;
+        font-size: 0.65rem;
+        margin-top: 5px;
     }
     
     .network-tabs {

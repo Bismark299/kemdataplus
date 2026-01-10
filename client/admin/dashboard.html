@@ -3648,9 +3648,187 @@
                 opacity: 0;
             }
         }
+        
+        /* ===== PROFESSIONAL CONFIRMATION MODAL ===== */
+        .confirm-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: fadeIn 0.2s ease;
+        }
+        .confirm-modal-overlay.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .confirm-modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: slideUp 0.3s ease;
+            overflow: hidden;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .confirm-modal-header {
+            padding: 24px 24px 0;
+            text-align: center;
+        }
+        .confirm-modal-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 1.75rem;
+        }
+        .confirm-modal-icon.warning {
+            background: #fef3c7;
+            color: #f59e0b;
+        }
+        .confirm-modal-icon.danger {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+        .confirm-modal-icon.success {
+            background: #d1fae5;
+            color: #10b981;
+        }
+        .confirm-modal-icon.info {
+            background: #dbeafe;
+            color: #3b82f6;
+        }
+        .confirm-modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        .confirm-modal-message {
+            color: #6b7280;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            padding: 0 24px;
+            text-align: center;
+        }
+        .confirm-modal-input {
+            padding: 16px 24px;
+        }
+        .confirm-modal-input input,
+        .confirm-modal-input textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .confirm-modal-input input:focus,
+        .confirm-modal-input textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .confirm-modal-input label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+        .confirm-modal-footer {
+            display: flex;
+            gap: 12px;
+            padding: 20px 24px 24px;
+        }
+        .confirm-modal-btn {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .confirm-modal-btn:hover {
+            transform: translateY(-1px);
+        }
+        .confirm-modal-btn.cancel {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        .confirm-modal-btn.cancel:hover {
+            background: #e5e7eb;
+        }
+        .confirm-modal-btn.confirm {
+            background: #3b82f6;
+            color: white;
+        }
+        .confirm-modal-btn.confirm:hover {
+            background: #2563eb;
+        }
+        .confirm-modal-btn.confirm.danger {
+            background: #ef4444;
+        }
+        .confirm-modal-btn.confirm.danger:hover {
+            background: #dc2626;
+        }
+        .confirm-modal-btn.confirm.success {
+            background: #10b981;
+        }
+        .confirm-modal-btn.confirm.success:hover {
+            background: #059669;
+        }
     </style>
 </head>
 <body>
+    <!-- PROFESSIONAL CONFIRMATION MODAL -->
+    <div class="confirm-modal-overlay" id="confirmModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-header">
+                <div class="confirm-modal-icon warning" id="confirmModalIcon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="confirm-modal-title" id="confirmModalTitle">Confirm Action</h3>
+            </div>
+            <p class="confirm-modal-message" id="confirmModalMessage">Are you sure you want to proceed?</p>
+            <div class="confirm-modal-input" id="confirmModalInputSection" style="display:none;">
+                <label id="confirmModalInputLabel">Enter value:</label>
+                <input type="text" id="confirmModalInput" placeholder="">
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-modal-btn cancel" id="confirmModalCancel">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="confirm-modal-btn confirm" id="confirmModalConfirm">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- SIDEBAR -->
     <aside class="sidebar">
         <div class="sidebar-logo">
@@ -5373,6 +5551,107 @@
             return fetch(finalUrl, { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } });
         }
 
+        // ========== PROFESSIONAL MODAL SYSTEM ==========
+        // Replaces window.confirm and window.prompt with professional modals
+        
+        let confirmModalResolve = null;
+        
+        /**
+         * Show a professional confirmation modal
+         * @param {Object} options - Modal configuration
+         * @param {string} options.title - Modal title
+         * @param {string} options.message - Modal message  
+         * @param {string} options.type - 'warning' | 'danger' | 'success' | 'info'
+         * @param {string} options.confirmText - Text for confirm button
+         * @param {string} options.cancelText - Text for cancel button
+         * @param {boolean} options.showInput - Whether to show input field
+         * @param {string} options.inputLabel - Label for input field
+         * @param {string} options.inputPlaceholder - Placeholder for input
+         * @param {string} options.inputType - Input type (text, number, etc)
+         * @returns {Promise} - Resolves with true/input value or false
+         */
+        function showConfirmModal(options = {}) {
+            return new Promise((resolve) => {
+                confirmModalResolve = resolve;
+                
+                const modal = document.getElementById('confirmModal');
+                const icon = document.getElementById('confirmModalIcon');
+                const title = document.getElementById('confirmModalTitle');
+                const message = document.getElementById('confirmModalMessage');
+                const inputSection = document.getElementById('confirmModalInputSection');
+                const inputLabel = document.getElementById('confirmModalInputLabel');
+                const input = document.getElementById('confirmModalInput');
+                const confirmBtn = document.getElementById('confirmModalConfirm');
+                const cancelBtn = document.getElementById('confirmModalCancel');
+                
+                // Set content
+                title.textContent = options.title || 'Confirm Action';
+                message.textContent = options.message || 'Are you sure you want to proceed?';
+                
+                // Set icon type
+                const iconTypes = {
+                    warning: { class: 'warning', icon: 'fa-exclamation-triangle' },
+                    danger: { class: 'danger', icon: 'fa-trash-alt' },
+                    success: { class: 'success', icon: 'fa-check-circle' },
+                    info: { class: 'info', icon: 'fa-info-circle' }
+                };
+                const iconConfig = iconTypes[options.type] || iconTypes.warning;
+                icon.className = `confirm-modal-icon ${iconConfig.class}`;
+                icon.innerHTML = `<i class="fas ${iconConfig.icon}"></i>`;
+                
+                // Set button styles
+                confirmBtn.className = `confirm-modal-btn confirm ${options.type === 'danger' ? 'danger' : options.type === 'success' ? 'success' : ''}`;
+                confirmBtn.innerHTML = `<i class="fas fa-check"></i> ${options.confirmText || 'Confirm'}`;
+                cancelBtn.innerHTML = `<i class="fas fa-times"></i> ${options.cancelText || 'Cancel'}`;
+                
+                // Handle input field
+                if (options.showInput) {
+                    inputSection.style.display = 'block';
+                    inputLabel.textContent = options.inputLabel || 'Enter value:';
+                    input.placeholder = options.inputPlaceholder || '';
+                    input.type = options.inputType || 'text';
+                    input.value = options.inputDefault || '';
+                    setTimeout(() => input.focus(), 100);
+                } else {
+                    inputSection.style.display = 'none';
+                    input.value = '';
+                }
+                
+                // Show modal
+                modal.classList.add('active');
+            });
+        }
+        
+        function closeConfirmModal(result) {
+            const modal = document.getElementById('confirmModal');
+            const input = document.getElementById('confirmModalInput');
+            modal.classList.remove('active');
+            
+            if (confirmModalResolve) {
+                if (result === true && document.getElementById('confirmModalInputSection').style.display !== 'none') {
+                    confirmModalResolve(input.value);
+                } else {
+                    confirmModalResolve(result);
+                }
+                confirmModalResolve = null;
+            }
+        }
+        
+        // Modal event listeners
+        document.getElementById('confirmModalCancel')?.addEventListener('click', () => closeConfirmModal(false));
+        document.getElementById('confirmModalConfirm')?.addEventListener('click', () => closeConfirmModal(true));
+        document.getElementById('confirmModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'confirmModal') closeConfirmModal(false);
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('confirmModal')?.classList.contains('active')) {
+                closeConfirmModal(false);
+            }
+            if (e.key === 'Enter' && document.getElementById('confirmModal')?.classList.contains('active')) {
+                closeConfirmModal(true);
+            }
+        });
+
         // ========== UTC TIME HELPERS ==========
         // All times use UTC/GMT - day resets at midnight UTC
         
@@ -5456,8 +5735,8 @@
             showStatsSkeleton();
             
             try {
-                // Fetch orders with compact mode for better performance
-                const res = await adminFetch('/api/orders/admin/all?limit=200&compact=true');
+                // Fetch orders from OrderGroup API (returns flat list for compatibility)
+                const res = await adminFetch('/api/order-groups/admin/all?limit=200&compact=true');
                 if (!res.ok) throw new Error('Failed to fetch orders');
                 const data = await res.json();
                 const orders = data.orders || [];
@@ -5671,22 +5950,21 @@
             
             const html = sortedOrders.slice(0, perPage).map((o, idx) => {
                 const bundle = o.bundle || {};
-                const agentName = o.user?.name || 'Unknown';
+                const agentName = o.user?.name || o.customerName || 'Unknown';
                 const agentCode = generateAgentCode(o.userId || o.user?.id);
-                // Find this order's position in ALL orders for continuous numbering
-                const globalIndex = allOrdersSorted.findIndex(order => order.id === o.id);
-                const orderNum = formatOrderNumber(globalIndex >= 0 ? globalIndex : idx, totalAllOrders);
+                // Use displayId (group order ID) for tracking - all items in a batch share the same ID
+                const orderId = o.displayId || o.orderGroupId || formatOrderNumber(idx, totalAllOrders);
                 return `
-                <tr data-order-id="${o.id}">
+                <tr data-order-id="${o.id}" data-display-id="${o.displayId || ''}">
                     <td><input type="checkbox" class="order-checkbox" value="${o.id}"></td>
                     <td>${formatDate(o.createdAt)}</td>
                     <td class="agent-name">${agentName} ${agentCode}</td>
-                    <td class="order-id">${orderNum}</td>
-                    <td>${o.recipientPhone || o.recipient || 'N/A'}</td>
+                    <td class="order-id" style="font-weight:600;color:#1e3a5f;">${orderId}</td>
+                    <td>${o.recipientPhone || o.phone || o.recipient || 'N/A'}</td>
                     <td>${bundle.network || o.network || 'N/A'}</td>
-                    <td>${bundle.name || o.bundle || o.quantity || ''}</td>
-                    <td>${parseFloat(o.totalPrice || o.total).toFixed(2)}</td>
-                    <td><span class="badge badge-${(o.paymentStatus || 'PENDING').toLowerCase() === 'completed' ? 'completed' : 'pending'}">${(o.paymentStatus || 'PENDING')}</span></td>
+                    <td>${bundle.name || o.bundle || o.dataAmount || o.quantity || ''}</td>
+                    <td>${parseFloat(o.totalPrice || o.total || 0).toFixed(2)}</td>
+                    <td><span class="badge badge-${(o.paymentStatus || 'COMPLETED').toLowerCase() === 'completed' ? 'completed' : 'pending'}">${(o.paymentStatus || 'COMPLETED')}</span></td>
                     <td><span class="badge badge-${(o.status || 'PENDING').toLowerCase()}">${o.status || 'PENDING'}</span></td>
                     <td>
                         <div class="action-icons">
@@ -5740,7 +6018,7 @@
         let ordersCache = [];
         async function calculateReportStats() {
             try {
-                const res = await adminFetch('/api/orders/admin/all?limit=200&compact=true');
+                const res = await adminFetch('/api/order-groups/admin/all?limit=200&compact=true');
                 if (!res.ok) throw new Error('Failed to fetch orders');
                 const data = await res.json();
                 const orders = data.orders || [];
@@ -5864,15 +6142,25 @@
             };
         }
 
-        // Order actions
+        // Order actions - using OrderGroup item API
         async function completeOrder(orderId) {
-            if (!confirm('Mark this order as completed?')) return;
+            const confirmed = await showConfirmModal({
+                title: 'Complete Order',
+                message: 'Mark this order as completed? This will update the order status.',
+                type: 'success',
+                confirmText: 'Complete',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             try {
-                const res = await adminFetch(`/api/orders/${orderId}/status`, {
+                const res = await adminFetch(`/api/order-groups/admin/item/${orderId}/status`, {
                     method: 'PUT',
                     body: JSON.stringify({ status: 'COMPLETED' })
                 });
-                if (!res.ok) throw new Error('Failed to update order');
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Failed to update order');
+                }
                 showToast('Order marked as completed');
                 loadStats();
             } catch (err) {
@@ -5881,13 +6169,24 @@
         }
 
         async function cancelOrder(orderId) {
-            if (!confirm('Cancel this order and refund?')) return;
+            const confirmed = await showConfirmModal({
+                title: 'Cancel Order',
+                message: 'Cancel this order and issue a refund to the customer wallet?',
+                type: 'danger',
+                confirmText: 'Cancel & Refund',
+                cancelText: 'Keep Order'
+            });
+            if (!confirmed) return;
             try {
-                const res = await adminFetch(`/api/orders/${orderId}/cancel`, {
+                const res = await adminFetch(`/api/order-groups/admin/item/${orderId}/cancel`, {
                     method: 'POST'
                 });
-                if (!res.ok) throw new Error('Failed to cancel order');
-                showToast('Order cancelled');
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Failed to cancel order');
+                }
+                const result = await res.json();
+                showToast(result.message || 'Order cancelled and refunded');
                 loadStats();
             } catch (err) {
                 showToast('Error: ' + err.message, 'error');
@@ -5898,7 +6197,8 @@
             const order = ordersCache.find(o => o.id == orderId);
             if (order) {
                 const bundle = order.bundle || {};
-                alert(`Order #${order.id}\n\nNetwork: ${bundle.network || order.network}\nBundle: ${bundle.name || order.bundle || order.quantity || ''}\nRecipient: ${order.recipientPhone || order.recipient || 'N/A'}\nTotal: GH₵ ${parseFloat(order.totalPrice || order.total).toFixed(2)}\nOrder Status: ${order.status || 'PENDING'}\nPayment Status: ${order.paymentStatus || 'PENDING'}`);
+                const displayId = order.displayId || 'N/A';
+                alert(`Order: ${displayId}\nItem ID: ${order.id}\n\nNetwork: ${bundle.network || order.network}\nBundle: ${bundle.name || order.dataAmount || ''}\nRecipient: ${order.recipientPhone || order.phone || 'N/A'}\nTotal: GH₵ ${parseFloat(order.totalPrice || order.total || 0).toFixed(2)}\nOrder Status: ${order.status || 'PENDING'}\nPayment Status: ${order.paymentStatus || 'COMPLETED'}`);
             }
         }
         
@@ -6783,10 +7083,19 @@
             }
         }
         
-        function deleteUser(userId) {
+        async function deleteUser(userId) {
             const user = usersData.find(u => u.id === userId);
             if (!user) return;
-            if (!confirm(`Delete user "${user.name}"? This cannot be undone.`)) return;
+            
+            const confirmed = await showConfirmModal({
+                title: 'Delete User',
+                message: `Are you sure you want to delete "${user.name}"? This action cannot be undone and will remove all associated data.`,
+                type: 'danger',
+                confirmText: 'Delete User',
+                cancelText: 'Keep User'
+            });
+            if (!confirmed) return;
+            
             adminFetch(`/api/users/${userId}`, {
                 method: 'DELETE'
             })
@@ -6798,11 +7107,23 @@
             .catch(err => showToast('Error deleting user: ' + err.message, 'error'));
         }
         
-        function quickFundUser(userId) {
+        async function quickFundUser(userId) {
             const user = usersData.find(u => u.id === userId);
             if (!user) return;
-            const amount = prompt(`Enter amount to fund ${user.name}'s wallet (GH₵):`);
+            
+            const amount = await showConfirmModal({
+                title: 'Fund User Wallet',
+                message: `Enter the amount to add to ${user.name}'s wallet.`,
+                type: 'success',
+                confirmText: 'Add Funds',
+                cancelText: 'Cancel',
+                showInput: true,
+                inputLabel: 'Amount (GH₵)',
+                inputPlaceholder: 'Enter amount...',
+                inputType: 'number'
+            });
             if (!amount) return;
+            
             const amountNum = parseFloat(amount);
             if (isNaN(amountNum) || amountNum <= 0) {
                 showToast('Invalid amount', 'error');
@@ -7567,13 +7888,22 @@
         }
         
         async function rejectClaim(claimId) {
-            const reason = prompt('Enter reason for rejection (optional):');
-            if (reason === null) return; // User cancelled
+            const reason = await showConfirmModal({
+                title: 'Reject Claim',
+                message: 'Please provide a reason for rejecting this claim.',
+                type: 'danger',
+                confirmText: 'Reject Claim',
+                cancelText: 'Cancel',
+                showInput: true,
+                inputLabel: 'Rejection Reason (optional)',
+                inputPlaceholder: 'e.g., Invalid transaction reference...'
+            });
+            if (reason === false) return; // User cancelled
             
             try {
                 const res = await adminFetch(`/api/wallet/deposit/${claimId}/reject`, {
                     method: 'POST',
-                    body: JSON.stringify({ reason })
+                    body: JSON.stringify({ reason: reason || '' })
                 });
                 
                 if (!res.ok) {
@@ -8009,7 +8339,14 @@
         }
         
         async function refundOrder(orderId) {
-            if (!confirm('Are you sure you want to refund this order?\\n\\nThis will:\\n- Set payment status to REFUNDED\\n- Set order status to CANCELLED\\n- Credit the amount back to user wallet')) return;
+            const confirmed = await showConfirmModal({
+                title: 'Refund Order',
+                message: 'Are you sure you want to refund this order? This will set the order status to CANCELLED and credit the amount back to the user\'s wallet.',
+                type: 'warning',
+                confirmText: 'Refund Order',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             try {
                 const res = await adminFetch(`/api/orders/${orderId}/refund`, {
                     method: 'POST'
@@ -8029,7 +8366,14 @@
         }
         
         async function approveOrder(orderId) {
-            if (!confirm('Approve this order?')) return;
+            const confirmed = await showConfirmModal({
+                title: 'Approve Order',
+                message: 'Mark this order as approved and completed?',
+                type: 'success',
+                confirmText: 'Approve',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             try {
                 const res = await adminFetch(`/api/orders/${orderId}/status`, {
                     method: 'PUT',
@@ -8434,7 +8778,14 @@
                 showToast('Please select orders first', 'error');
                 return;
             }
-            if (!confirm(`Mark ${selected.length} order(s) as completed?`)) return;
+            const confirmed = await showConfirmModal({
+                title: 'Complete Selected Orders',
+                message: `Mark ${selected.length} order(s) as completed?`,
+                type: 'success',
+                confirmText: 'Complete All',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             let success = 0;
             for (const id of selected) {
                 try {
@@ -8456,7 +8807,14 @@
                 showToast('Please select orders first', 'error');
                 return;
             }
-            if (!confirm(`Cancel ${selected.length} order(s) and refund?`)) return;
+            const confirmed = await showConfirmModal({
+                title: 'Cancel Selected Orders',
+                message: `Cancel ${selected.length} order(s) and issue refunds?`,
+                type: 'danger',
+                confirmText: 'Cancel & Refund',
+                cancelText: 'Keep Orders'
+            });
+            if (!confirmed) return;
             let success = 0;
             for (const id of selected) {
                 try {
@@ -8470,8 +8828,15 @@
             document.getElementById('selectAll').checked = false;
             showToast(`${success} order(s) cancelled`);
         }
-        function deleteNetwork(networkId) {
-            if (!confirm('Delete this network? All bundles for this network will also be removed.')) return;
+        async function deleteNetwork(networkId) {
+            const confirmed = await showConfirmModal({
+                title: 'Delete Network',
+                message: 'Delete this network? All bundles for this network will also be removed. This action cannot be undone.',
+                type: 'danger',
+                confirmText: 'Delete Network',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             
             networksData = networksData.filter(n => n.id !== networkId);
             bundleTariffsData = bundleTariffsData.filter(b => b.networkId !== networkId);
@@ -8684,7 +9049,14 @@
         }
         
         async function deleteBundleTariff(bundleId) {
-            if (!confirm('Delete this bundle?')) return;
+            const confirmed = await showConfirmModal({
+                title: 'Delete Bundle',
+                message: 'Are you sure you want to delete this bundle? This action cannot be undone.',
+                type: 'danger',
+                confirmText: 'Delete Bundle',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             try {
                 const res = await adminFetch(`/api/bundles/${bundleId}`, {
                     method: 'DELETE'
@@ -8956,7 +9328,7 @@
                 const [usersRes, walletsRes, ordersRes] = await Promise.all([
                     adminFetch('/api/users'),
                     adminFetch('/api/wallet/all'),
-                    adminFetch('/api/orders/admin/all?limit=1000')
+                    adminFetch('/api/order-groups/admin/all?limit=1000')
                 ]);
                 const users = (await usersRes.json()).users || [];
                 const wallets = (await walletsRes.json()).wallets || [];
@@ -9087,7 +9459,7 @@
                 const [usersRes, walletsRes, ordersRes] = await Promise.all([
                     adminFetch('/api/users'),
                     adminFetch('/api/wallet/all'),
-                    adminFetch('/api/orders/admin/all?limit=1000')
+                    adminFetch('/api/order-groups/admin/all?limit=1000')
                 ]);
                 const users = (await usersRes.json()).users || [];
                 const wallets = (await walletsRes.json()).wallets || [];
@@ -9326,13 +9698,23 @@
             renderMomoNumbers();
         }
         
-        function openChangePasswordModal() {
-            const newPassword = prompt('Enter new password:');
+        async function openChangePasswordModal() {
+            const newPassword = await showConfirmModal({
+                title: 'Change Password',
+                message: 'Enter a new password for your account. Minimum 6 characters.',
+                type: 'info',
+                confirmText: 'Change Password',
+                cancelText: 'Cancel',
+                showInput: true,
+                inputLabel: 'New Password',
+                inputPlaceholder: 'Enter new password...',
+                inputType: 'password'
+            });
             if (newPassword && newPassword.length >= 6) {
                 // Password change should be done via API
                 showToast('Password change via API not implemented yet');
             } else if (newPassword) {
-                alert('Password must be at least 6 characters');
+                showToast('Password must be at least 6 characters', 'error');
             }
         }
         
@@ -9449,7 +9831,14 @@
         }
 
         async function processMcbisOrder(orderId) {
-            if (!confirm('Process this order via Mcbis API?')) return;
+            const confirmed = await showConfirmModal({
+                title: 'Process via MCBIS',
+                message: 'Send this order to the MCBIS API for processing?',
+                type: 'info',
+                confirmText: 'Process Order',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
             
             showToast('Processing order...', 'info');
             try {
