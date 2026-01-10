@@ -173,14 +173,24 @@ const paystackService = {
     const { reference, amount, metadata, paid_at } = event.data;
     const amountGHS = amount / 100;
     
-    // Check if already processed (idempotency)
+    // Check if already processed (idempotency) - check both PendingPayment and Transaction
     const existingPayment = await prisma.pendingPayment.findUnique({
       where: { reference }
     });
     
     if (existingPayment?.status === 'COMPLETED') {
-      console.log(`[Paystack] Payment ${reference} already processed`);
+      console.log(`[Paystack] Payment ${reference} already processed (PendingPayment)`);
       return { processed: false, reason: 'Already processed' };
+    }
+    
+    // Also check Transaction table for duplicate
+    const existingTransaction = await prisma.transaction.findUnique({
+      where: { reference: `PS_${reference}` }
+    });
+    
+    if (existingTransaction) {
+      console.log(`[Paystack] Payment ${reference} already has transaction record`);
+      return { processed: false, reason: 'Transaction already exists' };
     }
     
     // Get user from metadata
@@ -208,14 +218,14 @@ const paystackService = {
           data: { balance: { increment: amountGHS } }
         });
         
-        // Create transaction record
+        // Create transaction record (prefix with PS_ to avoid conflicts)
         await tx.transaction.create({
           data: {
             walletId: wallet.id,
             type: 'DEPOSIT',
             amount: amountGHS,
             status: 'COMPLETED',
-            reference: reference,
+            reference: `PS_${reference}`,
             description: `Paystack deposit via ${event.data.channel || 'unknown'}`
           }
         });
