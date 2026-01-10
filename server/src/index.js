@@ -256,9 +256,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 // ============================================
 const settingsController = require('./controllers/settings.controller');
 const datahubService = require('./services/datahub.service');
+const orderGroupService = require('./services/order-group.service');
 
 let autoSyncInterval = null;
-const AUTO_SYNC_INTERVAL_MS = 1 * 60 * 1000; // 1 minute
+const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
 
 function startAutoSync() {
   // Clear any existing interval
@@ -271,21 +272,55 @@ function startAutoSync() {
     try {
       const siteSettings = settingsController.getSiteSettings();
       
-      if (siteSettings.mcbisAPI && siteSettings.mcbisAutoSync) {
-        console.log(`[AutoSync] Running auto-sync for pending orders...`);
-        const result = await datahubService.syncAllPendingOrders();
-        
-        if (result.synced > 0) {
-          console.log(`[AutoSync] Synced ${result.synced} orders`);
-          
-          // Log any status changes
-          result.results.forEach(r => {
-            if (r.success && r.previousStatus !== r.newStatus) {
-              console.log(`[AutoSync] Order ${r.orderId}: ${r.previousStatus} → ${r.newStatus}`);
-            }
-          });
+      // Only run if mcbisAutoSync is enabled AND at least one API is active
+      const mcbisActive = siteSettings.mcbisAPI;
+      const easyDataActive = siteSettings.masterAPI;
+      const autoSyncEnabled = siteSettings.mcbisAutoSync;
+      
+      if (!autoSyncEnabled) {
+        return; // Auto-sync disabled
+      }
+      
+      if (!mcbisActive && !easyDataActive) {
+        return; // No API enabled
+      }
+      
+      console.log(`[AutoSync] Running sync... (MCBIS: ${mcbisActive ? 'ON' : 'OFF'}, EasyData: ${easyDataActive ? 'ON' : 'OFF'})`);
+      
+      let totalSynced = 0;
+      let totalCompleted = 0;
+      let totalFailed = 0;
+      
+      // 1. Sync LEGACY Order table (if MCBIS is active)
+      if (mcbisActive) {
+        try {
+          const legacyResult = await datahubService.syncAllPendingOrders();
+          if (legacyResult.synced > 0) {
+            console.log(`[AutoSync] Legacy Orders: synced ${legacyResult.synced}`);
+            totalSynced += legacyResult.synced;
+          }
+        } catch (err) {
+          console.error(`[AutoSync] Legacy sync error:`, err.message);
         }
       }
+      
+      // 2. Sync NEW OrderItem table (works with both APIs)
+      try {
+        const itemResult = await orderGroupService.syncAllProcessingItems();
+        if (itemResult.total > 0) {
+          console.log(`[AutoSync] OrderItems: ${itemResult.completed} completed, ${itemResult.failed} failed, ${itemResult.unchanged} unchanged`);
+          totalCompleted += itemResult.completed;
+          totalFailed += itemResult.failed;
+        }
+      } catch (err) {
+        console.error(`[AutoSync] OrderItem sync error:`, err.message);
+      }
+      
+      // Log summary if anything changed
+      if (totalCompleted > 0 || totalFailed > 0) {
+        console.log(`[AutoSync] ✅ Summary: ${totalCompleted} completed, ${totalFailed} failed`);
+      }
+      
     } catch (error) {
       console.error(`[AutoSync] Error:`, error.message);
     }
