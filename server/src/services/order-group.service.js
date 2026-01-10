@@ -682,22 +682,33 @@ const orderGroupService = {
   async processOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
     const easyDataService = require('./easydata.service');
+    const settingsController = require('../controllers/settings.controller');
     const fs = require('fs');
     const path = require('path');
     
-    // Helper to get site settings
+    // Helper to get site settings - USE CACHE from settingsController
     const getSiteSettings = () => {
+      // Try settingsController cache first (most reliable)
+      if (settingsController && settingsController.getSiteSettings) {
+        const settings = settingsController.getSiteSettings();
+        console.log(`[OrderGroup] Settings from cache:`, JSON.stringify(settings));
+        return settings;
+      }
+      // Fallback to file
       try {
         const settingsPath = path.join(__dirname, '../../settings.json');
         const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        console.log(`[OrderGroup] Settings from file:`, JSON.stringify(settings.siteSettings));
         return settings.siteSettings || {};
       } catch (e) {
+        console.log(`[OrderGroup] Settings error:`, e.message);
         return {};
       }
     };
     
     // Determine which API provider to use
     const getApiProvider = (siteSettings) => {
+      console.log(`[OrderGroup] Checking API provider - masterAPI: ${siteSettings.masterAPI}, mcbisAPI: ${siteSettings.mcbisAPI}`);
       if (siteSettings.masterAPI) {
         return 'EASYDATA'; // masterAPI = EasyDataGH
       }
@@ -719,16 +730,23 @@ const orderGroupService = {
       
       // Network toggles now default to TRUE - only disable if explicitly set to FALSE
       if (networkLower === 'mtn') {
-        return siteSettings.mtnAPI !== false;
+        const enabled = siteSettings.mtnAPI !== false;
+        console.log(`[OrderGroup] MTN API check: mtnAPI=${siteSettings.mtnAPI}, enabled=${enabled}`);
+        return enabled;
       }
       if (networkLower === 'telecel' || networkLower === 'vodafone') {
-        return siteSettings.telecelAPI !== false;
+        const enabled = siteSettings.telecelAPI !== false;
+        console.log(`[OrderGroup] Telecel API check: telecelAPI=${siteSettings.telecelAPI}, enabled=${enabled}`);
+        return enabled;
       }
       if (networkLower === 'airteltigo' || networkLower === 'at') {
-        return siteSettings.airteltigoAPI !== false;
+        const enabled = siteSettings.airteltigoAPI !== false;
+        console.log(`[OrderGroup] AirtelTigo API check: airteltigoAPI=${siteSettings.airteltigoAPI}, enabled=${enabled}`);
+        return enabled;
       }
       
       // Unknown network - allow if provider is enabled
+      console.log(`[OrderGroup] Network '${network}' - allowing by default`);
       return true;
     };
     
