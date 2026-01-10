@@ -171,6 +171,7 @@ model User {
   downlineUsers User[]   @relation("UserHierarchy")
   wallet       Wallet?
   orders       Order[]
+  orderGroups  OrderGroup[] @relation("UserOrderGroups")
   auditLogs    AuditLog[]
   profitsEarned ProfitRecord[] @relation("ProfitBeneficiary")
   profitsGenerated ProfitRecord[] @relation("ProfitSource")
@@ -300,6 +301,7 @@ model Bundle {
   updatedAt   DateTime @updatedAt
 
   orders       Order[]
+  orderItems   OrderItem[] @relation("BundleOrderItems")
   prices       BundlePrice[]
   tenantPrices TenantBundlePrice[]
   priceHistory BundlePriceHistory[]
@@ -453,6 +455,110 @@ model Order {
   @@index([nextRetryAt])
   @@index([lockedAt])
   @@map("orders")
+}
+
+// ============================================
+// ORDER GROUP MODEL (Bank-Grade Batch Orders)
+// ============================================
+// Represents a single checkout transaction
+// Multiple items share ONE order ID (ORD-XXXXXX)
+
+model OrderGroup {
+  id              String      @id @default(uuid())
+  
+  // GLOBAL SEQUENTIAL ID - Never resets, auto-incremented by database
+  sequenceNum     Int         @default(autoincrement())
+  displayId       String?     @unique // Formatted: "ORD-000001"
+  
+  // Customer
+  userId          String
+  tenantId        String?
+  
+  // Order Summary
+  itemCount       Int         @default(1)
+  totalAmount     Float
+  status          OrderStatus @default(PENDING)
+  summaryStatus   String      @default("PENDING") // Derived from items
+  
+  // Idempotency - Prevents duplicate orders
+  idempotencyKey  String      @unique
+  
+  // Financial Tracking
+  walletDeducted    Boolean   @default(false)
+  walletDeductedAt  DateTime?
+  
+  // Timestamps
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  user            User        @relation("UserOrderGroups", fields: [userId], references: [id])
+  items           OrderItem[]
+  
+  @@index([userId])
+  @@index([tenantId])
+  @@index([sequenceNum])
+  @@index([displayId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([idempotencyKey])
+  @@map("order_groups")
+}
+
+// ============================================
+// ORDER ITEM MODEL (Individual Line Items)
+// ============================================
+// Each item within an OrderGroup
+// Has its own status for API tracking
+
+model OrderItem {
+  id              String      @id @default(uuid())
+  orderGroupId    String
+  
+  // Item details
+  bundleId        String
+  recipientPhone  String
+  quantity        Int         @default(1)
+  
+  // Pricing (snapshot at order time)
+  unitPrice       Float
+  totalPrice      Float
+  baseCost        Float       @default(0)
+  
+  // Reference (e.g., "ORD-000001-01")
+  reference       String      @unique
+  itemIndex       Int         @default(1) // Position in batch (1, 2, 3...)
+  
+  // Status
+  status          OrderStatus @default(PENDING)
+  processedAt     DateTime?
+  failureReason   String?
+  
+  // External API tracking (MCBIS)
+  externalReference String?   @unique
+  externalStatus    String?
+  apiSentAt         DateTime?
+  apiConfirmedAt    DateTime?
+  
+  // Retry control
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  
+  // Timestamps
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  orderGroup      OrderGroup  @relation(fields: [orderGroupId], references: [id], onDelete: Cascade)
+  bundle          Bundle      @relation("BundleOrderItems", fields: [bundleId], references: [id])
+  
+  @@index([orderGroupId])
+  @@index([bundleId])
+  @@index([status])
+  @@index([reference])
+  @@index([externalReference])
+  @@index([createdAt])
+  @@map("order_items")
 }
 
 // ============================================

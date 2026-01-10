@@ -174,6 +174,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/order-groups', require('./routes/order-group.routes'));
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/tenants', tenantRoutes);
