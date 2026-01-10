@@ -5159,6 +5159,17 @@
                             </div>
                         </div>
 
+                        <!-- Auto-Sync Toggle -->
+                        <div class="settings-grid settings-grid-2" style="margin-bottom: 15px;">
+                            <div class="setting-card" style="border: 1px solid #10b981;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #10b981;"><i class="fas fa-sync"></i> Auto-Sync Status</h4>
+                                    <p id="easyDataAutoSyncStatus">Auto-check order status every 30s</p>
+                                </div>
+                                <div class="toggle-switch" id="toggleEasyDataAutoSync" data-site-setting="easyDataAutoSync"></div>
+                            </div>
+                        </div>
+
                         <!-- API Credentials -->
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                             <div style="margin-bottom: 15px;">
@@ -9669,6 +9680,7 @@
             easydata_mtnAPI: true,
             easydata_telecelAPI: true,
             easydata_airteltigoAPI: true,
+            easyDataAutoSync: false,
             mcbisAPI: false,
             mcbis_mtnAPI: true,
             mcbis_telecelAPI: true,
@@ -9713,6 +9725,8 @@
                     toggleId = 'toggleMcbisApi';
                 } else if (key === 'mcbisAutoSync') {
                     toggleId = 'toggleMcbisAutoSync';
+                } else if (key === 'easyDataAutoSync') {
+                    toggleId = 'toggleEasyDataAutoSync';
                 } else if (key === 'easydata_mtnAPI') {
                     toggleId = 'toggleEasydataMtnAPI';
                 } else if (key === 'easydata_telecelAPI') {
@@ -9746,9 +9760,11 @@
             const easydataMtnEl = document.getElementById('easydataMtnApiStatus');
             const easydataTelecelEl = document.getElementById('easydataTelecelApiStatus');
             const easydataAirteltigoEl = document.getElementById('easydataAirteltigoApiStatus');
+            const easydataAutoSyncEl = document.getElementById('easyDataAutoSyncStatus');
             if (easydataMtnEl) easydataMtnEl.textContent = siteSettings.easydata_mtnAPI !== false ? 'Push MTN orders to EasyDataGH' : 'MTN orders NOT pushed';
             if (easydataTelecelEl) easydataTelecelEl.textContent = siteSettings.easydata_telecelAPI !== false ? 'Push Telecel orders to EasyDataGH' : 'Telecel orders NOT pushed';
             if (easydataAirteltigoEl) easydataAirteltigoEl.textContent = siteSettings.easydata_airteltigoAPI !== false ? 'Push AirtelTigo orders to EasyDataGH' : 'AirtelTigo orders NOT pushed';
+            if (easydataAutoSyncEl) easydataAutoSyncEl.textContent = siteSettings.easyDataAutoSync ? 'Auto-checking order status every 30s' : 'Auto-sync disabled';
             
             // MCBIS network statuses
             const mcbisMtnEl = document.getElementById('mcbisMtnApiStatus');
@@ -9786,6 +9802,8 @@
                 toggleId = 'toggleMcbisApi';
             } else if (setting === 'mcbisAutoSync') {
                 toggleId = 'toggleMcbisAutoSync';
+            } else if (setting === 'easyDataAutoSync') {
+                toggleId = 'toggleEasyDataAutoSync';
             } else if (setting === 'easydata_mtnAPI') {
                 toggleId = 'toggleEasydataMtnAPI';
             } else if (setting === 'easydata_telecelAPI') {

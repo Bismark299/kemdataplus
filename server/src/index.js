@@ -272,31 +272,39 @@ function startAutoSync() {
     try {
       const siteSettings = settingsController.getSiteSettings();
       
-      // Only run if mcbisAutoSync is enabled AND at least one API is active
+      // Check which auto-sync toggles are enabled
+      const mcbisAutoSyncEnabled = siteSettings.mcbisAutoSync;
+      const easyDataAutoSyncEnabled = siteSettings.easyDataAutoSync;
+      
+      // Check which APIs are active
       const mcbisActive = siteSettings.mcbisAPI;
       const easyDataActive = siteSettings.masterAPI;
-      const autoSyncEnabled = siteSettings.mcbisAutoSync;
       
-      if (!autoSyncEnabled) {
-        return; // Auto-sync disabled
+      // Skip if no auto-sync is enabled
+      if (!mcbisAutoSyncEnabled && !easyDataAutoSyncEnabled) {
+        return; // Both auto-syncs disabled
       }
       
+      // Skip if no API is enabled
       if (!mcbisActive && !easyDataActive) {
         return; // No API enabled
       }
       
-      console.log(`[AutoSync] Running sync... (MCBIS: ${mcbisActive ? 'ON' : 'OFF'}, EasyData: ${easyDataActive ? 'ON' : 'OFF'})`);
+      const mcbisShouldSync = mcbisAutoSyncEnabled && mcbisActive;
+      const easyDataShouldSync = easyDataAutoSyncEnabled && easyDataActive;
+      
+      console.log(`[AutoSync] Running... (MCBIS AutoSync: ${mcbisShouldSync ? 'ON' : 'OFF'}, EasyData AutoSync: ${easyDataShouldSync ? 'ON' : 'OFF'})`);
       
       let totalSynced = 0;
       let totalCompleted = 0;
       let totalFailed = 0;
       
-      // 1. Sync LEGACY Order table (if MCBIS is active)
-      if (mcbisActive) {
+      // 1. Sync LEGACY Order table (if MCBIS auto-sync is enabled)
+      if (mcbisShouldSync) {
         try {
           const legacyResult = await datahubService.syncAllPendingOrders();
           if (legacyResult.synced > 0) {
-            console.log(`[AutoSync] Legacy Orders: synced ${legacyResult.synced}`);
+            console.log(`[AutoSync] Legacy Orders (MCBIS): synced ${legacyResult.synced}`);
             totalSynced += legacyResult.synced;
           }
         } catch (err) {
@@ -304,9 +312,12 @@ function startAutoSync() {
         }
       }
       
-      // 2. Sync NEW OrderItem table (works with both APIs)
+      // 2. Sync NEW OrderItem table (check per-item which API it belongs to)
       try {
-        const itemResult = await orderGroupService.syncAllProcessingItems();
+        const itemResult = await orderGroupService.syncAllProcessingItems({
+          mcbisEnabled: mcbisShouldSync,
+          easyDataEnabled: easyDataShouldSync
+        });
         if (itemResult.total > 0) {
           console.log(`[AutoSync] OrderItems: ${itemResult.completed} completed, ${itemResult.failed} failed, ${itemResult.unchanged} unchanged`);
           totalCompleted += itemResult.completed;

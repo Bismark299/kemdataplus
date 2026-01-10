@@ -1230,9 +1230,14 @@ const orderGroupService = {
   /**
    * Sync ALL processing/pending OrderItems that have externalReference
    * Call this periodically or via admin action
+   * @param {Object} options - Filter options
+   * @param {boolean} options.mcbisEnabled - Whether to sync MCBIS orders
+   * @param {boolean} options.easyDataEnabled - Whether to sync EasyDataGH orders
    */
-  async syncAllProcessingItems() {
-    console.log(`[Sync] Starting sync of all processing OrderItems...`);
+  async syncAllProcessingItems(options = {}) {
+    const { mcbisEnabled = true, easyDataEnabled = true } = options;
+    
+    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, EasyData: ${easyDataEnabled ? 'ON' : 'OFF'})`);
     
     const items = await prisma.orderItem.findMany({
       where: {
@@ -1248,9 +1253,25 @@ const orderGroupService = {
     let completed = 0;
     let failed = 0;
     let unchanged = 0;
+    let skipped = 0;
 
     for (const item of items) {
       try {
+        // Determine which API this item belongs to
+        const ref = item.externalReference || '';
+        const isMcbisOrder = ref.startsWith('DH-');
+        const isEasyDataOrder = ref.startsWith('ED-');
+        
+        // Skip if the corresponding auto-sync is disabled
+        if (isMcbisOrder && !mcbisEnabled) {
+          skipped++;
+          continue;
+        }
+        if (isEasyDataOrder && !easyDataEnabled) {
+          skipped++;
+          continue;
+        }
+        
         const result = await this.syncOrderItemStatus(item.id);
         results.push({ itemId: item.id, reference: item.reference, ...result });
         
@@ -1268,7 +1289,7 @@ const orderGroupService = {
       }
     }
 
-    console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged`);
+    console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged, ${skipped} skipped`);
 
     return {
       success: true,
@@ -1276,6 +1297,7 @@ const orderGroupService = {
       completed,
       failed,
       unchanged,
+      skipped,
       results
     };
   }
