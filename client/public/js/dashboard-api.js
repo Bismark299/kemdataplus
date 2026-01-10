@@ -128,6 +128,7 @@
 
   // ========== ORDER FUNCTIONS ==========
 
+  // Legacy single order creation (still works)
   async function createOrder(bundleId, recipientPhone, quantity = 1) {
     return await apiRequest('/orders', 'POST', {
       bundleId,
@@ -136,6 +137,52 @@
     });
   }
 
+  /**
+   * NEW: Create order group (batch order)
+   * @param {Array} items - Array of { bundleId, recipientPhone, quantity }
+   * @param {string} idempotencyKey - Unique key to prevent duplicates
+   * @returns {Object} - Order group with all items
+   */
+  async function createOrderGroup(items, idempotencyKey = null) {
+    const key = idempotencyKey || `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return await apiRequest('/order-groups', 'POST', {
+      items,
+      idempotencyKey: key
+    });
+  }
+
+  /**
+   * NEW: Get order groups (paginated)
+   */
+  async function getOrderGroups(page = 1, limit = 50) {
+    try {
+      return await apiRequest(`/order-groups?page=${page}&limit=${limit}`);
+    } catch (error) {
+      console.error('Failed to get order groups:', error);
+      return { orders: [], pagination: {} };
+    }
+  }
+
+  /**
+   * NEW: Get single order group details
+   */
+  async function getOrderGroupDetails(orderId) {
+    try {
+      return await apiRequest(`/order-groups/${orderId}`);
+    } catch (error) {
+      console.error('Failed to get order details:', error);
+      return null;
+    }
+  }
+
+  /**
+   * NEW: Cancel order group
+   */
+  async function cancelOrderGroup(orderId) {
+    return await apiRequest(`/order-groups/${orderId}/cancel`, 'POST');
+  }
+
+  // Legacy: Get orders (old API - still works)
   async function getOrders(page = 1, limit = 50) {
     try {
       return await apiRequest(`/orders?page=${page}&limit=${limit}`);
@@ -200,8 +247,8 @@
   }
 
   /**
-   * Process checkout for cart items
-   * Creates orders via API and deducts wallet balance server-side
+   * Process checkout for cart items using batch OrderGroup API
+   * Creates a single order with multiple items for atomic processing
    * @param {Array} cartItems - Array of cart items with network, bundle (capacity), numbers
    * @returns {Object} - Result with success status and order details
    */
@@ -210,65 +257,90 @@
       return { success: false, error: 'Cart is empty' };
     }
 
-    const results = {
-      success: true,
-      successful: [],
-      failed: [],
-      totalSpent: 0
-    };
-
     // Load bundles for ID lookup
     bundleCache = await getBundles();
 
-    // Process each cart item
+    // Build items array for batch order
+    const orderItems = [];
+    const itemErrors = [];
+
     for (const item of cartItems) {
-      try {
-        const phones = item.numbers || [item.phone];
-        
-        // Find the bundle ID for this network/capacity combination
-        const bundleId = await findBundleId(item.network, item.bundle);
-        
-        if (!bundleId) {
-          throw new Error(`Bundle not found: ${item.network} ${item.bundle}GB`);
-        }
-        
+      const phones = item.numbers || [item.phone];
+      const bundleId = await findBundleId(item.network, item.bundle);
+      
+      if (!bundleId) {
+        // Track which items couldn't find bundles
         for (const phone of phones) {
-          try {
-            const order = await createOrder(bundleId, phone, 1);
-            results.successful.push({
-              phone,
-              orderId: order.order.id,
-              reference: order.order.reference,
-              price: order.order.totalPrice
-            });
-            results.totalSpent += order.order.totalPrice;
-          } catch (orderError) {
-            results.failed.push({
-              phone,
-              bundle: `${item.network} ${item.bundle}GB`,
-              error: orderError.message
-            });
-          }
-        }
-      } catch (error) {
-        const phones = item.numbers || [item.phone];
-        for (const phone of phones) {
-          results.failed.push({
+          itemErrors.push({
             phone,
             bundle: `${item.network} ${item.bundle}GB`,
-            error: error.message
+            error: `Bundle not found: ${item.network} ${item.bundle}GB`
           });
         }
+        continue;
+      }
+
+      // Add each phone as a separate order item
+      for (const phone of phones) {
+        orderItems.push({
+          bundleId,
+          recipientPhone: phone,
+          quantity: 1
+        });
       }
     }
 
-    // Set overall success based on results
-    if (results.successful.length === 0 && results.failed.length > 0) {
-      results.success = false;
-      results.error = results.failed[0]?.error || 'All orders failed';
+    // If no valid items, return error
+    if (orderItems.length === 0) {
+      return {
+        success: false,
+        error: itemErrors[0]?.error || 'No valid items in cart',
+        failed: itemErrors
+      };
     }
 
-    return results;
+    try {
+      // Generate idempotency key for this checkout session
+      const idempotencyKey = `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create batch order using new OrderGroup API
+      const response = await createOrderGroup(orderItems, idempotencyKey);
+      
+      // Build success result
+      const results = {
+        success: true,
+        orderId: response.orderId,
+        displayId: response.orderId, // ORD-XXXXXX format
+        isBatch: response.itemCount > 1,
+        itemCount: response.itemCount,
+        totalAmount: response.totalAmount,
+        successful: response.items?.map(item => ({
+          phone: item.recipientPhone,
+          reference: item.reference,
+          status: item.status,
+          price: item.price
+        })) || [],
+        failed: itemErrors,
+        totalSpent: response.totalAmount
+      };
+
+      // If some items failed bundle lookup but order succeeded
+      if (itemErrors.length > 0) {
+        results.partialSuccess = true;
+      }
+
+      return results;
+    } catch (error) {
+      // Handle API errors
+      return {
+        success: false,
+        error: error.message || 'Failed to create order',
+        failed: [...itemErrors, ...orderItems.map(item => ({
+          phone: item.recipientPhone,
+          error: error.message
+        }))]
+      };
+    }
   }
 
   // ========== ORDER STATS ==========
@@ -467,9 +539,16 @@
     getBundles,
     getBundlesByNetwork,
     findBundleId,
+    // Legacy order functions (backward compatibility)
     createOrder,
     getOrders,
     cancelOrder,
+    // New OrderGroup batch functions
+    createOrderGroup,
+    getOrderGroups,
+    getOrderGroupDetails,
+    cancelOrderGroup,
+    // Profile & utils
     getProfile,
     updateProfile,
     processCheckout,
