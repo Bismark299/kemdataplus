@@ -515,6 +515,69 @@
             .products-table th, .products-table td { padding: var(--space-2); }
             .modal-footer { flex-direction: column; }
             .modal-footer .btn { width: 100%; justify-content: center; }
+            
+            /* Hide orders table on mobile - use cards instead */
+            #ordersTable { display: none !important; }
+            .orders-cards { display: block !important; }
+        }
+        
+        /* Orders Cards for Mobile */
+        .orders-cards {
+            display: none;
+        }
+        
+        .order-card {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            padding: var(--space-4);
+            margin-bottom: var(--space-3);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--space-3);
+        }
+        
+        .order-card-customer {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        .order-card-phone {
+            font-size: var(--text-sm);
+            color: var(--gray-500);
+        }
+        
+        .order-card-status {
+            font-size: var(--text-xs);
+            font-weight: 600;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+        
+        .order-card-row {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--space-2) 0;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: var(--text-sm);
+        }
+        
+        .order-card-row:last-child {
+            border-bottom: none;
+        }
+        
+        .order-card-label {
+            color: var(--gray-500);
+        }
+        
+        .order-card-value {
+            font-weight: 500;
+            color: var(--gray-800);
         }
     </style>
 </head>
@@ -610,6 +673,7 @@
                         <thead><tr><th>Date</th><th>Customer</th><th>Bundle</th><th>Price</th><th>Your Profit</th><th>Payment</th><th>Status</th></tr></thead>
                         <tbody id="ordersBody"></tbody>
                     </table>
+                    <div class="orders-cards" id="ordersCards"></div>
                 </div>
                 <div class="tab-content" id="settings-tab">
                     <div class="store-card" style="margin-bottom:20px;">
@@ -725,7 +789,74 @@
         }
         
         async function loadOrders(){try{const e=await api('/storefronts/'+store.id+'/orders');storeOrders=await e.json(),renderOrders()}catch(e){console.error('Failed to load orders:',e)}}
-        function renderOrders(){const e=document.getElementById('ordersBody'),o=document.getElementById('ordersTable'),t=document.getElementById('ordersEmpty');0===storeOrders.length?(o.style.display='none',t.style.display='block'):(o.style.display='table',t.style.display='none',e.innerHTML=storeOrders.map(o=>{const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),s=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444',ps=o.paymentStatus==='PAID'?'#22c55e':'#f59e0b';return'<tr><td>'+d+'</td><td><strong>'+(o.customerName||'Customer')+'</strong><br><small>'+o.customerPhone+'</small></td><td>'+o.bundle.name+'<br><small>'+o.bundle.network+' • '+o.bundle.dataAmount+'</small></td><td>GHS '+o.amount.toFixed(2)+'</td><td><span class="profit-badge">GHS '+o.ownerProfit.toFixed(2)+'</span></td><td><span style="color:'+ps+';font-weight:500">'+(o.paymentStatus||'PENDING')+'</span><br><small>'+(o.paymentReference||'-')+'</small></td><td><span style="color:'+s+';font-weight:600">'+o.status+'</span></td></tr>'}).join(''))}
+        function renderOrders(){
+            const tbody=document.getElementById('ordersBody');
+            const table=document.getElementById('ordersTable');
+            const cards=document.getElementById('ordersCards');
+            const empty=document.getElementById('ordersEmpty');
+            
+            if(storeOrders.length===0){
+                table.style.display='none';
+                cards.innerHTML='';
+                empty.style.display='block';
+                return;
+            }
+            
+            table.style.display='table';
+            empty.style.display='none';
+            
+            // Render table rows
+            tbody.innerHTML=storeOrders.map(o=>{
+                const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+                const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444';
+                const payColor=o.paymentStatus==='PAID'?'#22c55e':'#f59e0b';
+                return `<tr>
+                    <td>${d}</td>
+                    <td><strong>${o.customerName||'Customer'}</strong><br><small>${o.customerPhone}</small></td>
+                    <td>${o.bundle.name}<br><small>${o.bundle.network} • ${o.bundle.dataAmount}</small></td>
+                    <td>GHS ${o.amount.toFixed(2)}</td>
+                    <td><span class="profit-badge">GHS ${o.ownerProfit.toFixed(2)}</span></td>
+                    <td><span style="color:${payColor};font-weight:500">${o.paymentStatus||'PENDING'}</span></td>
+                    <td><span style="color:${statusColor};font-weight:600">${o.status}</span></td>
+                </tr>`;
+            }).join('');
+            
+            // Render mobile cards
+            cards.innerHTML=storeOrders.map(o=>{
+                const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+                const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444';
+                const statusBg=o.status==='COMPLETED'?'#dcfce7':o.status==='PENDING'?'#fef3c7':'#fee2e2';
+                return `<div class="order-card">
+                    <div class="order-card-header">
+                        <div>
+                            <div class="order-card-customer">${o.customerName||'Customer'}</div>
+                            <div class="order-card-phone"><i class="fas fa-phone"></i> ${o.customerPhone}</div>
+                        </div>
+                        <span class="order-card-status" style="background:${statusBg};color:${statusColor}">${o.status}</span>
+                    </div>
+                    <div class="order-card-row">
+                        <span class="order-card-label">Bundle</span>
+                        <span class="order-card-value">${o.bundle.name} (${o.bundle.dataAmount})</span>
+                    </div>
+                    <div class="order-card-row">
+                        <span class="order-card-label">Price</span>
+                        <span class="order-card-value">GHS ${o.amount.toFixed(2)}</span>
+                    </div>
+                    <div class="order-card-row">
+                        <span class="order-card-label">Your Profit</span>
+                        <span class="order-card-value" style="color:#166534;font-weight:600">GHS ${o.ownerProfit.toFixed(2)}</span>
+                    </div>
+                    <div class="order-card-row">
+                        <span class="order-card-label">Payment</span>
+                        <span class="order-card-value" style="color:${o.paymentStatus==='PAID'?'#22c55e':'#f59e0b'}">${o.paymentStatus||'PENDING'}</span>
+                    </div>
+                    <div class="order-card-row">
+                        <span class="order-card-label">Date</span>
+                        <span class="order-card-value">${d}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
         
         function openPriceModal(bundleId){selectedBundle=products.find(p=>p.bundleId===bundleId);if(!selectedBundle)return;document.getElementById('selectedBundleInfo').innerHTML='<div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:15px"><strong>'+selectedBundle.bundle.name+'</strong><br><small>'+selectedBundle.bundle.network+' • '+selectedBundle.bundle.dataAmount+' • '+selectedBundle.bundle.validity+'</small></div>',document.getElementById('priceCost').value='GHS '+selectedBundle.costPrice.toFixed(2),document.getElementById('priceSellingInput').value=(selectedBundle.sellingPrice||selectedBundle.costPrice).toFixed(2),document.getElementById('priceSellingInput').min=selectedBundle.costPrice,document.getElementById('priceProfit').value='GHS '+(selectedBundle.profit||0).toFixed(2),document.getElementById('priceModal').classList.add('active'),document.getElementById('priceSellingInput').oninput=function(){document.getElementById('priceProfit').value='GHS '+(parseFloat(this.value)-selectedBundle.costPrice).toFixed(2)}}
         function closePriceModal(){document.getElementById('priceModal').classList.remove('active'),selectedBundle=null}
