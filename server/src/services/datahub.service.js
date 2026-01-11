@@ -591,6 +591,7 @@ const datahubService = {
       let newStatus = order.status;
       const apiStatus = (statusResult.status || '').toLowerCase();
       console.log(`[DataHub] Normalized API status: '${apiStatus}'`);
+      console.log(`[DataHub] Current DB status: '${order.status}'`);
       
       if (apiStatus === 'success' || apiStatus === 'completed' || apiStatus === 'delivered' || apiStatus === 'successful') {
         newStatus = 'COMPLETED';
@@ -599,9 +600,11 @@ const datahubService = {
       } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
         newStatus = 'PROCESSING';
       }
+      
+      console.log(`[DataHub] Computed newStatus: '${newStatus}'`);
 
       if (newStatus !== order.status) {
-        console.log(`[DataHub] Status change: ${order.status} → ${newStatus}`);
+        console.log(`[DataHub] ✅ Status change: ${order.status} → ${newStatus}`);
         await prisma.order.update({
           where: { id: orderId },
           data: { 
@@ -610,6 +613,10 @@ const datahubService = {
             ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
           }
         });
+        console.log(`[DataHub] ✅ Database updated!`);
+      } else {
+        console.log(`[DataHub] No status change needed (already ${order.status})`);
+      }
 
         // If order completed and has storefront order, credit agent profit
         if (newStatus === 'COMPLETED' && order.storefrontOrderId) {
