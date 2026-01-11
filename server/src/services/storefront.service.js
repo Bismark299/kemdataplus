@@ -944,29 +944,32 @@ const storefrontService = {
     // Step 3: Get pricing components
     const financialOrderService = require('./financial-order.service');
     
-    // Minimum price = AGENT role price (floor that agent cannot go below)
-    const minimumPrice = await financialOrderService.getMinimumPrice(bundleId, storefront.owner.tenantId);
-    if (!minimumPrice) {
+    // Get owner's actual cost price (what they pay based on their role)
+    const ownerCostPrice = await this.resolveOwnerPrice(storefront.owner, bundleId);
+    if (!ownerCostPrice) {
       throw new Error('Price configuration error');
     }
 
     // Supplier cost = what KemDataPlus pays (baseCost)
     const supplierCost = bundle.baseCost || 0;
 
-    // Get agent's selling price (custom or default to minimum)
+    // Get agent's selling price (custom or default to owner's cost)
+    // This MUST match what getStorefrontProducts shows to customers
     const customProduct = storefront.products[0];
-    const agentPrice = customProduct?.sellingPrice || minimumPrice;
+    const agentPrice = customProduct?.sellingPrice || ownerCostPrice;
+    
+    // Agent's profit = selling price - their cost
+    const agentProfit = agentPrice - ownerCostPrice;
+    
+    // Platform's profit = owner's cost - supplier cost
+    const platformProfit = ownerCostPrice - supplierCost;
 
-    // Step 4: Validate agent price meets minimum
-    const validation = financialOrderService.validateAgentPrice(agentPrice, minimumPrice);
-    if (!validation.valid) {
-      throw new Error(validation.error);
+    // Step 4: Validate selling price covers costs
+    if (agentPrice < ownerCostPrice) {
+      throw new Error(`Price cannot be below cost (GHS ${ownerCostPrice.toFixed(2)})`);
     }
 
-    // Step 5: Calculate profits (for tracking - credited only on completion)
-    const profits = financialOrderService.calculateProfits(agentPrice, minimumPrice, supplierCost);
-
-    // Step 6: Create PENDING storefront order with full financial tracking
+    // Step 5: Create PENDING storefront order with full financial tracking
     // NO wallet debit - Paystack orders don't require upfront payment from agent
     const storefrontOrder = await prisma.storefrontOrder.create({
       data: {
@@ -975,13 +978,13 @@ const storefrontService = {
         customerPhone,
         customerName,
         bundleId,
-        // Customer payment
+        // Customer payment (what customer pays = agent's selling price)
         amount: agentPrice,
         // Financial snapshots
-        ownerCost: minimumPrice,        // Minimum price = AGENT role price
-        ownerProfit: profits.agentProfit,
-        supplierCost: supplierCost,     // Platform's cost
-        platformProfit: profits.platformProfit,
+        ownerCost: ownerCostPrice,      // Agent's cost (based on their role)
+        ownerProfit: agentProfit,       // Agent's profit margin
+        supplierCost: supplierCost,     // Platform's cost (baseCost)
+        platformProfit: platformProfit, // Platform's profit margin
         // Profit tracking
         profitCredited: false,          // Will be true after COMPLETED
         // Payment tracking
@@ -992,7 +995,7 @@ const storefrontService = {
     });
 
     console.log(`[Storefront] Created Paystack order: ${storefrontOrder.id}`);
-    console.log(`[Storefront] Pricing: Customer pays GHS ${agentPrice}, Agent profit: GHS ${profits.agentProfit}, Platform profit: GHS ${profits.platformProfit}`);
+    console.log(`[Storefront] Pricing: Customer pays GHS ${agentPrice}, Agent cost: GHS ${ownerCostPrice}, Agent profit: GHS ${agentProfit}, Platform profit: GHS ${platformProfit}`);
 
     return {
       storefrontOrderId: storefrontOrder.id,
