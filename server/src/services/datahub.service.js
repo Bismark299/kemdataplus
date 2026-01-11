@@ -614,9 +614,6 @@ const datahubService = {
           }
         });
         console.log(`[DataHub] ✅ Database updated!`);
-      } else {
-        console.log(`[DataHub] No status change needed (already ${order.status})`);
-      }
 
         // If order completed and has storefront order, credit agent profit
         if (newStatus === 'COMPLETED' && order.storefrontOrderId) {
@@ -630,6 +627,8 @@ const datahubService = {
             console.error(`[DataHub] Failed to credit profit for order ${orderId}:`, err.message);
           }
         }
+      } else {
+        console.log(`[DataHub] No status change needed (already ${order.status})`);
       }
 
       return {
