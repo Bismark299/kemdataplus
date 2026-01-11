@@ -1458,7 +1458,7 @@
         
         </div><!-- End of loggedInContent -->
         
-        <div class="powered-by">Powered by <a href="/">KemDataplus</a></div>
+        <div class="powered-by" id="poweredByFooter">Powered by <a href="/">KemDataplus</a></div>
     </div>
     <div class="modal-overlay" id="orderModal">
         <div class="modal">
@@ -1596,6 +1596,10 @@
                 contactHtml += `<a href="tel:${ph}" class="contact-btn phone"><i class="fas fa-phone"></i> Call</a>`;
             }
             document.getElementById('storeContact').innerHTML = contactHtml;
+            
+            // Update powered-by footer with store owner's name
+            const ownerName = storeData.owner?.name || storeData.name || 'KemDataplus';
+            document.getElementById('poweredByFooter').innerHTML = `Powered by <strong>${ownerName}</strong>`;
         }
 
         async function loadProducts() {
@@ -1658,7 +1662,7 @@
                     ${isOutOfStock ? '<div class="out-of-stock-badge">OUT OF STOCK</div>' : ''}
                     <div class="product-body">
                         <div class="product-name">${p.displayName || p.bundle.name}</div>
-                        <div class="product-details">${p.bundle.dataAmount} • ${p.bundle.validity}</div>
+                        <div class="product-details">${p.bundle.dataAmount}</div>
                         <div class="product-price">GHS ${p.price.toFixed(2)}</div>
                         <button class="buy-btn" ${isOutOfStock ? 'disabled' : ''} onclick="openOrder('${p.bundleId || p.id}')"><i class="fas fa-shopping-cart"></i> ${isOutOfStock ? 'Unavailable' : 'Buy Now'}</button>
                     </div>
@@ -1670,7 +1674,7 @@
             selectedProduct = products.find(p => p.id === productId || p.bundleId === productId);
             document.getElementById('orderBundleInfo').innerHTML = `
                 <strong>${selectedProduct.displayName || selectedProduct.bundle.name}</strong><br>
-                <small>${selectedProduct.bundle.network} • ${selectedProduct.bundle.dataAmount}GB • ${selectedProduct.bundle.validity}</small>
+                <small>${selectedProduct.bundle.network} • ${selectedProduct.bundle.dataAmount}GB</small>
             `;
             document.getElementById('orderAmount').value = `GHS ${selectedProduct.price.toFixed(2)}`;
             document.getElementById('orderPhone').value = '';
@@ -2590,7 +2594,7 @@
                                     <div class="order-header">
                                         <div>
                                             <div class="order-id">#${o.orderId || o.id}</div>
-                                            <div class="order-store"><i class="fas fa-store"></i> ${o.store?.name || 'Store'}</div>
+                                            <div class="order-phone"><i class="fas fa-phone"></i> ${o.customerPhone || o.phone || 'N/A'}</div>
                                             <div class="order-date">${formatDate(o.createdAt)}</div>
                                         </div>
                                         <span class="order-status ${status}">${statusText}</span>
