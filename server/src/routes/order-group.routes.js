@@ -241,7 +241,7 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 200));
     const compact = req.query.compact === 'true';
 
-    // Fetch both OrderGroups AND legacy Orders (excluding storefront-created Orders to avoid duplicates)
+    // Fetch both OrderGroups AND legacy Orders
     const [orderGroups, legacyOrders] = await Promise.all([
       prisma.orderGroup.findMany({
         include: {
@@ -259,11 +259,8 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
         },
         orderBy: { createdAt: 'desc' }
       }),
-      // Only fetch legacy orders that are NOT linked to storefront (avoids duplicates)
+      // Fetch ALL legacy orders
       prisma.order.findMany({
-        where: {
-          storefrontOrderId: null // Exclude storefront-created orders (they have OrderGroup entries)
-        },
         include: {
           user: {
             select: { id: true, name: true, email: true, phone: true, role: true }
@@ -279,8 +276,14 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     // Flatten OrderGroups into individual order items for dashboard compatibility
     const orders = [];
     
+    // Track displayIds from OrderGroups to avoid duplicates
+    const orderGroupDisplayIds = new Set();
+    
     // Add OrderGroup items
     orderGroups.forEach(group => {
+      if (group.displayId) {
+        orderGroupDisplayIds.add(group.displayId);
+      }
       group.items.forEach(item => {
         orders.push({
           // Use item ID as primary ID for dashboard
@@ -329,8 +332,13 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
       });
     });
 
-    // Add legacy orders
+    // Add legacy orders (skip if already in OrderGroup to avoid duplicates)
     legacyOrders.forEach(order => {
+      // Skip if this order's reference matches an OrderGroup displayId (duplicate)
+      if (order.reference && orderGroupDisplayIds.has(order.reference)) {
+        return; // Skip duplicate
+      }
+      
       orders.push({
         id: order.id,
         orderGroupId: null,
