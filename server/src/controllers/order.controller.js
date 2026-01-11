@@ -422,6 +422,7 @@ const orderController = {
             });
             
             // Update order with result
+            // PROCESSING = API accepted, waiting for delivery confirmation
             await prisma.order.update({
               where: { id: order.id },
               data: {

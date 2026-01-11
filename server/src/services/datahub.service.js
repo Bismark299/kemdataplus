@@ -521,6 +521,7 @@ const datahubService = {
     console.log(`[DataHub] placeOrder result:`, result);
 
     // Update order in database
+    // PROCESSING = API accepted the order, waiting for delivery confirmation via auto-sync
     const newStatus = result.success ? 'PROCESSING' : 'FAILED';
     console.log(`[DataHub] Updating order status to: ${newStatus}`);
     console.log(`[DataHub] Storing API reference: ${result.reference}`);
@@ -586,12 +587,16 @@ const datahubService = {
 
     if (statusResult.success) {
       // Map API status to our status
+      // IMPORTANT: Compare in lowercase since API might return different cases
       let newStatus = order.status;
-      if (statusResult.status === 'success' || statusResult.status === 'completed') {
+      const apiStatus = (statusResult.status || '').toLowerCase();
+      console.log(`[DataHub] Normalized API status: '${apiStatus}'`);
+      
+      if (apiStatus === 'success' || apiStatus === 'completed' || apiStatus === 'delivered' || apiStatus === 'successful') {
         newStatus = 'COMPLETED';
-      } else if (statusResult.status === 'failed') {
+      } else if (apiStatus === 'failed' || apiStatus === 'fail' || apiStatus === 'error') {
         newStatus = 'FAILED';
-      } else if (statusResult.status === 'pending' || statusResult.status === 'processing') {
+      } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
         newStatus = 'PROCESSING';
       }
 

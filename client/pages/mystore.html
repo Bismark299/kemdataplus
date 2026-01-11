@@ -10,18 +10,18 @@
         * { box-sizing: border-box; }
         
         .store-container { 
-            max-width: 1200px; 
+            max-width: 1000px; 
             margin: 0 auto; 
-            padding: var(--space-4) var(--space-3); 
+            padding: var(--space-3) var(--space-2); 
         }
         
         /* Page Header */
         .page-header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
-            padding: var(--space-6) var(--space-5);
-            border-radius: var(--radius-lg);
-            margin-bottom: var(--space-5);
+            padding: var(--space-4) var(--space-4);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-4);
             position: relative;
             overflow: hidden;
         }
@@ -89,27 +89,27 @@
         /* Tabs */
         .tabs { 
             display: flex; 
-            gap: var(--space-2); 
-            margin-bottom: var(--space-5); 
+            gap: var(--space-1); 
+            margin-bottom: var(--space-4); 
             background: white;
-            padding: var(--space-2);
-            border-radius: var(--radius-lg);
+            padding: var(--space-1);
+            border-radius: var(--radius-md);
             box-shadow: var(--shadow-sm);
             overflow-x: auto;
         }
         
         .tab { 
-            padding: var(--space-3) var(--space-5); 
+            padding: var(--space-2) var(--space-3); 
             cursor: pointer; 
             border: none; 
             background: none; 
-            font-size: var(--text-sm); 
+            font-size: var(--text-xs); 
             color: var(--gray-500); 
-            border-radius: var(--radius-md);
+            border-radius: var(--radius-sm);
             font-weight: 600;
             white-space: nowrap;
             transition: var(--transition);
-            min-height: 44px;
+            min-height: 38px;
         }
         
         .tab.active { 
@@ -123,20 +123,20 @@
         /* Store Card */
         .store-card { 
             background: white; 
-            border-radius: var(--radius-lg); 
+            border-radius: var(--radius-md); 
             box-shadow: var(--shadow-sm); 
-            margin-bottom: var(--space-5); 
+            margin-bottom: var(--space-4); 
             overflow: hidden; 
         }
         
         .store-card-header { 
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); 
             color: white; 
-            padding: var(--space-5); 
+            padding: var(--space-4); 
             position: relative; 
         }
         
-        .store-card-header h3 { margin: 0 0 var(--space-1) 0; font-size: var(--text-lg); }
+        .store-card-header h3 { margin: 0 0 var(--space-1) 0; font-size: var(--text-base); }
         
         .store-status { 
             position: absolute; 
@@ -150,15 +150,15 @@
         
         .store-status.active { background: var(--success); }
         
-        .store-card-body { padding: var(--space-5); }
+        .store-card-body { padding: var(--space-4); }
         
         /* Store Link Box */
         .store-link-box { 
             background: rgba(16, 185, 129, 0.1); 
             border: 2px dashed var(--success); 
             border-radius: var(--radius-md); 
-            padding: var(--space-4); 
-            margin-bottom: var(--space-4); 
+            padding: var(--space-3); 
+            margin-bottom: var(--space-3); 
         }
         
         .store-link-box label { 
@@ -198,19 +198,19 @@
         .store-stats { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
-            gap: var(--space-3); 
-            margin-bottom: var(--space-4); 
+            gap: var(--space-2); 
+            margin-bottom: var(--space-3); 
         }
         
         .stat-box { 
             text-align: center; 
-            padding: var(--space-4); 
+            padding: var(--space-3); 
             background: var(--gray-50); 
-            border-radius: var(--radius-md); 
+            border-radius: var(--radius-sm); 
         }
         
-        .stat-value { font-size: var(--text-2xl); font-weight: 700; color: var(--primary); display: block; }
-        .stat-label { font-size: var(--text-xs); color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: var(--text-lg); font-weight: 700; color: var(--primary); display: block; }
+        .stat-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.3px; }
         
         /* Products Table */
         .products-table { 
@@ -486,35 +486,40 @@
         
         /* Responsive */
         @media (min-width: 768px) {
-            .store-container { padding: var(--space-8) var(--space-5); }
-            .page-header { padding: var(--space-8); }
-            .page-header h1 { font-size: var(--text-3xl); }
+            .store-container { padding: var(--space-5) var(--space-4); }
+            .page-header { padding: var(--space-5); }
+            .page-header h1 { font-size: var(--text-2xl); }
         }
         
         @media (max-width: 768px) { 
-            .store-stats { grid-template-columns: repeat(2, 1fr); }
+            .store-stats { grid-template-columns: repeat(4, 1fr); }
             .store-header { flex-direction: column; align-items: stretch; }
-            .store-header h1 { font-size: var(--text-xl); }
+            .store-header h1 { font-size: var(--text-lg); }
             .tabs { flex-wrap: nowrap; }
-            .tab { padding: var(--space-2) var(--space-3); font-size: var(--text-xs); }
+            .tab { padding: var(--space-2) var(--space-2); font-size: 11px; }
         }
         
         @media (max-width: 600px) {
-            .store-container { padding: var(--space-3) var(--space-2); }
-            .page-header { padding: var(--space-4); }
-            .page-header h1 { font-size: var(--text-xl); }
-            .store-card-header { padding: var(--space-4); }
-            .store-card-body { padding: var(--space-4); }
+            .store-container { padding: var(--space-2) var(--space-1); }
+            .page-header { padding: var(--space-3); }
+            .page-header h1 { font-size: var(--text-lg); }
+            .page-header p { font-size: var(--text-xs); }
+            .store-card-header { padding: var(--space-3); }
+            .store-card-body { padding: var(--space-3); }
             .link-row { flex-direction: column; }
-            .link-row input { width: 100%; min-width: auto; }
-            .copy-btn { width: 100%; justify-content: center; }
-            .store-stats { gap: var(--space-2); }
-            .stat-box { padding: var(--space-3); }
-            .stat-value { font-size: var(--text-lg); }
-            .products-table { font-size: var(--text-xs); }
-            .products-table th, .products-table td { padding: var(--space-2); }
+            .link-row input { width: 100%; min-width: auto; font-size: var(--text-xs); padding: var(--space-2); }
+            .copy-btn { width: 100%; justify-content: center; padding: var(--space-2); }
+            .store-stats { gap: var(--space-1); }
+            .stat-box { padding: var(--space-2); }
+            .stat-value { font-size: var(--text-base); }
+            .stat-label { font-size: 9px; }
+            .products-table { font-size: 11px; }
+            .products-table th, .products-table td { padding: var(--space-1) var(--space-1); }
+            .products-table th { font-size: 10px; }
             .modal-footer { flex-direction: column; }
             .modal-footer .btn { width: 100%; justify-content: center; }
+            .info-box { padding: var(--space-3); font-size: var(--text-xs); }
+            .network-btn { padding: var(--space-1) var(--space-2); font-size: 11px; min-height: 36px; }
             
             /* Hide orders table on mobile - use cards instead */
             #ordersTable { display: none !important; }
@@ -777,11 +782,11 @@
                 const networkName=network==='TELECEL'?'Telecel':network==='AIRTELTIGO'?'AirtelTigo':network;
                 const color=network==='MTN'?'#ffc107':network==='TELECEL'?'#e60000':'#003366';
                 html+=`<div style="margin-bottom:25px;"><h3 style="color:${color};margin-bottom:12px;padding:10px;background:#f8fafc;border-radius:8px;border-left:4px solid ${color};"><i class="fas fa-signal"></i> ${networkName} Bundles (${grouped[network].length})</h3>`;
-                html+=`<table class="products-table" style="display:table;"><thead><tr><th>Bundle</th><th>Data</th><th>Validity</th><th>Your Cost</th><th>Selling Price</th><th>Profit</th><th>Actions</th></tr></thead><tbody>`;
+                html+=`<table class="products-table" style="display:table;"><thead><tr><th>Bundle</th><th>Data</th><th>Cost</th><th>Sell Price</th><th>Profit</th><th></th></tr></thead><tbody>`;
                 grouped[network].forEach(e=>{
                     const profit=(e.profit||0).toFixed(2);
                     const profitColor=parseFloat(profit)>0?'#166534':'#666';
-                    html+=`<tr data-bundle="${e.bundleId}"><td><strong>${e.displayName||e.bundle.name}</strong></td><td>${e.bundle.dataAmount}</td><td>${e.bundle.validity}</td><td>GHS ${e.costPrice.toFixed(2)}</td><td style="font-weight:600;color:#166534;">GHS ${(e.sellingPrice||e.costPrice).toFixed(2)}</td><td><span class="profit-badge" style="background:${parseFloat(profit)>0?'#dcfce7':'#f3f4f6'};color:${profitColor}">GHS ${profit}</span></td><td class="action-btns"><button class="btn-save" onclick="openPriceModal('${e.bundleId}')"><i class="fas fa-edit"></i> Set Price</button></td></tr>`;
+                    html+=`<tr data-bundle="${e.bundleId}"><td><strong style="font-size:inherit;">${e.displayName||e.bundle.name}</strong></td><td>${e.bundle.dataAmount}</td><td>₵${e.costPrice.toFixed(2)}</td><td style="font-weight:600;color:#166534;">₵${(e.sellingPrice||e.costPrice).toFixed(2)}</td><td><span class="profit-badge" style="background:${parseFloat(profit)>0?'#dcfce7':'#f3f4f6'};color:${profitColor}">₵${profit}</span></td><td class="action-btns"><button class="btn-save" onclick="openPriceModal('${e.bundleId}')"><i class="fas fa-edit"></i></button></td></tr>`;
                 });
                 html+=`</tbody></table></div>`;
             });
