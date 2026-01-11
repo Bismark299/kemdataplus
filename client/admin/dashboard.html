@@ -6220,7 +6220,7 @@
                     <td class="order-id" style="font-weight:600;color:#1e3a5f;">${orderId}</td>
                     <td>${o.recipientPhone || o.phone || o.recipient || 'N/A'}</td>
                     <td>${bundle.network || o.network || 'N/A'}</td>
-                    <td>${bundle.name || o.bundle || o.dataAmount || o.quantity || ''}</td>
+                    <td>${bundle.dataAmount || o.dataAmount || ''}</td>
                     <td>${parseFloat(o.totalPrice || o.total || 0).toFixed(2)}</td>
                     <td><span class="badge badge-${(o.paymentStatus || 'COMPLETED').toLowerCase() === 'completed' ? 'completed' : 'pending'}">${(o.paymentStatus || 'COMPLETED')}</span></td>
                     <td><span class="badge badge-${(o.status || 'PENDING').toLowerCase()}">${o.status || 'PENDING'}</span></td>

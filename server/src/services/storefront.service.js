@@ -762,31 +762,70 @@ const storefrontService = {
           amount: sellingPrice,
           ownerCost: ownerCostPrice,
           ownerProfit: profit,
+          supplierCost: bundle.baseCost || ownerCostPrice,
+          platformProfit: ownerCostPrice - (bundle.baseCost || 0),
           status: 'PENDING',
           paymentStatus: paymentReference ? 'PAID' : 'PENDING',
-          paymentReference
+          paymentReference,
+          paymentMethod: 'MOMO'
         }
       });
 
-      // Generate order reference
-      const reference = `STR-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      // Use the global order ID system
+      const orderGroupService = require('./order-group.service');
+      
+      // Create OrderGroup for global ID
+      const orderGroup = await tx.orderGroup.create({
+        data: {
+          userId: storefront.ownerId,
+          tenantId: storefront.tenantId,
+          totalAmount: sellingPrice,
+          itemCount: 1,
+          status: 'PENDING',
+          summaryStatus: 'PENDING'
+        }
+      });
 
-      // Create main order
+      // Format the display ID (ORD-XXXXXX)
+      const displayId = orderGroupService.formatOrderId(orderGroup.sequenceNum);
+      
+      // Update with display ID
+      await tx.orderGroup.update({
+        where: { id: orderGroup.id },
+        data: { displayId }
+      });
+
+      // Create main order with global ID
       const order = await tx.order.create({
         data: {
           userId: storefront.ownerId,
           bundleId,
           recipientPhone: customerPhone,
           quantity: 1,
-          unitPrice: ownerCostPrice,
-          totalPrice: ownerCostPrice,
-          baseCost: ownerCostPrice,
-          reference,
+          unitPrice: sellingPrice,
+          totalPrice: sellingPrice,
+          baseCost: bundle.baseCost || ownerCostPrice,
+          reference: displayId,
           status: 'PENDING',
           paymentStatus: 'PAID',
           storefrontId,
           storefrontOrderId: storefrontOrder.id,
           priceSnapshot: ownerCostPrice
+        }
+      });
+
+      // Create OrderItem linked to OrderGroup
+      await tx.orderItem.create({
+        data: {
+          orderGroupId: orderGroup.id,
+          bundleId,
+          recipientPhone: customerPhone,
+          quantity: 1,
+          unitPrice: sellingPrice,
+          totalPrice: sellingPrice,
+          baseCost: bundle.baseCost || ownerCostPrice,
+          status: 'PENDING',
+          reference: `${displayId}-01`
         }
       });
 
@@ -1039,29 +1078,66 @@ const storefrontService = {
 
     const storefront = storefrontOrder.storefront;
     const supplierCost = storefrontOrder.supplierCost || storefrontOrder.bundle.baseCost;
+    const customerPrice = storefrontOrder.amount; // What customer paid
+    const ownerCost = storefrontOrder.ownerCost;  // Agent's cost
 
-    // Generate order reference
-    const reference = `STR-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-
+    // Use the global order ID system
+    const orderGroupService = require('./order-group.service');
+    
     // Complete in transaction - NO WALLET DEBIT for Paystack orders
     const result = await prisma.$transaction(async (tx) => {
-      // Create main order for fulfillment
-      // baseCost = supplier cost (what platform pays)
+      // Create OrderGroup for global ID system
+      const orderGroup = await tx.orderGroup.create({
+        data: {
+          userId: storefront.ownerId,
+          tenantId: storefront.tenantId,
+          totalAmount: customerPrice,
+          itemCount: 1,
+          status: 'PENDING',
+          summaryStatus: 'PENDING'
+        }
+      });
+
+      // Format the display ID (ORD-XXXXXX)
+      const displayId = orderGroupService.formatOrderId(orderGroup.sequenceNum);
+      
+      // Update with display ID
+      await tx.orderGroup.update({
+        where: { id: orderGroup.id },
+        data: { displayId }
+      });
+
+      // Create main order for fulfillment with proper pricing
       const order = await tx.order.create({
         data: {
           userId: storefront.ownerId,
           bundleId: storefrontOrder.bundleId,
           recipientPhone: storefrontOrder.customerPhone,
           quantity: 1,
-          unitPrice: supplierCost,     // Platform's cost
-          totalPrice: supplierCost,
-          baseCost: supplierCost,
-          reference,
+          unitPrice: customerPrice,     // Customer payment price
+          totalPrice: customerPrice,    // Customer payment price
+          baseCost: supplierCost,       // Platform's supplier cost
+          reference: displayId,         // Use global order ID
           status: 'PENDING',           // Ready for API fulfillment
           paymentStatus: 'PAID',       // Customer already paid via Paystack
           storefrontId: storefront.id,
           storefrontOrderId: storefrontOrder.id,
-          priceSnapshot: storefrontOrder.ownerCost  // Minimum price snapshot
+          priceSnapshot: ownerCost     // Agent's cost price snapshot
+        }
+      });
+
+      // Create OrderItem linked to OrderGroup
+      await tx.orderItem.create({
+        data: {
+          orderGroupId: orderGroup.id,
+          bundleId: storefrontOrder.bundleId,
+          recipientPhone: storefrontOrder.customerPhone,
+          quantity: 1,
+          unitPrice: customerPrice,
+          totalPrice: customerPrice,
+          baseCost: supplierCost,
+          status: 'PENDING',
+          reference: `${displayId}-01`
         }
       });
 
