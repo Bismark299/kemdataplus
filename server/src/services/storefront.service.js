@@ -1177,6 +1177,40 @@ const storefrontService = {
     console.log(`[Storefront] ✅ Paystack order ready for fulfillment: ${storefrontOrderId}`);
     console.log(`[Storefront] Agent profit (GHS ${storefrontOrder.ownerProfit}) will be credited on completion`);
 
+    // AUTO-PROCESS: Push order to API for fulfillment
+    try {
+      const settingsController = require('../controllers/settings.controller');
+      const siteSettings = settingsController.getSiteSettings();
+      const orderNetwork = storefrontOrder.bundle.network;
+      
+      // Check if API is enabled
+      const mcbisEnabled = siteSettings.mcbisAPI && siteSettings.mcbisNetworks?.[orderNetwork];
+      const easyDataEnabled = siteSettings.masterAPI && siteSettings.networks?.[orderNetwork];
+      
+      if (mcbisEnabled || easyDataEnabled) {
+        // Use the order controller helper to process
+        const datahubService = require('./datahub.service');
+        
+        console.log(`[Storefront] Triggering API fulfillment for order ${result.orderId}...`);
+        
+        // Process the order
+        const apiResult = await datahubService.processOrder(result.orderId);
+        
+        if (apiResult.success) {
+          console.log(`[Storefront] ✅ API accepted order: ${apiResult.apiReference}`);
+        } else if (apiResult.alreadyProcessed) {
+          console.log(`[Storefront] Order already processed`);
+        } else {
+          console.log(`[Storefront] ⚠️ API processing failed: ${apiResult.message}`);
+        }
+      } else {
+        console.log(`[Storefront] No API enabled for ${orderNetwork}, order will stay PENDING`);
+      }
+    } catch (apiError) {
+      console.error(`[Storefront] API auto-process error:`, apiError.message);
+      // Don't throw - order is created, just not auto-processed
+    }
+
     return { success: true, ...result };
   }
 };
