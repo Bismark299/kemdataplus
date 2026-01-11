@@ -241,7 +241,7 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 200));
     const compact = req.query.compact === 'true';
 
-    // Fetch both OrderGroups AND legacy Orders
+    // Fetch both OrderGroups AND legacy Orders (excluding storefront-created Orders to avoid duplicates)
     const [orderGroups, legacyOrders] = await Promise.all([
       prisma.orderGroup.findMany({
         include: {
@@ -259,7 +259,11 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
         },
         orderBy: { createdAt: 'desc' }
       }),
+      // Only fetch legacy orders that are NOT linked to storefront (avoids duplicates)
       prisma.order.findMany({
+        where: {
+          storefrontOrderId: null // Exclude storefront-created orders (they have OrderGroup entries)
+        },
         include: {
           user: {
             select: { id: true, name: true, email: true, phone: true, role: true }
