@@ -777,6 +777,7 @@ const storefrontService = {
       // Create OrderGroup for global ID
       const orderGroup = await tx.orderGroup.create({
         data: {
+          idempotencyKey: `STORE-MOMO-${storefrontOrder.id}`, // Required unique key
           userId: storefront.ownerId,
           tenantId: storefront.tenantId,
           totalAmount: sellingPrice,
@@ -1089,6 +1090,7 @@ const storefrontService = {
       // Create OrderGroup for global ID system
       const orderGroup = await tx.orderGroup.create({
         data: {
+          idempotencyKey: `STORE-PAYSTACK-${storefrontOrderId}`, // Required unique key
           userId: storefront.ownerId,
           tenantId: storefront.tenantId,
           totalAmount: customerPrice,
