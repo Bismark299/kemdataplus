@@ -9879,6 +9879,9 @@
             websiteUpdate: false
         };
         
+        // Flag to track if settings have been loaded from API (prevents overwriting server settings with defaults)
+        let settingsLoaded = false;
+        
         async function loadSettingsSection() {
             // Load settings from API
             try {
@@ -9891,9 +9894,11 @@
                     if (data.siteSettings) {
                         siteSettings = { ...siteSettings, ...data.siteSettings };
                     }
+                    settingsLoaded = true; // Mark settings as loaded from server
                 }
             } catch (err) {
                 console.warn('Failed to load settings from API:', err);
+                settingsLoaded = true; // Still mark as loaded to allow interaction
             }
             
             // Populate API fields
@@ -9977,6 +9982,12 @@
         }
         
         async function toggleSiteSetting(setting) {
+            // Prevent toggling if settings haven't been loaded from server
+            if (!settingsLoaded) {
+                showToast('Please wait, loading settings...', 'warning');
+                return;
+            }
+            
             siteSettings[setting] = !siteSettings[setting];
             
             // Build toggle ID from setting name (handle special cases)
@@ -10992,12 +11003,43 @@
             }
         }
 
+        // ========== LIVE DASHBOARD AUTO-REFRESH ==========
+        let dashboardRefreshInterval = null;
+        const DASHBOARD_REFRESH_MS = 15000; // Refresh every 15 seconds
+        
+        function startDashboardAutoRefresh() {
+            // Clear any existing interval
+            if (dashboardRefreshInterval) {
+                clearInterval(dashboardRefreshInterval);
+            }
+            
+            // Only auto-refresh when on dashboard section
+            dashboardRefreshInterval = setInterval(async () => {
+                // Check if we're viewing the dashboard (check if dashboard elements are visible)
+                const dashboardVisible = document.querySelector('.stats-grid')?.offsetParent !== null;
+                if (dashboardVisible) {
+                    console.log('[Dashboard] Auto-refreshing orders...');
+                    await loadStats();
+                }
+            }, DASHBOARD_REFRESH_MS);
+        }
+        
+        function stopDashboardAutoRefresh() {
+            if (dashboardRefreshInterval) {
+                clearInterval(dashboardRefreshInterval);
+                dashboardRefreshInterval = null;
+            }
+        }
+
         // Initialize
         updateGreeting();
         loadStats();
         initUsersData();
         initFilterListeners();
         updateFilterCounts();
+        
+        // Start live dashboard refresh
+        startDashboardAutoRefresh();
         
         // Restore section from URL hash on page load/refresh
         restoreSectionFromHash();
