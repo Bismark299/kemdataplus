@@ -150,10 +150,19 @@ const paystackService = {
    */
   verifyWebhookSignature(body, signature) {
     const config = getPaystackConfig();
+    
+    // Debug logging - remove after fixing
+    console.log(`[Paystack] Secret key present: ${!!config.secretKey}`);
+    console.log(`[Paystack] Secret key length: ${config.secretKey?.length || 0}`);
+    console.log(`[Paystack] Secret key starts with: ${config.secretKey?.substring(0, 10) || 'N/A'}`);
+    console.log(`[Paystack] Signature received: ${signature?.substring(0, 20)}...`);
+    
     const hash = crypto
       .createHmac('sha512', config.secretKey)
       .update(body)
       .digest('hex');
+    
+    console.log(`[Paystack] Computed hash: ${hash.substring(0, 20)}...`);
     
     return hash === signature;
   },
