@@ -12,6 +12,10 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const storefrontService = require('../services/storefront.service');
+const paystackService = require('../services/paystack.service');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 // ============================================
 // PUBLIC ENDPOINTS (No auth required)
@@ -93,6 +97,122 @@ router.post('/store/:slug/order', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Store order error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/store/:slug/paystack/initialize
+ * Initialize Paystack payment for storefront order
+ * Creates pending order and returns payment URL
+ */
+router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
+  try {
+    const { bundleId, phone, name, email } = req.body;
+
+    if (!bundleId || !phone) {
+      return res.status(400).json({ error: 'Bundle ID and phone number are required' });
+    }
+
+    // Validate phone format (Ghana)
+    const phoneRegex = /^0[235]\d{8}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ error: 'Invalid phone number format. Use format: 0241234567' });
+    }
+
+    const storefront = await storefrontService.getBySlug(req.params.slug);
+    
+    if (!storefront) {
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    if (!storefront.paystackEnabled) {
+      return res.status(400).json({ error: 'Paystack payment not enabled for this store' });
+    }
+
+    // Get bundle and pricing
+    const result = await storefrontService.createPendingPaystackOrder(
+      storefront.id,
+      bundleId,
+      phone,
+      name
+    );
+
+    // Build callback URL
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const callbackUrl = `${protocol}://${host}/store/${req.params.slug}?payment=callback`;
+
+    // Use customer email or generate from phone
+    const customerEmail = email || `${phone}@customer.store`;
+
+    // Initialize Paystack payment
+    const paystackResult = await paystackService.initializeStorefrontPayment({
+      email: customerEmail,
+      amount: result.amount,
+      storefrontId: storefront.id,
+      storefrontOrderId: result.storefrontOrderId,
+      callbackUrl,
+      customerPhone: phone
+    });
+
+    // Update storefront order with Paystack reference
+    await prisma.storefrontOrder.update({
+      where: { id: result.storefrontOrderId },
+      data: { paystackReference: paystackResult.reference }
+    });
+
+    res.json({
+      success: true,
+      ...paystackResult,
+      orderId: result.storefrontOrderId,
+      amount: result.amount
+    });
+  } catch (error) {
+    console.error('Paystack initialize error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/store/:slug/paystack/verify/:reference
+ * Verify Paystack payment and complete order
+ */
+router.get('/store/:slug/paystack/verify/:reference', async (req, res, next) => {
+  try {
+    const { reference } = req.params;
+
+    const storefront = await storefrontService.getBySlug(req.params.slug);
+    
+    if (!storefront) {
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    // Verify payment with Paystack
+    const verification = await paystackService.verifyPayment(reference);
+
+    if (!verification.success) {
+      return res.json({
+        success: false,
+        status: verification.status,
+        message: 'Payment not successful'
+      });
+    }
+
+    // Find and complete the order
+    const storefrontOrderId = verification.metadata?.storefrontOrderId;
+    
+    if (storefrontOrderId) {
+      await storefrontService.completePaystackOrder(storefrontOrderId, reference);
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment verified successfully',
+      ...verification
+    });
+  } catch (error) {
+    console.error('Paystack verify error:', error);
     res.status(400).json({ error: error.message });
   }
 });

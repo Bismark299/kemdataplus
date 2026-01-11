@@ -840,12 +840,17 @@
             }
 
             try {
-                await apiRequest('/users/me/password', 'PUT', {
+                // Password change is handled via the main profile update endpoint
+                await apiRequest('/users/me', 'PUT', {
                     currentPassword: currentPwd,
                     newPassword: newPwd
                 });
-                showToast('Password changed successfully!');
+                showToast('Password changed successfully! Please login again.');
                 this.reset();
+                // Redirect to login after password change
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
             } catch (error) {
                 showToast(error.message || 'Failed to change password', 'error');
             }

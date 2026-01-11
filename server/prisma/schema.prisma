@@ -699,6 +699,7 @@ model Storefront {
   // Payment Settings
   momoNumber      String?          // MoMo number for customer payments
   momoName        String?          // Name on MoMo account
+  paystackEnabled Boolean          @default(false)  // Enable Paystack for this store
   
   // Settings
   isPublic        Boolean          @default(true)
@@ -775,15 +776,23 @@ model StorefrontOrder {
   // Bundle ordered
   bundleId            String
   
-  // Pricing
-  amount              Float         // Customer paid (selling price)
-  ownerCost           Float         // Store owner's cost price
-  ownerProfit         Float         // amount - ownerCost
+  // Pricing (snapshots at order time)
+  amount              Float         // Customer paid (agent's selling price)
+  ownerCost           Float         // Store owner's cost price (AGENT role price = minimum)
+  ownerProfit         Float         // amount - ownerCost (agent's profit)
+  
+  // Financial tracking (for Paystack orders)
+  supplierCost        Float?        // Platform's cost (Bundle.baseCost)
+  platformProfit      Float?        // ownerCost - supplierCost
+  profitCredited      Boolean       @default(false)  // Has agent profit been credited?
+  profitCreditedAt    DateTime?     // When profit was credited to agent wallet
   
   // Payment
   paymentStatus       String        @default("PENDING")  // PENDING, PAID, FAILED
-  paymentReference    String?       // Customer's MoMo transaction reference
+  paymentMethod       String?       // MOMO, PAYSTACK
+  paymentReference    String?       // Customer's MoMo transaction reference or Paystack reference
   paymentPhone        String?       // Phone number customer paid from
+  paystackReference   String?       // Paystack transaction reference (if used)
   
   // Status
   status              String        @default("PENDING")  // PENDING, PROCESSING, COMPLETED, FAILED, REFUNDED

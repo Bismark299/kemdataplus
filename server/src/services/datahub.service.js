@@ -605,6 +605,19 @@ const datahubService = {
             ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
           }
         });
+
+        // If order completed and has storefront order, credit agent profit
+        if (newStatus === 'COMPLETED' && order.storefrontOrderId) {
+          try {
+            const financialOrderService = require('./financial-order.service');
+            const profitResult = await financialOrderService.processCompletedStorefrontOrder(orderId);
+            if (profitResult.credited) {
+              console.log(`[DataHub] ✅ Agent profit credited: GHS ${profitResult.amount}`);
+            }
+          } catch (err) {
+            console.error(`[DataHub] Failed to credit profit for order ${orderId}:`, err.message);
+          }
+        }
       }
 
       return {

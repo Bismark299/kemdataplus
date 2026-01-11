@@ -99,8 +99,8 @@ const storefrontService = {
     // Step 6: Log audit event
     await prisma.auditLog.create({
       data: {
-        userId,
-        tenantId: user.tenantId,
+        user: { connect: { id: userId } },
+        tenant: user.tenantId ? { connect: { id: user.tenantId } } : undefined,
         action: 'CREATE',
         entityType: 'Storefront',
         entityId: storefront.id,
@@ -256,11 +256,11 @@ const storefrontService = {
 
     await prisma.auditLog.create({
       data: {
-        userId,
+        user: { connect: { id: userId } },
         action: 'UPDATE',
         entityType: 'Storefront',
         entityId: storefrontId,
-        previousValues: storefront,
+        oldValues: storefront,
         newValues: updates
       }
     });
@@ -595,7 +595,7 @@ const storefrontService = {
 
     await prisma.auditLog.create({
       data: {
-        userId: adminId,
+        user: { connect: { id: adminId } },
         action: 'TENANT_SUSPEND',
         entityType: 'Storefront',
         entityId: storefrontId,
@@ -622,7 +622,7 @@ const storefrontService = {
 
     await prisma.auditLog.create({
       data: {
-        userId: adminId,
+        user: { connect: { id: adminId } },
         action: 'UPDATE',
         entityType: 'Storefront',
         entityId: storefrontId,
@@ -649,7 +649,7 @@ const storefrontService = {
 
     await prisma.auditLog.create({
       data: {
-        userId: adminId,
+        user: { connect: { id: adminId } },
         action: 'DELETE',
         entityType: 'Storefront',
         entityId: storefrontId,
@@ -899,6 +899,204 @@ const storefrontService = {
       paymentStatus: o.paymentStatus,
       createdAt: o.createdAt
     }));
+  },
+
+  /**
+   * Create pending storefront order for Paystack payment
+   * Does NOT debit wallet - profits credited only after fulfillment completes
+   * 
+   * Financial Flow:
+   * 1. Customer pays via Paystack (GHS X)
+   * 2. Order created and fulfilled
+   * 3. On COMPLETED: Agent profit credited to wallet
+   */
+  async createPendingPaystackOrder(storefrontId, bundleId, customerPhone, customerName = null) {
+    // Step 1: Get storefront details
+    const storefront = await prisma.storefront.findUnique({
+      where: { id: storefrontId },
+      include: {
+        owner: {
+          include: { wallet: true, tenant: true }
+        },
+        products: {
+          where: { bundleId }
+        }
+      }
+    });
+
+    if (!storefront || storefront.status !== 'ACTIVE') {
+      throw new Error('Store not available');
+    }
+
+    // Step 2: Get bundle and verify it's active
+    const bundle = await prisma.bundle.findFirst({
+      where: {
+        id: bundleId,
+        isActive: true,
+        outOfStock: false
+      }
+    });
+
+    if (!bundle) {
+      throw new Error('Bundle not available');
+    }
+
+    // Step 3: Get pricing components
+    const financialOrderService = require('./financial-order.service');
+    
+    // Minimum price = AGENT role price (floor that agent cannot go below)
+    const minimumPrice = await financialOrderService.getMinimumPrice(bundleId, storefront.owner.tenantId);
+    if (!minimumPrice) {
+      throw new Error('Price configuration error');
+    }
+
+    // Supplier cost = what KemDataPlus pays (baseCost)
+    const supplierCost = bundle.baseCost || 0;
+
+    // Get agent's selling price (custom or default to minimum)
+    const customProduct = storefront.products[0];
+    const agentPrice = customProduct?.sellingPrice || minimumPrice;
+
+    // Step 4: Validate agent price meets minimum
+    const validation = financialOrderService.validateAgentPrice(agentPrice, minimumPrice);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Step 5: Calculate profits (for tracking - credited only on completion)
+    const profits = financialOrderService.calculateProfits(agentPrice, minimumPrice, supplierCost);
+
+    // Step 6: Create PENDING storefront order with full financial tracking
+    // NO wallet debit - Paystack orders don't require upfront payment from agent
+    const storefrontOrder = await prisma.storefrontOrder.create({
+      data: {
+        storefrontId,
+        storefrontProductId: customProduct?.id || null,
+        customerPhone,
+        customerName,
+        bundleId,
+        // Customer payment
+        amount: agentPrice,
+        // Financial snapshots
+        ownerCost: minimumPrice,        // Minimum price = AGENT role price
+        ownerProfit: profits.agentProfit,
+        supplierCost: supplierCost,     // Platform's cost
+        platformProfit: profits.platformProfit,
+        // Profit tracking
+        profitCredited: false,          // Will be true after COMPLETED
+        // Payment tracking
+        status: 'PENDING',
+        paymentStatus: 'PENDING',
+        paymentMethod: 'PAYSTACK'
+      }
+    });
+
+    console.log(`[Storefront] Created Paystack order: ${storefrontOrder.id}`);
+    console.log(`[Storefront] Pricing: Customer pays GHS ${agentPrice}, Agent profit: GHS ${profits.agentProfit}, Platform profit: GHS ${profits.platformProfit}`);
+
+    return {
+      storefrontOrderId: storefrontOrder.id,
+      amount: agentPrice,
+      bundle: bundle.name
+    };
+  },
+
+  /**
+   * Complete Paystack order after payment verification
+   * Creates main order for fulfillment - NO wallet debit
+   * 
+   * Paystack Flow (profit-on-completion):
+   * 1. Customer pays → Payment verified (we're here)
+   * 2. Main order created → API fulfillment triggered
+   * 3. On COMPLETED → Agent profit credited via financial-order.service
+   */
+  async completePaystackOrder(storefrontOrderId, paystackReference) {
+    // Get the pending order
+    const storefrontOrder = await prisma.storefrontOrder.findUnique({
+      where: { id: storefrontOrderId },
+      include: {
+        storefront: {
+          include: {
+            owner: true
+          }
+        },
+        bundle: true
+      }
+    });
+
+    if (!storefrontOrder) {
+      throw new Error('Order not found');
+    }
+
+    // Check if already completed
+    if (storefrontOrder.orderId) {
+      console.log(`[Storefront] Order ${storefrontOrderId} already completed`);
+      return { success: true, alreadyCompleted: true };
+    }
+
+    const storefront = storefrontOrder.storefront;
+    const supplierCost = storefrontOrder.supplierCost || storefrontOrder.bundle.baseCost;
+
+    // Generate order reference
+    const reference = `STR-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+    // Complete in transaction - NO WALLET DEBIT for Paystack orders
+    const result = await prisma.$transaction(async (tx) => {
+      // Create main order for fulfillment
+      // baseCost = supplier cost (what platform pays)
+      const order = await tx.order.create({
+        data: {
+          userId: storefront.ownerId,
+          bundleId: storefrontOrder.bundleId,
+          recipientPhone: storefrontOrder.customerPhone,
+          quantity: 1,
+          unitPrice: supplierCost,     // Platform's cost
+          totalPrice: supplierCost,
+          baseCost: supplierCost,
+          reference,
+          status: 'PENDING',           // Ready for API fulfillment
+          paymentStatus: 'PAID',       // Customer already paid via Paystack
+          storefrontId: storefront.id,
+          storefrontOrderId: storefrontOrder.id,
+          priceSnapshot: storefrontOrder.ownerCost  // Minimum price snapshot
+        }
+      });
+
+      // Update storefront order - mark as paid, link to main order
+      await tx.storefrontOrder.update({
+        where: { id: storefrontOrderId },
+        data: { 
+          orderId: order.id,
+          status: 'PROCESSING',        // Being processed
+          paymentStatus: 'PAID',
+          paystackReference
+        }
+      });
+
+      // Update storefront stats
+      await tx.storefront.update({
+        where: { id: storefront.id },
+        data: {
+          totalOrders: { increment: 1 },
+          totalRevenue: { increment: storefrontOrder.amount }
+        }
+      });
+
+      return {
+        orderId: order.id,
+        storefrontOrderId: storefrontOrder.id,
+        bundle: storefrontOrder.bundle.name,
+        phone: storefrontOrder.customerPhone,
+        amount: storefrontOrder.amount,
+        agentProfit: storefrontOrder.ownerProfit,
+        status: 'PROCESSING'
+      };
+    });
+
+    console.log(`[Storefront] ✅ Paystack order ready for fulfillment: ${storefrontOrderId}`);
+    console.log(`[Storefront] Agent profit (GHS ${storefrontOrder.ownerProfit}) will be credited on completion`);
+
+    return { success: true, ...result };
   }
 };
 

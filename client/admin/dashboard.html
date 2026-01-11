@@ -3869,6 +3869,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="#" class="nav-link" id="navStorefronts" data-section="storefronts">
+                    <i class="fas fa-store"></i>
+                    <span>Storefronts</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link" id="navReports" data-section="reports">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reports</span>
@@ -4497,10 +4503,12 @@
                         <div class="form-group">
                             <label>Role</label>
                             <select id="userRoleEdit">
-                                <option value="agent">Agent</option>
-                                <option value="super-agent">Super Agent</option>
-                                <option value="dealer">Dealer</option>
-                                <option value="super-dealer">Super Dealer</option>
+                                <option value="AGENT">Agent</option>
+                                <option value="SUPER_AGENT">Super Agent</option>
+                                <option value="DEALER">Dealer</option>
+                                <option value="SUPER_DEALER">Super Dealer</option>
+                                <option value="PARTNER">Partner</option>
+                                <option value="ADMIN">Admin</option>
                             </select>
                         </div>
                     </div>
@@ -4559,14 +4567,14 @@
 
         <!-- Change Role Modal -->
         <div class="modal-overlay" id="changeRoleModal">
-            <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-content" style="max-width: 400px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header" style="background: #6366f1;">
                     <h3><i class="fas fa-user-tag"></i> Change User Role</h3>
                     <button class="modal-close" id="closeChangeRoleModalBtn">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div style="padding: 25px;">
+                <div style="padding: 25px; padding-bottom: 20px;">
                     <input type="hidden" id="changeRoleUserId">
                     <div style="text-align: center; margin-bottom: 20px;">
                         <div id="changeRoleUserName" style="font-size: 1.1rem; font-weight: 600; color: #1f2937;"></div>
@@ -5324,6 +5332,171 @@
                         <button class="btn-save-settings" id="saveAllSettingsBtn">
                             <i class="fas fa-save"></i> Save All Settings
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== STOREFRONTS SECTION ========== -->
+        <div class="settings-section" id="storefrontsSection">
+            <div class="settings-header">
+                <div class="header-icon"><i class="fas fa-store"></i></div>
+                <h2>Storefront Management</h2>
+            </div>
+            
+            <div class="settings-body">
+                <!-- Profit Dashboard -->
+                <div class="storefront-profit-dashboard" style="margin-bottom: 30px;">
+                    <div class="profit-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div class="profit-stat-card" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; border-radius: 12px;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">Today's Agent Profits</div>
+                            <div id="todayAgentProfits" style="font-size: 1.8rem; font-weight: 700;">GH₵ 0.00</div>
+                        </div>
+                        <div class="profit-stat-card" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 20px; border-radius: 12px;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">Today's Platform Profits</div>
+                            <div id="todayPlatformProfits" style="font-size: 1.8rem; font-weight: 700;">GH₵ 0.00</div>
+                        </div>
+                        <div class="profit-stat-card" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 20px; border-radius: 12px;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">Uncredited Profits</div>
+                            <div id="uncreditedProfits" style="font-size: 1.8rem; font-weight: 700;">GH₵ 0.00</div>
+                            <div id="uncreditedCount" style="font-size: 0.75rem; opacity: 0.8;">0 orders pending</div>
+                        </div>
+                        <div class="profit-stat-card" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 20px; border-radius: 12px;">
+                            <div style="font-size: 0.85rem; opacity: 0.9;">All-Time Agent Profits</div>
+                            <div id="totalAgentProfits" style="font-size: 1.8rem; font-weight: 700;">GH₵ 0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="retryUncreditedBtn" class="btn-action" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-redo"></i> Retry Uncredited Profits
+                        </button>
+                        <button id="refreshProfitsBtn" class="btn-action" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="storefront-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+                    <button class="storefront-tab active" data-tab="stores" style="padding: 10px 20px; border: none; background: #024959; color: white; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-store"></i> All Stores
+                    </button>
+                    <button class="storefront-tab" data-tab="orders" style="padding: 10px 20px; border: none; background: #e5e7eb; color: #374151; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-shopping-cart"></i> All Orders
+                    </button>
+                    <button class="storefront-tab" data-tab="uncredited" style="padding: 10px 20px; border: none; background: #e5e7eb; color: #374151; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-exclamation-triangle"></i> Uncredited <span id="uncreditedBadge" style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 5px;">0</span>
+                    </button>
+                </div>
+
+                <!-- Stores Tab Content -->
+                <div id="storesTabContent" class="tab-content">
+                    <div class="storefront-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <input type="text" id="storeSearchInput" placeholder="Search stores..." style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px; min-width: 200px;">
+                        <select id="storeStatusFilter" style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                            <option value="">All Status</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="SUSPENDED">Suspended</option>
+                            <option value="INACTIVE">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="storefront-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+                                    <th style="padding: 15px; text-align: left; font-weight: 600; color: #374151;">Store</th>
+                                    <th style="padding: 15px; text-align: left; font-weight: 600; color: #374151;">Owner</th>
+                                    <th style="padding: 15px; text-align: center; font-weight: 600; color: #374151;">Orders</th>
+                                    <th style="padding: 15px; text-align: center; font-weight: 600; color: #374151;">Revenue</th>
+                                    <th style="padding: 15px; text-align: center; font-weight: 600; color: #374151;">Paystack</th>
+                                    <th style="padding: 15px; text-align: center; font-weight: 600; color: #374151;">Status</th>
+                                    <th style="padding: 15px; text-align: center; font-weight: 600; color: #374151;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="storefrontsTableBody">
+                                <tr><td colspan="7" style="padding: 40px; text-align: center; color: #6b7280;">Loading stores...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Orders Tab Content -->
+                <div id="ordersTabContent" class="tab-content" style="display: none;">
+                    <div class="order-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="orderSearchInput" placeholder="Search by phone, name, order ID..." style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px; min-width: 250px;">
+                        <select id="orderPaymentMethodFilter" style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                            <option value="">All Payment Methods</option>
+                            <option value="MOMO">MoMo</option>
+                            <option value="PAYSTACK">Paystack</option>
+                        </select>
+                        <select id="orderProfitStatusFilter" style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                            <option value="">All Profit Status</option>
+                            <option value="credited">Credited</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                        <div style="display: flex; align-items: center; gap: 8px; background: #f9fafb; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <label style="font-size: 0.85rem; color: #6b7280; white-space: nowrap;">From:</label>
+                            <input type="date" id="orderDateFrom" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.85rem;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; background: #f9fafb; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <label style="font-size: 0.85rem; color: #6b7280; white-space: nowrap;">To:</label>
+                            <input type="date" id="orderDateTo" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.85rem;">
+                        </div>
+                        <button onclick="clearOrderDateFilters()" style="padding: 10px 15px; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem;" title="Clear date filters">
+                            <i class="fas fa-times"></i> Clear Dates
+                        </button>
+                    </div>
+                    <div class="orders-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Order ID</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Store</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Customer</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Bundle</th>
+                                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; font-size: 0.85rem;">Amount</th>
+                                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Method</th>
+                                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Status</th>
+                                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Profit</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="storefrontOrdersTableBody">
+                                <tr><td colspan="9" style="padding: 40px; text-align: center; color: #6b7280;">Loading orders...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="ordersPagination" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;"></div>
+                </div>
+
+                <!-- Uncredited Tab Content -->
+                <div id="uncreditedTabContent" class="tab-content" style="display: none;">
+                    <div class="uncredited-notice" style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-exclamation-circle" style="color: #f59e0b; font-size: 1.2rem;"></i>
+                        <div>
+                            <strong>Uncredited Profits</strong>
+                            <p style="margin: 0; font-size: 0.9rem; color: #92400e;">These orders are COMPLETED but agent profits haven't been credited yet. Click "Retry" to process them.</p>
+                        </div>
+                    </div>
+                    <div class="uncredited-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #fef3c7; border-bottom: 2px solid #f59e0b;">
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #92400e;">Store</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #92400e;">Agent</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #92400e;">Bundle</th>
+                                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #92400e;">Customer Paid</th>
+                                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #92400e;">Agent Profit</th>
+                                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #92400e;">Platform Profit</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #92400e;">Completed</th>
+                                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #92400e;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="uncreditedTableBody">
+                                <tr><td colspan="8" style="padding: 40px; text-align: center; color: #6b7280;">Loading uncredited orders...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -6811,6 +6984,7 @@
             document.getElementById('networksSection')?.classList.remove('active');
             document.getElementById('reportsSection')?.classList.remove('active');
             document.getElementById('settingsSection')?.classList.remove('active');
+            document.getElementById('storefrontsSection')?.classList.remove('active');
         }
         
         function showDashboard() {
@@ -6854,6 +7028,12 @@
             loadSettingsSection();
         }
         
+        function showStorefronts() {
+            hideAllSections();
+            document.getElementById('storefrontsSection').classList.add('active');
+            loadStorefrontsSection();
+        }
+        
         // Navigate to a section and update URL hash
         function navigateToSection(section) {
             // Update URL hash without triggering page reload
@@ -6883,6 +7063,9 @@
                 case 'networks':
                     showNetworks();
                     break;
+                case 'storefronts':
+                    showStorefronts();
+                    break;
                 case 'reports':
                     showReports();
                     break;
@@ -6899,7 +7082,7 @@
         // Restore section from URL hash on page load
         function restoreSectionFromHash() {
             const hash = window.location.hash.replace('#', '');
-            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'reports', 'settings'].includes(hash)) {
+            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'storefronts', 'reports', 'settings'].includes(hash)) {
                 navigateToSection(hash);
             }
         }
@@ -7105,10 +7288,10 @@
                 document.getElementById('userEmailEdit').value = user.email || '';
             }
             if (document.getElementById('userRoleEdit')) {
-                document.getElementById('userRoleEdit').value = user.role || 'agent';
+                document.getElementById('userRoleEdit').value = user.role || 'AGENT';
             }
             if (document.getElementById('userStatusEdit')) {
-                document.getElementById('userStatusEdit').value = user.status || 'active';
+                document.getElementById('userStatusEdit').value = user.isActive === false ? 'inactive' : 'active';
             }
             if (document.getElementById('userBalanceEdit')) {
                 document.getElementById('userBalanceEdit').value = user.balance || 0;
@@ -7150,7 +7333,7 @@
             const name = document.getElementById('userFullNameEdit')?.value?.trim() || document.getElementById('userFullNameAdd')?.value?.trim() || '';
             const phone = document.getElementById('userPhoneEdit')?.value?.trim() || document.getElementById('userPhoneAdd')?.value?.trim() || '';
             const email = document.getElementById('userEmailEdit')?.value?.trim() || document.getElementById('userEmailAdd')?.value?.trim() || '';
-            const role = document.getElementById('userRoleEdit')?.value || 'agent';
+            const role = document.getElementById('userRoleEdit')?.value || 'AGENT';
             const status = document.getElementById('userStatusEdit')?.value || document.getElementById('userStatusAdd')?.value || 'active';
             const balance = parseFloat(document.getElementById('userBalanceEdit')?.value || document.getElementById('userBalanceAdd')?.value || 0);
             const network = document.getElementById('userNetworkEdit')?.value || document.getElementById('userNetworkAdd')?.value || '';
@@ -10250,6 +10433,7 @@
 
         // Add User button handler
         document.querySelector('.btn-add-user')?.addEventListener('click', openAddUserModal);
+        document.getElementById('closeUserModalBtn')?.addEventListener('click', closeUserModal);
         document.getElementById('cancelUserModalBtn')?.addEventListener('click', closeUserModal);
         document.getElementById('cancelUserModalAltBtn')?.addEventListener('click', closeUserModal);
         document.getElementById('saveUserBtn')?.addEventListener('click', saveUser);
@@ -10350,6 +10534,463 @@
             // Re-render orders table with new per page value
             loadOrdersTable(getFilteredOrders());
         });
+
+        // ========== STOREFRONTS MANAGEMENT ==========
+        let storefrontsData = { stores: [], orders: [], profits: null };
+        let currentStorefrontTab = 'stores';
+        let storefrontOrdersPage = 1;
+
+        async function loadStorefrontsSection() {
+            await Promise.all([
+                loadStorefronts(),
+                loadStorefrontOrders(),
+                loadStorefrontProfits()
+            ]);
+            setupStorefrontTabHandlers();
+            setupStorefrontEventHandlers();
+        }
+
+        async function loadStorefronts() {
+            const search = document.getElementById('storeSearchInput')?.value || '';
+            const status = document.getElementById('storeStatusFilter')?.value || '';
+            
+            try {
+                const params = new URLSearchParams();
+                if (search) params.append('search', search);
+                if (status) params.append('status', status);
+                
+                const res = await adminFetch(`/api/admin/storefronts?${params}`);
+                const data = await res.json();
+                
+                if (res.ok) {
+                    storefrontsData.stores = data.storefronts;
+                    renderStorefrontsTable();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (err) {
+                console.error('Failed to load storefronts:', err);
+                document.getElementById('storefrontsTableBody').innerHTML = 
+                    `<tr><td colspan="7" style="padding: 40px; text-align: center; color: #ef4444;">Failed to load stores: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderStorefrontsTable() {
+            const tbody = document.getElementById('storefrontsTableBody');
+            
+            if (!storefrontsData.stores || storefrontsData.stores.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="padding: 40px; text-align: center; color: #6b7280;">No storefronts found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = storefrontsData.stores.map(store => `
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 15px;">
+                        <div style="font-weight: 600; color: #1f2937;">${store.name}</div>
+                        <div style="font-size: 0.8rem; color: #6b7280;">/${store.slug}</div>
+                    </td>
+                    <td style="padding: 15px;">
+                        <div style="font-weight: 500;">${store.owner?.name || 'Unknown'}</div>
+                        <div style="font-size: 0.8rem; color: #6b7280;">${store.owner?.role || ''}</div>
+                    </td>
+                    <td style="padding: 15px; text-align: center;">
+                        <span style="font-weight: 600;">${store.totalOrders}</span>
+                    </td>
+                    <td style="padding: 15px; text-align: center;">
+                        <span style="font-weight: 600; color: #10b981;">GH₵ ${(store.totalRevenue || 0).toFixed(2)}</span>
+                    </td>
+                    <td style="padding: 15px; text-align: center;">
+                        ${store.paystackEnabled 
+                            ? '<span style="background: #10b981; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;">Enabled</span>'
+                            : '<span style="background: #e5e7eb; color: #6b7280; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;">Disabled</span>'}
+                    </td>
+                    <td style="padding: 15px; text-align: center;">
+                        ${getStatusBadge(store.status)}
+                    </td>
+                    <td style="padding: 15px; text-align: center;">
+                        <button onclick="viewStorefrontDetails('${store.id}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-right: 5px;" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick="toggleStorefrontStatus('${store.id}', '${store.status}')" style="background: ${store.status === 'ACTIVE' ? '#ef4444' : '#10b981'}; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;" title="${store.status === 'ACTIVE' ? 'Suspend' : 'Activate'}">
+                            <i class="fas fa-${store.status === 'ACTIVE' ? 'ban' : 'check'}"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getStatusBadge(status) {
+            const styles = {
+                'ACTIVE': 'background: #d1fae5; color: #065f46;',
+                'SUSPENDED': 'background: #fee2e2; color: #991b1b;',
+                'INACTIVE': 'background: #e5e7eb; color: #374151;'
+            };
+            return `<span style="${styles[status] || styles.INACTIVE} padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${status}</span>`;
+        }
+
+        async function loadStorefrontOrders(page = 1) {
+            storefrontOrdersPage = page;
+            const search = document.getElementById('orderSearchInput')?.value || '';
+            const paymentMethod = document.getElementById('orderPaymentMethodFilter')?.value || '';
+            const profitStatus = document.getElementById('orderProfitStatusFilter')?.value || '';
+            const dateFrom = document.getElementById('orderDateFrom')?.value || '';
+            const dateTo = document.getElementById('orderDateTo')?.value || '';
+            
+            try {
+                const params = new URLSearchParams({ page, limit: 50 });
+                if (search) params.append('search', search);
+                if (paymentMethod) params.append('paymentMethod', paymentMethod);
+                if (profitStatus) params.append('profitStatus', profitStatus);
+                if (dateFrom) params.append('dateFrom', dateFrom);
+                if (dateTo) params.append('dateTo', dateTo);
+                
+                const res = await adminFetch(`/api/admin/storefront-orders?${params}`);
+                const data = await res.json();
+                
+                if (res.ok) {
+                    storefrontsData.orders = data.orders;
+                    renderStorefrontOrdersTable();
+                    renderOrdersPagination(data.pagination);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (err) {
+                console.error('Failed to load storefront orders:', err);
+                document.getElementById('storefrontOrdersTableBody').innerHTML = 
+                    `<tr><td colspan="9" style="padding: 40px; text-align: center; color: #ef4444;">Failed to load orders: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderStorefrontOrdersTable() {
+            const tbody = document.getElementById('storefrontOrdersTableBody');
+            
+            if (!storefrontsData.orders || storefrontsData.orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="padding: 40px; text-align: center; color: #6b7280;">No orders found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = storefrontsData.orders.map(order => `
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 12px; font-size: 0.85rem;">
+                        <span style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${order.id.slice(0, 8)}</span>
+                    </td>
+                    <td style="padding: 12px; font-size: 0.85rem;">
+                        ${order.storefront?.name || 'Unknown'}
+                    </td>
+                    <td style="padding: 12px; font-size: 0.85rem;">
+                        <div>${order.customerPhone}</div>
+                        ${order.customerName ? `<div style="font-size: 0.75rem; color: #6b7280;">${order.customerName}</div>` : ''}
+                    </td>
+                    <td style="padding: 12px; font-size: 0.85rem;">
+                        ${order.bundle?.name || 'N/A'}
+                    </td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600;">
+                        GH₵ ${(order.amount || 0).toFixed(2)}
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        ${order.paymentMethod === 'PAYSTACK' 
+                            ? '<span style="background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;">PAYSTACK</span>'
+                            : '<span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;">MOMO</span>'}
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        ${getOrderStatusBadge(order.status)}
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        ${order.profitCredited 
+                            ? '<span style="background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;"><i class="fas fa-check"></i> Credited</span>'
+                            : '<span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;"><i class="fas fa-clock"></i> Pending</span>'}
+                    </td>
+                    <td style="padding: 12px; font-size: 0.75rem; color: #6b7280;">
+                        ${new Date(order.createdAt).toLocaleString()}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getOrderStatusBadge(status) {
+            const styles = {
+                'COMPLETED': 'background: #d1fae5; color: #065f46;',
+                'PROCESSING': 'background: #dbeafe; color: #1e40af;',
+                'PENDING': 'background: #fef3c7; color: #92400e;',
+                'FAILED': 'background: #fee2e2; color: #991b1b;',
+                'CANCELLED': 'background: #e5e7eb; color: #374151;'
+            };
+            return `<span style="${styles[status] || styles.PENDING} padding: 3px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 600;">${status}</span>`;
+        }
+
+        function renderOrdersPagination(pagination) {
+            const container = document.getElementById('ordersPagination');
+            if (!pagination || pagination.pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 1; i <= pagination.pages; i++) {
+                html += `<button onclick="loadStorefrontOrders(${i})" style="padding: 8px 14px; border: 1px solid ${i === pagination.page ? '#3b82f6' : '#e5e7eb'}; background: ${i === pagination.page ? '#3b82f6' : 'white'}; color: ${i === pagination.page ? 'white' : '#374151'}; border-radius: 6px; cursor: pointer;">${i}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        async function loadStorefrontProfits() {
+            try {
+                const res = await adminFetch('/api/admin/storefront-profits');
+                const data = await res.json();
+                
+                if (res.ok) {
+                    storefrontsData.profits = data;
+                    updateProfitDashboard();
+                    renderUncreditedTable();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (err) {
+                console.error('Failed to load profits:', err);
+            }
+        }
+
+        function updateProfitDashboard() {
+            const profits = storefrontsData.profits;
+            if (!profits) return;
+            
+            document.getElementById('todayAgentProfits').textContent = `GH₵ ${(profits.summary.today.agentProfits || 0).toFixed(2)}`;
+            document.getElementById('todayPlatformProfits').textContent = `GH₵ ${(profits.summary.today.platformProfits || 0).toFixed(2)}`;
+            document.getElementById('uncreditedProfits').textContent = `GH₵ ${(profits.uncredited.totalAgentProfit || 0).toFixed(2)}`;
+            document.getElementById('uncreditedCount').textContent = `${profits.uncredited.count} orders pending`;
+            document.getElementById('totalAgentProfits').textContent = `GH₵ ${(profits.summary.allTime.agentProfits || 0).toFixed(2)}`;
+            document.getElementById('uncreditedBadge').textContent = profits.uncredited.count;
+        }
+
+        function renderUncreditedTable() {
+            const tbody = document.getElementById('uncreditedTableBody');
+            const orders = storefrontsData.profits?.uncredited?.orders || [];
+            
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="padding: 40px; text-align: center; color: #10b981;"><i class="fas fa-check-circle"></i> All profits have been credited!</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = orders.map(order => `
+                <tr style="border-bottom: 1px solid #fcd34d;">
+                    <td style="padding: 12px;">${order.storefront || 'Unknown'}</td>
+                    <td style="padding: 12px;">${order.agent || 'Unknown'}</td>
+                    <td style="padding: 12px;">${order.bundle || 'N/A'}</td>
+                    <td style="padding: 12px; text-align: right;">GH₵ ${(order.amount || 0).toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981;">GH₵ ${(order.agentProfit || 0).toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #3b82f6;">GH₵ ${(order.platformProfit || 0).toFixed(2)}</td>
+                    <td style="padding: 12px; font-size: 0.8rem;">${order.completedAt ? new Date(order.completedAt).toLocaleString() : 'N/A'}</td>
+                    <td style="padding: 12px; text-align: center;">
+                        <button onclick="creditSingleOrder('${order.id}')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-wallet"></i> Credit
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function setupStorefrontTabHandlers() {
+            document.querySelectorAll('.storefront-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabName = this.getAttribute('data-tab');
+                    switchStorefrontTab(tabName);
+                });
+            });
+        }
+
+        function switchStorefrontTab(tabName) {
+            currentStorefrontTab = tabName;
+            
+            // Update tab styles
+            document.querySelectorAll('.storefront-tab').forEach(tab => {
+                if (tab.getAttribute('data-tab') === tabName) {
+                    tab.style.background = '#024959';
+                    tab.style.color = 'white';
+                } else {
+                    tab.style.background = '#e5e7eb';
+                    tab.style.color = '#374151';
+                }
+            });
+            
+            // Show/hide content
+            document.getElementById('storesTabContent').style.display = tabName === 'stores' ? 'block' : 'none';
+            document.getElementById('ordersTabContent').style.display = tabName === 'orders' ? 'block' : 'none';
+            document.getElementById('uncreditedTabContent').style.display = tabName === 'uncredited' ? 'block' : 'none';
+        }
+
+        function setupStorefrontEventHandlers() {
+            // Search and filter handlers
+            document.getElementById('storeSearchInput')?.addEventListener('input', debounce(loadStorefronts, 300));
+            document.getElementById('storeStatusFilter')?.addEventListener('change', loadStorefronts);
+            document.getElementById('orderSearchInput')?.addEventListener('input', debounce(() => loadStorefrontOrders(1), 300));
+            document.getElementById('orderPaymentMethodFilter')?.addEventListener('change', () => loadStorefrontOrders(1));
+            document.getElementById('orderProfitStatusFilter')?.addEventListener('change', () => loadStorefrontOrders(1));
+            document.getElementById('orderDateFrom')?.addEventListener('change', () => loadStorefrontOrders(1));
+            document.getElementById('orderDateTo')?.addEventListener('change', () => loadStorefrontOrders(1));
+            
+            // Retry button
+            document.getElementById('retryUncreditedBtn')?.addEventListener('click', retryUncreditedProfits);
+            document.getElementById('refreshProfitsBtn')?.addEventListener('click', loadStorefrontProfits);
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        function clearOrderDateFilters() {
+            document.getElementById('orderDateFrom').value = '';
+            document.getElementById('orderDateTo').value = '';
+            loadStorefrontOrders(1);
+        }
+
+        async function retryUncreditedProfits() {
+            const btn = document.getElementById('retryUncreditedBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                const res = await adminFetch('/api/admin/storefront-profits/retry', { method: 'POST' });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showToast(`Processed ${data.processed || 0} orders, ${data.succeeded || 0} succeeded`, 'success');
+                    await loadStorefrontProfits();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (err) {
+                showToast('Failed to retry: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-redo"></i> Retry Uncredited Profits';
+            }
+        }
+
+        async function creditSingleOrder(storefrontOrderId) {
+            // Find the main orderId from the storefront order
+            const order = storefrontsData.profits?.uncredited?.orders?.find(o => o.id === storefrontOrderId);
+            if (!order) {
+                showToast('Order not found', 'error');
+                return;
+            }
+            
+            try {
+                // We need to get the main order ID - let's use a different approach
+                const res = await adminFetch(`/api/admin/storefront-orders/${storefrontOrderId}`);
+                const orderData = await res.json();
+                
+                if (!res.ok || !orderData.orderId) {
+                    throw new Error('Cannot find main order ID');
+                }
+                
+                const creditRes = await adminFetch(`/api/admin/storefront-profits/credit/${orderData.orderId}`, { method: 'POST' });
+                const data = await creditRes.json();
+                
+                if (creditRes.ok) {
+                    showToast(`Profit credited: GH₵ ${data.amount?.toFixed(2) || '0.00'}`, 'success');
+                    await loadStorefrontProfits();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (err) {
+                showToast('Failed to credit: ' + err.message, 'error');
+            }
+        }
+
+        async function viewStorefrontDetails(storeId) {
+            try {
+                const res = await adminFetch(`/api/admin/storefronts/${storeId}`);
+                const store = await res.json();
+                
+                if (!res.ok) throw new Error(store.error);
+                
+                const modalHtml = `
+                    <div class="user-modal active" id="storefrontDetailModal" style="display: flex;">
+                        <div class="user-modal-content" style="max-width: 600px;">
+                            <div class="user-modal-header" style="background: #024959;">
+                                <h3><i class="fas fa-store"></i> ${store.name}</h3>
+                                <button class="modal-close" onclick="document.getElementById('storefrontDetailModal').remove()">&times;</button>
+                            </div>
+                            <div class="user-modal-body" style="padding: 20px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div>
+                                        <strong>Slug:</strong> /${store.slug}
+                                    </div>
+                                    <div>
+                                        <strong>Status:</strong> ${getStatusBadge(store.status)}
+                                    </div>
+                                    <div>
+                                        <strong>Owner:</strong> ${store.owner?.name} (${store.owner?.role})
+                                    </div>
+                                    <div>
+                                        <strong>Contact:</strong> ${store.owner?.phone || 'N/A'}
+                                    </div>
+                                    <div>
+                                        <strong>Total Orders:</strong> ${store.customerOrders?.length || 0}
+                                    </div>
+                                    <div>
+                                        <strong>Total Revenue:</strong> GH₵ ${(store.totalRevenue || 0).toFixed(2)}
+                                    </div>
+                                    <div>
+                                        <strong>Paystack:</strong> ${store.paystackEnabled ? 'Enabled' : 'Disabled'}
+                                    </div>
+                                    <div>
+                                        <strong>Products:</strong> ${store.products?.length || 0}
+                                    </div>
+                                </div>
+                                <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+                                <h4 style="margin-bottom: 10px;">Owner Wallet</h4>
+                                <div style="background: #f9fafb; padding: 15px; border-radius: 8px;">
+                                    <strong>Balance:</strong> GH₵ ${(store.owner?.wallet?.balance || 0).toFixed(2)}
+                                    ${store.owner?.wallet?.isFrozen ? '<span style="color: #ef4444; margin-left: 10px;"><i class="fas fa-snowflake"></i> FROZEN</span>' : ''}
+                                </div>
+                                <div style="text-align: right; margin-top: 20px;">
+                                    <a href="/store/${store.slug}" target="_blank" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+                                        <i class="fas fa-external-link-alt"></i> Visit Store
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            } catch (err) {
+                showToast('Failed to load store details: ' + err.message, 'error');
+            }
+        }
+
+        async function toggleStorefrontStatus(storeId, currentStatus) {
+            const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+            const action = newStatus === 'SUSPENDED' ? 'suspend' : 'activate';
+            
+            if (!confirm(`Are you sure you want to ${action} this storefront?`)) return;
+            
+            let reason = '';
+            if (newStatus === 'SUSPENDED') {
+                reason = prompt('Enter reason for suspension (optional):') || 'Suspended by admin';
+            }
+            
+            try {
+                const res = await adminFetch(`/api/admin/storefronts/${storeId}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: newStatus, reason })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showToast(`Storefront ${action}d successfully`, 'success');
+                    await loadStorefronts();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (err) {
+                showToast(`Failed to ${action} storefront: ` + err.message, 'error');
+            }
+        }
 
         // Initialize
         updateGreeting();

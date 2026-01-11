@@ -1468,7 +1468,22 @@
                 <div class="form-group"><label>Your Name (optional)</label><input type="text" id="orderName" placeholder="Enter your name"></div>
                 <div class="form-group"><label>Phone Number (to receive data) *</label><input type="tel" id="orderPhone" placeholder="0241234567" maxlength="10"></div>
                 
-                <!-- Payment Instructions -->
+                <!-- Payment Method Selection (shown when both available) -->
+                <div id="paymentMethodSelect" style="margin-bottom:15px;display:none;">
+                    <label style="display:block;margin-bottom:8px;font-weight:600;">Select Payment Method *</label>
+                    <div style="display:flex;gap:10px;">
+                        <label class="payment-method-option" id="momoOption" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:all 0.2s;">
+                            <input type="radio" name="paymentMethod" value="momo" checked style="accent-color:var(--primary);">
+                            <span><i class="fas fa-mobile-alt"></i> MoMo</span>
+                        </label>
+                        <label class="payment-method-option" id="paystackOption" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:all 0.2s;">
+                            <input type="radio" name="paymentMethod" value="paystack" style="accent-color:var(--primary);">
+                            <span><i class="fas fa-credit-card"></i> Card/Mobile Money</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- MoMo Payment Instructions -->
                 <div id="paymentInstructions" style="background:#fef9c3;padding:15px;border-radius:8px;margin-bottom:15px;display:none;">
                     <h4 style="color:#854d0e;margin-bottom:8px;"><i class="fas fa-mobile-alt"></i> Payment Instructions</h4>
                     <p style="color:#854d0e;font-size:0.9rem;margin-bottom:10px;">Send <strong id="paymentAmountText">GHS 0.00</strong> to:</p>
@@ -1479,19 +1494,34 @@
                     <p style="color:#854d0e;font-size:0.85rem;">After payment, enter the reference below and click "Confirm Order"</p>
                 </div>
                 
+                <!-- Paystack Payment Info -->
+                <div id="paystackInfo" style="background:#dcfce7;padding:15px;border-radius:8px;margin-bottom:15px;display:none;">
+                    <h4 style="color:#166534;margin-bottom:8px;"><i class="fas fa-credit-card"></i> Secure Online Payment</h4>
+                    <p style="color:#166534;font-size:0.9rem;">You will be redirected to Paystack to complete your payment of <strong id="paystackAmountText">GHS 0.00</strong> securely via card or mobile money.</p>
+                </div>
+                
                 <div class="form-group" id="paymentRefGroup" style="display:none;">
                     <label>MoMo Reference / Transaction ID *</label>
                     <input type="text" id="paymentReference" placeholder="Enter MoMo reference">
+                </div>
+                
+                <div class="form-group" id="emailGroup" style="display:none;">
+                    <label>Email (optional - for receipt)</label>
+                    <input type="email" id="orderEmail" placeholder="you@example.com">
                 </div>
                 
                 <div class="form-group"><label>Amount to Pay</label><input type="text" id="orderAmount" readonly style="background:#f8fafc;font-weight:600;"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn-cancel" onclick="closeOrderModal()">Cancel</button>
-                <button class="btn-order" onclick="submitOrder()"><i class="fas fa-shopping-cart"></i> Confirm Order</button>
+                <button class="btn-order" id="orderSubmitBtn" onclick="submitOrder()"><i class="fas fa-shopping-cart"></i> Confirm Order</button>
             </div>
         </div>
     </div>
+    
+    <!-- Paystack Script -->
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    
     <script>
         let storeData = null;
         let products = [];
@@ -1499,10 +1529,20 @@
         let customerOrders = [];
         let currentCustomer = null; // Logged in customer
         let customerFavorites = []; // Customer's favorite bundle IDs
+        let currentNetworkFilter = 'MTN'; // Track current network filter
 
         // Get slug from URL
         const pathParts = window.location.pathname.split('/');
         const slug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+        
+        // Check for payment callback on page load
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'callback') {
+            const reference = urlParams.get('reference');
+            if (reference) {
+                verifyPaystackPayment(reference);
+            }
+        }
 
         // Tab Navigation
         function showTab(tab) {
@@ -1567,7 +1607,7 @@
                     const getGB = str => { const m = (str||'').match(/(\d+)/); return m ? parseInt(m[1]) : 0; };
                     return getGB(a.bundle.dataAmount) - getGB(b.bundle.dataAmount);
                 });
-                renderProducts();
+                renderProducts('MTN');
             } catch (e) {
                 console.error(e);
             }
@@ -1579,7 +1619,8 @@
             return network;
         }
 
-        function renderProducts(filter = 'all') {
+        function renderProducts(filter = currentNetworkFilter) {
+            currentNetworkFilter = filter; // Track current filter
             const grid = document.getElementById('productsGrid');
             const empty = document.getElementById('productsEmpty');
             const tabs = document.getElementById('networkTabs');
@@ -1591,12 +1632,15 @@
                 return;
             }
 
-            // Get unique networks
-            const networks = [...new Set(products.map(p => p.bundle.network))];
-            tabs.innerHTML = `<button class="network-tab ${filter === 'all' ? 'active' : ''}" onclick="renderProducts('all')">All Networks</button>` +
-                networks.map(n => `<button class="network-tab ${filter === n ? 'active' : ''}" onclick="renderProducts('${n}')">${getNetworkDisplayName(n)}</button>`).join('');
+            // Get unique networks and sort with MTN first
+            const networks = [...new Set(products.map(p => p.bundle.network))].sort((a, b) => {
+                if (a === 'MTN') return -1;
+                if (b === 'MTN') return 1;
+                return a.localeCompare(b);
+            });
+            tabs.innerHTML = networks.map(n => `<button class="network-tab ${filter === n ? 'active' : ''}" onclick="renderProducts('${n}')">${getNetworkDisplayName(n)}</button>`).join('');
 
-            const filtered = filter === 'all' ? products : products.filter(p => p.bundle.network === filter);
+            const filtered = products.filter(p => p.bundle.network === filter);
             
             // Sort filtered products by dataAmount
             filtered.sort((a,b) => {
@@ -1631,52 +1675,186 @@
             document.getElementById('orderAmount').value = `GHS ${selectedProduct.price.toFixed(2)}`;
             document.getElementById('orderPhone').value = '';
             document.getElementById('paymentReference').value = '';
+            document.getElementById('orderEmail').value = '';
             
-            // Show payment instructions if store has MoMo number
+            const hasMomo = storeData.momoNumber;
+            const hasPaystack = storeData.paystackEnabled;
+            
+            // Show/hide payment method selector
+            const paymentMethodSelect = document.getElementById('paymentMethodSelect');
             const paymentInstructions = document.getElementById('paymentInstructions');
             const paymentRefGroup = document.getElementById('paymentRefGroup');
+            const paystackInfo = document.getElementById('paystackInfo');
+            const emailGroup = document.getElementById('emailGroup');
+            const submitBtn = document.getElementById('orderSubmitBtn');
             
-            if (storeData.momoNumber) {
+            if (hasMomo && hasPaystack) {
+                // Both options available - show selector
+                paymentMethodSelect.style.display = 'block';
+                document.getElementById('momoOption').style.display = 'flex';
+                document.getElementById('paystackOption').style.display = 'flex';
+                document.querySelector('input[name="paymentMethod"][value="momo"]').checked = true;
+                updatePaymentDisplay('momo');
+            } else if (hasPaystack) {
+                // Only Paystack
+                paymentMethodSelect.style.display = 'none';
+                paymentInstructions.style.display = 'none';
+                paymentRefGroup.style.display = 'none';
+                paystackInfo.style.display = 'block';
+                emailGroup.style.display = 'block';
+                document.getElementById('paystackAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
+                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
+            } else if (hasMomo) {
+                // Only MoMo
+                paymentMethodSelect.style.display = 'none';
                 paymentInstructions.style.display = 'block';
                 paymentRefGroup.style.display = 'block';
+                paystackInfo.style.display = 'none';
+                emailGroup.style.display = 'none';
                 document.getElementById('paymentAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
                 document.getElementById('momoNumberDisplay').textContent = storeData.momoNumber;
                 document.getElementById('momoNameDisplay').textContent = storeData.momoName || 'Mobile Money';
+                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Confirm Order';
             } else {
+                // No payment method (free order? or error)
+                paymentMethodSelect.style.display = 'none';
                 paymentInstructions.style.display = 'none';
                 paymentRefGroup.style.display = 'none';
+                paystackInfo.style.display = 'none';
+                emailGroup.style.display = 'none';
+                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Place Order';
             }
             
             document.getElementById('orderModal').classList.add('active');
         }
+        
+        // Update payment display based on selected method
+        function updatePaymentDisplay(method) {
+            const paymentInstructions = document.getElementById('paymentInstructions');
+            const paymentRefGroup = document.getElementById('paymentRefGroup');
+            const paystackInfo = document.getElementById('paystackInfo');
+            const emailGroup = document.getElementById('emailGroup');
+            const submitBtn = document.getElementById('orderSubmitBtn');
+            
+            if (method === 'paystack') {
+                paymentInstructions.style.display = 'none';
+                paymentRefGroup.style.display = 'none';
+                paystackInfo.style.display = 'block';
+                emailGroup.style.display = 'block';
+                document.getElementById('paystackAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
+                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
+            } else {
+                paymentInstructions.style.display = 'block';
+                paymentRefGroup.style.display = 'block';
+                paystackInfo.style.display = 'none';
+                emailGroup.style.display = 'none';
+                document.getElementById('paymentAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
+                document.getElementById('momoNumberDisplay').textContent = storeData.momoNumber;
+                document.getElementById('momoNameDisplay').textContent = storeData.momoName || 'Mobile Money';
+                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Confirm Order';
+            }
+        }
+        
+        // Listen for payment method change
+        document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                updatePaymentDisplay(e.target.value);
+                // Update visual selection
+                document.querySelectorAll('.payment-method-option').forEach(opt => {
+                    opt.style.borderColor = '#e2e8f0';
+                    opt.style.background = 'white';
+                });
+                e.target.closest('.payment-method-option').style.borderColor = 'var(--primary)';
+                e.target.closest('.payment-method-option').style.background = '#f0fdfa';
+            });
+        });
 
         function closeOrderModal() {
             document.getElementById('orderModal').classList.remove('active');
             selectedProduct = null;
+        }
+        
+        // Verify Paystack payment callback
+        async function verifyPaystackPayment(reference) {
+            try {
+                const res = await fetch(`/api/store/${slug}/paystack/verify/${reference}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    showSuccessModal({
+                        message: 'Payment successful! Your data will be delivered shortly.',
+                        order: data
+                    });
+                } else {
+                    alert('Payment verification failed. Please contact support if you were charged.');
+                }
+                
+                // Clear URL params
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (e) {
+                console.error('Verify error:', e);
+            }
         }
 
         async function submitOrder() {
             const phone = document.getElementById('orderPhone').value.trim();
             const name = document.getElementById('orderName')?.value?.trim() || '';
             const paymentReference = document.getElementById('paymentReference')?.value?.trim() || '';
+            const email = document.getElementById('orderEmail')?.value?.trim() || '';
+            
+            // Get selected payment method
+            const hasBothMethods = storeData.momoNumber && storeData.paystackEnabled;
+            let paymentMethod = 'momo';
+            if (hasBothMethods) {
+                paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'momo';
+            } else if (storeData.paystackEnabled) {
+                paymentMethod = 'paystack';
+            }
             
             if (!phone || phone.length < 9) {
                 alert('Please enter a valid phone number');
                 return;
             }
 
-            // If store has MoMo, require payment reference
-            if (storeData.momoNumber && !paymentReference) {
+            // MoMo payment - require reference
+            if (paymentMethod === 'momo' && storeData.momoNumber && !paymentReference) {
                 alert('Please enter the MoMo transaction reference after making payment');
                 return;
             }
 
-            const submitBtn = document.querySelector('.btn-order');
+            const submitBtn = document.getElementById('orderSubmitBtn');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
             try {
-                // Place order via API with bundleId
+                // Paystack payment flow
+                if (paymentMethod === 'paystack') {
+                    const res = await fetch(`/api/store/${slug}/paystack/initialize`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            bundleId: selectedProduct.bundleId || selectedProduct.bundle.id,
+                            phone: phone,
+                            name: name,
+                            email: email || null
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok && data.authorizationUrl) {
+                        // Redirect to Paystack payment page
+                        window.location.href = data.authorizationUrl;
+                        return;
+                    } else {
+                        alert(data.error || 'Failed to initialize payment. Please try again.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
+                        return;
+                    }
+                }
+                
+                // MoMo payment flow (existing)
                 const res = await fetch(`/api/store/${slug}/order`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1881,8 +2059,7 @@
 
         loadStore();
         
-        // Allow tracking from URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
+        // Allow tracking from URL parameter (reuse urlParams from above)
         const trackPhoneParam = urlParams.get('track');
         if (trackPhoneParam) {
             setTimeout(() => {

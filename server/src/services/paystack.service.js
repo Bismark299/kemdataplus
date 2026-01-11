@@ -296,6 +296,96 @@ const paystackService = {
         message: error.message
       };
     }
+  },
+
+  /**
+   * Initialize storefront payment
+   * For customers buying from stores
+   * @param {string} email - Customer email (can be phone@store.com)
+   * @param {number} amount - Amount in GHS
+   * @param {string} storefrontId - Storefront ID
+   * @param {string} storefrontOrderId - StorefrontOrder ID
+   * @param {string} callbackUrl - URL to redirect after payment
+   */
+  async initializeStorefrontPayment({ email, amount, storefrontId, storefrontOrderId, callbackUrl, customerPhone }) {
+    // Amount must be in pesewas
+    const amountInPesewas = Math.round(amount * 100);
+    
+    // Generate unique reference for storefront
+    const reference = `STF_${storefrontOrderId.slice(0, 8)}_${Date.now()}`;
+    
+    const response = await paystackRequest('/transaction/initialize', 'POST', {
+      email,
+      amount: amountInPesewas,
+      currency: 'GHS',
+      reference,
+      callback_url: callbackUrl,
+      metadata: {
+        type: 'storefront_order',
+        storefrontId,
+        storefrontOrderId,
+        customerPhone,
+        amountGHS: amount
+      }
+    });
+    
+    console.log(`[Paystack] Storefront payment initialized: ${reference} for ${amount} GHS`);
+    
+    return {
+      success: true,
+      reference,
+      authorizationUrl: response.data.authorization_url,
+      accessCode: response.data.access_code
+    };
+  },
+
+  /**
+   * Process storefront payment webhook
+   * Marks order as paid and triggers fulfillment
+   * @param {object} data - Webhook data with storefront metadata
+   */
+  async processStorefrontPayment(data) {
+    const { reference, metadata } = data;
+    const { storefrontId, storefrontOrderId, customerPhone } = metadata || {};
+    
+    if (!storefrontOrderId) {
+      console.log(`[Paystack] No storefrontOrderId in metadata for ${reference}`);
+      return { processed: false, reason: 'Missing storefrontOrderId' };
+    }
+    
+    // Find the storefront order
+    const storefrontOrder = await prisma.storefrontOrder.findUnique({
+      where: { id: storefrontOrderId }
+    });
+    
+    if (!storefrontOrder) {
+      console.log(`[Paystack] StorefrontOrder not found: ${storefrontOrderId}`);
+      return { processed: false, reason: 'Order not found' };
+    }
+    
+    // Check if already processed
+    if (storefrontOrder.paymentStatus === 'PAID') {
+      console.log(`[Paystack] StorefrontOrder already paid: ${storefrontOrderId}`);
+      return { processed: false, reason: 'Already paid' };
+    }
+    
+    // Update payment status
+    await prisma.storefrontOrder.update({
+      where: { id: storefrontOrderId },
+      data: {
+        paymentStatus: 'PAID',
+        paymentMethod: 'PAYSTACK',
+        paystackReference: reference
+      }
+    });
+    
+    console.log(`[Paystack] ✅ StorefrontOrder payment confirmed: ${storefrontOrderId}`);
+    
+    return {
+      processed: true,
+      storefrontOrderId,
+      reference
+    };
   }
 };
 

@@ -786,6 +786,307 @@ const financialOrderService = {
     if (!error.response) return true; // Network error
     const status = error.response.status;
     return status >= 500 || status === 408 || status === 429;
+  },
+
+  // ========================================================================
+  // STOREFRONT PROFIT DISTRIBUTION (Paystack Orders)
+  // ========================================================================
+  
+  /**
+   * Get minimum price for a bundle (AGENT role price)
+   * This is the floor price - agents cannot sell below this
+   */
+  async getMinimumPrice(bundleId, tenantId = null) {
+    // First check tenant-specific price if tenantId provided
+    if (tenantId) {
+      const tenantPrice = await prisma.tenantBundlePrice.findFirst({
+        where: {
+          tenantId,
+          bundleId,
+          role: 'AGENT',
+          isValid: true
+        }
+      });
+      if (tenantPrice) return tenantPrice.price;
+    }
+
+    // Fall back to system AGENT role price
+    const rolePrice = await prisma.bundlePrice.findFirst({
+      where: { bundleId, role: 'AGENT' }
+    });
+
+    return rolePrice?.price || null;
+  },
+
+  /**
+   * Get supplier cost for a bundle (baseCost)
+   */
+  async getSupplierCost(bundleId) {
+    const bundle = await prisma.bundle.findUnique({
+      where: { id: bundleId },
+      select: { baseCost: true }
+    });
+    return bundle?.baseCost || null;
+  },
+
+  /**
+   * Validate that agent's selling price meets minimum
+   */
+  validateAgentPrice(agentPrice, minimumPrice) {
+    if (agentPrice < minimumPrice) {
+      return {
+        valid: false,
+        error: `Price cannot be below minimum (GHS ${minimumPrice.toFixed(2)})`,
+        agentPrice,
+        minimumPrice,
+        shortfall: minimumPrice - agentPrice
+      };
+    }
+    return {
+      valid: true,
+      agentPrice,
+      minimumPrice,
+      margin: agentPrice - minimumPrice
+    };
+  },
+
+  /**
+   * Calculate profit distribution for an order
+   */
+  calculateProfits(agentPrice, minimumPrice, supplierCost) {
+    const agentProfit = agentPrice - minimumPrice;
+    const platformProfit = minimumPrice - supplierCost;
+    const totalProfit = agentProfit + platformProfit;
+
+    return {
+      agentPrice,
+      minimumPrice,
+      supplierCost,
+      agentProfit: Math.max(0, agentProfit),
+      platformProfit: Math.max(0, platformProfit),
+      totalProfit,
+      agentProfitPercent: totalProfit > 0 ? (agentProfit / totalProfit * 100).toFixed(1) : 0,
+      platformProfitPercent: totalProfit > 0 ? (platformProfit / totalProfit * 100).toFixed(1) : 0
+    };
+  },
+
+  /**
+   * Credit agent profit to their wallet
+   * Called when Paystack storefront order status changes to COMPLETED
+   */
+  async creditAgentProfit(storefrontOrderId) {
+    const storefrontOrder = await prisma.storefrontOrder.findUnique({
+      where: { id: storefrontOrderId },
+      include: {
+        storefront: {
+          include: {
+            owner: {
+              include: { wallet: true }
+            }
+          }
+        },
+        bundle: true
+      }
+    });
+
+    if (!storefrontOrder) {
+      throw new Error('Storefront order not found');
+    }
+
+    // Only credit for Paystack orders (MoMo orders use wallet debit flow)
+    if (storefrontOrder.paymentMethod !== 'PAYSTACK') {
+      return { 
+        credited: false, 
+        reason: 'Not a Paystack order - profit handled via wallet debit flow' 
+      };
+    }
+
+    // Check if already credited
+    if (storefrontOrder.profitCredited) {
+      return { 
+        credited: false, 
+        reason: 'Profit already credited',
+        creditedAt: storefrontOrder.profitCreditedAt
+      };
+    }
+
+    // Verify order is completed
+    if (storefrontOrder.status !== 'COMPLETED') {
+      return { 
+        credited: false, 
+        reason: `Order not completed (status: ${storefrontOrder.status})` 
+      };
+    }
+
+    const agentProfit = storefrontOrder.ownerProfit;
+    const owner = storefrontOrder.storefront.owner;
+
+    if (agentProfit <= 0) {
+      // Mark as credited even if zero profit
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrderId },
+        data: {
+          profitCredited: true,
+          profitCreditedAt: new Date()
+        }
+      });
+      return { 
+        credited: true, 
+        amount: 0, 
+        reason: 'No profit to credit (zero margin)' 
+      };
+    }
+
+    // Credit in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Get or create wallet
+      let wallet = owner.wallet;
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: { userId: owner.id, balance: 0 }
+        });
+      }
+
+      // Credit wallet
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: agentProfit } }
+      });
+
+      // Create transaction record
+      const transactionRef = `PROFIT-${storefrontOrderId.slice(0, 8)}-${Date.now()}`;
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'PROFIT_CREDIT',
+          amount: agentProfit,
+          status: 'COMPLETED',
+          reference: transactionRef,
+          description: `Store profit - ${storefrontOrder.bundle.name} to ${storefrontOrder.customerPhone}`
+        }
+      });
+
+      // Mark storefront order as profit credited
+      await tx.storefrontOrder.update({
+        where: { id: storefrontOrderId },
+        data: {
+          profitCredited: true,
+          profitCreditedAt: new Date()
+        }
+      });
+
+      // Create wallet ledger entry
+      const runningBalance = wallet.balance + agentProfit;
+      await tx.walletLedger.create({
+        data: {
+          walletId: wallet.id,
+          entryType: 'PROFIT_CREDIT',
+          amount: agentProfit,
+          runningBalance,
+          orderId: storefrontOrder.orderId,
+          description: `Store sale profit - Order ${storefrontOrder.orderId?.slice(0, 8) || 'N/A'}`,
+          reference: transactionRef
+        }
+      });
+
+      return {
+        credited: true,
+        amount: agentProfit,
+        ownerId: owner.id,
+        ownerName: owner.name,
+        newBalance: runningBalance,
+        transactionRef
+      };
+    });
+
+    console.log(`[Financial] ✅ Agent profit credited: GHS ${agentProfit.toFixed(2)} to ${owner.name}`);
+    return result;
+  },
+
+  /**
+   * Process completed order - credit profits
+   * Called by order status update or auto-sync
+   */
+  async processCompletedStorefrontOrder(orderId) {
+    // Find storefront order linked to this order
+    const storefrontOrder = await prisma.storefrontOrder.findFirst({
+      where: { orderId }
+    });
+
+    if (!storefrontOrder) {
+      return { processed: false, reason: 'No storefront order linked' };
+    }
+
+    // Update storefront order status
+    await prisma.storefrontOrder.update({
+      where: { id: storefrontOrder.id },
+      data: { status: 'COMPLETED' }
+    });
+
+    // Credit agent profit
+    return this.creditAgentProfit(storefrontOrder.id);
+  },
+
+  /**
+   * Get uncredited profit orders (for manual review/retry)
+   */
+  async getUncreditedProfitOrders() {
+    const orders = await prisma.storefrontOrder.findMany({
+      where: {
+        paymentMethod: 'PAYSTACK',
+        paymentStatus: 'PAID',
+        status: 'COMPLETED',
+        profitCredited: false
+      },
+      include: {
+        storefront: {
+          select: { name: true, slug: true, owner: { select: { name: true, email: true } } }
+        },
+        bundle: {
+          select: { name: true, network: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return orders.map(o => ({
+      id: o.id,
+      store: o.storefront.name,
+      owner: o.storefront.owner.name,
+      bundle: o.bundle.name,
+      amount: o.amount,
+      profit: o.ownerProfit,
+      createdAt: o.createdAt
+    }));
+  },
+
+  /**
+   * Retry crediting profits for failed/missed orders
+   */
+  async retryUncreditedProfits() {
+    const uncredited = await this.getUncreditedProfitOrders();
+    
+    const results = {
+      total: uncredited.length,
+      credited: 0,
+      failed: 0,
+      details: []
+    };
+
+    for (const order of uncredited) {
+      try {
+        const result = await this.creditAgentProfit(order.id);
+        if (result.credited) {
+          results.credited++;
+        }
+        results.details.push({ orderId: order.id, ...result });
+      } catch (error) {
+        results.failed++;
+        results.details.push({ orderId: order.id, error: error.message });
+      }
+    }
+
+    return results;
   }
 };
 
