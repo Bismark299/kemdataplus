@@ -808,7 +808,7 @@ const storefrontService = {
       await tx.transaction.create({
         data: {
           walletId: storefront.owner.wallet.id,
-          type: 'DEBIT',
+          type: 'PURCHASE',
           amount: ownerCostPrice,
           description: `Store order - ${bundle.name} to ${customerPhone}`,
           reference: `STORE-${storefrontOrder.id}`,
