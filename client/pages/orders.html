@@ -760,10 +760,9 @@
                     preview: order.preview
                 }));
                 
-                filteredGroups = [...orderGroups];
                 currentPage = 1;
                 updateStats();
-                render();
+                filterOrders(); // Apply any active filters (including default today filter)
                 
             } catch (error) {
                 console.error('Error loading orders:', error);
@@ -1277,7 +1276,8 @@
             window.location.href = './login.html';
         }
 
-        // Init
+        // Init - default to today's orders
+        document.getElementById('dateFilter').value = 'today';
         loadOrders();
     </script>
     <script src="../public/js/session-timeout.js"></script>

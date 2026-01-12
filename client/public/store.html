@@ -1681,7 +1681,7 @@
             document.getElementById('paymentReference').value = '';
             document.getElementById('orderEmail').value = '';
             
-            const hasMomo = storeData.momoNumber;
+            // Storefront only supports Paystack payment - no MoMo option
             const hasPaystack = storeData.paystackEnabled;
             
             // Show/hide payment method selector
@@ -1692,41 +1692,24 @@
             const emailGroup = document.getElementById('emailGroup');
             const submitBtn = document.getElementById('orderSubmitBtn');
             
-            if (hasMomo && hasPaystack) {
-                // Both options available - show selector
-                paymentMethodSelect.style.display = 'block';
-                document.getElementById('momoOption').style.display = 'flex';
-                document.getElementById('paystackOption').style.display = 'flex';
-                document.querySelector('input[name="paymentMethod"][value="momo"]').checked = true;
-                updatePaymentDisplay('momo');
-            } else if (hasPaystack) {
-                // Only Paystack
-                paymentMethodSelect.style.display = 'none';
-                paymentInstructions.style.display = 'none';
-                paymentRefGroup.style.display = 'none';
+            // Storefront only supports Paystack payment - no MoMo option
+            // Hide MoMo-related UI elements
+            paymentMethodSelect.style.display = 'none';
+            paymentInstructions.style.display = 'none';
+            paymentRefGroup.style.display = 'none';
+            
+            if (hasPaystack) {
+                // Show Paystack payment UI
                 paystackInfo.style.display = 'block';
                 emailGroup.style.display = 'block';
                 document.getElementById('paystackAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
                 submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
-            } else if (hasMomo) {
-                // Only MoMo
-                paymentMethodSelect.style.display = 'none';
-                paymentInstructions.style.display = 'block';
-                paymentRefGroup.style.display = 'block';
-                paystackInfo.style.display = 'none';
-                emailGroup.style.display = 'none';
-                document.getElementById('paymentAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
-                document.getElementById('momoNumberDisplay').textContent = storeData.momoNumber;
-                document.getElementById('momoNameDisplay').textContent = storeData.momoName || 'Mobile Money';
-                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Confirm Order';
             } else {
-                // No payment method (free order? or error)
-                paymentMethodSelect.style.display = 'none';
-                paymentInstructions.style.display = 'none';
-                paymentRefGroup.style.display = 'none';
+                // No payment method available - show error
                 paystackInfo.style.display = 'none';
                 emailGroup.style.display = 'none';
-                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Place Order';
+                alert('This store does not have payment setup. Please contact the store owner.');
+                return;
             }
             
             document.getElementById('orderModal').classList.add('active');
@@ -1803,26 +1786,18 @@
         async function submitOrder() {
             const phone = document.getElementById('orderPhone').value.trim();
             const name = document.getElementById('orderName')?.value?.trim() || '';
-            const paymentReference = document.getElementById('paymentReference')?.value?.trim() || '';
             const email = document.getElementById('orderEmail')?.value?.trim() || '';
             
-            // Get selected payment method
-            const hasBothMethods = storeData.momoNumber && storeData.paystackEnabled;
-            let paymentMethod = 'momo';
-            if (hasBothMethods) {
-                paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'momo';
-            } else if (storeData.paystackEnabled) {
-                paymentMethod = 'paystack';
-            }
+            // Storefront only supports Paystack payment
+            const paymentMethod = 'paystack';
             
             if (!phone || phone.length < 9) {
                 alert('Please enter a valid phone number');
                 return;
             }
 
-            // MoMo payment - require reference
-            if (paymentMethod === 'momo' && storeData.momoNumber && !paymentReference) {
-                alert('Please enter the MoMo transaction reference after making payment');
+            if (!storeData.paystackEnabled) {
+                alert('This store does not have payment setup. Please contact the store owner.');
                 return;
             }
 
@@ -1832,74 +1807,35 @@
 
             try {
                 // Paystack payment flow
-                if (paymentMethod === 'paystack') {
-                    const res = await fetch(`/api/store/${slug}/paystack/initialize`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            bundleId: selectedProduct.bundleId || selectedProduct.bundle.id,
-                            phone: phone,
-                            name: name,
-                            email: email || null
-                        })
-                    });
-                    
-                    const data = await res.json();
-                    
-                    if (res.ok && data.authorizationUrl) {
-                        // Redirect to Paystack payment page
-                        window.location.href = data.authorizationUrl;
-                        return;
-                    } else {
-                        alert(data.error || 'Failed to initialize payment. Please try again.');
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
-                        return;
-                    }
-                }
-                
-                // MoMo payment flow (existing)
-                const res = await fetch(`/api/store/${slug}/order`, {
+                const res = await fetch(`/api/store/${slug}/paystack/initialize`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         bundleId: selectedProduct.bundleId || selectedProduct.bundle.id,
                         phone: phone,
                         name: name,
-                        paymentReference: paymentReference || null
+                        email: email || null
                     })
                 });
-
+                
                 const data = await res.json();
-
-                if (res.ok) {
-                    closeOrderModal();
-                    showSuccessModal(data);
+                
+                if (res.ok && data.authorizationUrl) {
+                    // Redirect to Paystack payment page
+                    window.location.href = data.authorizationUrl;
+                    return;
                 } else {
-                    alert(data.error || 'Order failed. Please try again.');
+                    alert(data.error || 'Failed to initialize payment. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
+                    return;
                 }
             } catch (e) {
                 console.error('Order error:', e);
-                // Fallback to WhatsApp if API fails
-                const wa = storeData.contactWhatsapp || storeData.owner?.phone;
-                if (wa) {
-                    const msg = encodeURIComponent(
-                        `Hi! I want to order:\n\n` +
-                        `Bundle: ${selectedProduct.displayName || selectedProduct.bundle.name}\n` +
-                        `Data: ${selectedProduct.bundle.dataAmount}GB\n` +
-                        `Price: GHS ${selectedProduct.price.toFixed(2)}\n` +
-                        `Phone: ${phone}\n` +
-                        (paymentReference ? `Payment Ref: ${paymentReference}\n` : '') +
-                        `\nFrom: ${storeData.name}`
-                    );
-                    window.open(`https://wa.me/233${wa.replace(/^0/, '')}?text=${msg}`, '_blank');
-                    closeOrderModal();
-                } else {
-                    alert('Order failed. Please try again.');
-                }
+                alert('Order failed. Please try again.');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Confirm Order';
+                submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
             }
         }
 
@@ -2000,7 +1936,8 @@
                                     <span class="order-status ${status}">${statusText}</span>
                                 </div>
                                 <div class="order-details">
-                                    <strong>${o.bundle}</strong> • ${o.network} • ${o.dataAmount}
+                                    <strong>${o.bundle}</strong> • ${o.network} • ${o.dataAmount}<br>
+                                    <small><i class="fas fa-phone"></i> ${o.phone || 'N/A'}</small>
                                 </div>
                                 <div class="order-amount">GHS ${Number(o.amount).toFixed(2)}</div>
                                 <div class="status-message ${status}">

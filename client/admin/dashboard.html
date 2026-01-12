@@ -10881,7 +10881,7 @@
         }
 
         async function creditSingleOrder(storefrontOrderId) {
-            // Find the main orderId from the storefront order
+            // Find the uncredited order from cached data
             const order = storefrontsData.profits?.uncredited?.orders?.find(o => o.id === storefrontOrderId);
             if (!order) {
                 showToast('Order not found', 'error');
@@ -10889,22 +10889,28 @@
             }
             
             try {
-                // We need to get the main order ID - let's use a different approach
+                // First, get the storefront order details to find the main orderId
                 const res = await adminFetch(`/api/admin/storefront-orders/${storefrontOrderId}`);
                 const orderData = await res.json();
                 
-                if (!res.ok || !orderData.orderId) {
-                    throw new Error('Cannot find main order ID');
+                if (!res.ok) {
+                    throw new Error(orderData.error || 'Cannot fetch order details');
                 }
                 
-                const creditRes = await adminFetch(`/api/admin/storefront-profits/credit/${orderData.orderId}`, { method: 'POST' });
+                // The orderId should be in the StorefrontOrder directly
+                const mainOrderId = orderData.orderId;
+                if (!mainOrderId) {
+                    throw new Error('This order has no linked main order yet. The customer payment may not be verified.');
+                }
+                
+                const creditRes = await adminFetch(`/api/admin/storefront-profits/credit/${mainOrderId}`, { method: 'POST' });
                 const data = await creditRes.json();
                 
                 if (creditRes.ok) {
                     showToast(`Profit credited: GH₵ ${data.amount?.toFixed(2) || '0.00'}`, 'success');
                     await loadStorefrontProfits();
                 } else {
-                    throw new Error(data.error);
+                    throw new Error(data.error || 'Failed to credit profit');
                 }
             } catch (err) {
                 showToast('Failed to credit: ' + err.message, 'error');

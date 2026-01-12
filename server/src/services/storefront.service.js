@@ -931,6 +931,7 @@ const storefrontService = {
     // Map to customer-friendly format
     return orders.map(o => ({
       id: o.id.slice(0, 8).toUpperCase(),
+      phone: o.customerPhone,
       bundle: o.bundle?.name || 'Data Bundle',
       network: o.bundle?.network || 'N/A',
       dataAmount: o.bundle?.dataAmount || 'N/A',
@@ -951,6 +952,31 @@ const storefrontService = {
    * 3. On COMPLETED: Agent profit credited to wallet
    */
   async createPendingPaystackOrder(storefrontId, bundleId, customerPhone, customerName = null) {
+    // Check for existing pending order from same customer for same bundle (within last 5 minutes)
+    // This prevents duplicate orders if customer clicks "Pay" multiple times
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const existingPendingOrder = await prisma.storefrontOrder.findFirst({
+      where: {
+        storefrontId,
+        bundleId,
+        customerPhone,
+        paymentStatus: 'PENDING',
+        createdAt: { gte: fiveMinutesAgo }
+      }
+    });
+
+    if (existingPendingOrder) {
+      console.log(`[Storefront] Found existing pending order ${existingPendingOrder.id} for ${customerPhone}, reusing...`);
+      
+      // Return existing pending order to avoid duplicates
+      const bundle = await prisma.bundle.findUnique({ where: { id: bundleId } });
+      return {
+        storefrontOrderId: existingPendingOrder.id,
+        amount: existingPendingOrder.amount,
+        bundle: bundle?.name || 'Data Bundle'
+      };
+    }
+
     // Step 1: Get storefront details
     const storefront = await prisma.storefront.findUnique({
       where: { id: storefrontId },

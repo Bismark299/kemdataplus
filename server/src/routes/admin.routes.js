@@ -764,7 +764,12 @@ router.get('/storefront-orders', async (req, res, next) => {
         ownerProfit: o.ownerProfit,
         supplierCost: o.supplierCost,
         platformProfit: o.platformProfit,
-        status: o.order?.status || o.status,
+        // Use storefront order status as primary (matches what vendors see)
+        // Fall back to main order status for completed/failed
+        status: o.order?.status === 'COMPLETED' || o.order?.status === 'FAILED' 
+          ? o.order.status 
+          : o.status,
+        fulfillmentStatus: o.order?.status || null,  // Main order fulfillment status
         paymentStatus: o.paymentStatus,
         paymentMethod: o.paymentMethod || 'MOMO',
         profitCredited: o.profitCredited,

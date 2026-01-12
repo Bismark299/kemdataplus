@@ -60,45 +60,13 @@ router.get('/store/:slug/products', async (req, res, next) => {
 
 /**
  * POST /api/store/:slug/order
- * Place order through storefront (no auth required - customer facing)
+ * DEPRECATED: MoMo orders no longer supported for storefronts
+ * Storefronts now only support Paystack payments
  */
 router.post('/store/:slug/order', async (req, res, next) => {
-  try {
-    const { bundleId, phone, name, paymentReference } = req.body;
-
-    if (!bundleId || !phone) {
-      return res.status(400).json({ error: 'Bundle ID and phone number are required' });
-    }
-
-    // Validate phone format (Ghana)
-    const phoneRegex = /^0[235]\d{8}$/;
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ error: 'Invalid phone number format. Use format: 0241234567' });
-    }
-
-    const storefront = await storefrontService.getBySlug(req.params.slug);
-    
-    if (!storefront) {
-      return res.status(404).json({ error: 'Store not found' });
-    }
-
-    const order = await storefrontService.placeOrder(
-      storefront.id,
-      bundleId,
-      phone,
-      name,
-      paymentReference
-    );
-
-    res.status(201).json({
-      success: true,
-      message: 'Order placed successfully! Your data will be delivered shortly.',
-      order
-    });
-  } catch (error) {
-    console.error('Store order error:', error);
-    res.status(400).json({ error: error.message });
-  }
+  return res.status(400).json({ 
+    error: 'MoMo payment is no longer supported. Please use the Paystack payment option.' 
+  });
 });
 
 /**
