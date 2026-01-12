@@ -82,8 +82,8 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
       return res.status(400).json({ error: 'Bundle ID and phone number are required' });
     }
 
-    // Validate phone format (Ghana)
-    const phoneRegex = /^0[235]\d{8}$/;
+    // Validate phone format (Ghana) - allow 0XX format
+    const phoneRegex = /^0\d{9}$/;
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({ error: 'Invalid phone number format. Use format: 0241234567' });
     }

@@ -1440,13 +1440,35 @@
                             <span id="filterSummaryText">Showing filtered results</span>
                         </div>
                         
-                        <!-- Transaction Count -->
-                        <div class="transaction-count" id="transactionCount">
-                            <i class="fas fa-list"></i> <span>0 transactions</span>
+                        <!-- Transaction Count and Per-Page Filter -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
+                            <div class="transaction-count" id="transactionCount" style="margin:0;">
+                                <i class="fas fa-list"></i> <span>0 transactions</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <label style="font-size:0.85rem;color:#64748b;">Per page:</label>
+                                <select id="perPageFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                                    <option value="10">10</option>
+                                    <option value="15">15</option>
+                                    <option value="20">20</option>
+                                    <option value="25">25</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <div id="transactionsList">
                             <!-- Populated by JavaScript -->
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div id="transactionPagination" style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
+                            <button onclick="prevPage()" id="prevPageBtn" class="btn-filter-action btn-filter-clear" style="padding:8px 12px;font-size:0.85rem;" disabled>
+                                <i class="fas fa-chevron-left"></i> Prev
+                            </button>
+                            <span id="pageInfo" style="font-size:0.85rem;color:#64748b;">Page 1 of 1</span>
+                            <button onclick="nextPage()" id="nextPageBtn" class="btn-filter-action btn-filter-apply" style="padding:8px 12px;font-size:0.85rem;" disabled>
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1561,6 +1583,10 @@
             dateTo: ''
         };
         
+        // Pagination state
+        let currentPage = 1;
+        let perPage = 10;
+        
         async function loadWalletData() {
             if (!requireAuth()) return;
             
@@ -1640,10 +1666,21 @@
                 const message = hasActiveFilters() ? 'No transactions match your filters' : 'No transactions yet';
                 container.innerHTML = `<div class="no-transactions"><i class="fas fa-inbox"></i>${message}</div>`;
                 updateTransactionCount();
+                updatePagination(0, 0);
                 return;
             }
+            
+            // Pagination calculation
+            const totalItems = dataToRender.length;
+            const totalPages = Math.ceil(totalItems / perPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            
+            const startIndex = (currentPage - 1) * perPage;
+            const endIndex = Math.min(startIndex + perPage, totalItems);
+            const paginatedData = dataToRender.slice(startIndex, endIndex);
 
-            container.innerHTML = dataToRender.map(txn => {
+            container.innerHTML = paginatedData.map(txn => {
                 const isCredit = txn.type === 'DEPOSIT' || txn.type === 'REFUND' || txn.type === 'TRANSFER_IN' || txn.type === 'PROFIT_CREDIT' || txn.type === 'COMMISSION' || txn.amount > 0;
                 const displayType = isCredit ? 'credit' : 'debit';
                 const amount = Math.abs(txn.amount);
@@ -1665,6 +1702,47 @@
             `}).join('');
             
             updateTransactionCount();
+            updatePagination(totalPages, totalItems);
+        }
+        
+        // Pagination functions
+        function updatePagination(totalPages, totalItems) {
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            const paginationDiv = document.getElementById('transactionPagination');
+            
+            if (totalItems <= perPage) {
+                paginationDiv.style.display = 'none';
+                return;
+            }
+            
+            paginationDiv.style.display = 'flex';
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+        
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTransactions();
+            }
+        }
+        
+        function nextPage() {
+            const dataToRender = hasActiveFilters() ? filteredTransactions : transactions;
+            const totalPages = Math.ceil(dataToRender.length / perPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTransactions();
+            }
+        }
+        
+        function changePerPage(newPerPage) {
+            perPage = parseInt(newPerPage);
+            currentPage = 1; // Reset to first page
+            renderTransactions();
         }
         
         // ========== TRANSACTION FILTERS ==========
@@ -1741,6 +1819,9 @@
             // Update filter summary
             updateFilterSummary();
             
+            // Reset to first page when filters change
+            currentPage = 1;
+            
             // Re-render
             renderTransactions();
         }
@@ -1761,6 +1842,9 @@
             
             // Hide filter summary
             document.getElementById('filterSummary').style.display = 'none';
+            
+            // Reset to first page
+            currentPage = 1;
             
             renderTransactions();
         }
@@ -2184,6 +2268,12 @@
                 window.location.href = '/pages/login.html';
                 return;
             }
+            
+            // Per-page filter listener
+            document.getElementById('perPageFilter').addEventListener('change', function() {
+                changePerPage(this.value);
+            });
+            
             await loadWalletData();
             await loadPendingClaims();
             await loadMomoSettings();

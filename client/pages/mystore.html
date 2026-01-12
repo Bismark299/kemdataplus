@@ -673,6 +673,19 @@
                     <div id="productsContainer"></div>
                 </div>
                 <div class="tab-content" id="orders-tab">
+                    <!-- Date Filter Row -->
+                    <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;align-items:center;">
+                        <select id="orderDateFilter" onchange="filterStoreOrders()" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;">
+                            <option value="">All Time</option>
+                            <option value="today" selected>Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="custom">Custom Date</option>
+                        </select>
+                        <input type="date" id="orderDateFrom" style="display:none;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;" onchange="filterStoreOrders()">
+                        <input type="date" id="orderDateTo" style="display:none;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;" onchange="filterStoreOrders()">
+                        <span id="ordersCount" style="margin-left:auto;color:#64748b;font-size:0.9rem;"></span>
+                    </div>
                     <div id="ordersEmpty" class="empty-state"><i class="fas fa-receipt"></i><p>No orders yet. Share your store link to get customers!</p></div>
                     <table class="products-table" id="ordersTable" style="display:none;">
                         <thead><tr><th>Date</th><th>Customer</th><th>Bundle</th><th>Price</th><th>Your Profit</th><th>Payment</th><th>Status</th></tr></thead>
@@ -683,21 +696,10 @@
                 <div class="tab-content" id="settings-tab">
                     <div class="store-card" style="margin-bottom:20px;">
                         <div class="store-card-header" style="padding:15px;">
-                            <h3 style="margin:0;"><i class="fas fa-mobile-alt"></i> MoMo Payment Setup</h3>
-                        </div>
-                        <div class="store-card-body">
-                            <p style="color:#64748b;margin-bottom:15px;">Add your MoMo number so customers can pay directly. They'll see payment instructions when ordering.</p>
-                            <div class="form-group"><label>MoMo Number *</label><input type="tel" id="momoNumber" placeholder="0241234567" maxlength="10"></div>
-                            <div class="form-group"><label>Name on MoMo</label><input type="text" id="momoName" placeholder="e.g., Kofi Mensah"></div>
-                            <button class="btn btn-primary" onclick="saveMomoSettings()"><i class="fas fa-save"></i> Save Payment Settings</button>
-                        </div>
-                    </div>
-                    <div class="store-card" style="margin-bottom:20px;">
-                        <div class="store-card-header" style="padding:15px;">
                             <h3 style="margin:0;"><i class="fas fa-credit-card"></i> Paystack Online Payment</h3>
                         </div>
                         <div class="store-card-body">
-                            <p style="color:#64748b;margin-bottom:15px;">Enable Paystack so customers can pay via card or mobile money directly. Payments are verified automatically.</p>
+                            <p style="color:#64748b;margin-bottom:15px;">Enable Paystack so customers can pay via card or mobile money directly. Payments are verified automatically and profits are credited to your wallet.</p>
                             <div class="form-group" style="display:flex;align-items:center;gap:12px;">
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="paystackEnabled" onchange="togglePaystack()">
@@ -705,7 +707,8 @@
                                 </label>
                                 <span id="paystackStatus">Disabled</span>
                             </div>
-                            <p style="color:#f59e0b;font-size:0.85rem;margin-top:10px;"><i class="fas fa-info-circle"></i> Note: Paystack charges ~1.5% per transaction. Payments go to the platform and are credited to your wallet.</p>
+                            <p style="color:#10b981;font-size:0.85rem;margin-top:10px;"><i class="fas fa-check-circle"></i> Paystack is the only supported payment method for storefronts. Payments are instant and secure.</p>
+                            <p style="color:#f59e0b;font-size:0.85rem;margin-top:10px;"><i class="fas fa-info-circle"></i> Note: Paystack charges ~1.5% per transaction. Profits are automatically credited to your wallet after successful orders.</p>
                         </div>
                     </div>
                 </div>
@@ -743,7 +746,6 @@
         async function api(e,o={}){const r=await fetch(API+e,{...o,credentials:'include',headers:{'Content-Type':'application/json',...o.headers}});return 401===r.status&&logout(),r}
         async function loadStore(){try{const e=await api('/storefronts'),o=await e.json();document.getElementById('loadingState').style.display='none',0===o.length?(document.getElementById('noStoreState').style.display='block'):(store=o[0],document.getElementById('noStoreState').style.display='none',document.getElementById('storeContent').style.display='block',renderStore(),loadProducts(),loadOrders())}catch(e){document.getElementById('loadingState').innerHTML='<i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i><p>Failed to load store</p>'}}
         function renderStore(){document.getElementById('storeName').textContent=store.name,document.getElementById('storeDesc').textContent=store.description||'',document.getElementById('storeStatus').textContent=store.status,document.getElementById('storeLink').value=window.location.origin+'/store/'+store.slug,document.getElementById('statViews').textContent=store.viewCount||0,document.getElementById('statOrders').textContent=store._count?.orders||store.totalOrders||0,document.getElementById('statProducts').textContent=products.length||'All',document.getElementById('statRevenue').textContent='GHS '+(store.totalRevenue||0).toFixed(2);
-            document.getElementById('momoNumber').value=store.momoNumber||'';document.getElementById('momoName').value=store.momoName||'';
             document.getElementById('paystackEnabled').checked=store.paystackEnabled||false;document.getElementById('paystackStatus').textContent=store.paystackEnabled?'Enabled':'Disabled';
         }
         async function loadProducts(){const e=await api('/storefronts/'+store.id+'/products');products=await e.json();
@@ -793,14 +795,48 @@
             container.innerHTML=html;
         }
         
-        async function loadOrders(){try{const e=await api('/storefronts/'+store.id+'/orders');storeOrders=await e.json(),renderOrders()}catch(e){console.error('Failed to load orders:',e)}}
-        function renderOrders(){
+        async function loadOrders(){try{const e=await api('/storefronts/'+store.id+'/orders');storeOrders=await e.json(),filterStoreOrders()}catch(e){console.error('Failed to load orders:',e)}}
+        
+        function filterStoreOrders() {
+            const filter = document.getElementById('orderDateFilter').value;
+            const now = new Date();
+            let filtered = storeOrders;
+            
+            if (filter === 'today') {
+                const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                filtered = storeOrders.filter(o => new Date(o.createdAt) >= start);
+            } else if (filter === 'week') {
+                const start = new Date(now);
+                start.setDate(start.getDate() - 7);
+                filtered = storeOrders.filter(o => new Date(o.createdAt) >= start);
+            } else if (filter === 'month') {
+                const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                filtered = storeOrders.filter(o => new Date(o.createdAt) >= start);
+            } else if (filter === 'custom') {
+                const fromVal = document.getElementById('orderDateFrom').value;
+                const toVal = document.getElementById('orderDateTo').value;
+                if (fromVal && toVal) {
+                    const from = new Date(fromVal);
+                    const to = new Date(toVal);
+                    to.setHours(23, 59, 59, 999);
+                    filtered = storeOrders.filter(o => {
+                        const d = new Date(o.createdAt);
+                        return d >= from && d <= to;
+                    });
+                }
+            }
+            
+            document.getElementById('orderCount').textContent = filtered.length + ' order' + (filtered.length !== 1 ? 's' : '');
+            renderOrders(filtered);
+        }
+        
+        function renderOrders(orders = storeOrders){
             const tbody=document.getElementById('ordersBody');
             const table=document.getElementById('ordersTable');
             const cards=document.getElementById('ordersCards');
             const empty=document.getElementById('ordersEmpty');
             
-            if(storeOrders.length===0){
+            if(orders.length===0){
                 table.style.display='none';
                 cards.innerHTML='';
                 empty.style.display='block';
@@ -811,7 +847,7 @@
             empty.style.display='none';
             
             // Render table rows
-            tbody.innerHTML=storeOrders.map(o=>{
+            tbody.innerHTML=orders.map(o=>{
                 const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
                 const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444';
                 const payColor=o.paymentStatus==='PAID'?'#22c55e':'#f59e0b';
@@ -827,7 +863,7 @@
             }).join('');
             
             // Render mobile cards
-            cards.innerHTML=storeOrders.map(o=>{
+            cards.innerHTML=orders.map(o=>{
                 const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
                 const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444';
                 const statusBg=o.status==='COMPLETED'?'#dcfce7':o.status==='PENDING'?'#fef3c7':'#fee2e2';
@@ -867,8 +903,6 @@
         function closePriceModal(){document.getElementById('priceModal').classList.remove('active'),selectedBundle=null}
         async function confirmSetPrice(){const sellingPrice=parseFloat(document.getElementById('priceSellingInput').value);if(sellingPrice<selectedBundle.costPrice)return alert('Price cannot be less than cost (GHS '+selectedBundle.costPrice.toFixed(2)+')');const btn=document.querySelector('#priceModal .btn-primary');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving...';const r=await api('/storefronts/'+store.id+'/prices/'+selectedBundle.bundleId,{method:'PUT',body:JSON.stringify({sellingPrice})});if(r.ok){closePriceModal();loadProducts();}else{alert((await r.json()).error);}btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Save Price';}
         
-        async function saveMomoSettings(){const momoNumber=document.getElementById('momoNumber').value.trim(),momoName=document.getElementById('momoName').value.trim();if(!momoNumber)return alert('Please enter your MoMo number');const r=await api('/storefronts/'+store.id,{method:'PUT',body:JSON.stringify({momoNumber,momoName})});if(r.ok){store.momoNumber=momoNumber;store.momoName=momoName;alert('Payment settings saved!');}else{alert((await r.json()).error);}}
-        
         async function togglePaystack(){const enabled=document.getElementById('paystackEnabled').checked;const r=await api('/storefronts/'+store.id,{method:'PUT',body:JSON.stringify({paystackEnabled:enabled})});if(r.ok){store.paystackEnabled=enabled;document.getElementById('paystackStatus').textContent=enabled?'Enabled':'Disabled';}else{document.getElementById('paystackEnabled').checked=!enabled;alert((await r.json()).error);}}
         
         function openCreateModal(){document.getElementById('modalTitle').textContent='Create Store',document.getElementById('saveStoreBtn').textContent='Create Store',document.getElementById('inputName').value='',document.getElementById('inputDesc').value='',document.getElementById('inputPhone').value='',document.getElementById('inputWhatsapp').value='',document.getElementById('storeModal').classList.add('active')}
@@ -879,6 +913,16 @@
         function shareWhatsApp(){window.open('https://wa.me/?text='+encodeURIComponent('Check out my data store! '+document.getElementById('storeLink').value),'_blank')}
         document.querySelectorAll('.tab').forEach(e=>e.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active')),document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')),e.classList.add('active'),document.getElementById(e.dataset.tab+'-tab').classList.add('active')}));
         document.getElementById('priceFilter').addEventListener('click',e=>{if(e.target.classList.contains('network-btn')){document.querySelectorAll('#priceFilter .network-btn').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');renderProducts(e.target.dataset.network);}});
+        
+        // Store orders date filter listeners
+        document.getElementById('orderDateFilter').addEventListener('change', function() {
+            const customRow = document.getElementById('orderCustomDateRow');
+            customRow.style.display = this.value === 'custom' ? 'flex' : 'none';
+            if (this.value !== 'custom') filterStoreOrders();
+        });
+        document.getElementById('orderDateFrom').addEventListener('change', filterStoreOrders);
+        document.getElementById('orderDateTo').addEventListener('change', filterStoreOrders);
+        
         (async()=>{if(await checkAuth()){loadStore()}else{window.location.href='login.html?redirect=mystore.html'}})();
     </script>
     <script src="../public/js/session-timeout.js"></script>

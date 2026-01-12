@@ -615,10 +615,17 @@
                     </select>
                     <select class="filter-select" id="dateFilter">
                         <option value="">All Time</option>
-                        <option value="today">Today</option>
+                        <option value="today" selected>Today</option>
                         <option value="week">This Week</option>
                         <option value="month">This Month</option>
+                        <option value="custom">Custom Date</option>
                     </select>
+                </div>
+                
+                <!-- Custom Date Picker (hidden by default) -->
+                <div class="filter-row" id="customDateRow" style="display:none;margin-top:var(--space-2);">
+                    <input type="date" class="filter-select" id="customDateFrom" placeholder="From Date">
+                    <input type="date" class="filter-select" id="customDateTo" placeholder="To Date">
                 </div>
                 
                 <div class="filter-actions">
@@ -1128,8 +1135,16 @@
             if (network) filters.push(`Network: ${network}`);
             if (status) filters.push(`Status: ${status}`);
             if (dateFilter) {
-                const dateLabels = { today: 'Today', week: 'This Week', month: 'This Month' };
-                filters.push(`Date: ${dateLabels[dateFilter] || dateFilter}`);
+                const dateLabels = { today: 'Today', week: 'This Week', month: 'This Month', custom: 'Custom Date' };
+                if (dateFilter === 'custom') {
+                    const from = document.getElementById('customDateFrom').value;
+                    const to = document.getElementById('customDateTo').value;
+                    if (from || to) {
+                        filters.push(`Date: ${from || 'Any'} to ${to || 'Any'}`);
+                    }
+                } else {
+                    filters.push(`Date: ${dateLabels[dateFilter] || dateFilter}`);
+                }
             }
             
             if (filters.length > 0) {
@@ -1156,9 +1171,39 @@
             } else if (filterType === 'month') {
                 const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
                 return orderDate >= monthAgo;
+            } else if (filterType === 'custom') {
+                const fromDate = document.getElementById('customDateFrom').value;
+                const toDate = document.getElementById('customDateTo').value;
+                
+                if (fromDate) {
+                    const from = new Date(fromDate);
+                    from.setHours(0, 0, 0, 0);
+                    if (orderDate < from) return false;
+                }
+                if (toDate) {
+                    const to = new Date(toDate);
+                    to.setHours(23, 59, 59, 999);
+                    if (orderDate > to) return false;
+                }
+                return true;
             }
             return true;
         }
+        
+        // Handle date filter change for custom date
+        document.getElementById('dateFilter').addEventListener('change', function() {
+            const customDateRow = document.getElementById('customDateRow');
+            if (this.value === 'custom') {
+                customDateRow.style.display = 'grid';
+            } else {
+                customDateRow.style.display = 'none';
+                filterOrders();
+            }
+        });
+        
+        // Apply custom date filter
+        document.getElementById('customDateFrom')?.addEventListener('change', filterOrders);
+        document.getElementById('customDateTo')?.addEventListener('change', filterOrders);
 
         // Stats - counts only TODAY's orders
         function updateStats() {

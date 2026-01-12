@@ -7179,7 +7179,7 @@
                             <div class="user-profile">
                                 <div class="avatar">${(user.name || 'U').charAt(0)}</div>
                                 <div class="info">
-                                    <div class="name">${user.name || 'Unknown'}</div>
+                                    <div class="name">${user.name || 'Unknown'} <span style="color:#64748b;font-size:0.8rem;font-weight:400;">(${user.id.slice(-8)})</span></div>
                                     <div class="email">${user.email || 'No email'}</div>
                                 </div>
                             </div>
@@ -7460,7 +7460,7 @@
                     <div style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #024959, #F2C12E); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; color: white; font-size: 1.8rem; font-weight: 600;">
                         ${(user.name || 'U').charAt(0)}
                     </div>
-                    <h3 style="margin: 0; color: #1f2937;">${user.name || 'Unknown'}</h3>
+                    <h3 style="margin: 0; color: #1f2937;">${user.name || 'Unknown'} <span style="color:#64748b;font-size:0.7rem;font-weight:400;">(${user.id.slice(-8)})</span></h3>
                     <p style="color: #6b7280; margin: 5px 0;">${user.phone || 'No phone'}</p>
                     <span class="user-status ${user.status || 'active'}">${(user.status || 'active').charAt(0).toUpperCase() + (user.status || 'active').slice(1)}</span>
                 </div>
