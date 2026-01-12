@@ -807,8 +807,7 @@ router.get('/storefront-orders/:id', async (req, res, next) => {
           }
         },
         bundle: true,
-        order: true,
-        storefrontProduct: true
+        order: true
       }
     });
 
