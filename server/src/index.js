@@ -94,7 +94,7 @@ app.use(helmet({
     directives: {
       "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com", "https://ka-f.fontawesome.com", "https://js.paystack.co"],
       "script-src-attr": ["'unsafe-inline'"],
-      "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com", "https://fonts.googleapis.com"],
+      "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com", "https://fonts.googleapis.com", "https://paystack.com"],
       "img-src": ["'self'", "data:", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com"],
       "font-src": ["'self'", "https://ka-f.fontawesome.com", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com", "data:"],
       "connect-src": ["'self'", "https://ka-f.fontawesome.com", "https://api.paystack.co"],
