@@ -367,16 +367,207 @@ header div img {
     }
 }
 
-/* ===== DASHBOARD CONTAINER (Greetings) ===== */
+/* ===== DASHBOARD CONTAINER (Greetings) - REDESIGNED ===== */
 .dashboard-container {
     max-width: 95%;
     margin: 20px auto;
-    padding: 20px;
-    background-color: #024959;
-    border-radius: 8px;
+    padding: 0;
+    background: linear-gradient(135deg, #024959 0%, #036c7f 100%);
+    border-radius: 16px;
     color: white;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(2, 73, 89, 0.3);
 }
 
+.welcome-board {
+    padding: 24px;
+}
+
+.welcome-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Avatar with Agent Badge */
+.avatar-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.user-avatar {
+    width: 85px;
+    height: 85px;
+    border-radius: 16px;
+    border: 3px solid rgba(242, 193, 46, 0.8);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    object-fit: cover;
+}
+
+.agent-badge {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #F2C12E 0%, #d4a520 100%);
+    color: #024959;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Welcome Info Section */
+.welcome-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.greeting-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 4px;
+}
+
+.greeting-icon {
+    color: #F2C12E;
+}
+
+.welcome-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.2;
+}
+
+.welcome-name span {
+    color: #F2C12E;
+}
+
+/* User Meta Info */
+.user-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.meta-item i {
+    color: #F2C12E;
+    font-size: 0.75rem;
+}
+
+.meta-item.rank {
+    background: rgba(242, 193, 46, 0.2);
+}
+
+.meta-divider {
+    opacity: 0.4;
+}
+
+/* Welcome Actions */
+.welcome-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.action-btn.primary {
+    background: #F2C12E;
+    color: #024959;
+}
+
+.action-btn.primary:hover {
+    background: #d4a520;
+    transform: translateY(-2px);
+}
+
+.action-btn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.action-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .welcome-board {
+        padding: 20px 16px;
+    }
+    
+    .welcome-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 16px;
+    }
+    
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .welcome-name {
+        font-size: 1.3rem;
+    }
+    
+    .greeting-row {
+        justify-content: center;
+    }
+    
+    .user-meta {
+        justify-content: center;
+    }
+    
+    .meta-divider {
+        display: none;
+    }
+    
+    .welcome-actions {
+        flex-direction: column;
+    }
+    
+    .action-btn {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+/* Legacy styles kept for compatibility */
 .icons {
     display: flex;
     justify-content: space-between;
@@ -388,78 +579,6 @@ header div img {
 
 .icons h4:last-child {
     margin-left: auto;
-}
-
-.welcome-header {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.user-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
-    border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    object-fit: cover;
-}
-
-.welcome-text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.4;
-    font-size: 1rem;
-}
-
-.welcome-text h2 {
-    font-size: 1.8em;
-    margin: 3px 0;
-}
-
-.welcome-text p {
-    margin: 5px 0;
-    opacity: 0.9;
-}
-
-.action-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 15px;
-    flex-wrap: wrap;
-}
-
-.action-buttons button {
-    height: 40px;
-    padding: 10px 20px;
-    border-radius: 5px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-}
-
-.join-community {
-    background-color: #F2C12E;
-    color: #024959;
-    border: none;
-}
-
-.join-community:hover {
-    background-color: #F2AE30;
-    transform: translateY(-3px);
-}
-
-.log-out {
-    background-color: transparent;
-    border: 1px solid #F2C12E;
-    color: #F2C12E;
-}
-
-.log-out:hover {
-    background-color: rgba(242, 193, 46, 0.1);
-    transform: translateY(-3px);
 }
 
 /* ===== STATS SECTION - REDESIGNED FOR MOBILE ===== */

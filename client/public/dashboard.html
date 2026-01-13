@@ -74,22 +74,38 @@
     <div class="dashboard-container">
         <div class="welcome-board">
             <div class="welcome-header">
-                <img src="./img/kem.png" alt="User" class="user-avatar">
-                <div>
-                    <div class="icons">
-                        <h4><i class="fa-solid fa-sun"></i> <span id="greetingText">Good Morning</span></h4>
-                        <h4><i class="fa-solid fa-star"></i> Rank: <span id="userRank">Loading...</span></h4>
+                <div class="avatar-container">
+                    <img src="./img/kem.png" alt="User" class="user-avatar">
+                    <div class="agent-badge" id="agentBadge">KDP-0000</div>
+                </div>
+                <div class="welcome-info">
+                    <div class="greeting-row">
+                        <span class="greeting-icon"><i class="fa-solid fa-sun" id="greetingIcon"></i></span>
+                        <span id="greetingText">Good Morning</span>
                     </div>
-                    <div class="welcome-text">
-                        <h2>Welcome back, <span id="userName">User</span>!</h2>
-                        <p>Here's a summary of your account activity.</p>
+                    <h2 class="welcome-name">Welcome back, <span id="userName">User</span>!</h2>
+                    <div class="user-meta">
+                        <span class="meta-item rank">
+                            <i class="fa-solid fa-medal"></i>
+                            <span id="userRank">Agent</span>
+                        </span>
+                        <span class="meta-divider">•</span>
+                        <span class="meta-item phone">
+                            <i class="fa-solid fa-phone"></i>
+                            <span id="userPhone">-</span>
+                        </span>
                     </div>
                 </div>
             </div>
-        <div class="action-buttons">
-            <button class="log-out" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+            <div class="welcome-actions">
+                <button class="action-btn primary" onclick="copyAgentId()">
+                    <i class="fa-solid fa-copy"></i> Copy Agent ID
+                </button>
+                <button class="action-btn secondary" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
         </div>
-    </div>
     </div>
 
     <!-- QUICK ACTION CARDS -->
@@ -389,6 +405,31 @@
     // =====================
     // AUTH & USER FUNCTIONS
     // =====================
+    
+    // Generate agent code from user ID (same as admin dashboard)
+    function generateAgentCode(userId) {
+        if (!userId) return 'KDP-0000';
+        const hash = userId.toString().replace(/-/g, '').slice(-4);
+        const numericCode = parseInt(hash, 16) % 10000 || parseInt(userId.slice(-4)) || 1000;
+        return 'KDP-' + String(numericCode).padStart(4, '0');
+    }
+    
+    // Copy agent ID to clipboard
+    function copyAgentId() {
+        const agentId = document.getElementById('agentBadge').textContent;
+        navigator.clipboard.writeText(agentId).then(() => {
+            // Show feedback
+            const btn = document.querySelector('.action-btn.primary');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            btn.style.background = '#10b981';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 2000);
+        });
+    }
+    
     async function logout() {
         try {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -407,6 +448,18 @@
             nameEl.textContent = user.firstName;
         }
         
+        // Set agent ID badge
+        const agentBadge = document.getElementById('agentBadge');
+        if (agentBadge && user.id) {
+            agentBadge.textContent = generateAgentCode(user.id);
+        }
+        
+        // Set phone number
+        const phoneEl = document.getElementById('userPhone');
+        if (phoneEl && user.phone) {
+            phoneEl.textContent = user.phone;
+        }
+        
         const rankEl = document.getElementById('userRank');
         if (rankEl && user.role) {
             // Format role for display
@@ -418,13 +471,17 @@
         // Set greeting based on time
         const hour = new Date().getHours();
         const greetingEl = document.getElementById('greetingText');
+        const greetingIcon = document.getElementById('greetingIcon');
         if (greetingEl) {
             if (hour < 12) {
                 greetingEl.textContent = 'Good Morning';
+                if (greetingIcon) greetingIcon.className = 'fa-solid fa-sun';
             } else if (hour < 17) {
                 greetingEl.textContent = 'Good Afternoon';
+                if (greetingIcon) greetingIcon.className = 'fa-solid fa-cloud-sun';
             } else {
                 greetingEl.textContent = 'Good Evening';
+                if (greetingIcon) greetingIcon.className = 'fa-solid fa-moon';
             }
         }
 
