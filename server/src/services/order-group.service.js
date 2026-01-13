@@ -385,34 +385,44 @@ const orderGroupService = {
   async getOrdersForClient(userId, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
 
-    // Fetch from BOTH OrderGroup and legacy Order tables
-    const [orderGroups, legacyOrders, orderGroupCount, legacyOrderCount] = await Promise.all([
-      prisma.orderGroup.findMany({
-        where: { userId },
-        include: {
-          items: {
-            include: {
-              bundle: {
-                select: { name: true, network: true, dataAmount: true }
-              }
-            },
-            orderBy: { itemIndex: 'asc' }
-          }
-        },
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.order.findMany({
-        where: { userId },
-        include: {
-          bundle: {
-            select: { name: true, network: true, dataAmount: true }
-          }
-        },
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.orderGroup.count({ where: { userId } }),
-      prisma.order.count({ where: { userId } })
-    ]);
+    // Fetch OrderGroups first to get displayIds to exclude from legacy orders
+    const orderGroups = await prisma.orderGroup.findMany({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            bundle: {
+              select: { name: true, network: true, dataAmount: true }
+            }
+          },
+          orderBy: { itemIndex: 'asc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Get all displayIds from OrderGroups to exclude from legacy query
+    const orderGroupDisplayIds = orderGroups.map(og => og.displayId).filter(Boolean);
+
+    // Fetch legacy Orders that are NOT linked to OrderGroups
+    // Exclude orders where reference matches an OrderGroup displayId (prevents duplicates)
+    const legacyOrders = await prisma.order.findMany({
+      where: { 
+        userId,
+        // Exclude orders that have a storefrontOrderId (they're shown via OrderGroup)
+        storefrontOrderId: null,
+        // Also exclude orders whose reference matches an OrderGroup displayId
+        NOT: orderGroupDisplayIds.length > 0 ? {
+          reference: { in: orderGroupDisplayIds }
+        } : undefined
+      },
+      include: {
+        bundle: {
+          select: { name: true, network: true, dataAmount: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     // Convert OrderGroups to standard format
     const formattedOrderGroups = orderGroups.map(order => {

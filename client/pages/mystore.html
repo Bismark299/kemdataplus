@@ -879,7 +879,24 @@
             container.innerHTML=html;
         }
         
-        async function loadOrders(){try{const e=await api('/storefronts/'+store.id+'/orders');storeOrders=await e.json(),filterStoreOrders()}catch(e){console.error('Failed to load orders:',e)}}
+        async function loadOrders(){
+            try{
+                const e=await api('/storefronts/'+store.id+'/orders');
+                if(!e.ok) {
+                    const err = await e.json();
+                    console.error('Failed to load store orders:', err);
+                    storeOrders = [];
+                } else {
+                    storeOrders=await e.json();
+                    console.log('Store orders loaded:', storeOrders.length);
+                }
+                filterStoreOrders();
+            }catch(e){
+                console.error('Failed to load orders:',e);
+                storeOrders = [];
+                filterStoreOrders();
+            }
+        }
         
         function filterStoreOrders() {
             const filter = document.getElementById('orderDateFilter').value;
