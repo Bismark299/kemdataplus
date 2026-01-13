@@ -613,15 +613,44 @@ const datahubService = {
             ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
           }
         });
-        console.log(`[DataHub] ✅ Database updated!`);
+        console.log(`[DataHub] ✅ Order table updated!`);
 
-        // Also update linked StorefrontOrder status if exists
+        // SYNC ALL RELATED TABLES
+        // 1. Update linked StorefrontOrder status if exists
         if (order.storefrontOrderId) {
           await prisma.storefrontOrder.update({
             where: { id: order.storefrontOrderId },
             data: { status: newStatus }
           });
           console.log(`[DataHub] ✅ StorefrontOrder status updated to ${newStatus}`);
+        }
+
+        // 2. Update OrderItem that matches this order's reference
+        // The Order.reference is the OrderGroup displayId (e.g., ORD-000123)
+        if (order.reference) {
+          const orderItem = await prisma.orderItem.findFirst({
+            where: { 
+              reference: { startsWith: order.reference }
+            }
+          });
+          
+          if (orderItem) {
+            await prisma.orderItem.update({
+              where: { id: orderItem.id },
+              data: { 
+                status: newStatus,
+                externalStatus: statusResult.status,
+                externalReference: order.externalReference,
+                ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+              }
+            });
+            console.log(`[DataHub] ✅ OrderItem status updated to ${newStatus}`);
+
+            // 3. Recalculate OrderGroup summary status
+            const orderGroupService = require('./order-group.service');
+            await orderGroupService.recalculateGroupStatus(orderItem.orderGroupId);
+            console.log(`[DataHub] ✅ OrderGroup status recalculated`);
+          }
         }
 
         // If order completed and has storefront order, credit agent profit
