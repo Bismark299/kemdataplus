@@ -541,6 +541,26 @@ const datahubService = {
 
     console.log(`[DataHub] Order updated in database`);
 
+    // SYNC: Also update the linked OrderItem with externalReference
+    // This allows the OrderItem sync to track status
+    if (order.reference && result.reference) {
+      const orderItem = await prisma.orderItem.findFirst({
+        where: { reference: { startsWith: order.reference } }
+      });
+      
+      if (orderItem) {
+        await prisma.orderItem.update({
+          where: { id: orderItem.id },
+          data: {
+            status: newStatus,
+            externalReference: result.reference,
+            apiSentAt: new Date()
+          }
+        });
+        console.log(`[DataHub] ✅ OrderItem updated with externalReference: ${result.reference}`);
+      }
+    }
+
     // Log to audit
     await prisma.auditLog.create({
       data: {
@@ -603,6 +623,10 @@ const datahubService = {
       
       console.log(`[DataHub] Computed newStatus: '${newStatus}'`);
 
+      // ALWAYS sync related tables (OrderItem, StorefrontOrder) even if Order status unchanged
+      // This fixes cases where Order was updated but related tables weren't
+      const shouldSyncRelatedTables = order.reference || order.storefrontOrderId;
+
       if (newStatus !== order.status) {
         console.log(`[DataHub] ✅ Status change: ${order.status} → ${newStatus}`);
         await prisma.order.update({
@@ -614,59 +638,64 @@ const datahubService = {
           }
         });
         console.log(`[DataHub] ✅ Order table updated!`);
+      } else {
+        console.log(`[DataHub] Order status unchanged (${order.status})`);
+      }
 
-        // SYNC ALL RELATED TABLES
-        // 1. Update linked StorefrontOrder status if exists
-        if (order.storefrontOrderId) {
+      // SYNC ALL RELATED TABLES (always, not just on status change)
+      // 1. Update linked StorefrontOrder status if exists
+      if (order.storefrontOrderId) {
+        const storefrontOrder = await prisma.storefrontOrder.findUnique({
+          where: { id: order.storefrontOrderId }
+        });
+        if (storefrontOrder && storefrontOrder.status !== newStatus) {
           await prisma.storefrontOrder.update({
             where: { id: order.storefrontOrderId },
             data: { status: newStatus }
           });
-          console.log(`[DataHub] ✅ StorefrontOrder status updated to ${newStatus}`);
+          console.log(`[DataHub] ✅ StorefrontOrder status synced: ${storefrontOrder.status} → ${newStatus}`);
         }
+      }
 
-        // 2. Update OrderItem that matches this order's reference
-        // The Order.reference is the OrderGroup displayId (e.g., ORD-000123)
-        if (order.reference) {
-          const orderItem = await prisma.orderItem.findFirst({
-            where: { 
-              reference: { startsWith: order.reference }
+      // 2. Update OrderItem that matches this order's reference
+      // The Order.reference is the OrderGroup displayId (e.g., ORD-000123)
+      if (order.reference) {
+        const orderItem = await prisma.orderItem.findFirst({
+          where: { 
+            reference: { startsWith: order.reference }
+          }
+        });
+        
+        if (orderItem && (orderItem.status !== newStatus || !orderItem.externalReference)) {
+          await prisma.orderItem.update({
+            where: { id: orderItem.id },
+            data: { 
+              status: newStatus,
+              externalStatus: statusResult.status,
+              externalReference: order.externalReference,
+              ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
             }
           });
-          
-          if (orderItem) {
-            await prisma.orderItem.update({
-              where: { id: orderItem.id },
-              data: { 
-                status: newStatus,
-                externalStatus: statusResult.status,
-                externalReference: order.externalReference,
-                ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
-              }
-            });
-            console.log(`[DataHub] ✅ OrderItem status updated to ${newStatus}`);
+          console.log(`[DataHub] ✅ OrderItem synced: ${orderItem.status} → ${newStatus}, externalRef: ${order.externalReference}`);
 
-            // 3. Recalculate OrderGroup summary status
-            const orderGroupService = require('./order-group.service');
-            await orderGroupService.recalculateGroupStatus(orderItem.orderGroupId);
-            console.log(`[DataHub] ✅ OrderGroup status recalculated`);
-          }
+          // 3. Recalculate OrderGroup summary status
+          const orderGroupService = require('./order-group.service');
+          await orderGroupService.recalculateGroupStatus(orderItem.orderGroupId);
+          console.log(`[DataHub] ✅ OrderGroup status recalculated`);
         }
+      }
 
-        // If order completed and has storefront order, credit agent profit
-        if (newStatus === 'COMPLETED' && order.storefrontOrderId) {
-          try {
-            const financialOrderService = require('./financial-order.service');
-            const profitResult = await financialOrderService.processCompletedStorefrontOrder(orderId);
-            if (profitResult.credited) {
-              console.log(`[DataHub] ✅ Agent profit credited: GHS ${profitResult.amount}`);
-            }
-          } catch (err) {
-            console.error(`[DataHub] Failed to credit profit for order ${orderId}:`, err.message);
+      // If order completed and has storefront order, credit agent profit
+      if (newStatus === 'COMPLETED' && order.storefrontOrderId) {
+        try {
+          const financialOrderService = require('./financial-order.service');
+          const profitResult = await financialOrderService.processCompletedStorefrontOrder(orderId);
+          if (profitResult.credited) {
+            console.log(`[DataHub] ✅ Agent profit credited: GHS ${profitResult.amount}`);
           }
+        } catch (err) {
+          console.error(`[DataHub] Failed to credit profit for order ${orderId}:`, err.message);
         }
-      } else {
-        console.log(`[DataHub] No status change needed (already ${order.status})`);
       }
 
       return {

@@ -1770,7 +1770,12 @@
                 if (data.success) {
                     showSuccessModal({
                         message: 'Payment successful! Your data will be delivered shortly.',
-                        order: data
+                        order: {
+                            orderId: data.orderId || reference,
+                            bundle: data.bundle || 'Data Bundle',
+                            phone: data.phone || '',
+                            amount: data.amount || 0
+                        }
                     });
                 } else {
                     alert('Payment verification failed. Please contact support if you were charged.');

@@ -890,7 +890,7 @@ const storefrontService = {
       throw new Error('Storefront not found or not authorized');
     }
 
-    return prisma.storefrontOrder.findMany({
+    const orders = await prisma.storefrontOrder.findMany({
       where: { storefrontId },
       include: {
         bundle: {
@@ -902,19 +902,29 @@ const storefrontService = {
       },
       orderBy: { createdAt: 'desc' }
     });
+    
+    // Debug log
+    console.log('[getStoreOrders] First order status:', orders[0]?.status, 'linked order status:', orders[0]?.order?.status);
+    
+    return orders;
   },
 
   /**
    * Get customer orders by phone (public - for order tracking)
+   * Searches by paymentPhone (recipient) OR customerPhone (account)
    */
   async getCustomerOrders(storefrontId, phone) {
     // Normalize phone format
     const normalizedPhone = phone.startsWith('0') ? phone : '0' + phone;
     
+    // Search by recipient phone (paymentPhone) OR customer account phone
     const orders = await prisma.storefrontOrder.findMany({
       where: { 
         storefrontId,
-        customerPhone: normalizedPhone
+        OR: [
+          { paymentPhone: normalizedPhone },  // Recipient phone (where data went)
+          { customerPhone: normalizedPhone }  // Account phone
+        ]
       },
       include: {
         bundle: {
@@ -931,7 +941,7 @@ const storefrontService = {
     // Map to customer-friendly format
     return orders.map(o => ({
       id: o.id.slice(0, 8).toUpperCase(),
-      phone: o.customerPhone,
+      phone: o.paymentPhone || o.customerPhone, // Show recipient phone
       bundle: o.bundle?.name || 'Data Bundle',
       network: o.bundle?.network || 'N/A',
       dataAmount: o.bundle?.dataAmount || 'N/A',
@@ -951,7 +961,11 @@ const storefrontService = {
    * 2. Order created and fulfilled
    * 3. On COMPLETED: Agent profit credited to wallet
    */
-  async createPendingPaystackOrder(storefrontId, bundleId, customerPhone, customerName = null) {
+  async createPendingPaystackOrder(storefrontId, bundleId, customerPhone, customerName = null, recipientPhone = null) {
+    // recipientPhone = where data goes (may differ from customerPhone)
+    // customerPhone = customer's account phone (for order lookup)
+    const dataRecipient = recipientPhone || customerPhone;
+    
     // Check for existing pending order from same customer for same bundle (within last 5 minutes)
     // This prevents duplicate orders if customer clicks "Pay" multiple times
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -1037,12 +1051,15 @@ const storefrontService = {
 
     // Step 5: Create PENDING storefront order with full financial tracking
     // NO wallet debit - Paystack orders don't require upfront payment from agent
+    // customerPhone = account phone (for order lookup)
+    // paymentPhone = recipient phone (where data goes)
     const storefrontOrder = await prisma.storefrontOrder.create({
       data: {
         storefrontId,
         storefrontProductId: customProduct?.id || null,
-        customerPhone,
+        customerPhone,         // Customer's account phone (for order tracking)
         customerName,
+        paymentPhone: dataRecipient, // Recipient phone (where data goes)
         bundleId,
         // Customer payment (what customer pays = agent's selling price)
         amount: agentPrice,
@@ -1107,6 +1124,9 @@ const storefrontService = {
     const supplierCost = storefrontOrder.supplierCost || storefrontOrder.bundle.baseCost;
     const customerPrice = storefrontOrder.amount; // What customer paid
     const ownerCost = storefrontOrder.ownerCost;  // Agent's cost
+    
+    // Recipient phone = paymentPhone (where data goes) or fallback to customerPhone
+    const recipientPhone = storefrontOrder.paymentPhone || storefrontOrder.customerPhone;
 
     // Use the global order ID system
     const orderGroupService = require('./order-group.service');
@@ -1140,7 +1160,7 @@ const storefrontService = {
         data: {
           userId: storefront.ownerId,
           bundleId: storefrontOrder.bundleId,
-          recipientPhone: storefrontOrder.customerPhone,
+          recipientPhone: recipientPhone, // Use recipient phone (where data goes)
           quantity: 1,
           unitPrice: customerPrice,     // Customer payment price
           totalPrice: customerPrice,    // Customer payment price
@@ -1159,7 +1179,7 @@ const storefrontService = {
         data: {
           orderGroupId: orderGroup.id,
           bundleId: storefrontOrder.bundleId,
-          recipientPhone: storefrontOrder.customerPhone,
+          recipientPhone: recipientPhone, // Use recipient phone (where data goes)
           quantity: 1,
           unitPrice: customerPrice,
           totalPrice: customerPrice,
@@ -1193,7 +1213,7 @@ const storefrontService = {
         orderId: order.id,
         storefrontOrderId: storefrontOrder.id,
         bundle: storefrontOrder.bundle.name,
-        phone: storefrontOrder.customerPhone,
+        phone: recipientPhone, // The phone where data goes
         amount: storefrontOrder.amount,
         agentProfit: storefrontOrder.ownerProfit,
         status: 'PROCESSING'

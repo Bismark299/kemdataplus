@@ -108,12 +108,33 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
       });
     }
 
-    // Get bundle and pricing
+    // Check if customer is logged in - use their account phone for order tracking
+    // The 'phone' from request is the RECIPIENT phone (where data goes)
+    let customerAccountPhone = phone; // Default to recipient phone if not logged in
+    const jwt = require('jsonwebtoken');
+    const customerToken = req.cookies['store_customer_token'];
+    if (customerToken) {
+      try {
+        const decoded = jwt.verify(customerToken, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production');
+        if (decoded.type === 'store_customer') {
+          const customer = await prisma.storeCustomer.findUnique({ where: { id: decoded.id } });
+          if (customer && customer.isActive) {
+            customerAccountPhone = customer.phone;
+            console.log(`[Storefront] Logged-in customer ${customer.phone} placing order for ${phone}`);
+          }
+        }
+      } catch (e) {
+        // Token invalid, continue as guest
+      }
+    }
+
+    // Get bundle and pricing - pass both account phone (for tracking) and recipient phone (for fulfillment)
     const result = await storefrontService.createPendingPaystackOrder(
       storefront.id,
       bundleId,
-      phone,
-      name
+      customerAccountPhone, // Customer's account phone for order lookup
+      name,
+      phone // Recipient phone (where data goes) - stored in order when fulfilling
     );
 
     // Build callback URL
@@ -179,15 +200,20 @@ router.get('/store/:slug/paystack/verify/:reference', async (req, res, next) => 
 
     // Find and complete the order
     const storefrontOrderId = verification.metadata?.storefrontOrderId;
+    let orderResult = null;
     
     if (storefrontOrderId) {
-      await storefrontService.completePaystackOrder(storefrontOrderId, reference);
+      orderResult = await storefrontService.completePaystackOrder(storefrontOrderId, reference);
     }
 
     res.json({
       success: true,
       message: 'Payment verified successfully',
-      ...verification
+      orderId: orderResult?.orderId || storefrontOrderId || reference,
+      bundle: orderResult?.bundle || 'Data Bundle',
+      phone: orderResult?.phone || verification.metadata?.phone || '',
+      amount: orderResult?.amount || (verification.amount / 100) || 0,
+      status: orderResult?.status || 'PROCESSING'
     });
   } catch (error) {
     console.error('Paystack verify error:', error);
