@@ -221,6 +221,48 @@ const userController = {
     }
   },
 
+  // Admin reset user password
+  async resetUserPassword(req, res, next) {
+    try {
+      const { newPassword } = req.body;
+      const userId = req.params.id;
+
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, email: true, phone: true }
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Hash and update password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+          passwordChangedAt: new Date(),
+          // Clear any reset tokens
+          resetToken: null,
+          resetTokenExpiry: null
+        }
+      });
+
+      res.json({
+        message: `Password reset successfully for ${user.name || user.phone || user.email}`,
+        user: { id: user.id, name: user.name }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   // Deactivate user (admin)
   async deactivateUser(req, res, next) {
     try {

@@ -294,6 +294,32 @@
       color: var(--accent-dark);
     }
     
+    /* ===== WHATSAPP CHANNEL LINK ===== */
+    .whatsapp-channel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 20px;
+      padding: 12px 20px;
+      background: #25D366;
+      color: white;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    
+    .whatsapp-channel:hover {
+      background: #128C7E;
+      transform: translateY(-2px);
+    }
+    
+    .whatsapp-channel i {
+      font-size: 1.2rem;
+    }
+    
     /* ===== ERROR/SUCCESS MESSAGES ===== */
     .error-msg {
       font-size: 0.9rem;
@@ -434,6 +460,9 @@
         </form>
         <a href="/pages/forgot-password.html" class="forgot-link">Forgot your password?</a>
         <p class="switch-link" onclick="showRegister()">Don't have an account? <span>Create one</span></p>
+        <a href="https://whatsapp.com/channel/0029VbBs1Zc4Spk8jGj8O804" target="_blank" class="whatsapp-channel">
+          <i class="fab fa-whatsapp"></i> Join our WhatsApp Channel
+        </a>
       </div>
       
       <div class="auth-container" id="registerBox" style="display:none;">

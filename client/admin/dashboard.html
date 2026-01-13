@@ -3881,6 +3881,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="#" class="nav-link" id="navComplaints" data-section="complaints">
+                    <i class="fas fa-headset"></i>
+                    <span>Support</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link" id="navSettings" data-section="settings">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
@@ -4630,6 +4636,46 @@
             </div>
         </div>
 
+        <!-- Reset Password Modal -->
+        <div class="modal-overlay" id="resetPasswordModal">
+            <div class="modal-content" style="max-width: 420px;">
+                <div class="modal-header" style="background: #dc2626;">
+                    <h3><i class="fas fa-key"></i> Reset Password</h3>
+                    <button class="modal-close" id="closeResetPasswordModalBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div style="padding: 25px;">
+                    <input type="hidden" id="resetPasswordUserId">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                            <i class="fas fa-user-lock" style="font-size: 1.5rem; color: #dc2626;"></i>
+                        </div>
+                        <div id="resetPasswordUserName" style="font-size: 1.1rem; font-weight: 600; color: #1f2937;"></div>
+                        <div id="resetPasswordUserPhone" style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; margin-bottom: 8px; display: block;">New Password</label>
+                        <input type="password" id="newPasswordInput" placeholder="Enter new password" style="width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; margin-bottom: 8px; display: block;">Confirm Password</label>
+                        <input type="password" id="confirmPasswordInput" placeholder="Confirm new password" style="width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;">
+                    </div>
+                    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 20px; background: #fef3c7; padding: 10px 12px; border-radius: 6px;">
+                        <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i> 
+                        The user will need to login with this new password.
+                    </p>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" id="cancelResetPasswordBtn">Cancel</button>
+                        <button type="button" class="btn-save" style="background: #dc2626;" id="confirmResetPasswordBtn">
+                            <i class="fas fa-key"></i> Reset Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== HISTORY SECTION ========== -->
         <div class="history-section" id="historySection">
             <!-- History Section Header -->
@@ -5043,6 +5089,112 @@
                         <i class="fas fa-users"></i>
                         <p>No user data available</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== COMPLAINTS/SUPPORT SECTION ========== -->
+        <div class="settings-section" id="complaintsSection">
+            <div class="settings-header">
+                <div class="header-icon"><i class="fas fa-headset"></i></div>
+                <h2>Support Complaints</h2>
+            </div>
+            
+            <div class="settings-body">
+                <!-- Complaints Stats -->
+                <div class="complaints-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="complaint-stat-card" style="background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="font-size: 2rem; font-weight: 700; color: #1a1f36;" id="complaintTotal">0</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">Total Complaints</div>
+                    </div>
+                    <div class="complaint-stat-card" style="background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="font-size: 2rem; font-weight: 700; color: #f59e0b;" id="complaintOpen">0</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">Open</div>
+                    </div>
+                    <div class="complaint-stat-card" style="background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;" id="complaintProgress">0</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">In Progress</div>
+                    </div>
+                    <div class="complaint-stat-card" style="background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="font-size: 2rem; font-weight: 700; color: #ef4444;" id="complaintUrgent">0</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">Urgent</div>
+                    </div>
+                    <div class="complaint-stat-card" style="background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="font-size: 2rem; font-weight: 700; color: #10b981;" id="complaintResolved">0</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">Resolved</div>
+                    </div>
+                </div>
+
+                <!-- Filter Section -->
+                <div class="complaints-filter-section" style="background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                        <!-- Status Filter Tabs -->
+                        <div class="complaints-filters" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="complaint-filter-btn active" data-filter="all" style="padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.85rem;">All</button>
+                            <button class="complaint-filter-btn" data-filter="OPEN" style="padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.85rem;">Open</button>
+                            <button class="complaint-filter-btn" data-filter="IN_PROGRESS" style="padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.85rem;">In Progress</button>
+                            <button class="complaint-filter-btn" data-filter="ESCALATED" style="padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.85rem;">Escalated</button>
+                            <button class="complaint-filter-btn" data-filter="RESOLVED" style="padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.85rem;">Resolved</button>
+                        </div>
+                        
+                        <div style="width: 1px; height: 30px; background: #e5e7eb;"></div>
+                        
+                        <!-- Date Filter -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Date:</label>
+                            <input type="date" id="complaintDateFilter" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.85rem;" onchange="filterComplaints()">
+                        </div>
+                        
+                        <!-- Phone Filter -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Phone:</label>
+                            <input type="text" id="complaintPhoneFilter" placeholder="0241234567" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.85rem; width: 140px;" pattern="[0-9]*" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, ''); filterComplaints()">
+                        </div>
+                        
+                        <!-- Clear Filters -->
+                        <button onclick="clearComplaintFilters()" style="padding: 8px 12px; background: #f1f5f9; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: #64748b;">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Complaints Table -->
+                <div class="complaints-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="padding: 14px 16px; text-align: left; font-size: 0.85rem; color: #64748b; font-weight: 600;">Ticket</th>
+                                <th style="padding: 14px 16px; text-align: left; font-size: 0.85rem; color: #64748b; font-weight: 600;">Agent</th>
+                                <th style="padding: 14px 16px; text-align: left; font-size: 0.85rem; color: #64748b; font-weight: 600;">Type</th>
+                                <th style="padding: 14px 16px; text-align: left; font-size: 0.85rem; color: #64748b; font-weight: 600;">Phone / Data</th>
+                                <th style="padding: 14px 16px; text-align: center; font-size: 0.85rem; color: #64748b; font-weight: 600;">Priority</th>
+                                <th style="padding: 14px 16px; text-align: center; font-size: 0.85rem; color: #64748b; font-weight: 600;">Status</th>
+                                <th style="padding: 14px 16px; text-align: center; font-size: 0.85rem; color: #64748b; font-weight: 600;">Date</th>
+                                <th style="padding: 14px 16px; text-align: center; font-size: 0.85rem; color: #64748b; font-weight: 600;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="complaintsTableBody">
+                            <tr>
+                                <td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8;">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                                    <p>Loading complaints...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complaint Detail Modal -->
+        <div class="modal-overlay" id="complaintDetailModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 20px;">
+            <div class="modal-content" style="background: white; border-radius: 16px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header" style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: 1.25rem; color: #1a1f36;"><i class="fas fa-ticket-alt" style="color: #3b82f6; margin-right: 10px;"></i> <span id="modalTicketNumber">TICKET-000000</span></h3>
+                    <button onclick="closeComplaintModal()" style="background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer;">&times;</button>
+                </div>
+                <div class="modal-body" id="complaintModalBody" style="padding: 24px;">
+                    <!-- Filled dynamically -->
                 </div>
             </div>
         </div>
@@ -6985,6 +7137,7 @@
             document.getElementById('reportsSection')?.classList.remove('active');
             document.getElementById('settingsSection')?.classList.remove('active');
             document.getElementById('storefrontsSection')?.classList.remove('active');
+            document.getElementById('complaintsSection')?.classList.remove('active');
         }
         
         function showDashboard() {
@@ -7034,6 +7187,12 @@
             loadStorefrontsSection();
         }
         
+        function showComplaints() {
+            hideAllSections();
+            document.getElementById('complaintsSection').classList.add('active');
+            loadComplaintsSection();
+        }
+        
         // Navigate to a section and update URL hash
         function navigateToSection(section) {
             // Update URL hash without triggering page reload
@@ -7069,6 +7228,9 @@
                 case 'reports':
                     showReports();
                     break;
+                case 'complaints':
+                    showComplaints();
+                    break;
                 case 'settings':
                     showSettings();
                     break;
@@ -7082,7 +7244,7 @@
         // Restore section from URL hash on page load
         function restoreSectionFromHash() {
             const hash = window.location.hash.replace('#', '');
-            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'storefronts', 'reports', 'settings'].includes(hash)) {
+            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'storefronts', 'reports', 'complaints', 'settings'].includes(hash)) {
                 navigateToSection(hash);
             }
         }
@@ -7203,6 +7365,9 @@
                                 </button>
                                 <button class="user-action-btn fund" data-action="quick-fund" data-id="${user.id}" title="Fund Wallet">
                                     <i class="fas fa-plus"></i>
+                                </button>
+                                <button class="user-action-btn" data-action="reset-password" data-id="${user.id}" title="Reset Password" style="background: #fef2f2; color: #dc2626;">
+                                    <i class="fas fa-key"></i>
                                 </button>
                                 <button class="user-action-btn delete" data-action="delete-user" data-id="${user.id}" title="Delete">
                                     <i class="fas fa-trash"></i>
@@ -7501,6 +7666,16 @@
                         </div>
                     ` : ''}
                 </div>
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; flex-wrap: wrap;">
+                    <button onclick="closeViewUserModal(); editUser('${user.id}')" style="flex: 1; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-edit"></i> Edit User
+                    </button>
+                    <button onclick="closeViewUserModal(); openResetPasswordModal('${user.id}')" style="flex: 1; padding: 12px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-key"></i> Reset Password
+                    </button>
+                </div>
             `;
             
             document.getElementById('viewUserModal').classList.add('active');
@@ -7601,6 +7776,72 @@
                 if (saveBtn) setButtonLoading(saveBtn, false);
             }
         }
+
+        // ========== RESET PASSWORD FUNCTIONS ==========
+        function openResetPasswordModal(userId) {
+            const user = usersData.find(u => u.id === userId);
+            if (!user) return;
+            
+            document.getElementById('resetPasswordUserId').value = userId;
+            document.getElementById('resetPasswordUserName').textContent = user.name || 'Unknown User';
+            document.getElementById('resetPasswordUserPhone').textContent = user.phone || user.email || '';
+            document.getElementById('newPasswordInput').value = '';
+            document.getElementById('confirmPasswordInput').value = '';
+            
+            document.getElementById('resetPasswordModal').classList.add('active');
+        }
+        
+        function closeResetPasswordModal() {
+            document.getElementById('resetPasswordModal').classList.remove('active');
+        }
+        
+        async function confirmResetPassword() {
+            const userId = document.getElementById('resetPasswordUserId').value;
+            const newPassword = document.getElementById('newPasswordInput').value;
+            const confirmPassword = document.getElementById('confirmPasswordInput').value;
+            
+            if (!newPassword || newPassword.length < 6) {
+                showToast('Password must be at least 6 characters', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('confirmResetPasswordBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+            
+            try {
+                const res = await adminFetch(`/api/users/${userId}/reset-password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newPassword })
+                });
+                
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to reset password');
+                }
+                
+                closeResetPasswordModal();
+                showToast(data.message || 'Password reset successfully', 'success');
+            } catch (err) {
+                console.error('Reset password error:', err);
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-key"></i> Reset Password';
+            }
+        }
+        
+        // Event listeners for reset password modal
+        document.getElementById('closeResetPasswordModalBtn')?.addEventListener('click', closeResetPasswordModal);
+        document.getElementById('cancelResetPasswordBtn')?.addEventListener('click', closeResetPasswordModal);
+        document.getElementById('confirmResetPasswordBtn')?.addEventListener('click', confirmResetPassword);
 
         // ========== WALLET MANAGEMENT ==========
         let usersData = [];
@@ -10349,6 +10590,7 @@
             else if (action === 'edit-user') editUser(id);
             else if (action === 'change-role') openChangeRoleModal(id);
             else if (action === 'quick-fund') quickFundUser(id);
+            else if (action === 'reset-password') openResetPasswordModal(id);
             else if (action === 'delete-user') deleteUser(id);
         });
 
@@ -11035,6 +11277,439 @@
                 clearInterval(dashboardRefreshInterval);
                 dashboardRefreshInterval = null;
             }
+        }
+
+        // ========== COMPLAINTS/SUPPORT SECTION ==========
+        let allComplaints = [];
+        let currentComplaintFilter = 'all';
+        let currentComplaintId = null;
+
+        async function loadComplaintsSection() {
+            try {
+                // Load stats
+                const statsRes = await fetch('/api/complaints/admin/stats', { credentials: 'include' });
+                if (statsRes.ok) {
+                    const stats = await statsRes.json();
+                    document.getElementById('complaintTotal').textContent = stats.total || 0;
+                    document.getElementById('complaintOpen').textContent = stats.open || 0;
+                    document.getElementById('complaintProgress').textContent = stats.inProgress || 0;
+                    document.getElementById('complaintUrgent').textContent = stats.urgent || 0;
+                    document.getElementById('complaintResolved').textContent = (stats.resolved || 0) + (stats.closed || 0);
+                }
+
+                // Load complaints
+                const res = await fetch('/api/complaints/admin/all', { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to load complaints');
+                allComplaints = await res.json();
+                renderComplaintsTable();
+
+                // Setup filter buttons
+                document.querySelectorAll('.complaint-filter-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        document.querySelectorAll('.complaint-filter-btn').forEach(b => {
+                            b.classList.remove('active');
+                            b.style.background = '#f1f5f9';
+                            b.style.color = '#475569';
+                        });
+                        this.classList.add('active');
+                        this.style.background = '#3b82f6';
+                        this.style.color = 'white';
+                        currentComplaintFilter = this.dataset.filter;
+                        renderComplaintsTable();
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading complaints:', error);
+                document.getElementById('complaintsTableBody').innerHTML = `
+                    <tr><td colspan="8" style="padding: 40px; text-align: center; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Failed to load tickets</p>
+                    </td></tr>
+                `;
+            }
+        }
+
+        function formatComplaintType(type) {
+            return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function formatComplaintDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getStatusBadge(status) {
+            const colors = {
+                'OPEN': { bg: '#fef3c7', color: '#92400e' },
+                'IN_PROGRESS': { bg: '#dbeafe', color: '#1e40af' },
+                'RESOLVED': { bg: '#d1fae5', color: '#065f46' },
+                'CLOSED': { bg: '#f1f5f9', color: '#475569' },
+                'ESCALATED': { bg: '#fee2e2', color: '#991b1b' }
+            };
+            const style = colors[status] || colors.OPEN;
+            return `<span style="padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: ${style.bg}; color: ${style.color};">${status.replace('_', ' ')}</span>`;
+        }
+
+        function getPriorityBadge(priority) {
+            const colors = { 'LOW': '#10b981', 'MEDIUM': '#f59e0b', 'HIGH': '#ef4444', 'URGENT': '#dc2626' };
+            return `<span style="color: ${colors[priority] || '#6b7280'};"><i class="fas fa-flag"></i> ${priority}</span>`;
+        }
+
+        function renderComplaintsTable() {
+            const tbody = document.getElementById('complaintsTableBody');
+            
+            let filtered = allComplaints;
+            
+            // Apply status filter
+            if (currentComplaintFilter !== 'all') {
+                filtered = filtered.filter(c => c.status === currentComplaintFilter);
+            }
+            
+            // Apply date filter
+            const dateFilter = document.getElementById('complaintDateFilter')?.value;
+            if (dateFilter) {
+                filtered = filtered.filter(c => {
+                    const complaintDate = new Date(c.createdAt).toISOString().split('T')[0];
+                    return complaintDate === dateFilter;
+                });
+            }
+            
+            // Apply phone filter
+            const phoneFilter = document.getElementById('complaintPhoneFilter')?.value?.trim().toLowerCase();
+            if (phoneFilter) {
+                filtered = filtered.filter(c => 
+                    c.affectedPhone?.toLowerCase().includes(phoneFilter)
+                );
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-ticket-alt" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>No complaints found</p>
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(c => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 14px 16px; font-weight: 600; color: #1a1f36;">${c.ticketNumber}</td>
+                    <td style="padding: 14px 16px;">
+                        <div style="font-weight: 500; color: #1a1f36;">${c.user?.name || 'Unknown'}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">${c.user?.phone || ''}</div>
+                    </td>
+                    <td style="padding: 14px 16px;"><span style="padding: 4px 10px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem;">${formatComplaintType(c.type)}</span></td>
+                    <td style="padding: 14px 16px;">
+                        ${c.affectedPhone ? `<div style="font-weight: 500; color: #1a1f36;">${c.affectedPhone}</div>` : ''}
+                        ${c.dataSize ? `<div style="font-size: 0.8rem; color: #64748b;">${c.dataSize}</div>` : ''}
+                        ${!c.affectedPhone && !c.dataSize ? `<span style="color: #94a3b8;">-</span>` : ''}
+                    </td>
+                    <td style="padding: 14px 16px; text-align: center;">${getPriorityBadge(c.priority)}</td>
+                    <td style="padding: 14px 16px; text-align: center;">${getStatusBadge(c.status)}</td>
+                    <td style="padding: 14px 16px; text-align: center; font-size: 0.85rem; color: #64748b;">${formatComplaintDate(c.createdAt)}</td>
+                    <td style="padding: 14px 16px; text-align: center;">
+                        <button onclick="viewComplaintDetail('${c.id}')" style="background: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function filterComplaints() {
+            renderComplaintsTable();
+        }
+        
+        function clearComplaintFilters() {
+            document.getElementById('complaintDateFilter').value = '';
+            document.getElementById('complaintPhoneFilter').value = '';
+            currentComplaintFilter = 'all';
+            document.querySelectorAll('.complaint-filter-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = '#f1f5f9';
+                b.style.color = '#475569';
+            });
+            document.querySelector('.complaint-filter-btn[data-filter="all"]').classList.add('active');
+            document.querySelector('.complaint-filter-btn[data-filter="all"]').style.background = '#3b82f6';
+            document.querySelector('.complaint-filter-btn[data-filter="all"]').style.color = 'white';
+            renderComplaintsTable();
+        }
+
+        async function viewComplaintDetail(complaintId) {
+            currentComplaintId = complaintId;
+            document.getElementById('complaintDetailModal').style.display = 'flex';
+            document.getElementById('complaintModalBody').innerHTML = '<p style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+
+            try {
+                const res = await fetch(`/api/complaints/admin/${complaintId}`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to load complaint');
+                const complaint = await res.json();
+                renderComplaintDetail(complaint);
+            } catch (error) {
+                document.getElementById('complaintModalBody').innerHTML = '<p style="text-align: center; color: #ef4444;">Failed to load ticket details</p>';
+            }
+        }
+
+        function renderComplaintDetail(c) {
+            document.getElementById('modalTicketNumber').textContent = c.ticketNumber;
+            
+            // Build copy text for phone and data size (format: "0555546229 2")
+            let copyText = '';
+            if (c.affectedPhone && c.dataSize) {
+                // Remove "GB" suffix if present and just keep the number
+                const dataSizeNum = c.dataSize.replace(/GB$/i, '').trim();
+                copyText = `${c.affectedPhone} ${dataSizeNum}`;
+            } else if (c.affectedPhone) {
+                copyText = c.affectedPhone;
+            }
+            
+            const body = document.getElementById('complaintModalBody');
+            body.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                    ${getStatusBadge(c.status)}
+                    ${getPriorityBadge(c.priority)}
+                </div>
+                
+                <h3 style="margin-bottom: 12px; color: #1a1f36;">${c.subject}</h3>
+                <span style="padding: 4px 10px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem;">${formatComplaintType(c.type)}</span>
+                
+                <!-- Agent Info -->
+                <div style="background: #f8fafc; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                        <span style="color: #64748b;">Agent</span>
+                        <span style="font-weight: 600;">${c.user?.name || 'Unknown'} (${c.user?.phone || 'N/A'})</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                        <span style="color: #64748b;">Created</span>
+                        <span style="font-weight: 600;">${formatComplaintDate(c.createdAt)}</span>
+                    </div>
+                    ${c.affectedPhone ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                            <span style="color: #64748b;">Affected Phone</span>
+                            <span style="font-weight: 600;">${c.affectedPhone}</span>
+                        </div>
+                    ` : ''}
+                    ${c.dataSize ? `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                            <span style="color: #64748b;">Data Size</span>
+                            <span style="font-weight: 600;">${c.dataSize}</span>
+                        </div>
+                    ` : ''}
+                    ${c.txDate ? `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                            <span style="color: #64748b;">Transaction Date</span>
+                            <span style="font-weight: 600;">${new Date(c.txDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                    ` : ''}
+                    ${c.txRef ? `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                            <span style="color: #64748b;">Transaction Ref</span>
+                            <span style="font-weight: 600;">${c.txRef}</span>
+                        </div>
+                    ` : ''}
+                    ${c.amount ? `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                            <span style="color: #64748b;">Amount</span>
+                            <span style="font-weight: 600;">GH₵ ${c.amount.toFixed(2)}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <!-- Copy Button -->
+                ${copyText ? `
+                    <div style="margin-bottom: 20px;">
+                        <button onclick="copyComplaintInfo('${copyText.replace(/'/g, "\\'")}')" id="copyInfoBtn" style="background: #1a1f36; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-copy"></i> Copy Phone & Data Info
+                        </button>
+                    </div>
+                ` : ''}
+                
+                <!-- Description -->
+                <div style="background: #f8fafc; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+                    <h4 style="color: #374151; margin-bottom: 8px; font-size: 0.9rem;">Description</h4>
+                    <p style="color: #475569; line-height: 1.6;">${c.description}</p>
+                </div>
+                
+                <!-- Resolution Info -->
+                ${c.refundIssued ? `
+                    <div style="background: #d1fae5; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+                        <h4 style="color: #065f46; margin-bottom: 8px;"><i class="fas fa-check-circle"></i> Refund Issued</h4>
+                        <p style="color: #065f46;">GH₵ ${c.refundAmount?.toFixed(2) || '0.00'} on ${c.refundDate ? formatComplaintDate(c.refundDate) : 'N/A'}</p>
+                    </div>
+                ` : ''}
+                
+                ${c.dataResent ? `
+                    <div style="background: #dbeafe; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+                        <h4 style="color: #1e40af; margin-bottom: 8px;"><i class="fas fa-redo"></i> Data Resent</h4>
+                        <p style="color: #1e40af;">Resent on ${c.resentDate ? formatComplaintDate(c.resentDate) : 'N/A'}</p>
+                    </div>
+                ` : ''}
+                
+                <!-- Responses -->
+                ${c.responses && c.responses.length > 0 ? `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #374151; margin-bottom: 16px;"><i class="fas fa-comments"></i> Responses (${c.responses.length})</h4>
+                        ${c.responses.map(r => `
+                            <div style="padding: 16px; background: ${r.isAdmin ? '#f0f9ff' : '#f8fafc'}; border-radius: 10px; margin-bottom: 12px; border-left: 3px solid ${r.isAdmin ? '#3b82f6' : '#e2e8f0'};">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
+                                    <span style="font-weight: 600; color: #1a1f36;">${r.user?.name || 'User'} ${r.isAdmin ? '(Admin)' : ''}</span>
+                                    <span style="color: #94a3b8;">${formatComplaintDate(r.createdAt)}</span>
+                                </div>
+                                <p style="color: #475569; line-height: 1.6;">${r.message}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                <!-- Action Buttons -->
+                ${c.status !== 'CLOSED' ? `
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                        <select id="statusSelect" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem;">
+                            <option value="OPEN" ${c.status === 'OPEN' ? 'selected' : ''}>Open</option>
+                            <option value="IN_PROGRESS" ${c.status === 'IN_PROGRESS' ? 'selected' : ''}>In Progress</option>
+                            <option value="ESCALATED" ${c.status === 'ESCALATED' ? 'selected' : ''}>Escalated</option>
+                            <option value="RESOLVED" ${c.status === 'RESOLVED' ? 'selected' : ''}>Resolved</option>
+                            <option value="CLOSED" ${c.status === 'CLOSED' ? 'selected' : ''}>Closed</option>
+                        </select>
+                        <button onclick="updateComplaintStatus()" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;"><i class="fas fa-save"></i> Update Status</button>
+                        
+                        ${!c.refundIssued && c.amount ? `
+                            <button onclick="issueComplaintRefund()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;"><i class="fas fa-wallet"></i> Issue Refund</button>
+                        ` : ''}
+                        
+                        ${!c.dataResent && c.order ? `
+                            <button onclick="resendComplaintData()" style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;"><i class="fas fa-redo"></i> Resend Data</button>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Reply Form -->
+                    <div style="padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                        <h4 style="color: #374151; margin-bottom: 12px;">Send Response</h4>
+                        <textarea id="adminReplyMessage" placeholder="Type your response..." style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 80px; resize: vertical; margin-bottom: 12px;"></textarea>
+                        <button onclick="sendAdminReply()" style="background: #1a1f36; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer;"><i class="fas fa-paper-plane"></i> Send Reply</button>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // Copy complaint info (phone & data size)
+        function copyComplaintInfo(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyInfoBtn');
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.style.background = '#10b981';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i> Copy Phone & Data Info';
+                    btn.style.background = '#1a1f36';
+                }, 2000);
+            }).catch(err => {
+                showAdminToast('Failed to copy', 'error');
+            });
+        }
+
+        async function updateComplaintStatus() {
+            const status = document.getElementById('statusSelect').value;
+            try {
+                const res = await fetch(`/api/complaints/admin/${currentComplaintId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ status })
+                });
+                if (!res.ok) throw new Error('Failed to update status');
+                showAdminToast('Status updated successfully', 'success');
+                loadComplaintsSection();
+                viewComplaintDetail(currentComplaintId);
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        async function issueComplaintRefund() {
+            if (!confirm('Are you sure you want to issue a refund to this agent\'s wallet?')) return;
+            
+            try {
+                const res = await fetch(`/api/complaints/admin/${currentComplaintId}/refund`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to issue refund');
+                showAdminToast(`Refund of GH₵ ${data.refundAmount?.toFixed(2)} issued successfully`, 'success');
+                loadComplaintsSection();
+                viewComplaintDetail(currentComplaintId);
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        async function resendComplaintData() {
+            if (!confirm('Are you sure you want to resend the data bundle?')) return;
+            
+            try {
+                const res = await fetch(`/api/complaints/admin/${currentComplaintId}/resend`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to resend data');
+                showAdminToast('Data resend initiated successfully', 'success');
+                loadComplaintsSection();
+                viewComplaintDetail(currentComplaintId);
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        async function sendAdminReply() {
+            const message = document.getElementById('adminReplyMessage')?.value.trim();
+            if (!message) {
+                showAdminToast('Please enter a message', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/complaints/admin/${currentComplaintId}/respond`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ message })
+                });
+                if (!res.ok) throw new Error('Failed to send reply');
+                showAdminToast('Reply sent successfully', 'success');
+                viewComplaintDetail(currentComplaintId);
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        function closeComplaintModal() {
+            document.getElementById('complaintDetailModal').style.display = 'none';
+            currentComplaintId = null;
+        }
+
+        function showAdminToast(message, type = 'success') {
+            // Remove existing toasts
+            document.querySelectorAll('.admin-toast').forEach(t => t.remove());
+            
+            const toast = document.createElement('div');
+            toast.className = 'admin-toast';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 10px;
+                color: white;
+                font-weight: 500;
+                z-index: 3000;
+                animation: slideInRight 0.3s ease;
+                background: ${type === 'success' ? '#10b981' : '#ef4444'};
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
 
         // Initialize

@@ -488,6 +488,12 @@ header div img {
     margin-top: 20px;
     padding-top: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
+    justify-content: space-between;
+    align-items: center;
+}
+
+.welcome-actions .action-btn.secondary {
+    margin-left: auto;
 }
 
 .action-btn {
@@ -521,6 +527,17 @@ header div img {
 
 .action-btn.secondary:hover {
     background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.action-btn.whatsapp {
+    background: #25D366;
+    color: white;
+    text-decoration: none;
+}
+
+.action-btn.whatsapp:hover {
+    background: #128C7E;
     transform: translateY(-2px);
 }
 

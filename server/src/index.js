@@ -223,6 +223,7 @@ app.use('/api/store-customer', storeCustomerRoutes);
 app.use('/api/datahub', datahubRoutes);
 app.use('/api/easydata', easydataRoutes);
 app.use('/api/paystack', paystackRoutes);
+app.use('/api/complaints', require('./routes/complaint.routes'));
 
 // Public storefront route (no auth required)
 app.use('/api', storefrontRoutes);

@@ -19,6 +19,9 @@ router.get('/:id', authenticate, authorize('ADMIN'), userController.getUserById)
 // PUT /api/users/:id - Update user (admin only)
 router.put('/:id', authenticate, authorize('ADMIN'), userController.updateUser);
 
+// PUT /api/users/:id/reset-password - Reset user password (admin only)
+router.put('/:id/reset-password', authenticate, authorize('ADMIN'), userController.resetUserPassword);
+
 // DELETE /api/users/:id - Deactivate user (admin only)
 router.delete('/:id', authenticate, authorize('ADMIN'), userController.deactivateUser);
 

@@ -49,6 +49,7 @@
                         <a href="../pages/wallet.html">Wallet</a>
                         <a href="../pages/mystore.html">My Store</a>
                         <a href="../pages/api.html">API</a>
+                        <a href="../pages/complaints.html">Support</a>
                         <a href="../pages/profile.html">Profile</a>
                         <a href="#" onclick="logout(); return false;" class="mobile-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
                     </div>
@@ -89,18 +90,13 @@
                             <i class="fa-solid fa-medal"></i>
                             <span id="userRank">Agent</span>
                         </span>
-                        <span class="meta-divider">•</span>
-                        <span class="meta-item phone">
-                            <i class="fa-solid fa-phone"></i>
-                            <span id="userPhone">-</span>
-                        </span>
                     </div>
                 </div>
             </div>
             <div class="welcome-actions">
-                <button class="action-btn primary" onclick="copyAgentId()">
-                    <i class="fa-solid fa-copy"></i> Copy Agent ID
-                </button>
+                <a href="https://whatsapp.com/channel/0029VbBs1Zc4Spk8jGj8O804" target="_blank" class="action-btn whatsapp">
+                    <i class="fa-brands fa-whatsapp"></i> WhatsApp Channel
+                </a>
                 <button class="action-btn secondary" onclick="logout()">
                     <i class="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -412,22 +408,6 @@
         const hash = userId.toString().replace(/-/g, '').slice(-4);
         const numericCode = parseInt(hash, 16) % 10000 || parseInt(userId.slice(-4)) || 1000;
         return 'KDP-' + String(numericCode).padStart(4, '0');
-    }
-    
-    // Copy agent ID to clipboard
-    function copyAgentId() {
-        const agentId = document.getElementById('agentBadge').textContent;
-        navigator.clipboard.writeText(agentId).then(() => {
-            // Show feedback
-            const btn = document.querySelector('.action-btn.primary');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
-            btn.style.background = '#10b981';
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.style.background = '';
-            }, 2000);
-        });
     }
     
     async function logout() {

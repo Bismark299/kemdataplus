@@ -182,6 +182,11 @@ model User {
   momoInitiated    MomoTransaction[] @relation("MomoInitiator")
   momoClaimed      MomoTransaction[] @relation("MomoClaimer")
   pendingPayments  PendingPayment[]
+  
+  // Complaint relations
+  complaints           Complaint[]
+  assignedComplaints   Complaint[]         @relation("AssignedComplaints")
+  complaintResponses   ComplaintResponse[]
 
   @@index([tenantId])
   @@index([parentUserId])
@@ -445,6 +450,7 @@ model Order {
   storefront     Storefront? @relation("StorefrontOrders", fields: [storefrontId], references: [id])
   storefrontOrder StorefrontOrder?
   profitRecords  ProfitRecord[]
+  complaints     Complaint[]
 
   @@index([userId])
   @@index([tenantId])
@@ -1032,4 +1038,106 @@ model PendingPayment {
   @@index([reference])
   @@index([createdAt])
   @@map("pending_payments")
+}
+
+// ============================================
+// COMPLAINT/SUPPORT TICKET SYSTEM
+// ============================================
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ComplaintType {
+  DATA_NOT_RECEIVED
+  WALLET_CREDIT_ISSUE
+  OTHER
+}
+
+model Complaint {
+  id              String            @id @default(uuid())
+  ticketNumber    String            @unique // TICKET-000001
+  userId          String
+  orderId         String?           // Related order if applicable
+  orderGroupId    String?           // Related order group
+  
+  // Complaint Details
+  type            ComplaintType
+  subject         String
+  description     String            @db.Text
+  affectedPhone   String?           // Phone number affected
+  dataSize        String?           // Data bundle size (e.g. 2GB, 5GB)
+  txDate          DateTime?         // Transaction date
+  txRef           String?           // Transaction reference
+  amount          Float?            // Amount involved
+  
+  // Status & Priority
+  status          ComplaintStatus   @default(OPEN)
+  priority        ComplaintPriority @default(MEDIUM)
+  
+  // Admin Response
+  assignedTo      String?           // Admin user ID
+  adminResponse   String?           @db.Text
+  internalNotes   String?           @db.Text
+  resolution      String?           @db.Text
+  
+  // Actions Taken
+  refundAmount    Float?            // If refund was issued
+  refundedAt      DateTime?
+  dataResent      Boolean           @default(false)
+  dataResentAt    DateTime?
+  
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  closedAt        DateTime?
+  closedBy        String?
+  escalatedAt     DateTime?
+  escalatedBy     String?
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  order           Order?            @relation(fields: [orderId], references: [id])
+  assignedAdmin   User?             @relation("AssignedComplaints", fields: [assignedTo], references: [id])
+  responses       ComplaintResponse[]
+  
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([priority])
+  @@index([type])
+  @@index([createdAt])
+  @@index([ticketNumber])
+  @@map("complaints")
+}
+
+model ComplaintResponse {
+  id            String    @id @default(uuid())
+  complaintId   String
+  userId        String    // Who responded (agent or admin)
+  message       String    @db.Text
+  isAdmin       Boolean   @default(false)
+  isInternal    Boolean   @default(false) // Internal admin notes
+  createdAt     DateTime  @default(now())
+  
+  complaint     Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id])
+  
+  @@index([complaintId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("complaint_responses")
 }
