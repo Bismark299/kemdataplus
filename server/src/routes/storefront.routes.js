@@ -98,6 +98,16 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
       return res.status(400).json({ error: 'Paystack payment not enabled for this store' });
     }
 
+    // Verify Paystack is configured at system level
+    const paystackPublicKey = paystackService.getPublicKey();
+    if (!paystackPublicKey) {
+      console.error('[Storefront] Paystack API keys not configured');
+      return res.status(503).json({ 
+        error: 'Payment system temporarily unavailable. Please contact support.',
+        code: 'PAYSTACK_NOT_CONFIGURED'
+      });
+    }
+
     // Get bundle and pricing
     const result = await storefrontService.createPendingPaystackOrder(
       storefront.id,

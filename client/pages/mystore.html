@@ -9,6 +9,90 @@
     <style>
         * { box-sizing: border-box; }
         
+        /* 
+         * Mobile Navigation Fix - Ensure sidebar works
+         * This CSS is a fallback in case dashboard.css has loading issues
+         */
+        @media (max-width: 900px) {
+            /* Ensure checkbox is functional but hidden */
+            #check-box {
+                position: absolute;
+                opacity: 0;
+                pointer-events: none;
+                z-index: -1;
+            }
+            
+            /* Ensure menu icon is visible and clickable */
+            .menu-icon {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                padding: 12px;
+                z-index: 1002;
+            }
+            
+            /* Close icon hidden by default */
+            .close-icon {
+                display: none;
+                position: fixed;
+                top: 15px;
+                right: 15px;
+                z-index: 1003;
+                background: #024959;
+                color: #F2C12E;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            }
+            
+            /* When checkbox is checked - show close icon */
+            #check-box:checked ~ .nav-links .close-icon {
+                display: flex !important;
+            }
+            
+            /* When checkbox is checked - hide menu icon */
+            #check-box:checked ~ .nav-links .menu-icon {
+                display: none !important;
+            }
+            
+            /* Nav menu slides from left */
+            .nav-menu {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                background: #024959;
+                flex-direction: column;
+                padding: 80px 20px 20px;
+                transition: left 0.3s ease;
+                z-index: 1001;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+                overflow-y: auto;
+            }
+            
+            /* When checkbox is checked - slide menu in */
+            #check-box:checked ~ .nav-links .nav-menu {
+                left: 0 !important;
+            }
+            
+            /* Overlay when menu is open */
+            #check-box:checked ~ .nav-links::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+        }
+        
         .store-container { 
             max-width: 1000px; 
             margin: 0 auto; 

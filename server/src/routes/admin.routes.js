@@ -856,10 +856,12 @@ router.get('/storefront-profits', async (req, res, next) => {
       totalStats,
       recentCredited
     ] = await Promise.all([
-      // Uncredited profits (orders completed but profit not credited)
+      // Uncredited profits (Paystack orders completed but profit not credited)
+      // NOTE: Only PAYSTACK orders need profit crediting - MoMo orders use upfront wallet debit
       prisma.storefrontOrder.findMany({
         where: {
           profitCredited: false,
+          paymentMethod: 'PAYSTACK',  // Only Paystack orders need crediting
           order: { status: 'COMPLETED' }
         },
         include: {
@@ -980,6 +982,7 @@ router.post('/storefront-profits/retry', async (req, res, next) => {
 /**
  * POST /api/admin/storefront-profits/credit/:orderId
  * Manually credit profit for a specific order
+ * NOTE: Only works for PAYSTACK orders - MoMo orders use upfront wallet debit
  */
 router.post('/storefront-profits/credit/:orderId', async (req, res, next) => {
   try {
@@ -998,7 +1001,24 @@ router.post('/storefront-profits/credit/:orderId', async (req, res, next) => {
       return res.status(400).json({ error: 'Profit already credited' });
     }
 
+    // Validate this is a Paystack order
+    if (storefrontOrder.paymentMethod !== 'PAYSTACK') {
+      return res.status(400).json({ 
+        error: 'Only Paystack orders can be credited. MoMo orders use upfront wallet debit.',
+        paymentMethod: storefrontOrder.paymentMethod
+      });
+    }
+
     const result = await financialOrderService.processCompletedStorefrontOrder(req.params.orderId);
+
+    // Handle crediting failures
+    if (!result.credited && result.reason) {
+      return res.status(400).json({ 
+        error: result.reason,
+        credited: false,
+        amount: 0
+      });
+    }
 
     await auditService.log({
       userId: req.user.id,
