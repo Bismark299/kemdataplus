@@ -1207,17 +1207,43 @@ const storefrontService = {
     try {
       const settingsController = require('../controllers/settings.controller');
       const siteSettings = settingsController.getSiteSettings();
-      const orderNetwork = storefrontOrder.bundle.network;
+      const orderNetwork = (storefrontOrder.bundle.network || '').toLowerCase();
       
-      // Check if API is enabled
-      const mcbisEnabled = siteSettings.mcbisAPI && siteSettings.mcbisNetworks?.[orderNetwork];
-      const easyDataEnabled = siteSettings.masterAPI && siteSettings.networks?.[orderNetwork];
+      // Check if API is enabled using the actual settings structure
+      // Settings use: easydata_mtnAPI, easydata_telecelAPI, mcbis_mtnAPI, etc.
+      let apiEnabled = false;
+      let providerName = '';
       
-      if (mcbisEnabled || easyDataEnabled) {
-        // Use the order controller helper to process
+      // Check EasyData (masterAPI)
+      if (siteSettings.masterAPI === true || siteSettings.masterAPI === 'true') {
+        const networkKey = orderNetwork === 'mtn' ? 'easydata_mtnAPI' 
+          : orderNetwork === 'telecel' || orderNetwork === 'vodafone' ? 'easydata_telecelAPI'
+          : orderNetwork === 'airteltigo' || orderNetwork === 'at' ? 'easydata_airteltigoAPI'
+          : null;
+        
+        if (networkKey && siteSettings[networkKey] !== false) {
+          apiEnabled = true;
+          providerName = 'EasyData';
+        }
+      }
+      
+      // Check MCBIS (mcbisAPI)
+      if (!apiEnabled && (siteSettings.mcbisAPI === true || siteSettings.mcbisAPI === 'true')) {
+        const networkKey = orderNetwork === 'mtn' ? 'mcbis_mtnAPI'
+          : orderNetwork === 'telecel' || orderNetwork === 'vodafone' ? 'mcbis_telecelAPI'
+          : orderNetwork === 'airteltigo' || orderNetwork === 'at' ? 'mcbis_airteltigoAPI'
+          : null;
+        
+        if (networkKey && siteSettings[networkKey] !== false) {
+          apiEnabled = true;
+          providerName = 'MCBIS';
+        }
+      }
+      
+      if (apiEnabled) {
         const datahubService = require('./datahub.service');
         
-        console.log(`[Storefront] Triggering API fulfillment for order ${result.orderId}...`);
+        console.log(`[Storefront] Triggering ${providerName} API fulfillment for order ${result.orderId}...`);
         
         // Process the order
         const apiResult = await datahubService.processOrder(result.orderId);
@@ -1230,7 +1256,7 @@ const storefrontService = {
           console.log(`[Storefront] ⚠️ API processing failed: ${apiResult.message}`);
         }
       } else {
-        console.log(`[Storefront] No API enabled for ${orderNetwork}, order will stay PENDING`);
+        console.log(`[Storefront] No API enabled for ${orderNetwork || 'unknown'} network, order will stay PENDING`);
       }
     } catch (apiError) {
       console.error(`[Storefront] API auto-process error:`, apiError.message);

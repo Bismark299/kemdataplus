@@ -21,7 +21,7 @@
     "paystackPublicKey": ""
   },
   "siteSettings": {
-    "masterAPI": false,
+    "masterAPI": true,
     "easydata_mtnAPI": true,
     "easydata_telecelAPI": true,
     "easydata_airteltigoAPI": true,

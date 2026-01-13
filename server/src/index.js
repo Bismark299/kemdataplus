@@ -92,12 +92,13 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com", "https://ka-f.fontawesome.com"],
+      "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com", "https://ka-f.fontawesome.com", "https://js.paystack.co"],
       "script-src-attr": ["'unsafe-inline'"],
       "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com", "https://fonts.googleapis.com"],
       "img-src": ["'self'", "data:", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com"],
       "font-src": ["'self'", "https://ka-f.fontawesome.com", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com", "data:"],
-      "connect-src": ["'self'", "https://ka-f.fontawesome.com"],
+      "connect-src": ["'self'", "https://ka-f.fontawesome.com", "https://api.paystack.co"],
+      "frame-src": ["'self'", "https://checkout.paystack.com"],
     }
   },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
