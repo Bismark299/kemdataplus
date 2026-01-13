@@ -1017,9 +1017,10 @@
         
         // Store orders date filter listeners
         document.getElementById('orderDateFilter').addEventListener('change', function() {
-            const customRow = document.getElementById('orderCustomDateRow');
-            customRow.style.display = this.value === 'custom' ? 'flex' : 'none';
-            if (this.value !== 'custom') filterStoreOrders();
+            const isCustom = this.value === 'custom';
+            document.getElementById('orderDateFrom').style.display = isCustom ? 'block' : 'none';
+            document.getElementById('orderDateTo').style.display = isCustom ? 'block' : 'none';
+            if (!isCustom) filterStoreOrders();
         });
         document.getElementById('orderDateFrom').addEventListener('change', filterStoreOrders);
         document.getElementById('orderDateTo').addEventListener('change', filterStoreOrders);

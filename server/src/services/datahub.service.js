@@ -615,6 +615,15 @@ const datahubService = {
         });
         console.log(`[DataHub] ✅ Database updated!`);
 
+        // Also update linked StorefrontOrder status if exists
+        if (order.storefrontOrderId) {
+          await prisma.storefrontOrder.update({
+            where: { id: order.storefrontOrderId },
+            data: { status: newStatus }
+          });
+          console.log(`[DataHub] ✅ StorefrontOrder status updated to ${newStatus}`);
+        }
+
         // If order completed and has storefront order, credit agent profit
         if (newStatus === 'COMPLETED' && order.storefrontOrderId) {
           try {

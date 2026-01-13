@@ -159,7 +159,42 @@ app.use(cookieParser());
 // Logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
-// Body parsing
+// IMPORTANT: Paystack webhook needs raw body for signature verification
+// Must be mounted BEFORE express.json() middleware
+app.use('/api/paystack/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const paystackService = require('./services/paystack.service');
+    const signature = req.headers['x-paystack-signature'];
+    const rawBody = req.body.toString();
+    
+    // Verify webhook signature
+    if (!paystackService.verifyWebhookSignature(rawBody, signature)) {
+      console.error('[Paystack] Invalid webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    
+    const event = JSON.parse(rawBody);
+    console.log(`[Paystack] Webhook received: ${event.event}`);
+    
+    // Process the webhook
+    const result = await paystackService.processWebhook(event);
+    
+    if (result.processed) {
+      console.log(`[Paystack] ✅ Webhook processed: ${result.type || 'payment'}`);
+    } else {
+      console.log(`[Paystack] Webhook not processed: ${result.reason}`);
+    }
+    
+    // Always return 200 to Paystack
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('[Paystack] Webhook error:', error.message);
+    // Still return 200 to prevent Paystack from retrying
+    res.status(200).json({ received: true, error: error.message });
+  }
+});
+
+// Body parsing (AFTER webhook route)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
