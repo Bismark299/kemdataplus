@@ -31,6 +31,271 @@
     </script>
 </head>
 <body class="auth-checking">
+    <!-- ONBOARDING WELCOME MODAL -->
+    <div id="onboardingModal" class="onboarding-overlay" style="display: none;">
+        <div class="onboarding-modal">
+            <div class="onboarding-header">
+                <img src="./img/kem.png" alt="KemDataplus" class="onboarding-logo">
+                <h2>Welcome to KemDataplus! 🎉</h2>
+                <p>We're excited to have you onboard. Let's get you started with a quick tour.</p>
+            </div>
+            
+            <div class="onboarding-steps">
+                <div class="onboarding-step active" data-step="1">
+                    <div class="step-icon"><i class="fas fa-wallet"></i></div>
+                    <h3>1. Fund Your Wallet</h3>
+                    <p>Start by adding funds to your wallet. You can use Paystack or MoMo payments to top up instantly.</p>
+                </div>
+                
+                <div class="onboarding-step" data-step="2">
+                    <div class="step-icon"><i class="fas fa-shopping-cart"></i></div>
+                    <h3>2. Buy Data Bundles</h3>
+                    <p>Select your network (MTN, Telecel, AirtelTigo, AT), choose a bundle, and place orders for your customers.</p>
+                </div>
+                
+                <div class="onboarding-step" data-step="3">
+                    <div class="step-icon"><i class="fas fa-store"></i></div>
+                    <h3>3. Set Up Your Store</h3>
+                    <p>Create your own storefront to let customers order directly from you. You'll earn commission on every sale!</p>
+                </div>
+                
+                <div class="onboarding-step" data-step="4">
+                    <div class="step-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>4. Track & Grow</h3>
+                    <p>Monitor your orders, view sales reports, and watch your business grow. We're here to support you!</p>
+                </div>
+            </div>
+            
+            <div class="onboarding-nav">
+                <div class="step-dots">
+                    <span class="dot active" data-step="1"></span>
+                    <span class="dot" data-step="2"></span>
+                    <span class="dot" data-step="3"></span>
+                    <span class="dot" data-step="4"></span>
+                </div>
+                <div class="onboarding-buttons">
+                    <button class="btn-skip" onclick="closeOnboarding()">Skip Tour</button>
+                    <button class="btn-next" onclick="nextOnboardingStep()">Next <i class="fas fa-arrow-right"></i></button>
+                    <button class="btn-start" onclick="closeOnboarding()" style="display: none;">Start Earning! <i class="fas fa-rocket"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        /* Onboarding Modal Styles */
+        .onboarding-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .onboarding-modal {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.4s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .onboarding-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .onboarding-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid #4CAF50;
+        }
+        
+        .onboarding-header h2 {
+            color: #fff;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .onboarding-header p {
+            color: #aaa;
+            font-size: 0.95rem;
+        }
+        
+        .onboarding-steps {
+            min-height: 150px;
+        }
+        
+        .onboarding-step {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .onboarding-step.active {
+            display: block;
+        }
+        
+        .step-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+        }
+        
+        .step-icon i {
+            font-size: 28px;
+            color: #fff;
+        }
+        
+        .onboarding-step h3 {
+            color: #4CAF50;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .onboarding-step p {
+            color: #ccc;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        .onboarding-nav {
+            margin-top: 20px;
+        }
+        
+        .step-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .dot {
+            width: 10px;
+            height: 10px;
+            background: #444;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .dot.active {
+            background: #4CAF50;
+            transform: scale(1.2);
+        }
+        
+        .onboarding-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        
+        .btn-skip {
+            background: transparent;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-skip:hover {
+            border-color: #888;
+            color: #fff;
+        }
+        
+        .btn-next, .btn-start {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            border: none;
+            color: #fff;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-next:hover, .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+    </style>
+    
+    <script>
+        // Onboarding functionality
+        let currentOnboardingStep = 1;
+        const totalSteps = 4;
+        
+        function showOnboarding() {
+            // Check if user has seen onboarding
+            const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+            if (!hasSeenOnboarding) {
+                document.getElementById('onboardingModal').style.display = 'flex';
+            }
+        }
+        
+        function closeOnboarding() {
+            localStorage.setItem('hasSeenOnboarding', 'true');
+            document.getElementById('onboardingModal').style.display = 'none';
+        }
+        
+        function nextOnboardingStep() {
+            if (currentOnboardingStep < totalSteps) {
+                // Hide current step
+                document.querySelector(`.onboarding-step[data-step="${currentOnboardingStep}"]`).classList.remove('active');
+                document.querySelector(`.dot[data-step="${currentOnboardingStep}"]`).classList.remove('active');
+                
+                // Show next step
+                currentOnboardingStep++;
+                document.querySelector(`.onboarding-step[data-step="${currentOnboardingStep}"]`).classList.add('active');
+                document.querySelector(`.dot[data-step="${currentOnboardingStep}"]`).classList.add('active');
+                
+                // Update buttons on last step
+                if (currentOnboardingStep === totalSteps) {
+                    document.querySelector('.btn-next').style.display = 'none';
+                    document.querySelector('.btn-start').style.display = 'flex';
+                }
+            }
+        }
+        
+        // Show onboarding after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(showOnboarding, 500); // Slight delay for smooth experience
+        });
+    </script>
+
     <div class="background">
     <!-- HEADER WITH PROFILE -->
     <div class="header-container">
@@ -93,10 +358,7 @@
                     </div>
                 </div>
             </div>
-            <div class="welcome-actions">
-                <a href="https://whatsapp.com/channel/0029VbBs1Zc4Spk8jGj8O804" target="_blank" class="action-btn whatsapp">
-                    <i class="fa-brands fa-whatsapp"></i> WhatsApp Channel
-                </a>
+            <div class="welcome-actions" style="justify-content:center;">
                 <button class="action-btn secondary" onclick="logout()">
                     <i class="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -474,6 +736,408 @@
     // Initialize on load
     document.addEventListener('DOMContentLoaded', loadUserData);
 </script>
+
+<!-- FAQ SUPPORT BOT -->
+<div id="supportBot" class="support-bot-container">
+    <button class="support-bot-trigger" onclick="toggleSupportBot()">
+        <i class="fas fa-headset"></i>
+        <span class="bot-badge">FAQ</span>
+    </button>
+    
+    <div class="support-bot-panel" id="supportBotPanel">
+        <div class="bot-header">
+            <div class="bot-avatar"><i class="fas fa-robot"></i></div>
+            <div class="bot-info">
+                <h4>KemDataplus Support</h4>
+                <span class="bot-status"><i class="fas fa-circle"></i> Online</span>
+            </div>
+            <button class="bot-close" onclick="toggleSupportBot()"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="bot-messages" id="botMessages">
+            <div class="bot-message">
+                <div class="message-bubble bot">
+                    Hello! 👋 I'm your support assistant. How can I help you today?
+                </div>
+            </div>
+            <div class="quick-actions-bot">
+                <button onclick="askQuestion('wallet')">💰 Wallet & Funding</button>
+                <button onclick="askQuestion('orders')">📦 Orders & Delivery</button>
+                <button onclick="askQuestion('pricing')">💵 Pricing & Bundles</button>
+                <button onclick="askQuestion('store')">🏪 My Store</button>
+                <button onclick="askQuestion('api')">🔌 API Integration</button>
+                <button onclick="askQuestion('contact')">📞 Contact Support</button>
+            </div>
+        </div>
+        
+        <div class="bot-input">
+            <input type="text" id="botInput" placeholder="Type your question..." onkeypress="if(event.key==='Enter')sendBotMessage()">
+            <button onclick="sendBotMessage()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Support Bot Styles */
+    .support-bot-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    
+    .support-bot-trigger {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4CAF50, #2E7D32);
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+        transition: all 0.3s;
+        position: relative;
+    }
+    
+    .support-bot-trigger:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 30px rgba(76, 175, 80, 0.5);
+    }
+    
+    .bot-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ef4444;
+        color: white;
+        font-size: 0.65rem;
+        padding: 3px 6px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    
+    .support-bot-panel {
+        position: absolute;
+        bottom: 70px;
+        right: 0;
+        width: 350px;
+        max-height: 500px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        animation: slideUp 0.3s ease;
+    }
+    
+    .support-bot-panel.active {
+        display: flex;
+    }
+    
+    .bot-header {
+        background: linear-gradient(135deg, #024959, #026773);
+        color: white;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .bot-avatar {
+        width: 45px;
+        height: 45px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .bot-info h4 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    
+    .bot-status {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    
+    .bot-status i {
+        color: #4CAF50;
+        font-size: 0.5rem;
+        margin-right: 4px;
+    }
+    
+    .bot-close {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    
+    .bot-close:hover {
+        opacity: 1;
+    }
+    
+    .bot-messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        max-height: 320px;
+        background: #f8fafc;
+    }
+    
+    .bot-message {
+        margin-bottom: 12px;
+    }
+    
+    .message-bubble {
+        max-width: 85%;
+        padding: 12px 15px;
+        border-radius: 16px;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    .message-bubble.bot {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px 16px 16px 4px;
+    }
+    
+    .message-bubble.user {
+        background: #024959;
+        color: white;
+        margin-left: auto;
+        border-radius: 16px 16px 4px 16px;
+    }
+    
+    .quick-actions-bot {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    
+    .quick-actions-bot button {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .quick-actions-bot button:hover {
+        background: #024959;
+        color: white;
+        border-color: #024959;
+    }
+    
+    .bot-input {
+        display: flex;
+        padding: 12px;
+        border-top: 1px solid #e2e8f0;
+        background: #fff;
+    }
+    
+    .bot-input input {
+        flex: 1;
+        border: 1px solid #e2e8f0;
+        padding: 10px 15px;
+        border-radius: 20px;
+        outline: none;
+        font-size: 0.9rem;
+    }
+    
+    .bot-input input:focus {
+        border-color: #024959;
+    }
+    
+    .bot-input button {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #024959;
+        border: none;
+        color: white;
+        margin-left: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .bot-input button:hover {
+        background: #026773;
+    }
+    
+    @media (max-width: 480px) {
+        .support-bot-panel {
+            width: 300px;
+            right: -10px;
+        }
+    }
+</style>
+
+<script>
+    // FAQ Support Bot
+    const faqResponses = {
+        wallet: {
+            keywords: ['wallet', 'fund', 'money', 'balance', 'topup', 'top up', 'deposit', 'momo', 'mobile money', 'paystack', 'payment'],
+            response: `💰 **Wallet & Funding**
+
+• **Add Funds:** Go to Wallet page → Click "Add Funds" → Choose Paystack or MoMo
+• **Paystack:** Instant credit via card/mobile money (1.5% fee)
+• **MoMo:** Send to provided number, paste reference, admin approves
+• **Balance:** Your available balance shows on the dashboard
+
+Need more help? Contact our support team!`
+        },
+        orders: {
+            keywords: ['order', 'pending', 'processing', 'completed', 'failed', 'delivery', 'status', 'track', 'bulk', 'excel'],
+            response: `📦 **Orders & Delivery**
+
+• **Order Status:**
+  - Pending: Waiting to be processed
+  - Processing: Bundle being sent
+  - Completed: Successfully delivered
+  - Failed: Issue occurred (refund automatic)
+
+• **Bulk Orders:** Use Excel upload (max 50 numbers) or paste bulk text
+• **Track Orders:** Check Orders page for real-time status
+• **Refunds:** Failed orders are auto-refunded to your wallet
+
+Having issues? Report via Support page!`
+        },
+        pricing: {
+            keywords: ['price', 'pricing', 'bundle', 'cost', 'cheap', 'rate', 'gb', 'data', 'mtn', 'telecel', 'airteltigo'],
+            response: `💵 **Pricing & Bundles**
+
+• **Networks:** MTN, Telecel, AirtelTigo, AT
+• **Bundles:** Range from 1GB to 100GB+
+• **Pricing:** Based on your role (Agent, Dealer, etc.)
+• **Discounts:** Higher roles get better rates
+• **Out of Stock:** Some bundles may be temporarily unavailable
+
+Check the Buy Bundles section for current prices!`
+        },
+        store: {
+            keywords: ['store', 'storefront', 'sell', 'customer', 'profit', 'commission', 'link', 'branding', 'logo'],
+            response: `🏪 **My Store**
+
+• **Setup:** Go to My Store → Create Store → Set name & contact
+• **Branding:** Add your logo and custom colors in Settings
+• **Products:** Select which bundles to sell and set your prices
+• **Payments:** Enable Paystack for customer payments
+• **Profits:** Earn commission on each sale (Price - Cost = Profit)
+• **Share:** Copy your store link and share on WhatsApp!
+
+Your store: ${window.location.origin}/store/your-slug`
+        },
+        api: {
+            keywords: ['api', 'integration', 'developer', 'code', 'automate', 'webhook', 'token', 'key'],
+            response: `🔌 **API Integration**
+
+• **Access:** Go to API page to get your API key
+• **Documentation:** Full API docs available on the API page
+• **Endpoints:**
+  - GET /api/bundles - List bundles
+  - POST /api/orders - Place orders
+  - GET /api/orders - Check order status
+
+• **Rate Limits:** 100 requests/minute
+• **Authentication:** Use Bearer token in header
+
+Need API support? Contact our dev team!`
+        },
+        contact: {
+            keywords: ['contact', 'support', 'help', 'human', 'agent', 'whatsapp', 'call', 'phone', 'email'],
+            response: `📞 **Contact Support**
+
+• **WhatsApp Channel:** Join for updates & announcements
+• **Support Page:** Submit a complaint ticket
+• **Response Time:** Usually within 24 hours
+
+For urgent issues, submit a ticket with "URGENT" in the subject!
+
+We're here to help you succeed! 🚀`
+        },
+        default: {
+            response: `I'm sorry, I couldn't find a specific answer to your question. Here are some topics I can help with:
+
+• 💰 Wallet & Funding
+• 📦 Orders & Delivery
+• 💵 Pricing & Bundles
+• 🏪 My Store
+• 🔌 API Integration
+• 📞 Contact Support
+
+Click a button above or try rephrasing your question!`
+        }
+    };
+    
+    function toggleSupportBot() {
+        const panel = document.getElementById('supportBotPanel');
+        panel.classList.toggle('active');
+    }
+    
+    function askQuestion(topic) {
+        const response = faqResponses[topic] || faqResponses.default;
+        addBotMessage(response.response);
+    }
+    
+    function sendBotMessage() {
+        const input = document.getElementById('botInput');
+        const message = input.value.trim();
+        if (!message) return;
+        
+        // Add user message
+        const messagesDiv = document.getElementById('botMessages');
+        messagesDiv.innerHTML += `<div class="bot-message"><div class="message-bubble user">${escapeHtml(message)}</div></div>`;
+        input.value = '';
+        
+        // Find matching response
+        const lowerMsg = message.toLowerCase();
+        let matchedTopic = null;
+        
+        for (const [topic, data] of Object.entries(faqResponses)) {
+            if (data.keywords && data.keywords.some(kw => lowerMsg.includes(kw))) {
+                matchedTopic = topic;
+                break;
+            }
+        }
+        
+        setTimeout(() => {
+            const response = matchedTopic ? faqResponses[matchedTopic].response : faqResponses.default.response;
+            addBotMessage(response);
+        }, 500);
+        
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function addBotMessage(message) {
+        const messagesDiv = document.getElementById('botMessages');
+        // Convert markdown-style bold to HTML
+        const formatted = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        messagesDiv.innerHTML += `<div class="bot-message"><div class="message-bubble bot">${formatted}</div></div>`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+
 <script src="./js/session-timeout.js"></script>
 </body>
 </html>

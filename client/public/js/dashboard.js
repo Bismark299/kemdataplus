@@ -30,6 +30,28 @@
   let currentMode = 'single';
   let cart = []; // canonical cart used by this script (kept in sync with ordersData.js if available)
   let adminDataLoaded = false; // Track if we successfully loaded admin data
+  
+  // Upload limits (loaded from settings)
+  let uploadLimits = {
+    maxExcelUpload: 50,
+    maxBulkUpload: 50
+  };
+  
+  // Load upload limits from settings API
+  async function loadUploadLimits() {
+    try {
+      const res = await fetch('/api/settings', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.adminSettings) {
+          uploadLimits.maxExcelUpload = data.adminSettings.maxExcelUpload || 50;
+          uploadLimits.maxBulkUpload = data.adminSettings.maxBulkUpload || 50;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not load upload limits, using defaults');
+    }
+  }
 
   /* --------------------------
      Short helpers
@@ -80,6 +102,9 @@
   ---------------------------*/
   async function init() {
     console.log('🚀 Initializing Dashboard...');
+    
+    // Load upload limits from settings
+    await loadUploadLimits();
     
     // Load bundles from API (required)
     if (typeof DashboardAPI !== 'undefined') {
@@ -406,6 +431,13 @@
 
   function parseBulk(input) {
     const lines = (input || '').split('\n').map(l => l.trim()).filter(Boolean);
+    
+    // Check upload limit
+    if (lines.length > uploadLimits.maxBulkUpload) {
+      showInlineNotice(`Maximum ${uploadLimits.maxBulkUpload} numbers allowed per bulk upload. You entered ${lines.length}.`, 'error');
+      return [];
+    }
+    
     const seen = new Set();
     const out = [];
     
@@ -587,6 +619,20 @@
   }
 
   function processExcel(rows) {
+    // Filter out empty rows and header rows first
+    const dataRows = rows.filter((r, i) => {
+      if (!r || r.length === 0) return false;
+      if (i === 0 && String(r[0]||'').toLowerCase().includes('phone')) return false;
+      if (!String(r[0] || '').trim()) return false;
+      return true;
+    });
+    
+    // Check upload limit
+    if (dataRows.length > uploadLimits.maxExcelUpload) {
+      showInlineNotice(`Maximum ${uploadLimits.maxExcelUpload} numbers allowed per Excel upload. Your file has ${dataRows.length}.`, 'error');
+      return [];
+    }
+    
     const seen = new Set();
     const out = [];
     const networkActive = isNetworkActive(currentNetwork);
@@ -596,12 +642,9 @@
     // Normalize phone to 10 digits (add leading 0 if 9 digits)
     const normalizePhone = (ph) => /^[1-9]\d{8}$/.test(ph) ? '0' + ph : ph;
     
-    rows.forEach((r, i) => {
-      if (!r || r.length === 0) return;
-      if (i === 0 && String(r[0]||'').toLowerCase().includes('phone')) return;
+    dataRows.forEach((r) => {
       const rawPhone = String(r[0] || '').trim();
       const bundle = String(r[1] || '').trim();
-      if (!rawPhone) return;
       const phoneOk = isValidPhone(rawPhone);
       const phone = phoneOk ? normalizePhone(rawPhone) : rawPhone;
       const dup = seen.has(phone);

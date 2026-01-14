@@ -778,6 +778,123 @@
                     <div class="orders-cards" id="ordersCards"></div>
                 </div>
                 <div class="tab-content" id="settings-tab">
+                    <!-- Branding Section -->
+                    <div class="store-card" style="margin-bottom:20px;">
+                        <div class="store-card-header" style="padding:15px;">
+                            <h3 style="margin:0;"><i class="fas fa-palette"></i> Store Branding</h3>
+                        </div>
+                        <div class="store-card-body">
+                            <p style="color:#64748b;margin-bottom:15px;">Customize your store's appearance to match your brand.</p>
+                            
+                            <div class="form-group" style="margin-bottom:20px;">
+                                <label style="display:block;margin-bottom:8px;font-weight:600;">Store Logo</label>
+                                <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+                                    <div id="logoPreviewContainer" style="position:relative;">
+                                        <div id="brandLogoPreview" class="logo-preview-circle">
+                                            <span id="logoInitials">KD</span>
+                                        </div>
+                                        <button type="button" id="removeLogoBtn" onclick="removeLogo()" style="display:none;position:absolute;top:-5px;right:-5px;width:22px;height:22px;border-radius:50%;background:#ef4444;color:white;border:none;cursor:pointer;font-size:12px;">×</button>
+                                    </div>
+                                    <div style="flex:1;min-width:200px;">
+                                        <label class="upload-btn" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#024959,#026773);color:white;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:500;transition:all 0.2s;">
+                                            <i class="fas fa-upload"></i> Upload Logo
+                                            <input type="file" id="logoFileInput" accept="image/*" onchange="handleLogoUpload(event)" style="display:none;">
+                                        </label>
+                                        <p style="color:#64748b;font-size:0.8rem;margin-top:8px;"><i class="fas fa-info-circle"></i> Max 500KB. Square images work best.</p>
+                                        <p style="color:#10b981;font-size:0.8rem;margin-top:4px;"><i class="fas fa-lightbulb"></i> No logo? We'll show your store initials!</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1;min-width:200px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:600;">Primary Color</label>
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <input type="color" id="brandPrimaryColor" value="#024959" style="width:50px;height:40px;border:none;cursor:pointer;border-radius:6px;">
+                                        <input type="text" id="brandPrimaryHex" value="#024959" style="width:100px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;text-transform:uppercase;" oninput="syncColorPicker('primary')">
+                                    </div>
+                                    <small style="color:#64748b;">Header & main buttons</small>
+                                </div>
+                                
+                                <div class="form-group" style="flex:1;min-width:200px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:600;">Accent Color</label>
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <input type="color" id="brandAccentColor" value="#F2C12E" style="width:50px;height:40px;border:none;cursor:pointer;border-radius:6px;">
+                                        <input type="text" id="brandAccentHex" value="#F2C12E" style="width:100px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;text-transform:uppercase;" oninput="syncColorPicker('accent')">
+                                    </div>
+                                    <small style="color:#64748b;">Highlights & accents</small>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top:20px;padding:15px;background:#f0f9ff;border-radius:12px;border:1px solid #bae6fd;">
+                                <strong style="color:#0369a1;"><i class="fas fa-eye"></i> Live Preview</strong>
+                                <div id="brandPreview" style="margin-top:12px;padding:15px;border-radius:10px;display:flex;align-items:center;gap:12px;background:#024959;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                                    <div id="previewLogo" class="preview-logo-circle">
+                                        <span id="previewInitials">KD</span>
+                                    </div>
+                                    <span id="previewStoreName" style="color:#F2C12E;font-weight:600;font-size:1.1rem;">Your Store Name</span>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
+                                <button class="btn btn-primary" onclick="saveBranding()" style="padding:12px 24px;">
+                                    <i class="fas fa-save"></i> Save Branding
+                                </button>
+                                <button class="btn" onclick="resetBrandingToDefault()" style="padding:12px 24px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;">
+                                    <i class="fas fa-undo"></i> Reset to Default
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <style>
+                        .logo-preview-circle {
+                            width: 80px;
+                            height: 80px;
+                            border-radius: 50%;
+                            background: linear-gradient(135deg, #024959, #026773);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-size: 1.5rem;
+                            font-weight: 700;
+                            border: 3px solid #e2e8f0;
+                            overflow: hidden;
+                        }
+                        .logo-preview-circle img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                        }
+                        .preview-logo-circle {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 50%;
+                            background: white;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 0.9rem;
+                            font-weight: 700;
+                            color: #024959;
+                            overflow: hidden;
+                            flex-shrink: 0;
+                        }
+                        .preview-logo-circle img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                        }
+                        .upload-btn:hover {
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 12px rgba(2, 73, 89, 0.3);
+                        }
+                    </style>
+                        </div>
+                    </div>
+                    
+                    <!-- Paystack Section -->
                     <div class="store-card" style="margin-bottom:20px;">
                         <div class="store-card-header" style="padding:15px;">
                             <h3 style="margin:0;"><i class="fas fa-credit-card"></i> Paystack Online Payment</h3>
@@ -828,7 +945,7 @@
         async function checkAuth(){try{const r=await fetch(API+'/auth/me',{credentials:'include'});return r.ok}catch(e){return false}}
         function logout(){localStorage.removeItem('currentUser');window.location.href='login.html'}
         async function api(e,o={}){const r=await fetch(API+e,{...o,credentials:'include',headers:{'Content-Type':'application/json',...o.headers}});return 401===r.status&&logout(),r}
-        async function loadStore(){try{const e=await api('/storefronts'),o=await e.json();document.getElementById('loadingState').style.display='none',0===o.length?(document.getElementById('noStoreState').style.display='block'):(store=o[0],document.getElementById('noStoreState').style.display='none',document.getElementById('storeContent').style.display='block',renderStore(),loadProducts(),loadOrders())}catch(e){document.getElementById('loadingState').innerHTML='<i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i><p>Failed to load store</p>'}}
+        async function loadStore(){try{const e=await api('/storefronts'),o=await e.json();document.getElementById('loadingState').style.display='none',0===o.length?(document.getElementById('noStoreState').style.display='block'):(store=o[0],document.getElementById('noStoreState').style.display='none',document.getElementById('storeContent').style.display='block',renderStore(),loadProducts(),loadOrders(),loadBranding())}catch(e){document.getElementById('loadingState').innerHTML='<i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i><p>Failed to load store</p>'}}
         function renderStore(){document.getElementById('storeName').textContent=store.name,document.getElementById('storeDesc').textContent=store.description||'',document.getElementById('storeStatus').textContent=store.status,document.getElementById('storeLink').value=window.location.origin+'/store/'+store.slug,document.getElementById('statViews').textContent=store.viewCount||0,document.getElementById('statOrders').textContent=store._count?.orders||store.totalOrders||0,document.getElementById('statProducts').textContent=products.length||'All',document.getElementById('statRevenue').textContent='GHS '+(store.totalRevenue||0).toFixed(2);
             document.getElementById('paystackEnabled').checked=store.paystackEnabled||false;document.getElementById('paystackStatus').textContent=store.paystackEnabled?'Enabled':'Disabled';
         }
@@ -1024,6 +1141,188 @@
         });
         document.getElementById('orderDateFrom').addEventListener('change', filterStoreOrders);
         document.getElementById('orderDateTo').addEventListener('change', filterStoreOrders);
+        
+        // Branding functions
+        let uploadedLogoBase64 = null;
+        
+        function getInitials(name) {
+            if (!name) return 'KD';
+            const words = name.trim().split(/\s+/);
+            if (words.length >= 2) {
+                return (words[0][0] + words[1][0]).toUpperCase();
+            }
+            return name.substring(0, 2).toUpperCase();
+        }
+        
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check file size (max 500KB)
+            if (file.size > 500 * 1024) {
+                alert('Logo file is too large! Maximum size is 500KB.');
+                event.target.value = '';
+                return;
+            }
+            
+            // Check file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file (JPG, PNG, etc.)');
+                event.target.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedLogoBase64 = e.target.result;
+                
+                // Update main preview
+                const previewContainer = document.getElementById('brandLogoPreview');
+                previewContainer.innerHTML = `<img src="${uploadedLogoBase64}" alt="Logo">`;
+                document.getElementById('removeLogoBtn').style.display = 'block';
+                
+                // Update live preview
+                const livePreview = document.getElementById('previewLogo');
+                livePreview.innerHTML = `<img src="${uploadedLogoBase64}" alt="Logo">`;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeLogo() {
+            uploadedLogoBase64 = null;
+            document.getElementById('logoFileInput').value = '';
+            document.getElementById('removeLogoBtn').style.display = 'none';
+            
+            const initials = getInitials(store?.name || 'KemData');
+            document.getElementById('brandLogoPreview').innerHTML = `<span id="logoInitials">${initials}</span>`;
+            document.getElementById('previewLogo').innerHTML = `<span id="previewInitials">${initials}</span>`;
+        }
+        
+        function syncColorPicker(type) {
+            if (type === 'primary') {
+                const hex = document.getElementById('brandPrimaryHex').value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                    document.getElementById('brandPrimaryColor').value = hex;
+                    updateBrandPreview();
+                }
+            } else {
+                const hex = document.getElementById('brandAccentHex').value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                    document.getElementById('brandAccentColor').value = hex;
+                    updateBrandPreview();
+                }
+            }
+        }
+        
+        document.getElementById('brandPrimaryColor').addEventListener('input', function() {
+            document.getElementById('brandPrimaryHex').value = this.value.toUpperCase();
+            updateBrandPreview();
+        });
+        
+        document.getElementById('brandAccentColor').addEventListener('input', function() {
+            document.getElementById('brandAccentHex').value = this.value.toUpperCase();
+            updateBrandPreview();
+        });
+        
+        function updateBrandPreview() {
+            const primary = document.getElementById('brandPrimaryColor').value;
+            const accent = document.getElementById('brandAccentColor').value;
+            document.getElementById('brandPreview').style.background = primary;
+            document.getElementById('previewStoreName').style.color = accent;
+            
+            // Update initials color based on primary
+            const logoPreview = document.getElementById('brandLogoPreview');
+            if (!uploadedLogoBase64 && !store?.logoUrl) {
+                logoPreview.style.background = `linear-gradient(135deg, ${primary}, ${accent})`;
+            }
+        }
+        
+        function loadBranding() {
+            if (!store) return;
+            
+            const initials = getInitials(store.name);
+            document.getElementById('brandPrimaryColor').value = store.primaryColor || '#024959';
+            document.getElementById('brandPrimaryHex').value = (store.primaryColor || '#024959').toUpperCase();
+            document.getElementById('brandAccentColor').value = store.accentColor || '#F2C12E';
+            document.getElementById('brandAccentHex').value = (store.accentColor || '#F2C12E').toUpperCase();
+            document.getElementById('previewStoreName').textContent = store.name || 'Your Store Name';
+            
+            // Set logo or initials
+            if (store.logoUrl) {
+                uploadedLogoBase64 = store.logoUrl;
+                document.getElementById('brandLogoPreview').innerHTML = `<img src="${store.logoUrl}" alt="Logo">`;
+                document.getElementById('previewLogo').innerHTML = `<img src="${store.logoUrl}" alt="Logo">`;
+                document.getElementById('removeLogoBtn').style.display = 'block';
+            } else {
+                document.getElementById('brandLogoPreview').innerHTML = `<span id="logoInitials">${initials}</span>`;
+                document.getElementById('previewLogo').innerHTML = `<span id="previewInitials">${initials}</span>`;
+                document.getElementById('removeLogoBtn').style.display = 'none';
+            }
+            
+            updateBrandPreview();
+        }
+        
+        async function saveBranding() {
+            if (!store || !store.id) {
+                alert('No store found. Please refresh the page.');
+                return;
+            }
+            
+            const data = {
+                logoUrl: uploadedLogoBase64 || null,
+                primaryColor: document.getElementById('brandPrimaryColor').value,
+                accentColor: document.getElementById('brandAccentColor').value
+            };
+            
+            const btn = document.querySelector('#settings-tab .btn-primary');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            
+            try {
+                const r = await api('/storefronts/' + store.id, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+                
+                if (r.ok) {
+                    const result = await r.json();
+                    store = result.storefront || result; // API returns { message, storefront }
+                    alert('Branding saved successfully!');
+                    loadBranding();
+                } else {
+                    alert((await r.json()).error || 'Failed to save branding');
+                }
+            } catch (e) {
+                alert('Error saving branding: ' + e.message);
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Save Branding';
+        }
+        
+        function resetBrandingToDefault() {
+            if (!confirm('Reset branding to default colors and remove logo?')) return;
+            
+            // Default values
+            const defaultPrimary = '#024959';
+            const defaultAccent = '#F2C12E';
+            
+            // Reset color inputs
+            document.getElementById('brandPrimaryColor').value = defaultPrimary;
+            document.getElementById('brandPrimaryHex').value = defaultPrimary.toUpperCase();
+            document.getElementById('brandAccentColor').value = defaultAccent;
+            document.getElementById('brandAccentHex').value = defaultAccent.toUpperCase();
+            
+            // Remove logo
+            uploadedLogoBase64 = null;
+            removeLogo();
+            
+            // Update preview
+            updateBrandPreview();
+            
+            // Auto-save
+            saveBranding();
+        }
         
         (async()=>{if(await checkAuth()){loadStore()}else{window.location.href='login.html?redirect=mystore.html'}})();
     </script>

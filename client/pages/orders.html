@@ -1032,13 +1032,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Filters
-        document.getElementById('searchInput').addEventListener('input', debounce(filterOrders, 300));
-        document.getElementById('networkFilter').addEventListener('change', filterOrders);
-        document.getElementById('statusFilter').addEventListener('change', filterOrders);
-        document.getElementById('dateFilter').addEventListener('change', filterOrders);
-        
-        // Debounce helper for search input
+        // Debounce helper - defined first
         function debounce(func, wait) {
             let timeout;
             return function(...args) {
@@ -1046,6 +1040,13 @@
                 timeout = setTimeout(() => func.apply(this, args), wait);
             };
         }
+
+        // Filters - use debounce to prevent lag
+        const debouncedFilter = debounce(filterOrders, 150);
+        document.getElementById('searchInput').addEventListener('input', debounce(filterOrders, 300));
+        document.getElementById('networkFilter').addEventListener('change', debouncedFilter);
+        document.getElementById('statusFilter').addEventListener('change', debouncedFilter);
+        document.getElementById('dateFilter').addEventListener('change', debouncedFilter);
         
         function clearFilters() {
             document.getElementById('searchInput').value = '';
@@ -1121,6 +1122,7 @@
 
             currentPage = 1;
             render();
+            updateStats(); // Update stats based on filtered orders
             
             // Show count of filtered results
             console.log(`Filtered: ${filteredGroups.length} of ${orderGroups.length} orders`);
@@ -1205,41 +1207,48 @@
         document.getElementById('customDateFrom')?.addEventListener('change', filterOrders);
         document.getElementById('customDateTo')?.addEventListener('change', filterOrders);
 
-        // Stats - counts only TODAY's orders
+        // Stats - based on filtered orders (optimized with requestAnimationFrame)
         function updateStats() {
-            const now = new Date();
-            const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString().split('T')[0];
-            
-            // Filter to today's orders only
-            const todayOrders = orderGroups.filter(g => {
-                const orderDate = new Date(g.createdAt);
-                const orderDateUTC = orderDate.toISOString().split('T')[0];
-                return orderDateUTC === todayUTC;
-            });
-            
-            let completed = 0;
-            let pending = 0;
-            
-            todayOrders.forEach(g => {
-                if (g.items && g.items.length > 0) {
-                    g.items.forEach(item => {
-                        if (item.status === 'COMPLETED') completed++;
-                        else if (['PENDING', 'PROCESSING'].includes(item.status)) pending++;
-                    });
-                } else {
-                    // Use group status as fallback
-                    if (g.status === 'COMPLETED') completed += g.itemCount || 1;
-                    else if (['PENDING', 'PROCESSING'].includes(g.status)) pending += g.itemCount || 1;
+            requestAnimationFrame(() => {
+                const ordersToCount = filteredGroups;
+                
+                let completed = 0;
+                let pending = 0;
+                let totalSpent = 0;
+                
+                for (let i = 0; i < ordersToCount.length; i++) {
+                    const g = ordersToCount[i];
+                    if (g.items && g.items.length > 0) {
+                        for (let j = 0; j < g.items.length; j++) {
+                            const item = g.items[j];
+                            if (item.status === 'COMPLETED') {
+                                completed++;
+                                totalSpent += parseFloat(item.totalPrice || item.price || 0);
+                            } else if (item.status === 'PROCESSING') {
+                                pending++;
+                                totalSpent += parseFloat(item.totalPrice || item.price || 0);
+                            } else if (item.status === 'PENDING') {
+                                pending++;
+                            }
+                        }
+                    } else {
+                        if (g.status === 'COMPLETED') {
+                            completed += g.itemCount || 1;
+                            totalSpent += parseFloat(g.totalAmount || 0);
+                        } else if (g.status === 'PROCESSING') {
+                            pending += g.itemCount || 1;
+                            totalSpent += parseFloat(g.totalAmount || 0);
+                        } else if (g.status === 'PENDING') {
+                            pending += g.itemCount || 1;
+                        }
+                    }
                 }
+                
+                document.getElementById('totalOrders').textContent = ordersToCount.length;
+                document.getElementById('completedItems').textContent = completed;
+                document.getElementById('pendingItems').textContent = pending;
+                document.getElementById('totalSpent').textContent = 'GHS ' + totalSpent.toFixed(2);
             });
-            
-            // Total spent is still from all orders
-            const totalSpent = orderGroups.reduce((sum, g) => sum + (g.totalAmount || 0), 0);
-            
-            document.getElementById('totalOrders').textContent = todayOrders.length;
-            document.getElementById('completedItems').textContent = completed;
-            document.getElementById('pendingItems').textContent = pending;
-            document.getElementById('totalSpent').textContent = 'GHS ' + totalSpent.toFixed(2);
         }
 
         // Export

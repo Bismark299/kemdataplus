@@ -34,7 +34,8 @@
         ============================================ */
         :root {
             --primary: #024959;
-            --accent: #026773;
+            --primary-light: #026773;
+            --accent: #F2C12E;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
@@ -52,7 +53,7 @@
            STORE BANNER
         ============================================ */
         .store-banner { 
-            background: linear-gradient(135deg, var(--primary), var(--accent)); 
+            background: linear-gradient(135deg, var(--primary), var(--primary-light)); 
             color: white; 
             padding: 30px 16px 25px; 
             text-align: center;
@@ -76,6 +77,17 @@
             font-size: 1.5rem; 
             margin-bottom: 6px;
             font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .store-name::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 3px;
+            background: var(--accent);
+            margin: 8px auto 0;
+            border-radius: 2px;
         }
         
         .store-desc { 
@@ -206,8 +218,9 @@
         
         .network-tab.active { 
             background: var(--primary); 
-            color: white; 
-            border-color: var(--primary); 
+            color: var(--accent); 
+            border-color: var(--primary);
+            font-weight: 600;
         }
         
         /* Products Grid */
@@ -275,7 +288,11 @@
             font-size: 1.3rem; 
             font-weight: 700; 
             color: var(--primary); 
-            margin-bottom: 10px; 
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent), #e6b000);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .buy-btn { 
@@ -1535,6 +1552,16 @@
         const pathParts = window.location.pathname.split('/');
         const slug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
         
+        // Helper to lighten a hex color
+        function lightenColor(hex, percent) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+        
         // Check for payment callback on page load
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('payment') === 'callback') {
@@ -1565,9 +1592,14 @@
                 if (!res.ok) throw new Error('Not found');
                 storeData = await res.json();
                 
-                // Set theme colors
-                document.documentElement.style.setProperty('--primary', storeData.primaryColor || '#024959');
-                document.documentElement.style.setProperty('--accent', storeData.accentColor || '#026773');
+                // Set theme colors from store branding
+                const primaryColor = storeData.primaryColor || '#024959';
+                const accentColor = storeData.accentColor || '#F2C12E';
+                
+                // Calculate a lighter version of primary for gradient
+                document.documentElement.style.setProperty('--primary', primaryColor);
+                document.documentElement.style.setProperty('--primary-light', lightenColor(primaryColor, 20));
+                document.documentElement.style.setProperty('--accent', accentColor);
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('storeContent').style.display = 'block';
@@ -1579,11 +1611,31 @@
                 document.getElementById('errorState').style.display = 'block';
             }
         }
+        
+        function getInitials(name) {
+            if (!name) return 'KD';
+            const words = name.trim().split(/\s+/);
+            if (words.length >= 2) {
+                return (words[0][0] + words[1][0]).toUpperCase();
+            }
+            return name.substring(0, 2).toUpperCase();
+        }
 
         function renderStore() {
             document.getElementById('pageTitle').textContent = storeData.name + ' - Data Store';
             document.getElementById('storeName').textContent = storeData.name;
             document.getElementById('storeDesc').textContent = storeData.description || '';
+            
+            // Display logo or initials
+            const logoEl = document.getElementById('storeLogo');
+            if (storeData.logoUrl) {
+                logoEl.innerHTML = `<img src="${storeData.logoUrl}" alt="${storeData.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+            } else {
+                // Show initials with accent color
+                const initials = getInitials(storeData.name);
+                const accentColor = storeData.accentColor || '#F2C12E';
+                logoEl.innerHTML = `<span style="font-size:1.6rem;font-weight:700;color:${accentColor};">${initials}</span>`;
+            }
             
             // Contact buttons
             let contactHtml = '';

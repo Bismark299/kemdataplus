@@ -5256,6 +5256,29 @@
                             </div>
                         </div>
 
+                        <!-- Upload Limits -->
+                        <div class="settings-section-title" style="margin-top: 30px;">Upload Limits</div>
+                        <div class="settings-grid settings-grid-2">
+                            <div class="setting-card">
+                                <div class="setting-card-info">
+                                    <h4><i class="fas fa-file-excel" style="color: #10b981;"></i> Max Excel Upload</h4>
+                                    <p>Maximum phone numbers per Excel sheet</p>
+                                </div>
+                                <input type="number" id="maxExcelUpload" min="1" max="500" value="50" 
+                                    style="width: 80px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 1rem; text-align: center;"
+                                    onchange="updateAdminSetting('maxExcelUpload', this.value)">
+                            </div>
+                            <div class="setting-card">
+                                <div class="setting-card-info">
+                                    <h4><i class="fas fa-list-ol" style="color: #3b82f6;"></i> Max Bulk Upload</h4>
+                                    <p>Maximum phone numbers in bulk text input</p>
+                                </div>
+                                <input type="number" id="maxBulkUpload" min="1" max="500" value="50" 
+                                    style="width: 80px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 1rem; text-align: center;"
+                                    onchange="updateAdminSetting('maxBulkUpload', this.value)">
+                            </div>
+                        </div>
+
                         <!-- Other Settings -->
                         <div class="settings-section-title" style="margin-top: 30px;">Other Settings</div>
                         <div class="settings-grid settings-grid-2">
@@ -10095,7 +10118,9 @@
             smsNotify: false,
             maintenance: false,
             apiUrl: '',
-            apiKey: ''
+            apiKey: '',
+            maxExcelUpload: 50,
+            maxBulkUpload: 50
         };
         
         // Site Settings Object
@@ -10173,6 +10198,12 @@
                 }
                 setToggleState(toggleId, siteSettings[key]);
             });
+            
+            // Load upload limits
+            const maxExcelEl = document.getElementById('maxExcelUpload');
+            const maxBulkEl = document.getElementById('maxBulkUpload');
+            if (maxExcelEl) maxExcelEl.value = adminSettings.maxExcelUpload || 50;
+            if (maxBulkEl) maxBulkEl.value = adminSettings.maxBulkUpload || 50;
             
             // Update status texts
             updateSettingStatusTexts();
@@ -10276,6 +10307,22 @@
             };
             
             setToggleState(toggleMap[setting], adminSettings[setting]);
+        }
+        
+        // Update admin setting (for number inputs like upload limits)
+        async function updateAdminSetting(setting, value) {
+            if (!settingsLoaded) {
+                showToast('Please wait, loading settings...', 'warning');
+                return;
+            }
+            
+            const numValue = parseInt(value) || 50;
+            adminSettings[setting] = numValue;
+            
+            // Auto-save to API
+            await saveSettingsToAPI();
+            
+            showToast(`${setting.replace(/([A-Z])/g, ' $1').trim()} set to ${numValue}`, 'success');
         }
         
         function renderMomoNumbers() {
