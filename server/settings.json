@@ -3,7 +3,10 @@
     "adminName": "Administrator",
     "adminEmail": "admin@kemdataplus.com",
     "momoNumbers": [
-      "0555546229"
+      {
+        "number": "0555546229",
+        "name": "Bismark Kwame Oteng"
+      }
     ],
     "autoApprove": false,
     "autoApproveLimit": 50,

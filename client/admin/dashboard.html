@@ -10111,7 +10111,7 @@
         let adminSettings = {
             adminName: 'Administrator',
             adminEmail: 'admin@kemdataplus.com',
-            momoNumbers: ['0555546229'],
+            momoNumbers: [{ number: '0555546229', name: 'KemDataplus' }],
             autoApprove: false,
             autoApproveLimit: 50,
             emailNotify: true,
@@ -10329,21 +10329,31 @@
             const container = document.getElementById('momoNumbersList');
             const numbers = adminSettings.momoNumbers || [];
             
-            container.innerHTML = numbers.map((num, idx) => `
-                <div class="momo-number-item">
-                    <select style="width: 100px;">
-                        <option value="MTN" ${num.startsWith('024') || num.startsWith('054') || num.startsWith('055') ? 'selected' : ''}>MTN</option>
-                        <option value="Vodafone" ${num.startsWith('020') || num.startsWith('050') ? 'selected' : ''}>Vodafone</option>
-                        <option value="AirtelTigo" ${num.startsWith('026') || num.startsWith('027') || num.startsWith('057') ? 'selected' : ''}>AirtelTigo</option>
+            // Convert old format (strings) to new format (objects)
+            const normalizedNumbers = numbers.map(item => {
+                if (typeof item === 'string') {
+                    return { number: item, name: '' };
+                }
+                return item;
+            });
+            adminSettings.momoNumbers = normalizedNumbers;
+            
+            container.innerHTML = normalizedNumbers.map((item, idx) => `
+                <div class="momo-number-item" style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+                    <select style="width:100px;padding:8px;border:1px solid #e5e7eb;border-radius:6px;" data-action="update-momo-network" data-idx="${idx}">
+                        <option value="MTN" ${(item.number||'').startsWith('024') || (item.number||'').startsWith('054') || (item.number||'').startsWith('055') ? 'selected' : ''}>MTN</option>
+                        <option value="Telecel" ${(item.number||'').startsWith('020') || (item.number||'').startsWith('050') ? 'selected' : ''}>Telecel</option>
+                        <option value="AirtelTigo" ${(item.number||'').startsWith('026') || (item.number||'').startsWith('027') || (item.number||'').startsWith('057') ? 'selected' : ''}>AirtelTigo</option>
                     </select>
-                    <input type="text" value="${num}" placeholder="Phone number" data-action="update-momo-number" data-idx="${idx}">
-                    <button class="remove-btn" data-action="remove-momo-number" data-idx="${idx}"><i class="fas fa-times"></i></button>
+                    <input type="text" value="${item.number || ''}" placeholder="Phone number" data-action="update-momo-number" data-idx="${idx}" style="flex:1;min-width:120px;padding:8px;border:1px solid #e5e7eb;border-radius:6px;">
+                    <input type="text" value="${item.name || ''}" placeholder="Account Name" data-action="update-momo-name" data-idx="${idx}" style="flex:1;min-width:150px;padding:8px;border:1px solid #e5e7eb;border-radius:6px;">
+                    <button class="remove-btn" data-action="remove-momo-number" data-idx="${idx}" style="background:#fee2e2;color:#ef4444;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
                 </div>
             `).join('');
         }
         
         function addMomoNumberField() {
-            adminSettings.momoNumbers.push('');
+            adminSettings.momoNumbers.push({ number: '', name: '' });
             renderMomoNumbers();
         }
         
@@ -10352,10 +10362,15 @@
             const momoList = document.getElementById('momoNumbersList');
             if (momoList) {
                 momoList.addEventListener('input', function(e) {
-                    const input = e.target.closest('[data-action="update-momo-number"]');
-                    if (input) {
-                        const idx = parseInt(input.getAttribute('data-idx'), 10);
-                        updateMomoNumber(idx, input.value);
+                    const numberInput = e.target.closest('[data-action="update-momo-number"]');
+                    if (numberInput) {
+                        const idx = parseInt(numberInput.getAttribute('data-idx'), 10);
+                        updateMomoNumber(idx, numberInput.value);
+                    }
+                    const nameInput = e.target.closest('[data-action="update-momo-name"]');
+                    if (nameInput) {
+                        const idx = parseInt(nameInput.getAttribute('data-idx'), 10);
+                        updateMomoName(idx, nameInput.value);
                     }
                 });
                 momoList.addEventListener('click', function(e) {
@@ -10369,7 +10384,19 @@
         })();
         
         function updateMomoNumber(index, value) {
-            adminSettings.momoNumbers[index] = value;
+            if (typeof adminSettings.momoNumbers[index] === 'object') {
+                adminSettings.momoNumbers[index].number = value;
+            } else {
+                adminSettings.momoNumbers[index] = { number: value, name: '' };
+            }
+        }
+        
+        function updateMomoName(index, value) {
+            if (typeof adminSettings.momoNumbers[index] === 'object') {
+                adminSettings.momoNumbers[index].name = value;
+            } else {
+                adminSettings.momoNumbers[index] = { number: adminSettings.momoNumbers[index] || '', name: value };
+            }
         }
         
         function removeMomoNumber(index) {
@@ -10430,8 +10457,11 @@
             adminSettings.mcbisApiUrl = document.getElementById('mcbisApiUrl')?.value || 'https://datahub.mcbissolution.com/api/v1';
             adminSettings.mcbisApiToken = document.getElementById('mcbisApiToken')?.value || '';
             
-            // Clean empty MoMo numbers
-            adminSettings.momoNumbers = (adminSettings.momoNumbers || []).filter(n => n && n.trim());
+            // Clean empty MoMo numbers (filter out entries with no number)
+            adminSettings.momoNumbers = (adminSettings.momoNumbers || []).filter(item => {
+                if (typeof item === 'string') return item && item.trim();
+                return item && item.number && item.number.trim();
+            });
             
             // Ensure momoNumbers has at least an empty array
             if (!adminSettings.momoNumbers || adminSettings.momoNumbers.length === 0) {

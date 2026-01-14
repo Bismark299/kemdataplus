@@ -1304,7 +1304,7 @@
                             <div class="momo-number-display">
                                 <div class="label">Send Money To:</div>
                                 <div class="number" id="momoNumberDisplay">Loading...</div>
-                                <div class="name">KemDataplus</div>
+                                <div class="name" id="momoNameDisplay">Loading...</div>
                                 <button class="copy-btn" onclick="copyMomoNumber()">
                                     <i class="fas fa-copy"></i> Copy Number
                                 </button>
@@ -1932,21 +1932,32 @@
         
         // ========== CLAIM MOMO ==========
         let MOMO_NUMBER = '';
-        const MOMO_NAME = 'KemDataplus';
+        let MOMO_NAME = 'KemDataplus';
         
         // Load MoMo number from admin settings
         async function loadMomoSettings() {
             try {
                 const settings = await apiRequest('/settings/public');
                 if (settings.momoNumbers && settings.momoNumbers.length > 0) {
-                    MOMO_NUMBER = settings.momoNumbers[0];
-                    document.getElementById('momoNumberDisplay').textContent = MOMO_NUMBER;
+                    const firstMomo = settings.momoNumbers[0];
+                    // Handle both old format (string) and new format (object)
+                    if (typeof firstMomo === 'object') {
+                        MOMO_NUMBER = firstMomo.number || '';
+                        MOMO_NAME = firstMomo.name || 'KemDataplus';
+                    } else {
+                        MOMO_NUMBER = firstMomo;
+                        MOMO_NAME = 'KemDataplus';
+                    }
+                    document.getElementById('momoNumberDisplay').textContent = MOMO_NUMBER || 'Contact support';
+                    document.getElementById('momoNameDisplay').textContent = MOMO_NAME;
                 } else {
                     document.getElementById('momoNumberDisplay').textContent = 'Contact support';
+                    document.getElementById('momoNameDisplay').textContent = '';
                 }
             } catch (e) {
                 console.warn('Could not load MoMo settings');
                 document.getElementById('momoNumberDisplay').textContent = 'Contact support';
+                document.getElementById('momoNameDisplay').textContent = '';
             }
         }
         
