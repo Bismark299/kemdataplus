@@ -6638,23 +6638,17 @@
                 const todayUTC = getTodayUTC();
                 
                 // Fetch total wallet balance from all users
+                // The /api/users endpoint already includes wallet.balance for each user
                 try {
                     const usersRes = await adminFetch('/api/users?limit=500');
                     if (usersRes.ok) {
                         const usersData = await usersRes.json();
                         const users = usersData.users || [];
-                        let totalWalletBalance = 0;
                         
-                        // Fetch wallet balance for each user
-                        await Promise.all(users.map(async u => {
-                            try {
-                                const walletRes = await adminFetch(`/api/wallet?userId=${u.id}`);
-                                if (walletRes.ok) {
-                                    const wallet = await walletRes.json();
-                                    totalWalletBalance += parseFloat(wallet.balance) || 0;
-                                }
-                            } catch {}
-                        }));
+                        // Sum wallet balances directly from users response
+                        const totalWalletBalance = users.reduce((sum, u) => {
+                            return sum + (parseFloat(u.wallet?.balance) || 0);
+                        }, 0);
                         
                         document.getElementById('walletBalance').textContent = 'GH₵ ' + totalWalletBalance.toFixed(2);
                     }
@@ -8436,40 +8430,27 @@
         let pendingTopups = [];
 
         // Fetch users and their wallet data from backend API
+        // The /api/users endpoint already includes wallet.balance for each user
         async function initUsersData() {
             try {
                 const res = await adminFetch('/api/users?limit=500');
                 if (!res.ok) throw new Error('Failed to fetch users');
                 const data = await res.json();
-                // Fetch wallet and transactions for each user
-                usersData = await Promise.all((Array.isArray(data.users) ? data.users : []).map(async u => {
-                    let wallet = null;
-                    let transactions = [];
-                    try {
-                        const walletRes = await adminFetch(`/api/wallet?userId=${u.id}`);
-                        if (walletRes.ok) {
-                            wallet = await walletRes.json();
-                            transactions = (wallet.transactions || []).map(t => ({
-                                ...t,
-                                date: t.createdAt,
-                                type: t.type,
-                                amount: parseFloat(t.amount) || 0
-                            }));
-                        }
-                    } catch {}
-                    return {
-                        id: u.id,
-                        name: u.name,
-                        phone: u.phone,
-                        email: u.email,
-                        role: u.role,
-                        status: u.isActive ? 'active' : 'inactive',
-                        balance: parseFloat(wallet?.balance) || 0,
-                        totalSpent: 0, // TODO: fetch from backend if available
-                        transactions: transactions,
-                        joinedAt: u.createdAt
-                    };
+                
+                // Map users - wallet balance is already included in the response
+                usersData = (Array.isArray(data.users) ? data.users : []).map(u => ({
+                    id: u.id,
+                    name: u.name,
+                    phone: u.phone,
+                    email: u.email,
+                    role: u.role,
+                    status: u.isActive ? 'active' : 'inactive',
+                    balance: parseFloat(u.wallet?.balance) || 0,
+                    totalSpent: 0,
+                    transactions: [], // Transactions loaded on-demand when viewing user details
+                    joinedAt: u.createdAt
                 }));
+                
                 // Update stats after loading users
                 updateUsersStats();
                 updateWalletStats();
@@ -10851,12 +10832,22 @@
             
             try {
                 const res = await adminFetch(`/api/admin/audit-report?startDate=${start.toISOString()}&endDate=${end.toISOString()}`);
+                
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}`);
+                }
+                
                 const data = await res.json();
+                
+                if (!data || !data.deposits) {
+                    throw new Error('Invalid response data');
+                }
+                
                 auditReportData = data;
                 renderAuditReport(data);
             } catch (err) {
                 console.error('Error loading audit report:', err);
-                showToast('Failed to load audit report', 'error');
+                showToast('Failed to load audit report. Try again.', 'error');
             }
         }
         
