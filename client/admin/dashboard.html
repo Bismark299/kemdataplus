@@ -4368,8 +4368,16 @@
                     <div class="wallet-users-section">
                         <div class="section-header">
                             <h3><i class="fas fa-users"></i> User Wallets</h3>
-                            <div class="search-box">
-                                <input type="text" id="userSearch" placeholder="Search by name or phone...">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <div class="search-box">
+                                    <input type="text" id="userSearch" placeholder="Search by name or phone...">
+                                </div>
+                                <select id="walletBalanceFilter" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem;">
+                                    <option value="">All Balances</option>
+                                    <option value="zero">Zero Balance</option>
+                                    <option value="low">Low Balance (&lt; GH₵50)</option>
+                                    <option value="positive">Positive (&gt;= GH₵50)</option>
+                                </select>
                             </div>
                         </div>
                         <table class="user-wallet-table">
@@ -4560,8 +4568,16 @@
                         <input type="text" id="txnSearch" placeholder="Search by user or reference...">
                         <select id="txnTypeFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px;">
                             <option value="">All Types</option>
-                            <option value="credit">Credits Only</option>
-                            <option value="debit">Debits Only</option>
+                            <option value="credit">All Credits (+)</option>
+                            <option value="debit">All Debits (-)</option>
+                            <option value="DEPOSIT">Deposits</option>
+                            <option value="PROFIT_CREDIT">Profit Credits</option>
+                            <option value="REFUND">Refunds</option>
+                            <option value="PURCHASE">Purchases</option>
+                            <option value="DEDUCTION">Deductions</option>
+                            <option value="TRANSFER_IN">Transfers In</option>
+                            <option value="TRANSFER_OUT">Transfers Out</option>
+                            <option value="COMMISSION">Commission</option>
                         </select>
                     </div>
                 </div>
@@ -6392,7 +6408,7 @@
                 
                 // Fetch total wallet balance from all users
                 try {
-                    const usersRes = await adminFetch('/api/users');
+                    const usersRes = await adminFetch('/api/users?limit=500');
                     if (usersRes.ok) {
                         const usersData = await usersRes.json();
                         const users = usersData.users || [];
@@ -7525,10 +7541,15 @@
             document.getElementById('statTotalBalance').textContent = 'GH₵ ' + totalBalance.toFixed(2);
         }
         
+        // Users pagination state
+        let usersCurrentPage = 1;
+        const usersPerPage = 50;
+        
         function renderUsersTable(searchTerm = '', statusFilter = '', roleFilter = '', agentIdFilter = '') {
             const tbody = document.getElementById('usersTableBody');
             let filtered = [...usersData];
             
+            // Apply search filter
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
                 filtered = filtered.filter(u => 
@@ -7538,6 +7559,7 @@
                 );
             }
             
+            // Apply agent ID filter
             if (agentIdFilter) {
                 const agentTerm = agentIdFilter.toUpperCase().replace('KDP-', '').replace('KDP', '');
                 filtered = filtered.filter(u => {
@@ -7547,12 +7569,20 @@
                 });
             }
             
+            // Apply status filter
             if (statusFilter) {
-                filtered = filtered.filter(u => (u.status || 'active') === statusFilter);
+                filtered = filtered.filter(u => {
+                    const userStatus = u.status || 'active';
+                    return userStatus.toLowerCase() === statusFilter.toLowerCase();
+                });
             }
             
+            // Apply role filter
             if (roleFilter) {
-                filtered = filtered.filter(u => (u.role || '').toUpperCase() === roleFilter.toUpperCase());
+                filtered = filtered.filter(u => {
+                    const userRole = (u.role || '').toUpperCase();
+                    return userRole === roleFilter.toUpperCase();
+                });
             }
             
             if (filtered.length === 0) {
@@ -7569,17 +7599,27 @@
                         </td>
                     </tr>
                 `;
+                renderUsersPagination(0, 0);
                 return;
             }
+            
+            // Calculate pagination
+            const totalUsers = filtered.length;
+            const totalPages = Math.ceil(totalUsers / usersPerPage);
+            if (usersCurrentPage > totalPages) usersCurrentPage = 1;
+            const startIdx = (usersCurrentPage - 1) * usersPerPage;
+            const endIdx = Math.min(startIdx + usersPerPage, totalUsers);
+            const paginatedUsers = filtered.slice(startIdx, endIdx);
             
             // Get orders for each user (use ordersCache from API)
             const orders = [...ordersCache];
             
-            tbody.innerHTML = filtered.map(user => {
+            tbody.innerHTML = paginatedUsers.map(user => {
                 const userOrders = orders.filter(o => o.phone === user.phone || o.userId === user.id);
                 const status = user.status || 'active';
-                const role = user.role || 'agent';
-                const roleDisplay = role.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                const role = user.role || 'AGENT';
+                const roleDisplay = role.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                const roleClass = role.toLowerCase().replace(/_/g, '-');
                 
                 return `
                     <tr>
@@ -7593,7 +7633,7 @@
                             </div>
                         </td>
                         <td>${user.phone || 'N/A'}</td>
-                        <td><span class="user-role ${role}">${roleDisplay}</span></td>
+                        <td><span class="user-role ${roleClass}">${roleDisplay}</span></td>
                         <td class="balance-amount ${user.balance < 50 ? 'low' : ''}">GH₵ ${user.balance.toFixed(2)}</td>
                         <td>GH₵ ${user.totalSpent.toFixed(2)}</td>
                         <td>${userOrders.length}</td>
@@ -7623,10 +7663,68 @@
                     </tr>
                 `;
             }).join('');
+            
+            // Render pagination controls
+            renderUsersPagination(totalUsers, totalPages);
+        }
+        
+        function renderUsersPagination(totalUsers, totalPages) {
+            let paginationHtml = '';
+            if (totalPages > 1) {
+                paginationHtml = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+                        <span style="color: #6b7280; font-size: 0.875rem;">
+                            Showing ${((usersCurrentPage - 1) * usersPerPage) + 1} - ${Math.min(usersCurrentPage * usersPerPage, totalUsers)} of ${totalUsers} users
+                        </span>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="usersGoToPage(1)" ${usersCurrentPage === 1 ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${usersCurrentPage === 1 ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </button>
+                            <button onclick="usersGoToPage(${usersCurrentPage - 1})" ${usersCurrentPage === 1 ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${usersCurrentPage === 1 ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-left"></i>
+                            </button>
+                            <span style="padding: 6px 12px; background: #024959; color: white; border-radius: 6px; font-weight: 600;">
+                                ${usersCurrentPage} / ${totalPages}
+                            </span>
+                            <button onclick="usersGoToPage(${usersCurrentPage + 1})" ${usersCurrentPage === totalPages ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${usersCurrentPage === totalPages ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-right"></i>
+                            </button>
+                            <button onclick="usersGoToPage(${totalPages})" ${usersCurrentPage === totalPages ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${usersCurrentPage === totalPages ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (totalUsers > 0) {
+                paginationHtml = `
+                    <div style="padding: 10px 15px; border-top: 1px solid #e5e7eb; background: #f9fafb; color: #6b7280; font-size: 0.875rem;">
+                        Showing all ${totalUsers} users
+                    </div>
+                `;
+            }
+            
+            // Insert pagination after table
+            let paginationContainer = document.getElementById('usersPaginationContainer');
+            if (!paginationContainer) {
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = 'usersPaginationContainer';
+                document.querySelector('.users-table')?.parentNode?.appendChild(paginationContainer);
+            }
+            paginationContainer.innerHTML = paginationHtml;
+        }
+        
+        function usersGoToPage(page) {
+            usersCurrentPage = page;
+            const searchTerm = document.getElementById('usersSearchInput')?.value || '';
+            const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
+            const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
+            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
+            renderUsersTable(searchTerm, statusFilter, roleFilter, agentIdFilter);
         }
         
         // User search and filter
         document.getElementById('usersSearchInput')?.addEventListener('input', function() {
+            usersCurrentPage = 1; // Reset to first page on filter change
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
             const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
@@ -7634,6 +7732,7 @@
         });
         
         document.getElementById('usersAgentIdFilter')?.addEventListener('input', function() {
+            usersCurrentPage = 1; // Reset to first page on filter change
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
@@ -7641,6 +7740,7 @@
         });
         
         document.getElementById('usersStatusFilter')?.addEventListener('change', function() {
+            usersCurrentPage = 1; // Reset to first page on filter change
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
             const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
@@ -7648,6 +7748,7 @@
         });
         
         document.getElementById('usersRoleFilter')?.addEventListener('change', function() {
+            usersCurrentPage = 1; // Reset to first page on filter change
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
             const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
@@ -8106,7 +8207,7 @@
         // Fetch users and their wallet data from backend API
         async function initUsersData() {
             try {
-                const res = await adminFetch('/api/users');
+                const res = await adminFetch('/api/users?limit=500');
                 if (!res.ok) throw new Error('Failed to fetch users');
                 const data = await res.json();
                 // Fetch wallet and transactions for each user
@@ -8216,17 +8317,34 @@
             document.getElementById('todayDebits').textContent = 'GH₵ ' + todayDebits.toFixed(2);
         }
         
-        // Render user wallets table
-        function renderUserWallets(searchTerm = '') {
+        // Wallet users pagination state
+        let walletUsersCurrentPage = 1;
+        const walletUsersPerPage = 50;
+        
+        // Render user wallets table with pagination
+        function renderUserWallets(searchTerm = '', balanceFilter = '') {
             const tbody = document.getElementById('userWalletsBody');
-            let filtered = usersData;
+            let filtered = [...usersData];
             
+            // Apply search filter
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
-                filtered = usersData.filter(u => 
-                    u.name.toLowerCase().includes(term) || 
-                    u.phone.includes(term)
+                filtered = filtered.filter(u => 
+                    (u.name || '').toLowerCase().includes(term) || 
+                    (u.phone || '').includes(term) ||
+                    (u.email || '').toLowerCase().includes(term)
                 );
+            }
+            
+            // Apply balance filter
+            if (balanceFilter) {
+                filtered = filtered.filter(u => {
+                    const balance = parseFloat(u.balance) || 0;
+                    if (balanceFilter === 'zero') return balance === 0;
+                    if (balanceFilter === 'low') return balance > 0 && balance < 50;
+                    if (balanceFilter === 'positive') return balance >= 50;
+                    return true;
+                });
             }
             
             if (filtered.length === 0) {
@@ -8239,20 +8357,29 @@
                         null
                     )}
                 </td></tr>`;
+                renderWalletUsersPagination(0, 0);
                 return;
             }
             
-            tbody.innerHTML = filtered.map(u => {
+            // Calculate pagination
+            const totalUsers = filtered.length;
+            const totalPages = Math.ceil(totalUsers / walletUsersPerPage);
+            if (walletUsersCurrentPage > totalPages) walletUsersCurrentPage = 1;
+            const startIdx = (walletUsersCurrentPage - 1) * walletUsersPerPage;
+            const endIdx = Math.min(startIdx + walletUsersPerPage, totalUsers);
+            const paginatedUsers = filtered.slice(startIdx, endIdx);
+            
+            tbody.innerHTML = paginatedUsers.map(u => {
                 const balance = parseFloat(u.balance) || 0;
                 const totalSpent = parseFloat(u.totalSpent) || 0;
                 return `
                 <tr>
                     <td>
                         <div class="user-info">
-                            <div class="user-avatar">${u.name.charAt(0)}</div>
+                            <div class="user-avatar">${(u.name || 'U').charAt(0)}</div>
                             <div>
-                                <div class="user-name">${u.name}</div>
-                                <div class="user-phone">${u.phone}</div>
+                                <div class="user-name">${u.name || 'Unknown'}</div>
+                                <div class="user-phone">${u.phone || 'N/A'}</div>
                             </div>
                         </div>
                     </td>
@@ -8270,6 +8397,61 @@
                     </td>
                 </tr>`;
             }).join('');
+            
+            // Render pagination controls
+            renderWalletUsersPagination(totalUsers, totalPages);
+        }
+        
+        function renderWalletUsersPagination(totalUsers, totalPages) {
+            let paginationHtml = '';
+            if (totalPages > 1) {
+                paginationHtml = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+                        <span style="color: #6b7280; font-size: 0.875rem;">
+                            Showing ${((walletUsersCurrentPage - 1) * walletUsersPerPage) + 1} - ${Math.min(walletUsersCurrentPage * walletUsersPerPage, totalUsers)} of ${totalUsers} users
+                        </span>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="walletUsersGoToPage(1)" ${walletUsersCurrentPage === 1 ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${walletUsersCurrentPage === 1 ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </button>
+                            <button onclick="walletUsersGoToPage(${walletUsersCurrentPage - 1})" ${walletUsersCurrentPage === 1 ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${walletUsersCurrentPage === 1 ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-left"></i>
+                            </button>
+                            <span style="padding: 6px 12px; background: #024959; color: white; border-radius: 6px; font-weight: 600;">
+                                ${walletUsersCurrentPage} / ${totalPages}
+                            </span>
+                            <button onclick="walletUsersGoToPage(${walletUsersCurrentPage + 1})" ${walletUsersCurrentPage === totalPages ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${walletUsersCurrentPage === totalPages ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-right"></i>
+                            </button>
+                            <button onclick="walletUsersGoToPage(${totalPages})" ${walletUsersCurrentPage === totalPages ? 'disabled' : ''} style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; ${walletUsersCurrentPage === totalPages ? 'opacity: 0.5;' : ''}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (totalUsers > 0) {
+                paginationHtml = `
+                    <div style="padding: 10px 15px; border-top: 1px solid #e5e7eb; background: #f9fafb; color: #6b7280; font-size: 0.875rem;">
+                        Showing all ${totalUsers} users
+                    </div>
+                `;
+            }
+            
+            // Insert pagination after table
+            let paginationContainer = document.getElementById('walletUsersPaginationContainer');
+            if (!paginationContainer) {
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = 'walletUsersPaginationContainer';
+                document.querySelector('.user-wallet-table')?.parentNode?.appendChild(paginationContainer);
+            }
+            paginationContainer.innerHTML = paginationHtml;
+        }
+        
+        function walletUsersGoToPage(page) {
+            walletUsersCurrentPage = page;
+            const searchTerm = document.getElementById('userSearch')?.value || '';
+            const balanceFilter = document.getElementById('walletBalanceFilter')?.value || '';
+            renderUserWallets(searchTerm, balanceFilter);
         }
         
         // Populate user select dropdown
@@ -8404,9 +8586,18 @@
         });
         document.getElementById('closeTransactionModalBtn')?.addEventListener('click', closeTransactionModal);
         
-        // User search
+        // User wallet search
         document.getElementById('userSearch')?.addEventListener('input', function() {
-            renderUserWallets(this.value);
+            walletUsersCurrentPage = 1; // Reset to first page on search
+            const balanceFilter = document.getElementById('walletBalanceFilter')?.value || '';
+            renderUserWallets(this.value, balanceFilter);
+        });
+        
+        // Wallet balance filter
+        document.getElementById('walletBalanceFilter')?.addEventListener('change', function() {
+            walletUsersCurrentPage = 1; // Reset to first page on filter change
+            const searchTerm = document.getElementById('userSearch')?.value || '';
+            renderUserWallets(searchTerm, this.value);
         });
 
         // ========== WALLET TABS ==========
@@ -8826,15 +9017,15 @@
             }
             
             if (typeFilter) {
-                // Filter by credit (positive amounts) or debit (negative amounts)
+                // Filter by specific type or by credit/debit category
                 filtered = filtered.filter(t => {
-                    const txnType = (t.type || '').toLowerCase();
-                    const amount = t.amount || 0;
-                    const isCredit = amount > 0 || txnType === 'deposit' || txnType === 'refund' || txnType === 'transfer_in' || txnType === 'credit';
+                    const txnType = (t.type || '').toUpperCase();
+                    const isCredit = txnType === 'DEPOSIT' || txnType === 'REFUND' || txnType === 'TRANSFER_IN' || txnType === 'CREDIT' || txnType === 'PROFIT_CREDIT' || txnType === 'COMMISSION';
                     
                     if (typeFilter === 'credit') return isCredit;
                     if (typeFilter === 'debit') return !isCredit;
-                    return true;
+                    // Specific type filter
+                    return txnType === typeFilter.toUpperCase();
                 });
             }
             
@@ -8847,7 +9038,7 @@
             
             tbody.innerHTML = filtered.slice(0, 100).map(txn => {
                 const txnType = (txn.type || '').toLowerCase();
-                const isCredit = txnType === 'credit' || txnType === 'deposit' || txnType === 'refund';
+                const isCredit = txnType === 'credit' || txnType === 'deposit' || txnType === 'refund' || txnType === 'profit_credit' || txnType === 'commission' || txnType === 'transfer_in';
                 return `
                 <tr>
                     <td>${formatTransactionDate(txn.date || txn.createdAt)}</td>
@@ -10176,7 +10367,7 @@
             document.getElementById('userReportDate').textContent = dateStr;
             try {
                 const [usersRes, walletsRes, ordersRes] = await Promise.all([
-                    adminFetch('/api/users'),
+                    adminFetch('/api/users?limit=500'),
                     adminFetch('/api/wallet/all'),
                     adminFetch('/api/order-groups/admin/all?limit=1000')
                 ]);
@@ -10307,7 +10498,7 @@
             let csvContent = "Agent,Wallet Loads,Total Orders (GHS),Data Capacity,Profit (GHS)\n";
             try {
                 const [usersRes, walletsRes, ordersRes] = await Promise.all([
-                    adminFetch('/api/users'),
+                    adminFetch('/api/users?limit=500'),
                     adminFetch('/api/wallet/all'),
                     adminFetch('/api/order-groups/admin/all?limit=1000')
                 ]);
@@ -11375,11 +11566,11 @@
             const profits = storefrontsData.profits;
             if (!profits) return;
             
-            document.getElementById('todayAgentProfits').textContent = `GH₵ ${(profits.summary.today.agentProfits || 0).toFixed(2)}`;
-            document.getElementById('todayPlatformProfits').textContent = `GH₵ ${(profits.summary.today.platformProfits || 0).toFixed(2)}`;
-            document.getElementById('uncreditedProfits').textContent = `GH₵ ${(profits.uncredited.totalAgentProfit || 0).toFixed(2)}`;
+            document.getElementById('todayAgentProfits').textContent = `GH₵ ${Math.max(0, profits.summary.today.agentProfits || 0).toFixed(2)}`;
+            document.getElementById('todayPlatformProfits').textContent = `GH₵ ${Math.max(0, profits.summary.today.platformProfits || 0).toFixed(2)}`;
+            document.getElementById('uncreditedProfits').textContent = `GH₵ ${Math.max(0, profits.uncredited.totalAgentProfit || 0).toFixed(2)}`;
             document.getElementById('uncreditedCount').textContent = `${profits.uncredited.count} orders pending`;
-            document.getElementById('totalAgentProfits').textContent = `GH₵ ${(profits.summary.allTime.agentProfits || 0).toFixed(2)}`;
+            document.getElementById('totalAgentProfits').textContent = `GH₵ ${Math.max(0, profits.summary.allTime.agentProfits || 0).toFixed(2)}`;
             document.getElementById('uncreditedBadge').textContent = profits.uncredited.count;
         }
 
@@ -11398,8 +11589,8 @@
                     <td style="padding: 12px;">${order.agent || 'Unknown'}</td>
                     <td style="padding: 12px;">${order.bundle || 'N/A'}</td>
                     <td style="padding: 12px; text-align: right;">GH₵ ${(order.amount || 0).toFixed(2)}</td>
-                    <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981;">GH₵ ${(order.agentProfit || 0).toFixed(2)}</td>
-                    <td style="padding: 12px; text-align: right; color: #3b82f6;">GH₵ ${(order.platformProfit || 0).toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981;">GH₵ ${Math.max(0, order.agentProfit || 0).toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #3b82f6;">GH₵ ${Math.max(0, order.platformProfit || 0).toFixed(2)}</td>
                     <td style="padding: 12px; font-size: 0.8rem;">${order.completedAt ? new Date(order.completedAt).toLocaleString() : 'N/A'}</td>
                     <td style="padding: 12px; text-align: center;">
                         <button onclick="creditSingleOrder('${order.id}')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">

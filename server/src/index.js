@@ -345,7 +345,7 @@ function startAutoSync() {
             totalSynced += legacyResult.synced;
           }
         } catch (err) {
-          console.error(`[AutoSync] Legacy sync error:`, err.message);
+          console.error(`[AutoSync] Legacy sync error:`, err?.message || err?.toString() || JSON.stringify(err) || 'Unknown error');
         }
       }
       

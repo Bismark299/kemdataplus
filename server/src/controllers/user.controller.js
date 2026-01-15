@@ -96,7 +96,7 @@ const userController = {
     try {
       // Validate and sanitize pagination parameters
       const page = Math.max(1, Math.min(parseInt(req.query.page) || 1, 10000));
-      const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 100));
+      const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 500, 1000));
       const skip = (page - 1) * limit;
 
       const [users, total] = await Promise.all([

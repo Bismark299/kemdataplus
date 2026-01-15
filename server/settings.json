@@ -45,6 +45,6 @@
     "newRegistration": true,
     "websiteUpdate": false,
     "paystackEnabled": true,
-    "momoClaimEnabled": false
+    "momoClaimEnabled": true
   }
 }

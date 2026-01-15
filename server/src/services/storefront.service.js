@@ -763,7 +763,7 @@ const storefrontService = {
           ownerCost: ownerCostPrice,
           ownerProfit: profit,
           supplierCost: bundle.baseCost || ownerCostPrice,
-          platformProfit: ownerCostPrice - (bundle.baseCost || 0),
+          platformProfit: Math.max(0, ownerCostPrice - (bundle.baseCost || 0)),
           status: 'PENDING',
           paymentStatus: paymentReference ? 'PAID' : 'PENDING',
           paymentReference,
@@ -1041,8 +1041,8 @@ const storefrontService = {
     // Agent's profit = selling price - their cost
     const agentProfit = agentPrice - ownerCostPrice;
     
-    // Platform's profit = owner's cost - supplier cost
-    const platformProfit = ownerCostPrice - supplierCost;
+    // Platform's profit = owner's cost - supplier cost (never negative)
+    const platformProfit = Math.max(0, ownerCostPrice - supplierCost);
 
     // Step 4: Validate selling price covers costs
     if (agentPrice < ownerCostPrice) {
