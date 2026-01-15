@@ -245,6 +245,7 @@ const paystackService = {
             amount: amountGHS,
             status: 'COMPLETED',
             reference: `PS_${reference}`,
+            paymentMethod: 'PAYSTACK',
             description: `Paystack deposit via ${event.data.channel || 'unknown'}`
           }
         });

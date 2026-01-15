@@ -7214,12 +7214,16 @@
                 orders = orders.filter(o => o.id?.toString().includes(orderNoFilter));
             }
             
-            // Agent Code filter
+            // Agent Code filter - matches KDP-XXXX codes or user names
             const agentCodeFilter = document.getElementById('filterAgentCode')?.value || '';
             if (agentCodeFilter) {
                 orders = orders.filter(o => {
-                    const agent = (o.user?.name || o.agentCode || o.userName || o.userId || '').toLowerCase();
-                    return agent.includes(agentCodeFilter.toLowerCase());
+                    const userId = o.userId || o.user?.id;
+                    const agentCode = generateAgentCode(userId);
+                    const agentName = (o.user?.name || o.userName || '').toLowerCase();
+                    const searchTerm = agentCodeFilter.toLowerCase();
+                    // Match against agent code (KDP-XXXX) or agent name
+                    return agentCode.toLowerCase().includes(searchTerm) || agentName.includes(searchTerm);
                 });
             }
             
@@ -8453,13 +8457,13 @@
                 
                 // Update stats after loading users
                 updateUsersStats();
-                updateWalletStats();
+                await updateWalletStats();
                 renderUsersTable();
             } catch (err) {
                 showToast('Error loading users: ' + err.message, 'error');
                 usersData = [];
                 updateUsersStats();
-                updateWalletStats();
+                await updateWalletStats();
                 renderUsersTable();
             }
         }
@@ -8489,7 +8493,7 @@
                 window.walletRefreshInterval = setInterval(async () => {
                     if (walletSection.classList.contains('active')) {
                         await loadIncomingPayments(true); // Force refresh on interval
-                        updateWalletStats();
+                        await updateWalletStats();
                         updatePaymentStats();
                         
                         // Refresh current tab if claims tab is active
@@ -8502,32 +8506,42 @@
         }
         
         // Update wallet statistics
-        function updateWalletStats() {
+        async function updateWalletStats() {
             // Calculate total balance from usersData (already loaded)
             const totalBalance = usersData.reduce((sum, u) => sum + (parseFloat(u.balance) || 0), 0);
             document.getElementById('totalUserBalances').textContent = 'GH₵ ' + totalBalance.toFixed(2);
             // Only count pending MoMo claims (not Paystack which are auto-credited)
             document.getElementById('pendingTopupsCount').textContent = incomingPayments.filter(p => p.status === 'pending' && p.paymentMethod === 'momo').length;
             
-            // Calculate today's credits/debits (using UTC)
+            // Calculate today's credits/debits from allTransactions
+            // Load transactions if not already loaded
+            if (!transactionsLoaded) {
+                await loadAllTransactions();
+            }
+            
             const todayUTC = getTodayUTC();
             let todayCredits = 0, todayDebits = 0;
-            usersData.forEach(u => {
-                (u.transactions || []).forEach(t => {
-                    const txDate = t.date || t.createdAt;
-                    if (txDate) {
+            
+            allTransactions.forEach(t => {
+                const txDate = t.date || t.createdAt;
+                if (txDate) {
+                    try {
                         const txDateUTC = new Date(txDate).toISOString().split('T')[0];
                         if (txDateUTC === todayUTC) {
                             const amount = parseFloat(t.amount) || 0;
-                            if (t.type === 'credit' || t.type === 'DEPOSIT' || amount > 0) {
+                            const txType = (t.type || '').toUpperCase();
+                            const isCredit = txType === 'DEPOSIT' || txType === 'CREDIT' || txType === 'REFUND' || txType === 'PROFIT_CREDIT' || txType === 'COMMISSION';
+                            
+                            if (isCredit) {
                                 todayCredits += Math.abs(amount);
-                            } else if (t.type === 'debit' || t.type === 'WITHDRAWAL' || amount < 0) {
+                            } else {
                                 todayDebits += Math.abs(amount);
                             }
                         }
-                    }
-                });
+                    } catch (e) {}
+                }
             });
+            
             document.getElementById('todayCredits').textContent = 'GH₵ ' + todayCredits.toFixed(2);
             document.getElementById('todayDebits').textContent = 'GH₵ ' + todayDebits.toFixed(2);
         }
@@ -9114,7 +9128,7 @@
                 closeVerifyClaimModal();
                 await loadIncomingPayments(true); // Force refresh to bypass cache
                 await initUsersData();
-                updateWalletStats();
+                await updateWalletStats();
                 renderUserWallets();
                 renderIncomingPayments();
                 showToast('Claim verified and approved! Funds credited to user.', 'success');

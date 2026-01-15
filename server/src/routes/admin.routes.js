@@ -1117,12 +1117,16 @@ router.get('/audit-report', async (req, res, next) => {
     });
     
     // Separate Paystack vs MoMo deposits
+    // Identify Paystack by: paymentMethod='PAYSTACK' OR reference starts with 'PS_'
     let paystackDeposits = { count: 0, amount: 0, fees: 0 };
     let momoDeposits = { count: 0, amount: 0 };
     
     deposits.forEach(d => {
-      const method = d.paymentMethod?.toUpperCase() || '';
-      if (method.includes('PAYSTACK')) {
+      const method = (d.paymentMethod || '').toUpperCase();
+      const ref = (d.reference || '').toUpperCase();
+      const isPaystack = method.includes('PAYSTACK') || ref.startsWith('PS_');
+      
+      if (isPaystack) {
         paystackDeposits.count++;
         paystackDeposits.amount += d.amount;
         // Platform absorbs 0.5% of total (customer paid 1.5%, Paystack takes ~1.95%)
