@@ -1076,4 +1076,281 @@ router.patch('/storefronts/:id/status', async (req, res, next) => {
   }
 });
 
+/**
+ * ========== AUDIT & RECONCILIATION REPORT ==========
+ */
+
+/**
+ * GET /api/admin/audit-report
+ * Generate comprehensive audit and reconciliation report
+ * Query params: startDate, endDate
+ */
+router.get('/audit-report', async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Parse dates
+    const start = startDate ? new Date(startDate) : new Date(new Date().setHours(0, 0, 0, 0));
+    const end = endDate ? new Date(endDate) : new Date(new Date().setHours(23, 59, 59, 999));
+    end.setHours(23, 59, 59, 999); // Ensure end of day
+    
+    const dateFilter = {
+      gte: start,
+      lte: end
+    };
+    
+    // 1. DEPOSITS SUMMARY
+    // Get all completed deposits (DEPOSIT transactions with status COMPLETED)
+    const deposits = await prisma.transaction.findMany({
+      where: {
+        type: 'DEPOSIT',
+        status: 'COMPLETED',
+        createdAt: dateFilter
+      },
+      include: {
+        wallet: {
+          include: {
+            user: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+    
+    // Separate Paystack vs MoMo deposits
+    let paystackDeposits = { count: 0, amount: 0, fees: 0 };
+    let momoDeposits = { count: 0, amount: 0 };
+    
+    deposits.forEach(d => {
+      const method = d.paymentMethod?.toUpperCase() || '';
+      if (method.includes('PAYSTACK')) {
+        paystackDeposits.count++;
+        paystackDeposits.amount += d.amount;
+        // Platform absorbs 0.5% of total (customer paid 1.5%, Paystack takes ~1.95%)
+        paystackDeposits.fees += d.amount * 0.005;
+      } else {
+        momoDeposits.count++;
+        momoDeposits.amount += d.amount;
+      }
+    });
+    
+    const totalDeposits = {
+      count: deposits.length,
+      amount: paystackDeposits.amount + momoDeposits.amount,
+      fees: paystackDeposits.fees,
+      netReceived: paystackDeposits.amount + momoDeposits.amount - paystackDeposits.fees
+    };
+    
+    // 2. ORDERS SUMMARY
+    // Get all completed orders
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        status: 'COMPLETED',
+        createdAt: dateFilter
+      },
+      include: {
+        bundle: true,
+        orderGroup: {
+          include: {
+            user: { select: { id: true, name: true, role: true } }
+          }
+        }
+      }
+    });
+    
+    // 3. STOREFRONT ORDERS (for store profit tracking)
+    const storefrontOrders = await prisma.storefrontOrder.findMany({
+      where: {
+        status: 'COMPLETED',
+        createdAt: dateFilter
+      },
+      include: {
+        storefront: {
+          include: {
+            owner: { select: { id: true, name: true } }
+          }
+        },
+        bundle: true
+      }
+    });
+    
+    // Calculate system orders (non-storefront) and store orders
+    let systemOrders = { count: 0, revenue: 0, cost: 0, profit: 0 };
+    let storeOrdersSummary = { count: 0, revenue: 0, ownerCost: 0, ownerProfit: 0, platformProfit: 0 };
+    
+    // Network breakdown
+    const networkStats = {};
+    
+    // Agent breakdown (for store orders)
+    const agentStats = {};
+    
+    // Process order items for system orders
+    orderItems.forEach(item => {
+      const network = item.bundle?.network || 'Unknown';
+      const revenue = item.totalPrice || 0;
+      const cost = item.baseCost || 0;
+      const profit = revenue - cost;
+      
+      // Check if this is a storefront-related order (will be counted separately)
+      // For system orders, count all direct order items
+      systemOrders.count++;
+      systemOrders.revenue += revenue;
+      systemOrders.cost += cost;
+      systemOrders.profit += profit;
+      
+      // Network breakdown
+      if (!networkStats[network]) {
+        networkStats[network] = { orders: 0, revenue: 0, cost: 0, profit: 0 };
+      }
+      networkStats[network].orders++;
+      networkStats[network].revenue += revenue;
+      networkStats[network].cost += cost;
+      networkStats[network].profit += profit;
+    });
+    
+    // Process storefront orders for agent profits
+    storefrontOrders.forEach(order => {
+      const agentId = order.storefront?.owner?.id;
+      const agentName = order.storefront?.owner?.name || 'Unknown';
+      
+      const storeRevenue = order.amount || 0;        // What customer paid (e.g., 5.0)
+      const ownerCost = order.ownerCost || 0;         // What agent pays (e.g., 4.5)
+      const ownerProfit = order.ownerProfit || 0;     // Agent's cut (e.g., 0.5)
+      const supplierCost = order.supplierCost || 0;   // Platform's cost (e.g., 4.2)
+      const platformProfit = order.platformProfit || (ownerCost - supplierCost); // Platform cut (e.g., 0.3)
+      
+      storeOrdersSummary.count++;
+      storeOrdersSummary.revenue += storeRevenue;
+      storeOrdersSummary.ownerCost += ownerCost;
+      storeOrdersSummary.ownerProfit += ownerProfit;
+      storeOrdersSummary.platformProfit += Math.max(0, platformProfit);
+      
+      // Agent breakdown
+      if (agentId) {
+        if (!agentStats[agentId]) {
+          agentStats[agentId] = { 
+            name: agentName, 
+            orders: 0, 
+            storeRevenue: 0, 
+            agentProfit: 0, 
+            platformProfit: 0 
+          };
+        }
+        agentStats[agentId].orders++;
+        agentStats[agentId].storeRevenue += storeRevenue;
+        agentStats[agentId].agentProfit += ownerProfit;
+        agentStats[agentId].platformProfit += Math.max(0, platformProfit);
+      }
+    });
+    
+    // 4. REFUNDS
+    const refunds = await prisma.walletLedger.findMany({
+      where: {
+        entryType: 'REFUND',
+        createdAt: dateFilter
+      }
+    });
+    const totalRefunds = {
+      count: refunds.length,
+      amount: refunds.reduce((sum, r) => sum + Math.abs(r.amount), 0)
+    };
+    
+    // 5. FAILED & CANCELLED ORDERS
+    const failedOrders = await prisma.orderItem.count({
+      where: {
+        status: { in: ['FAILED', 'CANCELLED'] },
+        createdAt: dateFilter
+      }
+    });
+    
+    // 6. CURRENT WALLET BALANCES
+    const walletBalances = await prisma.wallet.aggregate({
+      _sum: { balance: true },
+      _count: true
+    });
+    
+    // 7. FINAL PROFIT SUMMARY
+    // System gross profit = revenue - cost from direct orders
+    const systemGrossProfit = systemOrders.profit;
+    // System net profit = gross - Paystack fees (0.5%)
+    const systemNetProfit = systemGrossProfit - paystackDeposits.fees;
+    
+    // Store profit breakdown
+    const storeGrossProfit = storeOrdersSummary.ownerProfit + storeOrdersSummary.platformProfit;
+    const agentEarnings = storeOrdersSummary.ownerProfit;
+    const platformCutFromStore = storeOrdersSummary.platformProfit;
+    
+    // Total platform profit
+    const totalPlatformProfit = systemNetProfit + platformCutFromStore;
+    
+    // Format agent stats as array
+    const agentBreakdown = Object.entries(agentStats).map(([id, stats]) => ({
+      id,
+      ...stats
+    })).sort((a, b) => b.orders - a.orders);
+    
+    // Format network stats as array
+    const networkBreakdown = Object.entries(networkStats).map(([network, stats]) => ({
+      network,
+      ...stats
+    })).sort((a, b) => b.orders - a.orders);
+    
+    res.json({
+      period: {
+        start: start.toISOString(),
+        end: end.toISOString()
+      },
+      deposits: {
+        paystack: {
+          count: paystackDeposits.count,
+          amount: paystackDeposits.amount,
+          fees: paystackDeposits.fees,
+          netReceived: paystackDeposits.amount - paystackDeposits.fees
+        },
+        momo: {
+          count: momoDeposits.count,
+          amount: momoDeposits.amount
+        },
+        total: totalDeposits
+      },
+      orders: {
+        system: {
+          count: systemOrders.count,
+          revenue: systemOrders.revenue,
+          cost: systemOrders.cost,
+          grossProfit: systemOrders.profit
+        },
+        store: {
+          count: storeOrdersSummary.count,
+          revenue: storeOrdersSummary.revenue,
+          ownerCost: storeOrdersSummary.ownerCost,
+          agentProfit: storeOrdersSummary.ownerProfit,
+          platformProfit: storeOrdersSummary.platformProfit
+        }
+      },
+      byNetwork: networkBreakdown,
+      byAgent: agentBreakdown,
+      refunds: totalRefunds,
+      failedOrders: failedOrders,
+      walletBalances: {
+        total: walletBalances._sum.balance || 0,
+        count: walletBalances._count || 0
+      },
+      summary: {
+        totalDeposits: totalDeposits.amount,
+        totalOrderRevenue: systemOrders.revenue + storeOrdersSummary.revenue,
+        systemGrossProfit: systemGrossProfit,
+        paystackFees: paystackDeposits.fees,
+        systemNetProfit: systemNetProfit,
+        storeGrossProfit: storeGrossProfit,
+        agentEarnings: agentEarnings,
+        platformCutFromStore: platformCutFromStore,
+        totalPlatformProfit: totalPlatformProfit
+      }
+    });
+  } catch (error) {
+    console.error('Audit report error:', error);
+    next(error);
+  }
+});
+
 module.exports = router;

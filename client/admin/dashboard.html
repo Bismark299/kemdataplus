@@ -2985,6 +2985,34 @@
             color: white;
             border-color: #3b82f6;
         }
+        /* Audit Report Styles */
+        .audit-period-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .audit-period-btn:hover {
+            background: #f3f4f6;
+        }
+        .audit-period-btn.active {
+            background: #024959;
+            color: white;
+            border-color: #024959;
+        }
+        .audit-table {
+            font-size: 0.9rem;
+        }
+        .audit-table th, .audit-table td {
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .audit-table tr:hover {
+            background: #f8fafc;
+        }
         /* Empty State */
         .sales-report-empty {
             text-align: center;
@@ -5207,6 +5235,9 @@
                 <button class="report-tab" data-report-tab="users">
                     <i class="fas fa-users"></i> User Report
                 </button>
+                <button class="report-tab" data-report-tab="audit">
+                    <i class="fas fa-file-invoice-dollar"></i> Audit & Reconciliation
+                </button>
             </div>
 
             <!-- Sales Report View -->
@@ -5299,6 +5330,206 @@
                     <div class="user-report-empty" id="userReportEmpty" style="display: none;">
                         <i class="fas fa-users"></i>
                         <p>No user data available</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit & Reconciliation View -->
+            <div class="report-view" id="auditReportView">
+                <!-- Date Range Picker -->
+                <div class="audit-date-filter" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                        <div class="audit-period-btns" style="display: flex; gap: 8px;">
+                            <button class="audit-period-btn active" data-period="today">Today</button>
+                            <button class="audit-period-btn" data-period="yesterday">Yesterday</button>
+                            <button class="audit-period-btn" data-period="week">This Week</button>
+                            <button class="audit-period-btn" data-period="month">This Month</button>
+                            <button class="audit-period-btn" data-period="custom">Custom</button>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;" id="auditCustomDates" style="display: none;">
+                            <input type="date" id="auditStartDate" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                            <span>to</span>
+                            <input type="date" id="auditEndDate" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                        </div>
+                        <button onclick="loadAuditReport()" style="padding: 8px 16px; background: #024959; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            <i class="fas fa-sync-alt"></i> Generate Report
+                        </button>
+                        <button onclick="exportAuditReport()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            <i class="fas fa-file-csv"></i> Export CSV
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.85rem; color: #6b7280;" id="auditPeriodDisplay">
+                        Period: <span id="auditPeriodText">Today</span>
+                    </div>
+                </div>
+
+                <!-- Deposits Summary -->
+                <div class="audit-section" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 1.1rem;"><i class="fas fa-wallet" style="color: #10b981; margin-right: 8px;"></i>Deposits Summary</h3>
+                    <div class="audit-table-wrapper" style="overflow-x: auto;">
+                        <table class="audit-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8fafc;">
+                                    <th style="padding: 12px; text-align: left; font-size: 0.85rem; color: #64748b;">Method</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Count</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Amount (GHS)</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Fees (0.5%)</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Net Received</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditDepositsBody">
+                                <tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Orders by Source -->
+                <div class="audit-section" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 1.1rem;"><i class="fas fa-shopping-cart" style="color: #3b82f6; margin-right: 8px;"></i>Orders by Source</h3>
+                    <div class="audit-table-wrapper" style="overflow-x: auto;">
+                        <table class="audit-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8fafc;">
+                                    <th style="padding: 12px; text-align: left; font-size: 0.85rem; color: #64748b;">Source</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Orders</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Revenue (GHS)</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Cost (GHS)</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Profit (GHS)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditOrdersBody">
+                                <tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- By Network -->
+                <div class="audit-section" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 1.1rem;"><i class="fas fa-network-wired" style="color: #f59e0b; margin-right: 8px;"></i>By Network</h3>
+                    <div class="audit-table-wrapper" style="overflow-x: auto;">
+                        <table class="audit-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8fafc;">
+                                    <th style="padding: 12px; text-align: left; font-size: 0.85rem; color: #64748b;">Network</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Orders</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Revenue (GHS)</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Cost (GHS)</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Profit (GHS)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditNetworkBody">
+                                <tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- By Agent (Store Orders) -->
+                <div class="audit-section" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 1.1rem;"><i class="fas fa-user-tie" style="color: #8b5cf6; margin-right: 8px;"></i>By Agent (Store Orders)</h3>
+                    <div class="audit-table-wrapper" style="overflow-x: auto;">
+                        <table class="audit-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8fafc;">
+                                    <th style="padding: 12px; text-align: left; font-size: 0.85rem; color: #64748b;">Agent</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Orders</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Store Revenue</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Agent Profit</th>
+                                    <th style="padding: 12px; text-align: right; font-size: 0.85rem; color: #64748b;">Platform Cut</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditAgentBody">
+                                <tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Additional Stats Row -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <!-- Refunds -->
+                    <div class="audit-stat-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="width: 40px; height: 40px; background: #fef3c7; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-undo" style="color: #f59e0b;"></i>
+                            </div>
+                            <h4 style="margin: 0; color: #64748b; font-size: 0.9rem;">Refunds</h4>
+                        </div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;" id="auditRefundCount">0</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">GHS <span id="auditRefundAmount">0.00</span></div>
+                    </div>
+
+                    <!-- Failed Orders -->
+                    <div class="audit-stat-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="width: 40px; height: 40px; background: #fee2e2; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-times-circle" style="color: #ef4444;"></i>
+                            </div>
+                            <h4 style="margin: 0; color: #64748b; font-size: 0.9rem;">Failed/Cancelled</h4>
+                        </div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;" id="auditFailedCount">0</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">orders</div>
+                    </div>
+
+                    <!-- Wallet Balances -->
+                    <div class="audit-stat-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="width: 40px; height: 40px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-wallet" style="color: #3b82f6;"></i>
+                            </div>
+                            <h4 style="margin: 0; color: #64748b; font-size: 0.9rem;">Total Wallet Balances</h4>
+                        </div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;" id="auditWalletTotal">GHS 0.00</div>
+                        <div style="font-size: 0.85rem; color: #64748b;"><span id="auditWalletCount">0</span> wallets</div>
+                    </div>
+                </div>
+
+                <!-- Final Summary -->
+                <div class="audit-section" style="background: linear-gradient(135deg, #024959 0%, #026670 100%); border-radius: 12px; padding: 24px; margin-bottom: 20px; color: white;">
+                    <h3 style="margin: 0 0 20px 0; font-size: 1.2rem;"><i class="fas fa-calculator" style="margin-right: 8px;"></i>Final Summary</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">Total Deposits</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;" id="summaryTotalDeposits">GHS 0.00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">Total Order Revenue</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;" id="summaryTotalRevenue">GHS 0.00</div>
+                        </div>
+                        <div style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 20px;">
+                            <div style="font-size: 0.85rem; opacity: 0.8;">System Gross Profit</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;" id="summarySystemGross">GHS 0.00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">Paystack Fees (0.5%)</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #fca5a5;" id="summaryPaystackFees">- GHS 0.00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">System Net Profit</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #86efac;" id="summarySystemNet">GHS 0.00</div>
+                        </div>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 20px 0;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">Store Gross Profit</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;" id="summaryStoreGross">GHS 0.00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">→ Agent Earnings</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #fcd34d;" id="summaryAgentEarnings">GHS 0.00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">→ Platform Cut</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #86efac;" id="summaryPlatformCut">GHS 0.00</div>
+                        </div>
+                    </div>
+                    <hr style="border: none; border-top: 2px solid rgba(255,255,255,0.3); margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 1.1rem; font-weight: 600;">TOTAL PLATFORM PROFIT</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #86efac;" id="summaryTotalProfit">GHS 0.00</div>
                     </div>
                 </div>
             </div>
@@ -10133,13 +10364,16 @@
             // Show/hide views
             document.getElementById('salesReportView').classList.toggle('active', tab === 'sales');
             document.getElementById('userReportView').classList.toggle('active', tab === 'users');
+            document.getElementById('auditReportView').classList.toggle('active', tab === 'audit');
             
             // Refresh data for active tab
             if (tab === 'sales') {
                 calculateReportStats();
                 renderSalesReport();
-            } else {
+            } else if (tab === 'users') {
                 renderUserReport();
+            } else if (tab === 'audit') {
+                loadAuditReport();
             }
         }
         
@@ -10542,6 +10776,272 @@
             a.click();
             URL.revokeObjectURL(url);
         }
+
+        // ========== AUDIT & RECONCILIATION REPORT ==========
+        let auditReportData = null;
+        let auditCurrentPeriod = 'today';
+        
+        function getAuditDateRange(period) {
+            const now = new Date();
+            let start, end;
+            
+            switch(period) {
+                case 'today':
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                    break;
+                case 'yesterday':
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+                    break;
+                case 'week':
+                    const dayOfWeek = now.getDay();
+                    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
+                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                    break;
+                case 'month':
+                    start = new Date(now.getFullYear(), now.getMonth(), 1);
+                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                    break;
+                case 'custom':
+                    const startInput = document.getElementById('auditStartDate').value;
+                    const endInput = document.getElementById('auditEndDate').value;
+                    start = startInput ? new Date(startInput) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    end = endInput ? new Date(endInput) : now;
+                    break;
+                default:
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    end = now;
+            }
+            
+            return { start, end };
+        }
+        
+        function setAuditPeriod(period) {
+            auditCurrentPeriod = period;
+            
+            // Update button states
+            document.querySelectorAll('.audit-period-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.period === period);
+            });
+            
+            // Show/hide custom date inputs
+            const customDates = document.getElementById('auditCustomDates');
+            if (period === 'custom') {
+                customDates.style.display = 'flex';
+            } else {
+                customDates.style.display = 'none';
+                loadAuditReport();
+            }
+        }
+        
+        async function loadAuditReport() {
+            const { start, end } = getAuditDateRange(auditCurrentPeriod);
+            
+            // Update period display
+            const periodNames = {
+                'today': 'Today',
+                'yesterday': 'Yesterday', 
+                'week': 'This Week',
+                'month': 'This Month',
+                'custom': `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`
+            };
+            document.getElementById('auditPeriodText').textContent = periodNames[auditCurrentPeriod] || 'Today';
+            
+            try {
+                const res = await adminFetch(`/api/admin/audit-report?startDate=${start.toISOString()}&endDate=${end.toISOString()}`);
+                const data = await res.json();
+                auditReportData = data;
+                renderAuditReport(data);
+            } catch (err) {
+                console.error('Error loading audit report:', err);
+                showToast('Failed to load audit report', 'error');
+            }
+        }
+        
+        function renderAuditReport(data) {
+            // Deposits Summary
+            const depositsBody = document.getElementById('auditDepositsBody');
+            depositsBody.innerHTML = `
+                <tr>
+                    <td style="padding: 12px;"><i class="fas fa-credit-card" style="color: #3b82f6; margin-right: 8px;"></i>Paystack</td>
+                    <td style="padding: 12px; text-align: right;">${data.deposits.paystack.count}</td>
+                    <td style="padding: 12px; text-align: right;">${data.deposits.paystack.amount.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #ef4444;">-${data.deposits.paystack.fees.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600;">${data.deposits.paystack.netReceived.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px;"><i class="fas fa-mobile-alt" style="color: #f59e0b; margin-right: 8px;"></i>MoMo Claims</td>
+                    <td style="padding: 12px; text-align: right;">${data.deposits.momo.count}</td>
+                    <td style="padding: 12px; text-align: right;">${data.deposits.momo.amount.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #10b981;">0.00</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600;">${data.deposits.momo.amount.toFixed(2)}</td>
+                </tr>
+                <tr style="background: #f0fdf4; font-weight: 700;">
+                    <td style="padding: 12px;">TOTAL</td>
+                    <td style="padding: 12px; text-align: right;">${data.deposits.total.count}</td>
+                    <td style="padding: 12px; text-align: right;">${data.deposits.total.amount.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #ef4444;">-${data.deposits.total.fees.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #10b981;">${data.deposits.total.netReceived.toFixed(2)}</td>
+                </tr>
+            `;
+            
+            // Orders by Source
+            const ordersBody = document.getElementById('auditOrdersBody');
+            ordersBody.innerHTML = `
+                <tr>
+                    <td style="padding: 12px;"><i class="fas fa-desktop" style="color: #3b82f6; margin-right: 8px;"></i>System (Direct)</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.system.count}</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.system.revenue.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.system.cost.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981;">${data.orders.system.grossProfit.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px;"><i class="fas fa-store" style="color: #8b5cf6; margin-right: 8px;"></i>Store Orders</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.store.count}</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.store.revenue.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.store.ownerCost.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981;">${(data.orders.store.agentProfit + data.orders.store.platformProfit).toFixed(2)}</td>
+                </tr>
+                <tr style="background: #f0fdf4; font-weight: 700;">
+                    <td style="padding: 12px;">TOTAL</td>
+                    <td style="padding: 12px; text-align: right;">${data.orders.system.count + data.orders.store.count}</td>
+                    <td style="padding: 12px; text-align: right;">${(data.orders.system.revenue + data.orders.store.revenue).toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right;">${(data.orders.system.cost + data.orders.store.ownerCost).toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: #10b981;">${(data.orders.system.grossProfit + data.orders.store.agentProfit + data.orders.store.platformProfit).toFixed(2)}</td>
+                </tr>
+            `;
+            
+            // By Network
+            const networkBody = document.getElementById('auditNetworkBody');
+            if (data.byNetwork.length === 0) {
+                networkBody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">No network data</td></tr>';
+            } else {
+                const networkColors = { 'MTN': '#f59e0b', 'Telecel': '#ef4444', 'AirtelTigo': '#3b82f6' };
+                networkBody.innerHTML = data.byNetwork.map(n => `
+                    <tr>
+                        <td style="padding: 12px;"><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${networkColors[n.network] || '#6b7280'}; margin-right: 8px;"></span>${n.network}</td>
+                        <td style="padding: 12px; text-align: right;">${n.orders}</td>
+                        <td style="padding: 12px; text-align: right;">${n.revenue.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right;">${n.cost.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981;">${n.profit.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+            
+            // By Agent
+            const agentBody = document.getElementById('auditAgentBody');
+            if (data.byAgent.length === 0) {
+                agentBody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">No store orders in this period</td></tr>';
+            } else {
+                agentBody.innerHTML = data.byAgent.map(a => `
+                    <tr>
+                        <td style="padding: 12px;">${escapeHtml(a.name)}</td>
+                        <td style="padding: 12px; text-align: right;">${a.orders}</td>
+                        <td style="padding: 12px; text-align: right;">${a.storeRevenue.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right; color: #f59e0b; font-weight: 600;">${a.agentProfit.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right; color: #10b981; font-weight: 600;">${a.platformProfit.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+            
+            // Additional Stats
+            document.getElementById('auditRefundCount').textContent = data.refunds.count;
+            document.getElementById('auditRefundAmount').textContent = data.refunds.amount.toFixed(2);
+            document.getElementById('auditFailedCount').textContent = data.failedOrders;
+            document.getElementById('auditWalletTotal').textContent = `GHS ${data.walletBalances.total.toFixed(2)}`;
+            document.getElementById('auditWalletCount').textContent = data.walletBalances.count;
+            
+            // Final Summary
+            document.getElementById('summaryTotalDeposits').textContent = `GHS ${data.summary.totalDeposits.toFixed(2)}`;
+            document.getElementById('summaryTotalRevenue').textContent = `GHS ${data.summary.totalOrderRevenue.toFixed(2)}`;
+            document.getElementById('summarySystemGross').textContent = `GHS ${data.summary.systemGrossProfit.toFixed(2)}`;
+            document.getElementById('summaryPaystackFees').textContent = `- GHS ${data.summary.paystackFees.toFixed(2)}`;
+            document.getElementById('summarySystemNet').textContent = `GHS ${data.summary.systemNetProfit.toFixed(2)}`;
+            document.getElementById('summaryStoreGross').textContent = `GHS ${data.summary.storeGrossProfit.toFixed(2)}`;
+            document.getElementById('summaryAgentEarnings').textContent = `GHS ${data.summary.agentEarnings.toFixed(2)}`;
+            document.getElementById('summaryPlatformCut').textContent = `GHS ${data.summary.platformCutFromStore.toFixed(2)}`;
+            document.getElementById('summaryTotalProfit').textContent = `GHS ${data.summary.totalPlatformProfit.toFixed(2)}`;
+        }
+        
+        function exportAuditReport() {
+            if (!auditReportData) {
+                showToast('Please generate a report first', 'warning');
+                return;
+            }
+            
+            const data = auditReportData;
+            const { start, end } = getAuditDateRange(auditCurrentPeriod);
+            
+            let csv = `AUDIT & RECONCILIATION REPORT\n`;
+            csv += `Period: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}\n`;
+            csv += `Generated: ${new Date().toLocaleString()}\n\n`;
+            
+            // Deposits Summary
+            csv += `DEPOSITS SUMMARY\n`;
+            csv += `Method,Count,Amount (GHS),Fees (0.5%),Net Received\n`;
+            csv += `Paystack,${data.deposits.paystack.count},${data.deposits.paystack.amount.toFixed(2)},${data.deposits.paystack.fees.toFixed(2)},${data.deposits.paystack.netReceived.toFixed(2)}\n`;
+            csv += `MoMo Claims,${data.deposits.momo.count},${data.deposits.momo.amount.toFixed(2)},0.00,${data.deposits.momo.amount.toFixed(2)}\n`;
+            csv += `TOTAL,${data.deposits.total.count},${data.deposits.total.amount.toFixed(2)},${data.deposits.total.fees.toFixed(2)},${data.deposits.total.netReceived.toFixed(2)}\n\n`;
+            
+            // Orders by Source
+            csv += `ORDERS BY SOURCE\n`;
+            csv += `Source,Orders,Revenue (GHS),Cost (GHS),Profit (GHS)\n`;
+            csv += `System (Direct),${data.orders.system.count},${data.orders.system.revenue.toFixed(2)},${data.orders.system.cost.toFixed(2)},${data.orders.system.grossProfit.toFixed(2)}\n`;
+            csv += `Store Orders,${data.orders.store.count},${data.orders.store.revenue.toFixed(2)},${data.orders.store.ownerCost.toFixed(2)},${(data.orders.store.agentProfit + data.orders.store.platformProfit).toFixed(2)}\n\n`;
+            
+            // By Network
+            csv += `BY NETWORK\n`;
+            csv += `Network,Orders,Revenue (GHS),Cost (GHS),Profit (GHS)\n`;
+            data.byNetwork.forEach(n => {
+                csv += `${n.network},${n.orders},${n.revenue.toFixed(2)},${n.cost.toFixed(2)},${n.profit.toFixed(2)}\n`;
+            });
+            csv += `\n`;
+            
+            // By Agent
+            csv += `BY AGENT (Store Orders)\n`;
+            csv += `Agent,Orders,Store Revenue,Agent Profit,Platform Cut\n`;
+            data.byAgent.forEach(a => {
+                csv += `"${a.name}",${a.orders},${a.storeRevenue.toFixed(2)},${a.agentProfit.toFixed(2)},${a.platformProfit.toFixed(2)}\n`;
+            });
+            csv += `\n`;
+            
+            // Additional Stats
+            csv += `ADDITIONAL STATS\n`;
+            csv += `Refunds,${data.refunds.count},GHS ${data.refunds.amount.toFixed(2)}\n`;
+            csv += `Failed/Cancelled Orders,${data.failedOrders}\n`;
+            csv += `Total Wallet Balances,${data.walletBalances.count} wallets,GHS ${data.walletBalances.total.toFixed(2)}\n\n`;
+            
+            // Final Summary
+            csv += `FINAL SUMMARY\n`;
+            csv += `Total Deposits,GHS ${data.summary.totalDeposits.toFixed(2)}\n`;
+            csv += `Total Order Revenue,GHS ${data.summary.totalOrderRevenue.toFixed(2)}\n`;
+            csv += `System Gross Profit,GHS ${data.summary.systemGrossProfit.toFixed(2)}\n`;
+            csv += `Paystack Fees (0.5%),GHS ${data.summary.paystackFees.toFixed(2)}\n`;
+            csv += `System Net Profit,GHS ${data.summary.systemNetProfit.toFixed(2)}\n`;
+            csv += `Store Gross Profit,GHS ${data.summary.storeGrossProfit.toFixed(2)}\n`;
+            csv += `Agent Earnings,GHS ${data.summary.agentEarnings.toFixed(2)}\n`;
+            csv += `Platform Cut from Store,GHS ${data.summary.platformCutFromStore.toFixed(2)}\n`;
+            csv += `TOTAL PLATFORM PROFIT,GHS ${data.summary.totalPlatformProfit.toFixed(2)}\n`;
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit_report_${start.toISOString().split('T')[0]}_to_${end.toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('Report exported successfully', 'success');
+        }
+        
+        // Initialize audit period button listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.audit-period-btn').forEach(btn => {
+                btn.addEventListener('click', () => setAuditPeriod(btn.dataset.period));
+            });
+        });
 
         // ========== XSS PROTECTION UTILITY ==========
         function escapeHtml(text) {
@@ -11318,7 +11818,7 @@
         // Report tab handlers
         document.querySelectorAll('.report-tab').forEach(tab => {
             tab.addEventListener('click', function() {
-                const tabName = this.textContent.toLowerCase().includes('sales') ? 'sales' : 'users';
+                const tabName = this.dataset.reportTab || (this.textContent.toLowerCase().includes('sales') ? 'sales' : this.textContent.toLowerCase().includes('audit') ? 'audit' : 'users');
                 switchReportTab(tabName);
             });
         });
