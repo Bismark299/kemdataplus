@@ -604,6 +604,19 @@ const orderController = {
         data: { status }  // Only status field, never paymentStatus
       });
 
+      // SYNC: Update related StorefrontOrder status if exists
+      const storefrontOrder = await prisma.storefrontOrder.findFirst({
+        where: { orderId: order.id }
+      });
+      
+      if (storefrontOrder) {
+        await prisma.storefrontOrder.update({
+          where: { id: storefrontOrder.id },
+          data: { status }
+        });
+        console.log(`[Order] Synced StorefrontOrder ${storefrontOrder.id} to status: ${status}`);
+      }
+
       // MULTI-TENANT: Trigger profit distribution when order completes
       if (status === 'COMPLETED' && existingOrder.status !== 'COMPLETED' && profitService) {
         try {

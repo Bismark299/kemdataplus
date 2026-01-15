@@ -496,6 +496,33 @@ router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async
         }
       });
       
+      // SYNC: Update related Order and StorefrontOrder
+      // OrderItem reference is like ORD-000013-01, Order reference is ORD-000013
+      const orderRef = item.reference?.replace(/-\d+$/, ''); // Remove trailing -01, -02 etc
+      if (orderRef) {
+        const order = await prisma.order.findFirst({ where: { reference: orderRef } });
+        if (order) {
+          // Update Order status
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { 
+              status,
+              processedAt: status === 'COMPLETED' ? new Date() : undefined
+            }
+          });
+          console.log(`[Admin] Synced Order ${order.reference} to ${status}`);
+          
+          // Update StorefrontOrder if exists
+          if (order.storefrontOrderId) {
+            await prisma.storefrontOrder.update({
+              where: { id: order.storefrontOrderId },
+              data: { status }
+            });
+            console.log(`[Admin] Synced StorefrontOrder ${order.storefrontOrderId} to ${status}`);
+          }
+        }
+      }
+      
       console.log(`[Admin] Updated OrderItem ${itemId} status to ${status}`);
       
       return res.json({
