@@ -335,6 +335,7 @@ function startAutoSync() {
       let totalSynced = 0;
       let totalCompleted = 0;
       let totalFailed = 0;
+      let totalRetried = 0;
       
       // 1. Sync LEGACY Order table (if MCBIS auto-sync is enabled)
       if (mcbisShouldSync) {
@@ -364,9 +365,21 @@ function startAutoSync() {
         console.error(`[AutoSync] OrderItem sync error:`, err.message);
       }
       
+      // 3. Retry stuck PENDING orders (orders that were placed when API was OFF)
+      // Only runs if at least one API is enabled
+      try {
+        const retryResult = await orderGroupService.retryStuckPendingOrders();
+        if (retryResult.retried > 0) {
+          console.log(`[AutoSync] Retried ${retryResult.retried} stuck orders, ${retryResult.success} had items processed`);
+          totalRetried += retryResult.retried;
+        }
+      } catch (err) {
+        console.error(`[AutoSync] Retry stuck orders error:`, err.message);
+      }
+      
       // Log summary if anything changed
-      if (totalCompleted > 0 || totalFailed > 0) {
-        console.log(`[AutoSync] ✅ Summary: ${totalCompleted} completed, ${totalFailed} failed`);
+      if (totalCompleted > 0 || totalFailed > 0 || totalRetried > 0) {
+        console.log(`[AutoSync] ✅ Summary: ${totalCompleted} completed, ${totalFailed} failed, ${totalRetried} retried`);
       }
       
     } catch (error) {

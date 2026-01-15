@@ -1238,6 +1238,99 @@ const orderGroupService = {
   },
 
   /**
+   * Retry stuck PENDING orders that were never sent to API
+   * Called by AutoSync when API is re-enabled after being off
+   * Only retries orders that:
+   * - Have status PENDING
+   * - Have NO externalReference (never sent to API)
+   * - Are older than 1 minute (to avoid interfering with active orders)
+   * - Are newer than 24 hours (don't retry very old orders)
+   */
+  async retryStuckPendingOrders() {
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    // Find stuck PENDING OrderGroups
+    const stuckOrderGroups = await prisma.orderGroup.findMany({
+      where: {
+        status: 'PENDING',
+        createdAt: {
+          gte: twentyFourHoursAgo,  // Not older than 24 hours
+          lte: oneMinuteAgo         // At least 1 minute old
+        },
+        items: {
+          some: {
+            status: 'PENDING',
+            externalReference: null  // Never sent to API
+          }
+        }
+      },
+      select: { id: true, displayId: true },
+      take: 20  // Limit to prevent overload
+    });
+
+    if (stuckOrderGroups.length === 0) {
+      return { retried: 0, message: 'No stuck pending orders found' };
+    }
+
+    console.log(`[AutoRetry] Found ${stuckOrderGroups.length} stuck pending order groups to retry`);
+
+    let retriedCount = 0;
+    let successCount = 0;
+    const results = [];
+
+    for (const orderGroup of stuckOrderGroups) {
+      try {
+        console.log(`[AutoRetry] Retrying ${orderGroup.displayId}...`);
+        
+        // Clear apiSentAt for stuck items to allow retry
+        await prisma.orderItem.updateMany({
+          where: {
+            orderGroupId: orderGroup.id,
+            status: 'PENDING',
+            externalReference: null
+          },
+          data: {
+            apiSentAt: null  // Reset so processOrderItems can claim them
+          }
+        });
+        
+        // Process the order items
+        const result = await this.processOrderItems(orderGroup.id);
+        
+        retriedCount++;
+        if (result.processed > 0) {
+          successCount++;
+        }
+        
+        results.push({
+          displayId: orderGroup.displayId,
+          processed: result.processed,
+          skipped: result.skipped
+        });
+        
+        // Delay between retries
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (error) {
+        console.error(`[AutoRetry] Error retrying ${orderGroup.displayId}:`, error.message);
+        results.push({
+          displayId: orderGroup.displayId,
+          error: error.message
+        });
+      }
+    }
+
+    console.log(`[AutoRetry] Completed: ${retriedCount} retried, ${successCount} had items processed`);
+
+    return {
+      retried: retriedCount,
+      success: successCount,
+      results
+    };
+  },
+
+  /**
    * Sync ALL processing/pending OrderItems that have externalReference
    * Call this periodically or via admin action
    * @param {Object} options - Filter options
