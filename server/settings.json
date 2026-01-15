@@ -43,6 +43,8 @@
     "excelImport": false,
     "cartOrder": true,
     "newRegistration": true,
-    "websiteUpdate": false
+    "websiteUpdate": false,
+    "paystackEnabled": true,
+    "momoClaimEnabled": false
   }
 }

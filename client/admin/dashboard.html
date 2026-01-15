@@ -5474,6 +5474,25 @@
                             </div>
                         </div>
 
+                        <!-- Payment Methods -->
+                        <div class="settings-section-title" style="margin-top: 30px;"><i class="fas fa-credit-card" style="color:#10b981;"></i> Payment Methods</div>
+                        <div class="settings-grid settings-grid-2">
+                            <div class="setting-card" style="border-left: 3px solid #10b981;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #10b981;"><i class="fas fa-bolt"></i> Paystack (Instant)</h4>
+                                    <p id="paystackEnabledStatus">Agents can use Paystack for instant top-up</p>
+                                </div>
+                                <div class="toggle-switch active" id="togglePaystackEnabled" data-site-setting="paystackEnabled"></div>
+                            </div>
+                            <div class="setting-card" style="border-left: 3px solid #f59e0b;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #f59e0b;"><i class="fas fa-mobile-alt"></i> MoMo Claim</h4>
+                                    <p id="momoClaimEnabledStatus">Agents can claim MoMo payments</p>
+                                </div>
+                                <div class="toggle-switch active" id="toggleMomoClaimEnabled" data-site-setting="momoClaimEnabled"></div>
+                            </div>
+                        </div>
+
                         <!-- Other Settings -->
                         <div class="settings-section-title" style="margin-top: 30px;">Other Settings</div>
                         <div class="settings-grid settings-grid-2">
@@ -10376,7 +10395,9 @@
             excelImport: false,
             cartOrder: true,
             newRegistration: true,
-            websiteUpdate: false
+            websiteUpdate: false,
+            paystackEnabled: true,
+            momoClaimEnabled: true
         };
         
         // Flag to track if settings have been loaded from API (prevents overwriting server settings with defaults)
@@ -10478,6 +10499,12 @@
             // Other statuses
             document.getElementById('newRegStatus').textContent = siteSettings.newRegistration ? 'Portal is accepting new Agents' : 'Portal is NOT accepting new Agents';
             document.getElementById('websiteUpdateStatus').textContent = siteSettings.websiteUpdate ? 'Portal is under maintenance' : 'Portal is available for use';
+            
+            // Payment method statuses
+            const paystackStatusEl = document.getElementById('paystackEnabledStatus');
+            const momoClaimStatusEl = document.getElementById('momoClaimEnabledStatus');
+            if (paystackStatusEl) paystackStatusEl.textContent = siteSettings.paystackEnabled !== false ? 'Agents can use Paystack for instant top-up' : 'Paystack is DISABLED';
+            if (momoClaimStatusEl) momoClaimStatusEl.textContent = siteSettings.momoClaimEnabled !== false ? 'Agents can claim MoMo payments' : 'MoMo Claim is DISABLED';
         }
         
         function setToggleState(elementId, state) {

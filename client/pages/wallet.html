@@ -2283,6 +2283,9 @@
                 return;
             }
             
+            // Load site settings to check payment method availability
+            await loadPaymentMethodSettings();
+            
             // Per-page filter listener
             document.getElementById('perPageFilter').addEventListener('change', function() {
                 changePerPage(this.value);
@@ -2298,6 +2301,68 @@
             // Check for payment callback
             await checkPaymentCallback();
         });
+        
+        // Load payment method settings from API
+        async function loadPaymentMethodSettings() {
+            try {
+                const res = await fetch('/api/settings/public', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    const paystackEnabled = data.paystackEnabled !== false;
+                    const momoClaimEnabled = data.momoClaimEnabled !== false;
+                    
+                    // Get tab elements
+                    const paystackTab = document.querySelector('[data-tab="instantTopup"]');
+                    const momoTab = document.querySelector('[data-tab="claimMomo"]');
+                    const paystackContent = document.getElementById('instantTopupTab');
+                    const momoContent = document.getElementById('claimMomoTab');
+                    
+                    // Hide/show Paystack tab
+                    if (!paystackEnabled && paystackTab) {
+                        paystackTab.style.display = 'none';
+                        if (paystackContent) paystackContent.classList.remove('active');
+                    }
+                    
+                    // Hide/show MoMo Claim tab
+                    if (!momoClaimEnabled && momoTab) {
+                        momoTab.style.display = 'none';
+                        if (momoContent) momoContent.classList.remove('active');
+                    }
+                    
+                    // If both are disabled, show a message
+                    if (!paystackEnabled && !momoClaimEnabled) {
+                        const topupSection = document.querySelector('.topup-section');
+                        if (topupSection) {
+                            topupSection.innerHTML = `
+                                <div style="text-align:center;padding:40px 20px;color:#64748b;">
+                                    <i class="fas fa-ban" style="font-size:3rem;margin-bottom:15px;color:#ef4444;"></i>
+                                    <h3 style="margin-bottom:10px;color:#1e293b;">Wallet Top-Up Unavailable</h3>
+                                    <p>Payment methods are currently disabled. Please contact support.</p>
+                                </div>
+                            `;
+                        }
+                        return;
+                    }
+                    
+                    // If Paystack is disabled but MoMo is enabled, switch to MoMo tab
+                    if (!paystackEnabled && momoClaimEnabled) {
+                        if (momoTab) momoTab.classList.add('active');
+                        if (momoContent) momoContent.classList.add('active');
+                    }
+                    
+                    // If MoMo is disabled but Paystack is enabled, switch to Paystack tab (already default)
+                    if (paystackEnabled && !momoClaimEnabled) {
+                        if (paystackTab) paystackTab.classList.add('active');
+                        if (paystackContent) paystackContent.classList.add('active');
+                    }
+                    
+                    console.log('[Wallet] Payment methods - Paystack:', paystackEnabled, 'MoMo Claim:', momoClaimEnabled);
+                }
+            } catch (err) {
+                console.warn('Failed to load payment method settings:', err);
+            }
+        }
 
         // Logout function
         async function logout() {

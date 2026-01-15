@@ -1,9 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 const walletController = require('../controllers/wallet.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 const { depositValidation, paginationValidation } = require('../middleware/validators');
+
+// Helper to check if MoMo Claim is enabled
+function isMomoClaimEnabled() {
+  try {
+    const settingsPath = path.join(__dirname, '../../settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return settings.siteSettings?.momoClaimEnabled !== false;
+  } catch (e) {
+    return true; // Default to enabled if settings can't be read
+  }
+}
 
 // Rate limiter for sensitive wallet operations (deposits, transfers, funds)
 const walletOperationLimiter = rateLimit({
@@ -34,7 +47,13 @@ router.get('/claims', authenticate, walletController.getUserClaims);
 router.get('/deposits', authenticate, authorize('ADMIN'), walletController.getAllDeposits);
 
 // POST /api/wallet/deposit - Request deposit (client submits claim)
-router.post('/deposit', authenticate, walletOperationLimiter, depositValidation, walletController.requestDeposit);
+router.post('/deposit', authenticate, walletOperationLimiter, depositValidation, (req, res, next) => {
+  // Check if MoMo Claim is enabled
+  if (!isMomoClaimEnabled()) {
+    return res.status(403).json({ error: 'MoMo claims are currently disabled' });
+  }
+  walletController.requestDeposit(req, res, next);
+});
 
 // POST /api/wallet/deposit/:id/confirm - Confirm deposit with verification (admin)
 router.post('/deposit/:id/confirm', authenticate, authorize('ADMIN'), walletController.confirmDeposit);

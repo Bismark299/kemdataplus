@@ -63,7 +63,9 @@ const settingsController = {
       // Only return public-safe settings
       res.json({
         momoNumbers: settings.adminSettings?.momoNumbers || [],
-        momoName: settings.adminSettings?.adminName || 'KemDataplus'
+        momoName: settings.adminSettings?.adminName || 'KemDataplus',
+        paystackEnabled: settings.siteSettings?.paystackEnabled !== false,
+        momoClaimEnabled: settings.siteSettings?.momoClaimEnabled !== false
       });
     } catch (err) {
       console.error('Error reading public settings:', err);

@@ -10,8 +10,21 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const paystackService = require('../services/paystack.service');
 const { authenticate } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
 
 const prisma = new PrismaClient();
+
+// Helper to check if Paystack is enabled
+function isPaystackEnabled() {
+  try {
+    const settingsPath = path.join(__dirname, '../../settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return settings.siteSettings?.paystackEnabled !== false;
+  } catch (e) {
+    return true; // Default to enabled if settings can't be read
+  }
+}
 
 /**
  * GET /api/paystack/public-key
@@ -29,6 +42,11 @@ router.get('/public-key', (req, res) => {
  */
 router.post('/initialize', authenticate, async (req, res, next) => {
   try {
+    // Check if Paystack is enabled
+    if (!isPaystackEnabled()) {
+      return res.status(403).json({ error: 'Paystack payments are currently disabled' });
+    }
+    
     const { amount } = req.body;
     const userId = req.user.id;
     const email = req.user.email;

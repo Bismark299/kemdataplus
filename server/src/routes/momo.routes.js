@@ -15,7 +15,20 @@ const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const momoService = require('../services/momo.service');
 const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
 const prisma = new PrismaClient();
+
+// Helper to check if MoMo Claim is enabled
+function isMomoClaimEnabled() {
+  try {
+    const settingsPath = path.join(__dirname, '../../settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return settings.siteSettings?.momoClaimEnabled !== false;
+  } catch (e) {
+    return true; // Default to enabled if settings can't be read
+  }
+}
 
 // ============================================
 // ADMIN-ONLY ENDPOINTS
@@ -178,6 +191,11 @@ router.post('/send/:id', authenticate, authorize('ADMIN'), async (req, res, next
  */
 router.post('/claim', authenticate, async (req, res, next) => {
   try {
+    // Check if MoMo Claim is enabled
+    if (!isMomoClaimEnabled()) {
+      return res.status(403).json({ error: 'MoMo claims are currently disabled' });
+    }
+    
     const { reference } = req.body;
 
     if (!reference) {
