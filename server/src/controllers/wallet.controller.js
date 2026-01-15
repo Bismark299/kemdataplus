@@ -486,6 +486,68 @@ const walletController = {
     }
   },
 
+  // Get all transactions (admin) - for wallet management tab
+  async getAllTransactions(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+      const skip = (page - 1) * limit;
+      const typeFilter = req.query.type; // Optional filter
+
+      const where = {};
+      if (typeFilter) {
+        where.type = typeFilter.toUpperCase();
+      }
+
+      const [transactions, total] = await Promise.all([
+        prisma.transaction.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            wallet: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true
+                  }
+                }
+              }
+            }
+          }
+        }),
+        prisma.transaction.count({ where })
+      ]);
+
+      res.json({
+        transactions: transactions.map(t => ({
+          id: t.id,
+          type: t.type,
+          amount: t.amount,
+          status: t.status,
+          reference: t.reference,
+          description: t.description,
+          createdAt: t.createdAt,
+          userName: t.wallet?.user?.name,
+          userPhone: t.wallet?.user?.phone,
+          userId: t.wallet?.user?.id
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   // Fund user wallet (admin)
   async fundUserWallet(req, res, next) {
     try {

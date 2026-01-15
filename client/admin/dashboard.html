@@ -8470,6 +8470,9 @@
         
         // Load wallet section
         async function loadWalletSection() {
+            // Reset transactions cache so it reloads
+            transactionsLoaded = false;
+            
             // First load users data (this will call updateWalletStats internally)
             await initUsersData();
             
@@ -8737,20 +8740,35 @@
         });
         
         // View transaction history
-        function viewTransactions(userId) {
+        async function viewTransactions(userId) {
             const user = usersData.find(u => u.id === userId);
             if (!user) return;
             
             document.getElementById('modalUserName').textContent = user.name;
             const container = document.getElementById('transactionList');
             
-            const transactions = user.transactions || [];
+            // Show loading state
+            container.innerHTML = '<p style="text-align: center; color: #9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading transactions...</p>';
+            document.getElementById('transactionModal').classList.add('active');
+            
+            // Fetch transactions for this specific user
+            let transactions = [];
+            try {
+                const res = await adminFetch(`/api/wallet?userId=${userId}`);
+                if (res.ok) {
+                    const wallet = await res.json();
+                    transactions = wallet.transactions || [];
+                }
+            } catch (err) {
+                console.error('Failed to load user transactions:', err);
+            }
+            
             if (transactions.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #9ca3af;">No transactions yet</p>';
             } else {
                 container.innerHTML = transactions.map(t => {
                     const amount = parseFloat(t.amount) || 0;
-                    const isCredit = t.type === 'credit' || t.type === 'DEPOSIT' || amount > 0;
+                    const isCredit = t.type === 'credit' || t.type === 'DEPOSIT' || t.type === 'CREDIT' || t.type === 'REFUND' || t.type === 'PROFIT_CREDIT' || amount > 0;
                     const displayAmount = Math.abs(amount);
                     return `
                     <div class="transaction-item">
@@ -8767,8 +8785,6 @@
                     </div>
                 `}).join('');
             }
-            
-            document.getElementById('transactionModal').classList.add('active');
         }
         
         function formatTransactionDate(dateStr) {
@@ -9196,26 +9212,30 @@
         
         // ========== ALL TRANSACTIONS TAB ==========
         let allTransactions = [];
+        let transactionsLoaded = false;
         
-        function gatherAllTransactions() {
-            allTransactions = [];
-            usersData.forEach(user => {
-                (user.transactions || []).forEach(txn => {
-                    allTransactions.push({
-                        ...txn,
-                        date: txn.date || txn.createdAt, // Use createdAt if date not available
-                        userName: user.name,
-                        userPhone: user.phone,
-                        userId: user.id
-                    });
-                });
-            });
-            // Sort by date (newest first)
-            allTransactions.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+        async function loadAllTransactions() {
+            if (transactionsLoaded) return; // Only load once per session
+            try {
+                const res = await adminFetch('/api/wallet/transactions/all?limit=200');
+                if (!res.ok) throw new Error('Failed to fetch transactions');
+                const data = await res.json();
+                allTransactions = (data.transactions || []).map(t => ({
+                    ...t,
+                    date: t.createdAt
+                }));
+                transactionsLoaded = true;
+            } catch (err) {
+                console.error('Failed to load transactions:', err);
+                allTransactions = [];
+            }
         }
         
-        function renderAllTransactions(searchTerm = '', typeFilter = '') {
-            gatherAllTransactions();
+        async function renderAllTransactions(searchTerm = '', typeFilter = '') {
+            // Load transactions from API if not already loaded
+            if (!transactionsLoaded) {
+                await loadAllTransactions();
+            }
             
             let filtered = allTransactions;
             

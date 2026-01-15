@@ -46,6 +46,9 @@ router.get('/claims', authenticate, walletController.getUserClaims);
 // GET /api/wallet/deposits - Get all deposits (admin)
 router.get('/deposits', authenticate, authorize('ADMIN'), walletController.getAllDeposits);
 
+// GET /api/wallet/transactions/all - Get all transactions (admin)
+router.get('/transactions/all', authenticate, authorize('ADMIN'), walletController.getAllTransactions);
+
 // POST /api/wallet/deposit - Request deposit (client submits claim)
 router.post('/deposit', authenticate, walletOperationLimiter, depositValidation, (req, res, next) => {
   // Check if MoMo Claim is enabled
