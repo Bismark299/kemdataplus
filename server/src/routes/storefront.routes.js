@@ -145,10 +145,20 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
     // Use customer email or generate from phone
     const customerEmail = email || `${phone}@customer.store`;
 
-    // Initialize Paystack payment
+    // Calculate processing fee (1.5%) - charged to customer
+    const PROCESSING_FEE_RATE = 0.015; // 1.5%
+    const subtotal = result.amount;
+    const processingFee = Math.round(subtotal * PROCESSING_FEE_RATE * 100) / 100;
+    const totalAmount = subtotal + processingFee;
+
+    console.log(`[Storefront] Payment breakdown - Subtotal: ${subtotal}, Fee: ${processingFee}, Total: ${totalAmount}`);
+
+    // Initialize Paystack payment with TOTAL amount (subtotal + fee)
     const paystackResult = await paystackService.initializeStorefrontPayment({
       email: customerEmail,
-      amount: result.amount,
+      amount: totalAmount,       // Customer pays this (includes fee)
+      subtotal: subtotal,        // Original order amount
+      processingFee: processingFee, // Fee for tracking
       storefrontId: storefront.id,
       storefrontOrderId: result.storefrontOrderId,
       callbackUrl,
@@ -165,7 +175,10 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
       success: true,
       ...paystackResult,
       orderId: result.storefrontOrderId,
-      amount: result.amount
+      amount: result.amount,     // Original order amount (what agent priced)
+      subtotal: subtotal,        // Same as amount (for clarity)
+      processingFee: processingFee, // 1.5% fee
+      totalAmount: totalAmount   // What customer pays
     });
   } catch (error) {
     console.error('Paystack initialize error:', error);

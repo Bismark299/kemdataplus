@@ -1230,12 +1230,7 @@
                         <div class="tab-content active" id="instantTopupTab">
                             <div class="paystack-info">
                                 <h4><i class="fas fa-bolt"></i> Instant Wallet Top Up</h4>
-                                <p>Top up your wallet instantly using:</p>
-                                <ul>
-                                    <li><strong>Mobile Money</strong> - MTN, Telecel, AirtelTigo</li>
-                                    <li><strong>Bank Card</strong> - Visa, Mastercard</li>
-                                    <li><strong>Bank Transfer</strong> - Ghana banks</li>
-                                </ul>
+                                <p>Top up your wallet instantly using Mobile Money (MTN, Telecel, AirtelTigo)</p>
                             </div>
                             
                             <form id="paystackTopupForm">
@@ -1253,26 +1248,11 @@
                                 
                                 <div class="form-group">
                                     <label>Or Enter Custom Amount</label>
-                                    <input type="number" id="paystackAmount" placeholder="Enter amount (min GHS 1)" min="1" max="10000" step="0.01">
+                                    <input type="number" id="paystackAmount" placeholder="Enter amount (min GHS 5)" min="5" max="10000" step="0.01">
                                 </div>
                                 
-                                <div class="form-group">
-                                    <label>Payment Method</label>
-                                    <div class="payment-channel-select">
-                                        <button type="button" class="channel-btn selected" data-channel="mobile_money">
-                                            <i class="fas fa-mobile-alt"></i>
-                                            <span>MoMo</span>
-                                        </button>
-                                        <button type="button" class="channel-btn" data-channel="card">
-                                            <i class="fas fa-credit-card"></i>
-                                            <span>Card</span>
-                                        </button>
-                                        <button type="button" class="channel-btn" data-channel="bank_transfer">
-                                            <i class="fas fa-university"></i>
-                                            <span>Bank</span>
-                                        </button>
-                                    </div>
-                                </div>
+                                <!-- Fee Breakdown Display -->
+                                <div id="feeBreakdown" style="display:none;"></div>
                                 
                                 <button type="submit" class="btn-paystack" id="paystackPayBtn">
                                     <i class="fas fa-lock"></i> Pay Securely with Paystack
@@ -2124,6 +2104,20 @@
         let selectedChannel = 'mobile_money';
         let selectedAmount = 0;
         
+        // Calculate fee (for internal use, not displayed)
+        function updateFeeBreakdown(amount) {
+            // Fee breakdown display removed - just calculate internally
+            if (!amount || amount <= 0) {
+                return { subtotal: 0, fee: 0, total: 0 };
+            }
+            
+            const subtotal = parseFloat(amount);
+            const fee = Math.round(subtotal * 0.015 * 100) / 100; // 1.5%
+            const total = subtotal + fee;
+            
+            return { subtotal, fee, total };
+        }
+        
         // Load Paystack public key
         async function loadPaystackKey() {
             try {
@@ -2144,6 +2138,7 @@
                 this.classList.add('selected');
                 selectedAmount = parseFloat(this.dataset.amount);
                 document.getElementById('paystackAmount').value = selectedAmount;
+                updateFeeBreakdown(selectedAmount);
             });
         });
         
@@ -2161,6 +2156,9 @@
             if (this.value) {
                 document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
                 selectedAmount = parseFloat(this.value) || 0;
+                updateFeeBreakdown(selectedAmount);
+            } else {
+                document.getElementById('feeBreakdown').style.display = 'none';
             }
         });
         
@@ -2170,8 +2168,8 @@
             
             const amount = selectedAmount || parseFloat(document.getElementById('paystackAmount').value);
             
-            if (!amount || amount < 1) {
-                showError('Please enter a valid amount (min GHS 1)');
+            if (!amount || amount < 5) {
+                showError('Please enter a valid amount (min GHS 5)');
                 return;
             }
             
@@ -2221,8 +2219,12 @@
                     showSuccess('Verifying payment...');
                     const result = await apiRequest(`/paystack/verify/${reference}`);
                     
+                    console.log('Paystack verify result:', result);
+                    
                     if (result.status === 'success') {
-                        showSuccess(`Payment successful! GHS ${result.amount.toFixed(2)} added to your wallet.`);
+                        // Show the credited amount (from metadata if available, otherwise use amount)
+                        const creditedAmount = result.metadata?.amountGHS || result.amount;
+                        showSuccess(`Payment successful! GHS ${parseFloat(creditedAmount).toFixed(2)} added to your wallet.`);
                         // Refresh wallet data
                         await loadWalletData();
                         await loadPaymentHistory();
@@ -2230,6 +2232,7 @@
                         showError('Payment verification failed. Please contact support if amount was deducted.');
                     }
                 } catch (error) {
+                    console.error('Payment verification error:', error);
                     showError('Could not verify payment. Please check your balance or contact support.');
                 }
                 
@@ -2258,8 +2261,8 @@
             }
             
             container.innerHTML = payments.slice(0, 5).map(p => {
-                const statusClass = p.status === 'completed' ? 'completed' : 'pending';
-                const statusText = p.status === 'completed' ? 'Completed' : 'Pending';
+                const statusClass = p.status === 'COMPLETED' ? 'completed' : 'pending';
+                const statusText = p.status === 'COMPLETED' ? 'Completed' : 'Pending';
                 return `
                     <div class="payment-item">
                         <div>

@@ -1514,7 +1514,10 @@
                 <!-- Paystack Payment Info -->
                 <div id="paystackInfo" style="background:#dcfce7;padding:15px;border-radius:8px;margin-bottom:15px;display:none;">
                     <h4 style="color:#166534;margin-bottom:8px;"><i class="fas fa-credit-card"></i> Secure Online Payment</h4>
-                    <p style="color:#166534;font-size:0.9rem;">You will be redirected to Paystack to complete your payment of <strong id="paystackAmountText">GHS 0.00</strong> securely via card or mobile money.</p>
+                    <p style="color:#166534;font-size:0.9rem;margin-bottom:10px;">You will be redirected to Paystack to complete your payment securely via card or mobile money.</p>
+                    <div id="paystackSubtotal" style="display:none;"></div>
+                    <div id="paystackFee" style="display:none;"></div>
+                    <div id="paystackTotal" style="display:none;"></div>
                 </div>
                 
                 <div class="form-group" id="paymentRefGroup" style="display:none;">
@@ -1751,10 +1754,18 @@
             paymentRefGroup.style.display = 'none';
             
             if (hasPaystack) {
-                // Show Paystack payment UI
+                // Show Paystack payment UI with fee breakdown
                 paystackInfo.style.display = 'block';
                 emailGroup.style.display = 'block';
-                document.getElementById('paystackAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
+                
+                // Calculate processing fee (1.5%)
+                const subtotal = selectedProduct.price;
+                const processingFee = Math.round(subtotal * 0.015 * 100) / 100; // Round to 2 decimals
+                const total = subtotal + processingFee;
+                
+                document.getElementById('paystackSubtotal').textContent = `GHS ${subtotal.toFixed(2)}`;
+                document.getElementById('paystackFee').textContent = `GHS ${processingFee.toFixed(2)}`;
+                document.getElementById('paystackTotal').textContent = `GHS ${total.toFixed(2)}`;
                 submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
             } else {
                 // No payment method available - show error
@@ -1780,7 +1791,15 @@
                 paymentRefGroup.style.display = 'none';
                 paystackInfo.style.display = 'block';
                 emailGroup.style.display = 'block';
-                document.getElementById('paystackAmountText').textContent = `GHS ${selectedProduct.price.toFixed(2)}`;
+                
+                // Calculate processing fee (1.5%)
+                const subtotal = selectedProduct.price;
+                const processingFee = Math.round(subtotal * 0.015 * 100) / 100;
+                const total = subtotal + processingFee;
+                
+                document.getElementById('paystackSubtotal').textContent = `GHS ${subtotal.toFixed(2)}`;
+                document.getElementById('paystackFee').textContent = `GHS ${processingFee.toFixed(2)}`;
+                document.getElementById('paystackTotal').textContent = `GHS ${total.toFixed(2)}`;
                 submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay with Paystack';
             } else {
                 paymentInstructions.style.display = 'block';

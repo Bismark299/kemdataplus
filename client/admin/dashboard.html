@@ -600,6 +600,42 @@
             color: #d1d5db;
         }
 
+        /* ===== MOBILE MENU TOGGLE ===== */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #1a1f36;
+            cursor: pointer;
+            padding: 5px;
+            margin-right: 15px;
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+        .sidebar-close-btn {
+            display: none;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
         /* ===== RESPONSIVE ===== */
         @media (max-width: 1400px) {
             .status-cards { grid-template-columns: repeat(3, 1fr); }
@@ -611,20 +647,161 @@
             .filter-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 768px) {
-            .sidebar { width: 70px; }
-            .logo-text, .menu-label, .nav-link span { display: none; }
-            .main-content { margin-left: 70px; }
-            .nav-link { justify-content: center; }
-            .main-stats { grid-template-columns: 1fr; }
-            .status-cards { grid-template-columns: 1fr; }
-            .filter-grid { grid-template-columns: 1fr 1fr; }
+            /* Mobile Menu */
+            .mobile-menu-btn { display: block; }
+            .sidebar-close-btn { display: block; }
+            
+            /* Sidebar - slide in from left */
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                width: 260px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .logo-text, .menu-label, .nav-link span, .logout-btn span { display: inline; }
+            .nav-link { justify-content: flex-start; }
+            
+            /* Main content full width */
+            .main-content { margin-left: 0; }
+            
+            /* Header */
+            .top-header { padding: 12px 15px; }
+            .greeting h1 { font-size: 1rem; }
+            .greeting p { font-size: 0.75rem; display: none; }
             .header-stat { display: none; }
-            .network-tabs { gap: 8px; }
-            .network-tab { padding: 8px 12px; font-size: 0.8rem; }
-            .action-bar { flex-wrap: wrap; }
-            .btn-action { padding: 10px 16px; font-size: 0.85rem; }
-            .table-container { overflow-x: auto; }
-            .data-table { min-width: 900px; }
+            .keyboard-hint { display: none; }
+            
+            /* Stats & Cards */
+            .main-stats { grid-template-columns: 1fr; gap: 12px; }
+            .status-cards { grid-template-columns: 1fr; gap: 12px; }
+            .stat-card, .status-card { padding: 15px; }
+            .stat-value { font-size: 1.5rem; }
+            
+            /* Filters */
+            .filter-grid { grid-template-columns: 1fr; gap: 10px; }
+            .filter-card { padding: 15px; }
+            
+            /* Tables - Horizontal scroll */
+            .table-container { 
+                overflow-x: auto; 
+                margin: 0 -15px;
+                padding: 0 15px;
+            }
+            .data-table { min-width: 700px; }
+            .data-table th, .data-table td { 
+                padding: 10px 8px; 
+                font-size: 0.8rem;
+            }
+            
+            /* Action bars */
+            .action-bar { 
+                flex-direction: column; 
+                gap: 10px;
+                align-items: stretch;
+            }
+            .action-bar > * { width: 100%; }
+            .btn-action { 
+                padding: 12px 16px; 
+                font-size: 0.85rem;
+                justify-content: center;
+            }
+            
+            /* Network tabs */
+            .network-tabs { 
+                flex-wrap: wrap;
+                gap: 8px; 
+            }
+            .network-tab { 
+                padding: 8px 12px; 
+                font-size: 0.75rem;
+                flex: 1;
+                min-width: calc(33% - 8px);
+                text-align: center;
+            }
+            
+            /* Section headers */
+            .section-header { 
+                flex-direction: column; 
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .section-header h2 { font-size: 1.1rem; }
+            
+            /* Cards & containers */
+            .content-area { padding: 15px; }
+            .card, .panel { padding: 15px; border-radius: 10px; }
+            
+            /* Modals */
+            .modal-content, .modal-box {
+                width: 95% !important;
+                max-width: 95% !important;
+                margin: 10px;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            .modal-body { padding: 15px; }
+            .modal-header { padding: 15px; }
+            .modal-footer { padding: 15px; flex-wrap: wrap; gap: 10px; }
+            .modal-footer button { flex: 1; min-width: 120px; }
+            
+            /* Forms */
+            .form-row, .form-grid { 
+                grid-template-columns: 1fr !important; 
+                gap: 12px;
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                font-size: 16px; /* Prevents iOS zoom */
+            }
+            
+            /* Wallet section */
+            .wallet-stats { grid-template-columns: 1fr 1fr; gap: 12px; }
+            .wallet-stat-card { padding: 15px; }
+            
+            /* User cards */
+            .user-card { padding: 12px; }
+            
+            /* Buttons */
+            .btn-primary, .btn-secondary, .btn-danger {
+                padding: 12px 16px;
+                font-size: 0.9rem;
+            }
+            
+            /* Quick actions / FAB style */
+            .quick-actions {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 100;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .top-header { padding: 10px 12px; }
+            .greeting h1 { font-size: 0.9rem; }
+            .admin-avatar { width: 32px; height: 32px; font-size: 0.8rem; }
+            
+            .main-stats { gap: 10px; }
+            .stat-card { padding: 12px; }
+            .stat-value { font-size: 1.3rem; }
+            .stat-label { font-size: 0.75rem; }
+            
+            .wallet-stats { grid-template-columns: 1fr; }
+            
+            .network-tab {
+                min-width: calc(50% - 8px);
+                padding: 6px 8px;
+                font-size: 0.7rem;
+            }
+            
+            .data-table { min-width: 600px; }
+            .data-table th, .data-table td { 
+                padding: 8px 6px; 
+                font-size: 0.75rem;
+            }
+            
+            .content-area { padding: 12px; }
         }
 
         /* ===== WALLET MANAGEMENT ===== */
@@ -3829,8 +4006,14 @@
         </div>
     </div>
     
+    <!-- SIDEBAR OVERLAY (Mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-close-btn" id="sidebarCloseBtn">
+            <i class="fas fa-times"></i>
+        </button>
         <div class="sidebar-logo">
             <div class="logo-box">KDP</div>
             <span class="logo-text">KemDataplus</span>
@@ -3906,9 +4089,14 @@
     <main class="main-content">
         <!-- Top Header -->
         <header class="top-header">
-            <div class="greeting">
-                <h1 id="greetingText">Good morning, Admin 👋</h1>
-                <p>You can still drop your orders! Delivery will be in the morning</p>
+            <div style="display: flex; align-items: center;">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="greeting">
+                    <h1 id="greetingText">Good morning, Admin 👋</h1>
+                    <p>You can still drop your orders! Delivery will be in the morning</p>
+                </div>
             </div>
             <div class="header-right">
                 <div class="keyboard-hint" onclick="toggleCommandPalette()" title="Open Command Palette">
@@ -4257,6 +4445,11 @@
                             <option value="Telecel">Telecel</option>
                             <option value="AirtelTigo">AirtelTigo</option>
                         </select>
+                        <select id="filterPaymentMethod">
+                            <option value="">All Methods</option>
+                            <option value="momo">MoMo Claim</option>
+                            <option value="paystack">Paystack</option>
+                        </select>
                         <select id="filterClaimDate">
                             <option value="all">All Time</option>
                             <option value="today">Today</option>
@@ -4334,13 +4527,14 @@
                                     <th>User</th>
                                     <th>Transaction ID</th>
                                     <th>Amount</th>
+                                    <th>Method</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="incomingPaymentsBody">
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 40px; color: #9ca3af;">
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
                                         <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
                                         No claims yet
                                     </td>
@@ -4436,6 +4630,7 @@
                             <i class="fas fa-search"></i>
                             <input type="text" id="usersSearchInput" placeholder="Search users...">
                         </div>
+                        <input type="text" id="usersAgentIdFilter" placeholder="Agent ID (e.g. KDP-1234)" style="width:140px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <select id="usersRoleFilter">
                             <option value="">All Roles</option>
                             <option value="ADMIN">Admin</option>
@@ -7311,7 +7506,7 @@
             document.getElementById('statTotalBalance').textContent = 'GH₵ ' + totalBalance.toFixed(2);
         }
         
-        function renderUsersTable(searchTerm = '', statusFilter = '', roleFilter = '') {
+        function renderUsersTable(searchTerm = '', statusFilter = '', roleFilter = '', agentIdFilter = '') {
             const tbody = document.getElementById('usersTableBody');
             let filtered = [...usersData];
             
@@ -7322,6 +7517,15 @@
                     (u.phone || '').toLowerCase().includes(term) ||
                     (u.email || '').toLowerCase().includes(term)
                 );
+            }
+            
+            if (agentIdFilter) {
+                const agentTerm = agentIdFilter.toUpperCase().replace('KDP-', '').replace('KDP', '');
+                filtered = filtered.filter(u => {
+                    const userAgentCode = generateAgentCode(u.id);
+                    return userAgentCode.toUpperCase().includes(agentTerm) || 
+                           userAgentCode.toUpperCase().includes('KDP-' + agentTerm);
+                });
             }
             
             if (statusFilter) {
@@ -7364,7 +7568,7 @@
                             <div class="user-profile">
                                 <div class="avatar">${(user.name || 'U').charAt(0)}</div>
                                 <div class="info">
-                                    <div class="name">${user.name || 'Unknown'} <span style="color:#64748b;font-size:0.8rem;font-weight:400;">(${user.id.slice(-8)})</span></div>
+                                    <div class="name">${user.name || 'Unknown'} <span style="color:#3b82f6;font-size:0.75rem;font-weight:600;">${generateAgentCode(user.id)}</span></div>
                                     <div class="email">${user.email || 'No email'}</div>
                                 </div>
                             </div>
@@ -7406,19 +7610,29 @@
         document.getElementById('usersSearchInput')?.addEventListener('input', function() {
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            renderUsersTable(this.value, statusFilter, roleFilter);
+            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
+            renderUsersTable(this.value, statusFilter, roleFilter, agentIdFilter);
+        });
+        
+        document.getElementById('usersAgentIdFilter')?.addEventListener('input', function() {
+            const searchTerm = document.getElementById('usersSearchInput')?.value || '';
+            const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
+            const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
+            renderUsersTable(searchTerm, statusFilter, roleFilter, this.value);
         });
         
         document.getElementById('usersStatusFilter')?.addEventListener('change', function() {
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            renderUsersTable(searchTerm, this.value, roleFilter);
+            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
+            renderUsersTable(searchTerm, this.value, roleFilter, agentIdFilter);
         });
         
         document.getElementById('usersRoleFilter')?.addEventListener('change', function() {
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
-            renderUsersTable(searchTerm, statusFilter, this.value);
+            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
+            renderUsersTable(searchTerm, statusFilter, this.value, agentIdFilter);
         });
         
         // Add/Edit User Modal
@@ -7957,7 +8171,8 @@
             // Calculate total balance from usersData (already loaded)
             const totalBalance = usersData.reduce((sum, u) => sum + (parseFloat(u.balance) || 0), 0);
             document.getElementById('totalUserBalances').textContent = 'GH₵ ' + totalBalance.toFixed(2);
-            document.getElementById('pendingTopupsCount').textContent = incomingPayments.filter(p => p.status !== 'claimed').length;
+            // Only count pending MoMo claims (not Paystack which are auto-credited)
+            document.getElementById('pendingTopupsCount').textContent = incomingPayments.filter(p => p.status === 'pending' && p.paymentMethod === 'momo').length;
             
             // Calculate today's credits/debits (using UTC)
             const todayUTC = getTodayUTC();
@@ -8226,6 +8441,12 @@
                     else if (apiStatus === 'failed') displayStatus = 'rejected';
                     else displayStatus = 'pending';
                     
+                    // Determine payment method from reference or description
+                    const ref = (d.reference || '').toLowerCase();
+                    const desc = (d.description || '').toLowerCase();
+                    const isPaystack = ref.startsWith('ps_') || desc.includes('paystack');
+                    const paymentMethod = isPaystack ? 'paystack' : 'momo';
+                    
                     return {
                         id: d.id,
                         transactionId: d.reference,
@@ -8233,6 +8454,7 @@
                         status: displayStatus,
                         receivedAt: d.createdAt,
                         description: d.description,
+                        paymentMethod: paymentMethod,
                         // User info from wallet
                         senderName: d.user?.name || 'Unknown',
                         phone: d.user?.phone || 'N/A',
@@ -8300,6 +8522,7 @@
                 const searchPhone = document.getElementById('searchPhone')?.value?.toLowerCase() || '';
                 const filterStatus = document.getElementById('filterClaimStatus')?.value || '';
                 const filterNetwork = document.getElementById('filterClaimNetwork')?.value || '';
+                const filterPaymentMethod = document.getElementById('filterPaymentMethod')?.value || '';
                 const filterDateVal = document.getElementById('filterClaimDate')?.value || 'all';
 
                 let filtered = [...incomingPayments];
@@ -8316,6 +8539,9 @@
                 }
                 if (filterNetwork) {
                     filtered = filtered.filter(p => p.network === filterNetwork);
+                }
+                if (filterPaymentMethod) {
+                    filtered = filtered.filter(p => p.paymentMethod === filterPaymentMethod);
                 }
 
                 // Date filter
@@ -8340,11 +8566,16 @@
                 const perPage = parseInt(document.getElementById('tablePerPage')?.value || 50);
 
                 if (filtered.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af;"><i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>No claims found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;"><i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>No claims found</td></tr>';
                     return;
                 }
             
-                tbody.innerHTML = filtered.slice(0, perPage).map(payment => `
+                tbody.innerHTML = filtered.slice(0, perPage).map(payment => {
+                    const methodBadge = payment.paymentMethod === 'paystack' 
+                        ? '<span style="background:#dbeafe;color:#1d4ed8;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;"><i class="fas fa-credit-card"></i> Paystack</span>'
+                        : '<span style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;"><i class="fas fa-mobile-alt"></i> MoMo</span>';
+                    
+                    return `
                     <tr>
                         <td>${formatPaymentDate(payment.receivedAt)}</td>
                         <td>
@@ -8353,9 +8584,10 @@
                         </td>
                         <td style="font-family: monospace; font-size: 0.85rem; color: #374151;">${payment.transactionId || 'N/A'}</td>
                         <td><strong style="color: #059669;">GHS ${payment.amount.toFixed(2)}</strong></td>
+                        <td>${methodBadge}</td>
                         <td><span class="status-badge ${payment.status}">${capitalizeFirst(payment.status)}</span></td>
                         <td>
-                            ${payment.status === 'pending' ? `
+                            ${payment.status === 'pending' && payment.paymentMethod === 'momo' ? `
                                 <div style="display: flex; gap: 5px;">
                                     <button class="claim-action-btn credit" onclick="openVerifyClaimModal('${payment.id}')" title="Verify & Approve">
                                         <i class="fas fa-check-circle"></i> Verify
@@ -8365,13 +8597,15 @@
                                     </button>
                                 </div>
                             ` : payment.status === 'completed' ? `
-                                <span style="color: #10b981; font-size: 0.85rem;"><i class="fas fa-check-circle"></i> Approved</span>
+                                <span style="color: #10b981; font-size: 0.85rem;"><i class="fas fa-check-circle"></i> ${payment.paymentMethod === 'paystack' ? 'Auto' : 'Approved'}</span>
+                            ` : payment.status === 'pending' && payment.paymentMethod === 'paystack' ? `
+                                <span style="color: #f59e0b; font-size: 0.85rem;"><i class="fas fa-hourglass-half"></i> Processing</span>
                             ` : `
                                 <span style="color: #dc2626; font-size: 0.85rem;"><i class="fas fa-times-circle"></i> Rejected</span>
                             `}
                         </td>
                     </tr>
-                `).join('');
+                `}).join('');
             });
         }
         
@@ -8533,7 +8767,7 @@
             }
         }
         
-        ['searchTxnId', 'searchPhone', 'filterClaimStatus', 'filterClaimNetwork', 'filterClaimDate'].forEach(id => {
+        ['searchTxnId', 'searchPhone', 'filterClaimStatus', 'filterClaimNetwork', 'filterClaimDate', 'filterPaymentMethod'].forEach(id => {
             document.getElementById(id)?.addEventListener('change', renderIncomingPayments);
             document.getElementById(id)?.addEventListener('input', renderIncomingPayments);
         });
@@ -10752,6 +10986,37 @@
 
         // Logout button handler
         document.getElementById('logoutBtn')?.addEventListener('click', logout);
+
+        // ===== MOBILE SIDEBAR TOGGLE =====
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+        
+        function openMobileSidebar() {
+            sidebar?.classList.add('open');
+            sidebarOverlay?.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeMobileSidebar() {
+            sidebar?.classList.remove('open');
+            sidebarOverlay?.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        mobileMenuBtn?.addEventListener('click', openMobileSidebar);
+        sidebarCloseBtn?.addEventListener('click', closeMobileSidebar);
+        sidebarOverlay?.addEventListener('click', closeMobileSidebar);
+        
+        // Close sidebar when nav item clicked on mobile
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileSidebar();
+                }
+            });
+        });
 
         // Select all checkbox handler
         document.getElementById('selectAll')?.addEventListener('change', toggleSelectAll);

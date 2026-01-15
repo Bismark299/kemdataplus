@@ -79,13 +79,18 @@ const paystackService = {
   /**
    * Initialize a payment transaction
    * @param {string} email - Customer email
-   * @param {number} amount - Amount in GHS (will be converted to pesewas)
+   * @param {number} amount - Total amount in GHS (includes fee)
+   * @param {number} subtotal - Original amount (what's credited to wallet)
+   * @param {number} processingFee - The 1.5% fee
    * @param {string} userId - User ID for reference
    * @param {string} callbackUrl - URL to redirect after payment
    */
-  async initializePayment({ email, amount, userId, callbackUrl }) {
-    // Amount must be in pesewas (kobo equivalent)
+  async initializePayment({ email, amount, subtotal, processingFee, userId, callbackUrl }) {
+    // Amount must be in pesewas (kobo equivalent) - this is the TOTAL customer pays
     const amountInPesewas = Math.round(amount * 100);
+    
+    // The subtotal is what gets credited to wallet
+    const creditAmount = subtotal || amount;
     
     // Generate unique reference
     const reference = `KDP_${userId.slice(0, 8)}_${Date.now()}`;
@@ -99,23 +104,25 @@ const paystackService = {
       metadata: {
         userId,
         type: 'wallet_topup',
-        amountGHS: amount
+        amountGHS: creditAmount,          // This is the SUBTOTAL - what gets credited
+        totalPaidGHS: amount,             // Total customer paid
+        processingFeeGHS: processingFee || 0
       }
     });
     
-    // Store pending payment in database
+    // Store pending payment in database (store subtotal, not total)
     await prisma.pendingPayment.create({
       data: {
         reference,
         userId,
-        amount,
+        amount: creditAmount,  // Store subtotal - what will be credited
         status: 'PENDING',
         provider: 'PAYSTACK',
-        metadata: JSON.stringify({ email })
+        metadata: JSON.stringify({ email, totalPaid: amount, processingFee: processingFee || 0 })
       }
     });
     
-    console.log(`[Paystack] Payment initialized: ${reference} for ${amount} GHS`);
+    console.log(`[Paystack] Payment initialized: ${reference} for ${amount} GHS (credit: ${creditAmount}, fee: ${processingFee || 0})`);
     
     return {
       success: true,
@@ -180,7 +187,10 @@ const paystackService = {
     }
     
     const { reference, amount, metadata, paid_at } = event.data;
-    const amountGHS = amount / 100;
+    // Use metadata.amountGHS (subtotal) if available, otherwise calculate from pesewas
+    // This ensures we credit the original amount, not the amount + fee
+    // Parse as float since Paystack metadata returns strings
+    const amountGHS = parseFloat(metadata?.amountGHS) || (amount / 100);
     
     // Check if already processed (idempotency) - check both PendingPayment and Transaction
     const existingPayment = await prisma.pendingPayment.findUnique({
@@ -316,8 +326,8 @@ const paystackService = {
    * @param {string} storefrontOrderId - StorefrontOrder ID
    * @param {string} callbackUrl - URL to redirect after payment
    */
-  async initializeStorefrontPayment({ email, amount, storefrontId, storefrontOrderId, callbackUrl, customerPhone }) {
-    // Amount must be in pesewas
+  async initializeStorefrontPayment({ email, amount, subtotal, processingFee, storefrontId, storefrontOrderId, callbackUrl, customerPhone }) {
+    // Amount must be in pesewas (this is the TOTAL customer pays including fee)
     const amountInPesewas = Math.round(amount * 100);
     
     // Generate unique reference for storefront
@@ -334,11 +344,13 @@ const paystackService = {
         storefrontId,
         storefrontOrderId,
         customerPhone,
-        amountGHS: amount
+        amountGHS: amount,          // Total customer paid
+        subtotalGHS: subtotal || amount,  // Original order amount (what agent credited)
+        processingFeeGHS: processingFee || 0  // Fee we charged customer
       }
     });
     
-    console.log(`[Paystack] Storefront payment initialized: ${reference} for ${amount} GHS`);
+    console.log(`[Paystack] Storefront payment initialized: ${reference} for ${amount} GHS (subtotal: ${subtotal || amount}, fee: ${processingFee || 0})`);
     
     return {
       success: true,

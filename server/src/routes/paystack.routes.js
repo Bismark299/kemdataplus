@@ -7,8 +7,11 @@
 
 const express = require('express');
 const router = express.Router();
+const { PrismaClient } = require('@prisma/client');
 const paystackService = require('../services/paystack.service');
 const { authenticate } = require('../middleware/auth');
+
+const prisma = new PrismaClient();
 
 /**
  * GET /api/paystack/public-key
@@ -34,15 +37,23 @@ router.post('/initialize', authenticate, async (req, res, next) => {
       return res.status(400).json({ error: 'Valid amount is required' });
     }
     
-    // Minimum amount check (e.g., 1 GHS)
-    if (amount < 1) {
-      return res.status(400).json({ error: 'Minimum deposit is 1 GHS' });
+    // Minimum amount check (5 GHS)
+    if (amount < 5) {
+      return res.status(400).json({ error: 'Minimum deposit is 5 GHS' });
     }
     
     // Maximum amount check (e.g., 10,000 GHS)
     if (amount > 10000) {
       return res.status(400).json({ error: 'Maximum deposit is 10,000 GHS' });
     }
+    
+    // Calculate processing fee (1.5%) - charged to customer
+    const PROCESSING_FEE_RATE = 0.015; // 1.5%
+    const subtotal = parseFloat(amount);
+    const processingFee = Math.round(subtotal * PROCESSING_FEE_RATE * 100) / 100;
+    const totalAmount = subtotal + processingFee;
+    
+    console.log(`[Paystack] Top-up breakdown - Subtotal: ${subtotal}, Fee: ${processingFee}, Total: ${totalAmount}`);
     
     // Build callback URL dynamically
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -51,7 +62,9 @@ router.post('/initialize', authenticate, async (req, res, next) => {
     
     const result = await paystackService.initializePayment({
       email,
-      amount: parseFloat(amount),
+      amount: totalAmount,         // Total customer pays (includes fee)
+      subtotal: subtotal,          // Original amount (credited to wallet)
+      processingFee: processingFee,
       userId,
       callbackUrl
     });
@@ -79,24 +92,59 @@ router.get('/verify/:reference', authenticate, async (req, res, next) => {
     
     const result = await paystackService.verifyPayment(reference);
     
+    console.log(`[Paystack] Verify result for ${reference}:`, JSON.stringify(result));
+    console.log(`[Paystack] Current user ID: ${req.user.id}, Metadata userId: ${result.metadata?.userId}`);
+    
     // If payment is successful, credit wallet (handles idempotency internally)
-    if (result.success && result.metadata?.userId === req.user.id) {
-      console.log(`[Paystack] Manual verification for ${reference}: ${result.status}`);
+    if (result.success) {
+      // Allow crediting if userId matches OR if reference starts with KDP_ (agent topup)
+      const isAgentTopup = reference.startsWith('KDP_');
+      const userMatches = result.metadata?.userId === req.user.id;
       
-      // Process like a webhook to credit wallet
-      const webhookResult = await paystackService.processWebhook({
-        event: 'charge.success',
-        data: {
-          reference,
-          amount: result.amount * 100, // Convert back to pesewas
-          metadata: result.metadata,
-          paid_at: result.paidAt,
-          channel: result.channel
+      if (userMatches || isAgentTopup) {
+        console.log(`[Paystack] Manual verification for ${reference}: ${result.status}`);
+        
+        // Get the subtotal (credit amount) from metadata, or look up from PendingPayment
+        let creditAmount = result.metadata?.amountGHS;
+        
+        if (!creditAmount) {
+          // Try to get from pending payment record
+          const pendingPayment = await prisma.pendingPayment.findUnique({
+            where: { reference }
+          });
+          creditAmount = pendingPayment?.amount || result.amount;
+          console.log(`[Paystack] Got credit amount from PendingPayment: ${creditAmount}`);
         }
-      });
-      
-      if (webhookResult.processed) {
-        console.log(`[Paystack] ✅ Wallet credited via manual verification`);
+        
+        // For agent topups without matching metadata, use current user
+        const effectiveMetadata = {
+          userId: result.metadata?.userId || req.user.id,
+          type: result.metadata?.type || 'wallet_topup',
+          amountGHS: creditAmount,  // The amount to credit (subtotal)
+          totalPaidGHS: result.amount  // What customer actually paid
+        };
+        
+        console.log(`[Paystack] Effective metadata:`, JSON.stringify(effectiveMetadata));
+        
+        // Process like a webhook to credit wallet
+        const webhookResult = await paystackService.processWebhook({
+          event: 'charge.success',
+          data: {
+            reference,
+            amount: result.amount * 100, // Convert back to pesewas
+            metadata: effectiveMetadata,
+            paid_at: result.paidAt,
+            channel: result.channel
+          }
+        });
+        
+        if (webhookResult.processed) {
+          console.log(`[Paystack] ✅ Wallet credited via manual verification: ${effectiveMetadata.amountGHS} GHS`);
+        } else {
+          console.log(`[Paystack] Wallet not credited: ${webhookResult.reason}`);
+        }
+      } else {
+        console.log(`[Paystack] User mismatch - not crediting. Expected: ${result.metadata?.userId}, Got: ${req.user.id}`);
       }
     }
     
@@ -169,9 +217,6 @@ router.get('/test', authenticate, async (req, res) => {
  */
 router.get('/history', authenticate, async (req, res, next) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
     // Auto-expire: delete pending payments older than 1 hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     await prisma.pendingPayment.deleteMany({
@@ -185,7 +230,7 @@ router.get('/history', authenticate, async (req, res, next) => {
     const payments = await prisma.pendingPayment.findMany({
       where: { 
         userId: req.user.id,
-        status: 'completed'
+        status: 'COMPLETED'
       },
       orderBy: { createdAt: 'desc' },
       take: 50
