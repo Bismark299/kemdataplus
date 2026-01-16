@@ -65,7 +65,10 @@ const settingsController = {
         momoNumbers: settings.adminSettings?.momoNumbers || [],
         momoName: settings.adminSettings?.adminName || 'KemDataplus',
         paystackEnabled: settings.siteSettings?.paystackEnabled !== false,
-        momoClaimEnabled: settings.siteSettings?.momoClaimEnabled !== false
+        momoClaimEnabled: settings.siteSettings?.momoClaimEnabled !== false,
+        // Upload limits for client dashboard
+        maxExcelUpload: settings.adminSettings?.maxExcelUpload || 50,
+        maxBulkUpload: settings.adminSettings?.maxBulkUpload || 50
       });
     } catch (err) {
       console.error('Error reading public settings:', err);

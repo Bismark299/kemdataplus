@@ -37,16 +37,14 @@
     maxBulkUpload: 50
   };
   
-  // Load upload limits from settings API
+  // Load upload limits from public settings API
   async function loadUploadLimits() {
     try {
-      const res = await fetch('/api/settings', { credentials: 'include' });
+      const res = await fetch('/api/settings/public', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        if (data.adminSettings) {
-          uploadLimits.maxExcelUpload = data.adminSettings.maxExcelUpload || 50;
-          uploadLimits.maxBulkUpload = data.adminSettings.maxBulkUpload || 50;
-        }
+        uploadLimits.maxExcelUpload = data.maxExcelUpload || 50;
+        uploadLimits.maxBulkUpload = data.maxBulkUpload || 50;
       }
     } catch (err) {
       console.warn('Could not load upload limits, using defaults');
