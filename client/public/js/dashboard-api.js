@@ -369,8 +369,8 @@
         processing: 0,
         pending: 0,
         failed: 0,
-        todaySales: 0,
-        weeklySales: 0
+        todayTotal: 0,
+        weeklyTotal: 0
       };
 
       const now = new Date();
@@ -396,10 +396,10 @@
         if (status === 'COMPLETED') {
           const price = order.totalPrice || 0;
           if (orderDateUTC === todayUTC) {
-            stats.todaySales += price;
+            stats.todayTotal += price;
           }
           if (orderDate.toISOString() >= weekAgo) {
-            stats.weeklySales += price;
+            stats.weeklyTotal += price;
           }
         }
       });
@@ -407,7 +407,7 @@
       return stats;
     } catch (error) {
       console.error('Failed to get order stats:', error);
-      return { completed: 0, processing: 0, pending: 0, failed: 0, todaySales: 0, weeklySales: 0 };
+      return { completed: 0, processing: 0, pending: 0, failed: 0, todayTotal: 0, weeklyTotal: 0 };
     }
   }
 

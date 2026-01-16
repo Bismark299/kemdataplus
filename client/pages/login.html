@@ -758,8 +758,9 @@
             window.location.href = '../public/dashboard.html';
           }
         }
+        // 401 is expected when not logged in - don't log as error
       } catch (e) {
-        // Not logged in, stay on login page
+        // Network error, stay on login page
       }
     })();
 </script>
