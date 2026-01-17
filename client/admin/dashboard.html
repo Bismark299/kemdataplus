@@ -4598,8 +4598,11 @@
             <div class="wallet-tab-content" id="transactionsTabContent">
                 <div class="section-header" style="background: white; padding: 15px 20px; border-radius: 12px 12px 0 0; margin-bottom: 0;">
                     <h3><i class="fas fa-history"></i> All Transactions</h3>
-                    <div class="search-box">
-                        <input type="text" id="txnSearch" placeholder="Search by user or reference...">
+                    <div class="search-box" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="txnSearch" placeholder="Search by name or reference..." style="min-width: 180px;">
+                        <select id="txnUserFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 150px;">
+                            <option value="">All Users</option>
+                        </select>
                         <select id="txnTypeFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px;">
                             <option value="">All Types</option>
                             <option value="credit">All Credits (+)</option>
@@ -4613,6 +4616,16 @@
                             <option value="TRANSFER_OUT">Transfers Out</option>
                             <option value="COMMISSION">Commission</option>
                         </select>
+                        <select id="txnDateFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                            <option value="">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        <input type="date" id="txnDateFrom" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; display: none;">
+                        <input type="date" id="txnDateTo" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; display: none;">
                     </div>
                 </div>
                 <table class="transactions-table">
@@ -8447,7 +8460,7 @@
                 if (!res.ok) throw new Error('Failed to fetch users');
                 const data = await res.json();
                 
-                // Map users - wallet balance is already included in the response
+                // Map users - wallet balance and totalSpent are included in the response
                 usersData = (Array.isArray(data.users) ? data.users : []).map(u => ({
                     id: u.id,
                     name: u.name,
@@ -8456,10 +8469,13 @@
                     role: u.role,
                     status: u.isActive ? 'active' : 'inactive',
                     balance: parseFloat(u.wallet?.balance) || 0,
-                    totalSpent: 0,
+                    totalSpent: parseFloat(u.totalSpent) || 0,
                     transactions: [], // Transactions loaded on-demand when viewing user details
                     joinedAt: u.createdAt
                 }));
+                
+                // Populate transaction user filter
+                populateTxnUserFilter();
                 
                 // Update stats after loading users
                 updateUsersStats();
@@ -9237,7 +9253,7 @@
         async function loadAllTransactions() {
             if (transactionsLoaded) return; // Only load once per session
             try {
-                const res = await adminFetch('/api/wallet/transactions/all?limit=200');
+                const res = await adminFetch('/api/wallet/transactions/all?limit=500');
                 if (!res.ok) throw new Error('Failed to fetch transactions');
                 const data = await res.json();
                 allTransactions = (data.transactions || []).map(t => ({
@@ -9251,33 +9267,97 @@
             }
         }
         
-        async function renderAllTransactions(searchTerm = '', typeFilter = '') {
+        // Populate user filter dropdown for transactions
+        function populateTxnUserFilter() {
+            const select = document.getElementById('txnUserFilter');
+            if (!select) return;
+            
+            // Keep "All Users" option and add users sorted by name
+            const sortedUsers = [...usersData].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            select.innerHTML = '<option value="">All Users</option>' + 
+                sortedUsers.map(u => `<option value="${u.name}">${u.name || 'Unknown'} (${u.phone || 'N/A'})</option>`).join('');
+        }
+        
+        // Get date range based on filter selection
+        function getTxnDateRange(filterValue) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            switch (filterValue) {
+                case 'today':
+                    return { start: today, end: new Date(today.getTime() + 86400000) };
+                case 'yesterday':
+                    const yesterday = new Date(today.getTime() - 86400000);
+                    return { start: yesterday, end: today };
+                case 'week':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+                    return { start: weekStart, end: new Date(today.getTime() + 86400000) };
+                case 'month':
+                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                    return { start: monthStart, end: new Date(today.getTime() + 86400000) };
+                case 'custom':
+                    const fromDate = document.getElementById('txnDateFrom')?.value;
+                    const toDate = document.getElementById('txnDateTo')?.value;
+                    if (fromDate && toDate) {
+                        return { 
+                            start: new Date(fromDate), 
+                            end: new Date(new Date(toDate).getTime() + 86400000) 
+                        };
+                    }
+                    return null;
+                default:
+                    return null;
+            }
+        }
+        
+        async function renderAllTransactions() {
             // Load transactions from API if not already loaded
             if (!transactionsLoaded) {
                 await loadAllTransactions();
             }
             
+            // Get all filter values
+            const searchTerm = (document.getElementById('txnSearch')?.value || '').toLowerCase();
+            const userFilter = document.getElementById('txnUserFilter')?.value || '';
+            const typeFilter = document.getElementById('txnTypeFilter')?.value || '';
+            const dateFilter = document.getElementById('txnDateFilter')?.value || '';
+            const dateRange = getTxnDateRange(dateFilter);
+            
             let filtered = allTransactions;
             
+            // Apply search filter
             if (searchTerm) {
-                const term = searchTerm.toLowerCase();
                 filtered = filtered.filter(t => 
-                    (t.userName || '').toLowerCase().includes(term) ||
-                    (t.description || '').toLowerCase().includes(term) ||
-                    (t.id || '').toLowerCase().includes(term)
+                    (t.userName || '').toLowerCase().includes(searchTerm) ||
+                    (t.description || '').toLowerCase().includes(searchTerm) ||
+                    (t.reference || '').toLowerCase().includes(searchTerm) ||
+                    (t.id || '').toLowerCase().includes(searchTerm)
                 );
             }
             
+            // Apply user filter
+            if (userFilter) {
+                filtered = filtered.filter(t => (t.userName || '') === userFilter);
+            }
+            
+            // Apply type filter
             if (typeFilter) {
-                // Filter by specific type or by credit/debit category
                 filtered = filtered.filter(t => {
                     const txnType = (t.type || '').toUpperCase();
                     const isCredit = txnType === 'DEPOSIT' || txnType === 'REFUND' || txnType === 'TRANSFER_IN' || txnType === 'CREDIT' || txnType === 'PROFIT_CREDIT' || txnType === 'COMMISSION';
                     
                     if (typeFilter === 'credit') return isCredit;
                     if (typeFilter === 'debit') return !isCredit;
-                    // Specific type filter
                     return txnType === typeFilter.toUpperCase();
+                });
+            }
+            
+            // Apply date filter
+            if (dateRange) {
+                filtered = filtered.filter(t => {
+                    const txnDate = new Date(t.date || t.createdAt);
+                    return txnDate >= dateRange.start && txnDate < dateRange.end;
                 });
             }
             
@@ -9288,7 +9368,7 @@
                 return;
             }
             
-            tbody.innerHTML = filtered.slice(0, 100).map(txn => {
+            tbody.innerHTML = filtered.slice(0, 200).map(txn => {
                 const txnType = (txn.type || '').toLowerCase();
                 const isCredit = txnType === 'credit' || txnType === 'deposit' || txnType === 'refund' || txnType === 'profit_credit' || txnType === 'commission' || txnType === 'transfer_in';
                 return `
@@ -9303,23 +9383,25 @@
                         </div>
                     </td>
                     <td><span class="txn-type-badge ${isCredit ? 'credit' : 'debit'}">${txn.type || 'N/A'}</span></td>
-                    <td class="txn-amount ${isCredit ? 'credit' : 'debit'}">${isCredit ? '+' : '-'}GH₵ ${(txn.amount || 0).toFixed(2)}</td>
+                    <td class="txn-amount ${isCredit ? 'credit' : 'debit'}">${isCredit ? '+' : '-'}GH₵ ${Math.abs(txn.amount || 0).toFixed(2)}</td>
                     <td>${txn.description || 'N/A'}</td>
                     <td>${txn.processedBy || txn.verifiedBy || 'System'}</td>
                 </tr>
             `}).join('');
         }
         
-        // Transaction search and filter
-        document.getElementById('txnSearch')?.addEventListener('input', function() {
-            const typeFilter = document.getElementById('txnTypeFilter')?.value || '';
-            renderAllTransactions(this.value, typeFilter);
+        // Transaction filter event listeners
+        document.getElementById('txnSearch')?.addEventListener('input', renderAllTransactions);
+        document.getElementById('txnUserFilter')?.addEventListener('change', renderAllTransactions);
+        document.getElementById('txnTypeFilter')?.addEventListener('change', renderAllTransactions);
+        document.getElementById('txnDateFilter')?.addEventListener('change', function() {
+            const customInputs = this.value === 'custom';
+            document.getElementById('txnDateFrom').style.display = customInputs ? 'block' : 'none';
+            document.getElementById('txnDateTo').style.display = customInputs ? 'block' : 'none';
+            renderAllTransactions();
         });
-        
-        document.getElementById('txnTypeFilter')?.addEventListener('change', function() {
-            const searchTerm = document.getElementById('txnSearch')?.value || '';
-            renderAllTransactions(searchTerm, this.value);
-        });
+        document.getElementById('txnDateFrom')?.addEventListener('change', renderAllTransactions);
+        document.getElementById('txnDateTo')?.addEventListener('change', renderAllTransactions);
 
         // ========== HISTORY SECTION ==========
         let historyData = [];

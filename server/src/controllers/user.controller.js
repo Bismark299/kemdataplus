@@ -113,6 +113,11 @@ const userController = {
             createdAt: true,
             wallet: {
               select: { balance: true }
+            },
+            // Get total spent from completed orders
+            orders: {
+              where: { status: 'COMPLETED' },
+              select: { totalPrice: true }
             }
           },
           orderBy: { createdAt: 'desc' }
@@ -120,8 +125,15 @@ const userController = {
         prisma.user.count()
       ]);
 
+      // Calculate totalSpent for each user
+      const usersWithSpent = users.map(u => ({
+        ...u,
+        totalSpent: (u.orders || []).reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+        orders: undefined // Remove orders array from response
+      }));
+
       res.json({
-        users,
+        users: usersWithSpent,
         pagination: {
           page,
           limit,

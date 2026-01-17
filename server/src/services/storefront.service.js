@@ -744,14 +744,19 @@ const storefrontService = {
     const sellingPrice = customProduct?.sellingPrice || ownerCostPrice;
     const profit = sellingPrice - ownerCostPrice;
 
-    // Step 4: Check owner wallet has enough balance
-    if (!storefront.owner.wallet || storefront.owner.wallet.balance < ownerCostPrice) {
-      throw new Error('Store temporarily unavailable. Please try again later.');
-    }
-
-    // Step 5: Create order and process payment in transaction
+    // Step 4: Create order and process payment in transaction
+    // Balance check MUST be inside transaction to prevent race conditions
     const result = await prisma.$transaction(async (tx) => {
-      // Create storefront order record
+      // 4a. Re-check owner wallet balance INSIDE transaction (prevents race condition)
+      const ownerWallet = await tx.wallet.findUnique({
+        where: { userId: storefront.ownerId }
+      });
+
+      if (!ownerWallet || ownerWallet.balance < ownerCostPrice) {
+        throw new Error('Store temporarily unavailable. Please try again later.');
+      }
+
+      // 4b. Create storefront order record
       const storefrontOrder = await tx.storefrontOrder.create({
         data: {
           storefrontId,
@@ -844,10 +849,10 @@ const storefrontService = {
         }
       });
 
-      // Create wallet transaction
+      // Create wallet transaction (use ownerWallet from balance check)
       await tx.transaction.create({
         data: {
-          walletId: storefront.owner.wallet.id,
+          walletId: ownerWallet.id,
           type: 'PURCHASE',
           amount: ownerCostPrice,
           description: `Store order - ${bundle.name} to ${customerPhone}`,

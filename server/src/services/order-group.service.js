@@ -164,21 +164,19 @@ const orderGroupService = {
     console.log(`[OrderGroup] Validated ${validatedItems.length} items, Total: ${grandTotal}`);
 
     // ============================================================
-    // STEP 3: CHECK WALLET BALANCE
-    // ============================================================
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId }
-    });
-
-    if (!wallet || wallet.balance < grandTotal) {
-      const available = wallet?.balance || 0;
-      throw new Error(`INSUFFICIENT_BALANCE:${grandTotal}:${available}`);
-    }
-
-    // ============================================================
-    // STEP 4: ATOMIC TRANSACTION - CREATE ORDER & DEDUCT WALLET
+    // STEP 3: ATOMIC TRANSACTION - CHECK BALANCE & CREATE ORDER
+    // Balance check MUST be inside transaction to prevent race conditions
     // ============================================================
     const result = await prisma.$transaction(async (tx) => {
+      // 3a. Check wallet balance INSIDE transaction (prevents race condition)
+      const wallet = await tx.wallet.findUnique({
+        where: { userId }
+      });
+
+      if (!wallet || wallet.balance < grandTotal) {
+        const available = wallet?.balance || 0;
+        throw new Error(`INSUFFICIENT_BALANCE:${grandTotal}:${available}`);
+      }
       // 4a. Create OrderGroup (this auto-generates sequenceNum via database)
       const orderGroup = await tx.orderGroup.create({
         data: {
