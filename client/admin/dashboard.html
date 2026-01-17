@@ -96,6 +96,38 @@
             width: 20px;
             text-align: center;
         }
+        /* Alert Badge Styles */
+        .nav-link {
+            position: relative;
+        }
+        .alert-badge {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            background: #ef4444;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: pulse-badge 2s infinite;
+        }
+        .alert-badge.momo-badge {
+            background: #f59e0b;
+        }
+        .alert-badge.visible {
+            display: flex;
+        }
+        @keyframes pulse-badge {
+            0%, 100% { transform: translateY(-50%) scale(1); }
+            50% { transform: translateY(-50%) scale(1.1); }
+        }
         .sidebar-footer {
             position: absolute;
             bottom: 0;
@@ -4065,6 +4097,7 @@
                 <a href="#" class="nav-link" id="navWallet" data-section="wallet">
                     <i class="fas fa-wallet"></i>
                     <span>Wallet</span>
+                    <span class="alert-badge momo-badge" id="momoBadge" title="Pending MoMo Claims">0</span>
                 </a>
             </li>
             <li class="nav-item">
@@ -4101,6 +4134,7 @@
                 <a href="#" class="nav-link" id="navComplaints" data-section="complaints">
                     <i class="fas fa-headset"></i>
                     <span>Support</span>
+                    <span class="alert-badge" id="complaintsBadge" title="Open Complaints">0</span>
                 </a>
             </li>
             <li class="nav-item">
@@ -12885,12 +12919,65 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
+        // ========== ALERT BADGE SYSTEM ==========
+        // Update sidebar badges for pending items
+        async function updateAlertBadges() {
+            try {
+                // Fetch pending MoMo claims count
+                const momoRes = await adminFetch('/api/wallet/deposits?status=pending');
+                if (momoRes.ok) {
+                    const momoData = await momoRes.json();
+                    // Only count MoMo claims (not Paystack which are auto-processed)
+                    const pendingMomo = (momoData.deposits || momoData || []).filter(d => 
+                        d.status === 'pending' && d.paymentMethod !== 'paystack'
+                    ).length;
+                    updateBadge('momoBadge', pendingMomo);
+                }
+            } catch (err) {
+                console.log('Error fetching MoMo badge count:', err);
+            }
+
+            try {
+                // Fetch open complaints count from admin endpoint
+                const complaintsRes = await adminFetch('/api/complaints/admin/stats');
+                if (complaintsRes.ok) {
+                    const stats = await complaintsRes.json();
+                    // Count OPEN + IN_PROGRESS complaints (need attention)
+                    const openComplaints = (stats.open || 0) + (stats.inProgress || 0);
+                    updateBadge('complaintsBadge', openComplaints);
+                }
+            } catch (err) {
+                console.log('Error fetching complaints badge count:', err);
+            }
+        }
+
+        function updateBadge(badgeId, count) {
+            const badge = document.getElementById(badgeId);
+            if (!badge) return;
+            
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.add('visible');
+            } else {
+                badge.classList.remove('visible');
+            }
+        }
+
+        // Start badge refresh interval (every 30 seconds)
+        function startBadgeRefresh() {
+            updateAlertBadges(); // Initial load
+            setInterval(updateAlertBadges, 30000); // Refresh every 30 seconds
+        }
+
         // Initialize
         updateGreeting();
         loadStats();
         initUsersData();
         initFilterListeners();
         updateFilterCounts();
+        
+        // Start badge alerts
+        startBadgeRefresh();
         
         // Start live dashboard refresh
         startDashboardAutoRefresh();
