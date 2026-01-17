@@ -206,6 +206,8 @@ app.use('/img', express.static(path.join(__dirname, '../../client/public/img')))
 app.use('/public', express.static(path.join(__dirname, '../../client/public')));
 app.use('/pages', express.static(path.join(__dirname, '../../client/pages')));
 app.use('/admin', express.static(path.join(__dirname, '../../client/admin')));
+// Serve static files for storefront (e.g., /store/img/favicon.ico)
+app.use('/store/img', express.static(path.join(__dirname, '../../client/public/img')));
 
 // API Routes
 app.use('/api/auth', authRoutes);

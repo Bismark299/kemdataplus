@@ -258,6 +258,21 @@ const bundleController = {
         return res.status(400).json({ error: 'Name, network, and dataAmount are required' });
       }
 
+      // Check for duplicate bundle (same network + data amount)
+      const existing = await prisma.bundle.findFirst({
+        where: {
+          network: network.toUpperCase(),
+          dataAmount: dataAmount
+        }
+      });
+
+      if (existing) {
+        return res.status(400).json({ 
+          error: `Bundle already exists: ${network.toUpperCase()} ${dataAmount}. Please edit the existing bundle instead.`,
+          existingId: existing.id
+        });
+      }
+
       const validBasePrice = Number(basePrice) || 0;
 
       // Build role prices from request

@@ -20,6 +20,8 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const orderGroupService = require('../services/order-group.service');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 // ============================================================
 // CLIENT ROUTES
@@ -235,9 +237,6 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 200));
     const compact = req.query.compact === 'true';
 
@@ -430,9 +429,6 @@ router.post('/admin/:id/process', authenticate, authorize('ADMIN'), async (req, 
     const orderId = req.params.id;
 
     // Get order group
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
     const orderGroup = await prisma.orderGroup.findFirst({
       where: {
         OR: [
@@ -470,9 +466,6 @@ router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async
   try {
     const { itemId } = req.params;
     const { status } = req.body;
-    
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
     
     // Validate status
     const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'];
@@ -585,9 +578,6 @@ router.post('/admin/item/:itemId/complete', authenticate, authorize('ADMIN'), as
   try {
     const { itemId } = req.params;
     
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
     // Try to find as OrderItem first (new system)
     let item = await prisma.orderItem.findUnique({
       where: { id: itemId },
@@ -687,9 +677,6 @@ router.post('/admin/item/:itemId/complete', authenticate, authorize('ADMIN'), as
 router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
     const { itemId } = req.params;
-    
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
     
     // Try to find as OrderItem first (new system)
     let item = await prisma.orderItem.findUnique({
@@ -879,9 +866,6 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
  */
 router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
     // Update all PROCESSING OrderItems to COMPLETED
     const orderItemsResult = await prisma.orderItem.updateMany({
       where: { status: 'PROCESSING' },
