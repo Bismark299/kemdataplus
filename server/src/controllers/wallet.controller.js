@@ -361,14 +361,6 @@ const walletController = {
         return res.status(400).json({ error: 'Invalid amount' });
       }
 
-      const senderWallet = await prisma.wallet.findUnique({
-        where: { userId: req.user.id }
-      });
-
-      if (!senderWallet || senderWallet.balance < amount) {
-        return res.status(400).json({ error: 'Insufficient balance' });
-      }
-
       const recipient = await prisma.user.findUnique({
         where: { email: recipientEmail },
         include: { wallet: true }
@@ -380,20 +372,30 @@ const walletController = {
 
       const reference = `TRF-${uuidv4().slice(0, 8).toUpperCase()}`;
 
-      // Execute transfer
-      await prisma.$transaction([
+      // Execute transfer with balance check INSIDE transaction to prevent race condition
+      await prisma.$transaction(async (tx) => {
+        // Check sender balance INSIDE transaction (prevents race condition)
+        const senderWallet = await tx.wallet.findUnique({
+          where: { userId: req.user.id }
+        });
+
+        if (!senderWallet || senderWallet.balance < amount) {
+          throw new Error('INSUFFICIENT_BALANCE');
+        }
+
+        //
         // Deduct from sender
-        prisma.wallet.update({
+        await tx.wallet.update({
           where: { id: senderWallet.id },
           data: { balance: { decrement: amount } }
-        }),
+        });
         // Add to recipient
-        prisma.wallet.update({
+        await tx.wallet.update({
           where: { id: recipient.wallet.id },
           data: { balance: { increment: amount } }
-        }),
+        });
         // Record sender transaction
-        prisma.transaction.create({
+        await tx.transaction.create({
           data: {
             walletId: senderWallet.id,
             type: 'TRANSFER_OUT',
@@ -402,9 +404,9 @@ const walletController = {
             reference,
             description: description || `Transfer to ${recipientEmail}`
           }
-        }),
+        });
         // Record recipient transaction
-        prisma.transaction.create({
+        await tx.transaction.create({
           data: {
             walletId: recipient.wallet.id,
             type: 'TRANSFER_IN',
@@ -413,8 +415,8 @@ const walletController = {
             reference,
             description: `Transfer from ${req.user.email}`
           }
-        })
-      ]);
+        });
+      });
 
       res.json({
         message: 'Transfer successful',
@@ -608,30 +610,28 @@ const walletController = {
         return res.status(400).json({ error: 'Reason for deduction is required' });
       }
 
-      const wallet = await prisma.wallet.findUnique({
-        where: { userId }
-      });
-
-      if (!wallet) {
-        return res.status(404).json({ error: 'User wallet not found' });
-      }
-
-      if (wallet.balance < amount) {
-        return res.status(400).json({ 
-          error: 'Insufficient balance for deduction',
-          available: wallet.balance,
-          requested: amount
-        });
-      }
-
       const reference = 'ADMIN-DEDUCT-' + uuidv4().slice(0, 8).toUpperCase();
 
-      const [updatedWallet] = await prisma.$transaction([
-        prisma.wallet.update({
+      // Balance check INSIDE transaction to prevent race condition
+      const updatedWallet = await prisma.$transaction(async (tx) => {
+        const wallet = await tx.wallet.findUnique({
+          where: { userId }
+        });
+
+        if (!wallet) {
+          throw new Error('WALLET_NOT_FOUND');
+        }
+
+        if (wallet.balance < amount) {
+          throw new Error('INSUFFICIENT_BALANCE');
+        }
+
+        const updated = await tx.wallet.update({
           where: { id: wallet.id },
           data: { balance: { decrement: amount } }
-        }),
-        prisma.transaction.create({
+        });
+
+        await tx.transaction.create({
           data: {
             walletId: wallet.id,
             type: 'WITHDRAWAL',
@@ -640,8 +640,18 @@ const walletController = {
             reference,
             description: `Admin deduction: ${reason}`
           }
-        })
-      ]);
+        });
+
+        return updated;
+      }).catch(err => {
+        if (err.message === 'WALLET_NOT_FOUND') {
+          throw { status: 404, message: 'User wallet not found' };
+        }
+        if (err.message === 'INSUFFICIENT_BALANCE') {
+          throw { status: 400, message: 'Insufficient balance for deduction' };
+        }
+        throw err;
+      });
 
       res.json({
         message: 'Wallet deducted successfully',
@@ -651,6 +661,9 @@ const walletController = {
         newBalance: updatedWallet.balance
       });
     } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.message });
+      }
       next(error);
     }
   },
