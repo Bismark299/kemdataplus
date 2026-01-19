@@ -7064,7 +7064,8 @@
                 if (el) {
                     el.addEventListener('change', applyFilters);
                     if (el.tagName === 'INPUT' && el.type !== 'date') {
-                        el.addEventListener('keyup', debounce(applyFilters, 300));
+                        // Use 'input' event for instant filtering on typing AND pasting
+                        el.addEventListener('input', debounce(applyFilters, 300));
                     }
                 }
             });
@@ -7313,7 +7314,8 @@
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', applyFilters);
-                el.addEventListener('keyup', applyFilters);
+                // Use 'input' event for instant filtering on typing AND pasting
+                el.addEventListener('input', applyFilters);
             }
         });
 
@@ -9635,7 +9637,8 @@
                 if (el) {
                     el.addEventListener('change', filterHistory);
                     if (el.tagName === 'INPUT' && el.type === 'text') {
-                        el.addEventListener('keyup', filterHistory);
+                        // Use 'input' event for instant filtering on typing AND pasting
+                        el.addEventListener('input', filterHistory);
                     }
                 }
             });

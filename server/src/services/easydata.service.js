@@ -90,8 +90,11 @@ const easyDataService = {
     try {
       const data = await makeRequest('/balance');
       
+      // EasyData returns status: true (boolean) or status: "success" (string)
+      const isSuccess = data.status === true || data.status === 'success';
+      
       return {
-        success: data.status === 'success',
+        success: isSuccess,
         balance: parseFloat(data.balance) || 0,
         currency: data.currency || 'GHS'
       };
@@ -138,13 +141,20 @@ const easyDataService = {
         })
       });
       
-      if (data.status === 'success') {
-        console.log(`[EasyData] Order success: ${data.reference}, New balance: ${data.new_balance}`);
+      // EasyData returns status: true (boolean) or status: "success" (string)
+      // Also check code: 200 as additional confirmation
+      const isSuccess = data.status === true || data.status === 'success' || data.code === 200;
+      
+      if (isSuccess) {
+        // EasyData uses order_reference (our orderId) and new_balance (string)
+        const extRef = data.order_reference || data.reference || orderId;
+        const newBal = parseFloat(data.new_balance) || undefined;
+        console.log(`[EasyData] Order success: ref=${extRef}, extOrderId=${data.order_id}, New balance: ${newBal}`);
         return {
           success: true,
-          reference: data.reference || orderId,
+          reference: extRef,
           externalOrderId: data.order_id,
-          newBalance: data.new_balance,
+          newBalance: newBal,
           message: data.message
         };
       } else {
@@ -169,10 +179,13 @@ const easyDataService = {
     try {
       const data = await makeRequest(`/order-status?order_reference=${encodeURIComponent(orderReference)}`);
       
+      // EasyData returns status: true (boolean) or status: "success" (string)
+      const isSuccess = data.status === true || data.status === 'success';
+      
       return {
-        success: data.status === 'success',
+        success: isSuccess,
         orderStatus: data.order_status, // 'completed', 'pending', 'failed'
-        reference: data.reference,
+        reference: data.reference || data.order_reference,
         recipient: data.recipient
       };
     } catch (error) {

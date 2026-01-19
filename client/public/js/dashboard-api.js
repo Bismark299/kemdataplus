@@ -538,11 +538,14 @@
     const todaySalesEl = document.getElementById('todaysSales');
     const weeklySalesEl = document.getElementById('weeklySales');
 
-    if (completedEl) completedEl.textContent = stats.completed;
-    if (processingEl) processingEl.textContent = stats.processing;
-    if (pendingEl) pendingEl.textContent = stats.pending;
-    if (todaySalesEl) todaySalesEl.textContent = `GHS ${stats.todaySales.toFixed(2)}`;
-    if (weeklySalesEl) weeklySalesEl.textContent = `GHS ${stats.weeklySales.toFixed(2)}`;
+    if (completedEl) completedEl.textContent = stats.completed || 0;
+    if (processingEl) processingEl.textContent = stats.processing || 0;
+    if (pendingEl) pendingEl.textContent = stats.pending || 0;
+    // Handle both todaySales and todayTotal (from getOrderStats)
+    const todayAmount = stats.todaySales ?? stats.todayTotal ?? 0;
+    const weeklyAmount = stats.weeklySales ?? stats.weeklyTotal ?? 0;
+    if (todaySalesEl) todaySalesEl.textContent = `GHS ${Number(todayAmount).toFixed(2)}`;
+    if (weeklySalesEl) weeklySalesEl.textContent = `GHS ${Number(weeklyAmount).toFixed(2)}`;
   }
 
   // ========== EXPOSE GLOBAL FUNCTIONS ==========

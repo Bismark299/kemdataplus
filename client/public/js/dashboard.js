@@ -519,9 +519,16 @@
   }
 
   function bindBulkAdd() {
-    if (!refs.bulkAddToCartBtn) return;
+    if (!refs.bulkAddToCartBtn) {
+      console.error('bulkAddToCartBtn not found!');
+      return;
+    }
+    console.log('Binding bulk add button click listener');
     refs.bulkAddToCartBtn.addEventListener('click', () => {
+      console.log('Bulk add button clicked!');
+      console.log('lastBulkParsed:', lastBulkParsed);
       const good = lastBulkParsed.filter(p => p.isValid);
+      console.log('Valid items:', good.length);
       if (!good.length) return showInlineNotice('No valid items to add', 'error');
 
       good.forEach(v => {
@@ -550,26 +557,14 @@
   ---------------------------*/
   let lastExcelParsed = [];
   function bindExcel() {
-    if (!refs.excelFile) return;
-    refs.excelFile.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (refs.excelUploadBtn) refs.excelUploadBtn.disabled = !file;
-      // show filename if present
-      const nameSpan = document.getElementById('fileNameDisplay');
-      if (nameSpan) nameSpan.textContent = file ? file.name : 'Choose Excel File (.xlsx or .csv)';
-    });
-
-    if (refs.excelUploadBtn) {
-      refs.excelUploadBtn.addEventListener('click', () => {
-        const file = refs.excelFile.files && refs.excelFile.files[0];
-        if (!file) return showInlineNotice('Please select a file', 'error');
-        parseExcel(file);
-      });
-    }
-
+    // Bind Excel add to cart button first (don't require excelFile to exist)
     if (refs.addToCartExcelBtn) {
+      console.log('Binding Excel add to cart button click listener');
       refs.addToCartExcelBtn.addEventListener('click', () => {
+        console.log('Excel add to cart button clicked!');
+        console.log('lastExcelParsed:', lastExcelParsed);
         const valid = lastExcelParsed.filter(p => p.isValid);
+        console.log('Valid items:', valid.length);
         if (!valid.length) return showInlineNotice('No valid items to add', 'error');
         valid.forEach(v => {
           const price = getPrice(currentNetwork, v.bundle);
@@ -588,6 +583,29 @@
         persistCart();
         renderCart();
         showInlineNotice('Excel items added to cart', 'success');
+      });
+    } else {
+      console.error('addToCartExcelBtn not found!');
+    }
+    
+    if (!refs.excelFile) {
+      console.warn('excelFile input not found');
+      return;
+    }
+    
+    refs.excelFile.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (refs.excelUploadBtn) refs.excelUploadBtn.disabled = !file;
+      // show filename if present
+      const nameSpan = document.getElementById('fileNameDisplay');
+      if (nameSpan) nameSpan.textContent = file ? file.name : 'Choose Excel File (.xlsx or .csv)';
+    });
+
+    if (refs.excelUploadBtn) {
+      refs.excelUploadBtn.addEventListener('click', () => {
+        const file = refs.excelFile.files && refs.excelFile.files[0];
+        if (!file) return showInlineNotice('Please select a file', 'error');
+        parseExcel(file);
       });
     }
   }

@@ -187,6 +187,52 @@ const paystackService = {
     }
     
     const { reference, amount, metadata, paid_at } = event.data;
+    
+    // ========================================
+    // STOREFRONT ORDER HANDLING
+    // ========================================
+    // If this is a storefront payment, handle it separately
+    if (metadata?.type === 'storefront_order' && metadata?.storefrontOrderId) {
+      console.log(`[Paystack] 🛒 Storefront payment detected for order ${metadata.storefrontOrderId}`);
+      
+      // First mark payment as paid
+      const paymentResult = await this.processStorefrontPayment(event.data);
+      
+      if (paymentResult.processed || paymentResult.reason === 'Already paid') {
+        // Now complete the order and trigger API fulfillment
+        try {
+          const storefrontService = require('./storefront.service');
+          const completionResult = await storefrontService.completePaystackOrder(
+            metadata.storefrontOrderId,
+            reference
+          );
+          
+          console.log(`[Paystack] ✅ Storefront order completed via webhook: ${metadata.storefrontOrderId}`);
+          
+          return {
+            processed: true,
+            type: 'storefront_order',
+            storefrontOrderId: metadata.storefrontOrderId,
+            orderId: completionResult?.orderId,
+            reference
+          };
+        } catch (completionError) {
+          // Order might already be completed (via frontend verify) - that's OK
+          if (completionError.message?.includes('already completed')) {
+            console.log(`[Paystack] Storefront order already completed: ${metadata.storefrontOrderId}`);
+            return { processed: false, reason: 'Already completed' };
+          }
+          console.error(`[Paystack] Error completing storefront order:`, completionError.message);
+          return { processed: true, reason: 'Payment confirmed but completion failed' };
+        }
+      }
+      
+      return paymentResult;
+    }
+    
+    // ========================================
+    // WALLET TOP-UP HANDLING (original logic)
+    // ========================================
     // Use metadata.amountGHS (subtotal) if available, otherwise calculate from pesewas
     // This ensures we credit the original amount, not the amount + fee
     // Parse as float since Paystack metadata returns strings
