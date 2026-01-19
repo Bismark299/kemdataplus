@@ -9566,11 +9566,10 @@
                 );
             }
             
-            // Phone filter - only filter if input contains only digits
+            // Phone filter - only filter by RECIPIENT phone (not agent phone)
             if (phone && /^\d+$/.test(phone)) {
                 filtered = filtered.filter(h => 
-                    h.recipient.includes(phone) || 
-                    h.userPhone.includes(phone)
+                    h.recipient.includes(phone)
                 );
             }
             
