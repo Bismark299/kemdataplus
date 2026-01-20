@@ -7750,7 +7750,7 @@
         function showHistory() {
             hideAllSections();
             document.getElementById('historySection').classList.add('active');
-            loadHistorySection();
+            loadHistorySection(); // Now async, will fetch orders if needed
         }
         
         function showNetworks() {
@@ -9496,7 +9496,20 @@
         let historyData = [];
         let historyPerPage = 100;
         
-        function loadHistorySection() {
+        async function loadHistorySection() {
+            // Ensure ordersCache is populated - fetch if empty
+            if (!ordersCache || ordersCache.length === 0) {
+                try {
+                    const res = await adminFetch('/api/order-groups/admin/all?limit=200&compact=true');
+                    if (res.ok) {
+                        const data = await res.json();
+                        ordersCache = data.orders || [];
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch orders for history:', err);
+                }
+            }
+            
             loadHistoryData();
             populateHistoryFilters();
             updateHistoryStats();
