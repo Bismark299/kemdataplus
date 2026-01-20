@@ -6,7 +6,7 @@ const path = require('path');
 const prisma = new PrismaClient();
 
 // Import multi-tenant services (optional - graceful fallback if not available)
-let pricingEngine, profitService, walletService, auditService, datahubService, easyDataService, settingsController;
+let pricingEngine, profitService, walletService, auditService, datahubService, easyDataService, settingsController, financialOrderService;
 try {
   pricingEngine = require('../services/pricing.service');
   profitService = require('../services/profit.service');
@@ -15,6 +15,7 @@ try {
   datahubService = require('../services/datahub.service');
   easyDataService = require('../services/easydata.service');
   settingsController = require('./settings.controller');
+  financialOrderService = require('../services/financial-order.service');
 } catch (e) {
   console.log('Multi-tenant services not available, using legacy mode');
 }
@@ -615,9 +616,20 @@ const orderController = {
           data: { status }
         });
         console.log(`[Order] Synced StorefrontOrder ${storefrontOrder.id} to status: ${status}`);
+        
+        // STOREFRONT PROFIT: Credit agent profit when completing storefront order
+        if (status === 'COMPLETED' && existingOrder.status !== 'COMPLETED' && financialOrderService) {
+          try {
+            const profitResult = await financialOrderService.creditAgentProfit(storefrontOrder.id);
+            console.log(`[Order] Storefront profit credit result:`, profitResult);
+          } catch (profitError) {
+            console.error('[Order] Storefront profit credit failed:', profitError);
+            // Don't fail the order update, just log
+          }
+        }
       }
 
-      // MULTI-TENANT: Trigger profit distribution when order completes
+      // MULTI-TENANT: Trigger profit distribution when order completes (regular orders)
       if (status === 'COMPLETED' && existingOrder.status !== 'COMPLETED' && profitService) {
         try {
           await profitService.distributeOrderProfits(order.id);

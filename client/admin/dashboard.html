@@ -6676,7 +6676,7 @@
             showTableSkeleton('ordersTableBody', 11);
         }
 
-        // Load Stats (using UTC dates)
+        // Load Stats (using UTC dates) - respects current date filter
         async function loadStats() {
             // Show loading skeletons
             showStatsSkeleton();
@@ -6689,6 +6689,10 @@
                 const orders = data.orders || [];
                 ordersCache = orders; // Store for filtering
                 const todayUTC = getTodayUTC();
+                
+                // Check if there's a date filter set - RESPECT IT!
+                const dateFilter = document.getElementById('filterDate')?.value || '';
+                const targetDate = dateFilter || todayUTC;
                 
                 // Fetch total wallet balance from all users
                 // The /api/users endpoint already includes wallet.balance for each user
@@ -6709,11 +6713,17 @@
                     console.error('Failed to fetch wallet balances:', walletErr);
                 }
 
-                // Today's orders (based on UTC date)
-                const todayOrders = orders.filter(o => {
+                // Filter orders based on selected date (or today if no filter)
+                const filteredDateOrders = orders.filter(o => {
                     if (!o.createdAt) return false;
                     try {
-                        return new Date(o.createdAt).toISOString().split('T')[0] === todayUTC;
+                        if (dateFilter) {
+                            // User has selected a specific date
+                            return o.createdAt.startsWith(dateFilter);
+                        } else {
+                            // Default to today's orders
+                            return new Date(o.createdAt).toISOString().split('T')[0] === todayUTC;
+                        }
                     } catch (e) {
                         return false;
                     }
@@ -6735,23 +6745,23 @@
                     };
                 });
 
-                // Bundle Today = total data size purchased today (from bundle.dataAmount like "5GB")
-                // Amount Today = amount from completed orders today only
-                todayOrders.forEach(o => {
+                // Bundle = total data size for filtered date (from bundle.dataAmount like "5GB")
+                // Amount = amount from completed orders for filtered date only
+                filteredDateOrders.forEach(o => {
                     // Parse data amount from bundle (e.g., "5GB" -> 5)
                     const dataAmount = o.bundle?.dataAmount || o.dataAmount || '';
                     const dataSize = parseInt(dataAmount.replace(/\D/g, '')) || 0;
                     todayBundle += dataSize * (parseInt(o.quantity) || 1);
                     
-                    // Only count completed orders for amount today
+                    // Only count completed orders for amount
                     const status = (o.status || '').toLowerCase();
                     if (status === 'completed') {
                         todayAmount += parseFloat(o.totalPrice || o.total) || 0;
                     }
                 });
 
-                // Calculate total sold and total cost for profit (today's completed orders only)
-                todayOrders.filter(o => o.status === 'COMPLETED' || o.status === 'completed').forEach(o => {
+                // Calculate total sold and total cost for profit (filtered date's completed orders)
+                filteredDateOrders.filter(o => o.status === 'COMPLETED' || o.status === 'completed').forEach(o => {
                     const orderPrice = parseFloat(o.totalPrice || o.total) || 0;
                     totalSold += orderPrice;
                     
@@ -6772,14 +6782,14 @@
                 // Calculate actual profit
                 const totalProfit = totalSold - totalCost;
 
-                // Update main stats
-                document.getElementById('ordersToday').textContent = todayOrders.length.toLocaleString();
+                // Update main stats (use filtered date orders, not always today)
+                document.getElementById('ordersToday').textContent = filteredDateOrders.length.toLocaleString();
                 document.getElementById('amountToday').textContent = 'GH₵ ' + todayAmount.toFixed(2);
                 document.getElementById('bundleToday').textContent = todayBundle + ' GB';
                 document.getElementById('totalSold').textContent = 'GH₵ ' + totalSold.toFixed(2);
                 document.getElementById('totalProfit').textContent = 'GH₵ ' + totalProfit.toFixed(2);
 
-                // Calculate order status stats (today's orders only - fresh day fresh start)
+                // Calculate order status stats (for filtered date)
                 const stats = {
                     pending: { count: 0, amount: 0, capacity: 0 },
                     processing: { count: 0, amount: 0, capacity: 0 },
@@ -6787,14 +6797,17 @@
                     cancelled: { count: 0, amount: 0, capacity: 0 }
                 };
 
-                todayOrders.forEach(o => {
+                filteredDateOrders.forEach(o => {
                     const status = (o.status || 'pending').toLowerCase();
                     const amount = parseFloat(o.totalPrice || o.total) || 0;
-                    const bundle = parseInt(o.quantity || o.bundle) || 0;
+                    // Parse capacity from bundle dataAmount (e.g., "5GB" -> 5)
+                    const dataAmountStr = o.bundle?.dataAmount || o.dataAmount || '';
+                    const capacityGB = parseInt(dataAmountStr.replace(/\D/g, '')) || 0;
+                    const quantity = parseInt(o.quantity) || 1;
                     if (stats[status]) {
                         stats[status].count++;
                         stats[status].amount += amount;
-                        stats[status].capacity += bundle;
+                        stats[status].capacity += capacityGB * quantity;
                     }
                 });
 
@@ -6802,18 +6815,23 @@
                 ['pending', 'processing', 'completed', 'cancelled'].forEach(status => {
                     document.getElementById(status + 'Count').textContent = stats[status].count;
                     document.getElementById(status + 'Amount').textContent = 'GH₵ ' + stats[status].amount.toFixed(2);
-                    document.getElementById(status + 'Capacity').textContent = stats[status].capacity;
+                    document.getElementById(status + 'Capacity').textContent = stats[status].capacity + ' GB';
                 });
 
-                // All orders total (today's orders only - fresh day fresh start)
-                const allAmount = todayOrders.reduce((sum, o) => sum + (parseFloat(o.totalPrice || o.total) || 0), 0);
-                const allCapacity = todayOrders.reduce((sum, o) => sum + (parseInt(o.quantity || o.bundle) || 0), 0);
-                document.getElementById('allCount').textContent = todayOrders.length;
+                // All orders total (for filtered date)
+                const allAmount = filteredDateOrders.reduce((sum, o) => sum + (parseFloat(o.totalPrice || o.total) || 0), 0);
+                const allCapacity = filteredDateOrders.reduce((sum, o) => {
+                    const dataAmountStr = o.bundle?.dataAmount || o.dataAmount || '';
+                    const capacityGB = parseInt(dataAmountStr.replace(/\D/g, '')) || 0;
+                    const quantity = parseInt(o.quantity) || 1;
+                    return sum + (capacityGB * quantity);
+                }, 0);
+                document.getElementById('allCount').textContent = filteredDateOrders.length;
                 document.getElementById('allAmount').textContent = 'GH₵ ' + allAmount.toFixed(2);
-                document.getElementById('allCapacity').textContent = allCapacity;
+                document.getElementById('allCapacity').textContent = allCapacity + ' GB';
 
-                // Update network pending counts (only today's pending orders - fresh day fresh start)
-                const pendingOrders = todayOrders.filter(o => (o.status || '').toLowerCase() === 'pending');
+                // Update network pending counts (for filtered date's pending orders)
+                const pendingOrders = filteredDateOrders.filter(o => (o.status || '').toLowerCase() === 'pending');
                 const networkPending = { MTN: 0, Telecel: 0, AirtelTigo: 0 };
                 pendingOrders.forEach(o => {
                     const net = (o.bundle?.network || o.network || '').toUpperCase();
@@ -6830,8 +6848,8 @@
                 if (telecelEl) telecelEl.textContent = networkPending.Telecel > 0 ? networkPending.Telecel + ' Pending' : '0 Pending';
                 if (airteltigoEl) airteltigoEl.textContent = networkPending.AirtelTigo > 0 ? networkPending.AirtelTigo + ' Pending' : '0 Pending';
 
-                // Load orders table - show only today's orders by default (fresh day fresh orders)
-                loadOrdersTable(todayOrders);
+                // Load orders table - respect date filter, apply all current filters
+                applyFilters();
             } catch (err) {
                 showToast('Failed to load orders: ' + err.message, 'error');
             }
@@ -6909,6 +6927,9 @@
                     <td><span class="badge badge-${(o.status || 'PENDING').toLowerCase()}">${o.status || 'PENDING'}</span></td>
                     <td>
                         <div class="action-icons">
+                            <button class="action-icon copy" data-action="copy-order" data-id="${o.id}" title="Copy Details" style="background:#6b7280;">
+                                <i class="fas fa-copy"></i>
+                            </button>
                             <button class="action-icon cancel" data-action="cancel-order" data-id="${o.id}" title="Cancel">
                                 <i class="fas fa-times"></i>
                             </button>
@@ -7082,6 +7103,38 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(later, wait);
             };
+        }
+
+        // Copy single order details to clipboard
+        function copyOrderDetails(orderId) {
+            const order = ordersCache.find(o => o.id === orderId);
+            if (!order) {
+                showToast('Order not found', 'error');
+                return;
+            }
+            
+            const bundle = order.bundle || {};
+            const displayId = order.displayId || order.reference || orderId.slice(0, 8);
+            const network = bundle.network || order.network || 'N/A';
+            const capacity = bundle.dataAmount || order.dataAmount || 'N/A';
+            const phone = order.recipientPhone || order.phone || 'N/A';
+            const price = parseFloat(order.totalPrice || order.total || 0).toFixed(2);
+            
+            // Format like MCBIS: Phone - Capacity - Price
+            const copyText = `${phone} - ${capacity} - GH₵${price}`;
+            
+            navigator.clipboard.writeText(copyText).then(() => {
+                showToast(`Copied: ${copyText}`, 'success');
+            }).catch(err => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = copyText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast(`Copied: ${copyText}`, 'success');
+            });
         }
 
         // Order actions - using OrderGroup item API
@@ -11756,6 +11809,7 @@
             if (action === 'cancel-order') cancelOrder(id);
             else if (action === 'complete-order') completeOrder(id);
             else if (action === 'view-order') viewOrder(id);
+            else if (action === 'copy-order') copyOrderDetails(id);
         });
 
         // Users table actions event delegation
