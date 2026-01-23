@@ -4170,6 +4170,10 @@
                 <div class="keyboard-hint" onclick="toggleCommandPalette()" title="Open Command Palette">
                     <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span>
                 </div>
+                <div class="header-stat" style="cursor: pointer;" onclick="refreshMcbisBalance()" title="Click to refresh MCBIS balance">
+                    <div class="label"><i class="fas fa-server"></i> MCBIS Balance:</div>
+                    <div class="value" id="headerMcbisBalance" style="color: #10b981;">Loading...</div>
+                </div>
                 <div class="header-stat">
                     <div class="label"><i class="fas fa-shopping-bag"></i> Total Sold:</div>
                     <div class="value" id="totalSold">GH₵ 0.00</div>
@@ -11647,6 +11651,12 @@
                 if (data.success) {
                     document.getElementById('mcbisBalanceDisplay').style.display = 'block';
                     document.getElementById('mcbisBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    // Also update header balance
+                    const headerBalance = document.getElementById('headerMcbisBalance');
+                    if (headerBalance) {
+                        headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                        headerBalance.style.color = data.balance < 50 ? '#ef4444' : '#10b981';
+                    }
                     showToast(`API Balance: GHS ${data.balance}`, 'success');
                 } else {
                     showToast('Failed to get balance: ' + (data.error || 'Unknown error'), 'error');
@@ -11655,6 +11665,33 @@
                 showToast('Error checking balance: ' + err.message, 'error');
             }
         }
+
+        // Refresh MCBIS balance for header (silent, no toast)
+        async function refreshMcbisBalance() {
+            const headerBalance = document.getElementById('headerMcbisBalance');
+            if (headerBalance) headerBalance.textContent = 'Loading...';
+            try {
+                const res = await adminFetch('/api/datahub/balance');
+                const data = await res.json();
+                if (data.success && headerBalance) {
+                    headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    headerBalance.style.color = data.balance < 50 ? '#ef4444' : '#10b981';
+                } else if (headerBalance) {
+                    headerBalance.textContent = 'Error';
+                    headerBalance.style.color = '#ef4444';
+                }
+            } catch (err) {
+                if (headerBalance) {
+                    headerBalance.textContent = 'Offline';
+                    headerBalance.style.color = '#9ca3af';
+                }
+            }
+        }
+
+        // Load MCBIS balance on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshMcbisBalance();
+        });
 
         async function syncAllMcbisOrders() {
             showToast('Syncing all pending orders...', 'info');
