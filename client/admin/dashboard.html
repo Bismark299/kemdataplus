@@ -4725,9 +4725,13 @@
                     <div class="users-controls">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="usersSearchInput" placeholder="Search users...">
+                            <input type="text" id="usersSearchInput" placeholder="Search ID, Name, Phone, Email..." style="width: 220px;">
                         </div>
-                        <input type="text" id="usersAgentIdFilter" placeholder="Agent ID (e.g. KDP-1234)" style="width:140px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <select id="usersStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
                         <select id="usersRoleFilter">
                             <option value="">All Roles</option>
                             <option value="ADMIN">Admin</option>
@@ -4737,11 +4741,6 @@
                             <option value="SUPER_AGENT">Super Agent</option>
                             <option value="AGENT">Agent</option>
                         </select>
-                        <select id="usersStatusFilter">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
                         <button class="btn-add-user" id="addUserBtn">
                             <i class="fas fa-plus"></i> Add User
                         </button>
@@ -4750,19 +4749,18 @@
                 <table class="users-table">
                     <thead>
                         <tr>
-                            <th>User</th>
+                            <th>Joined Date</th>
+                            <th>Agent ID</th>
+                            <th>Name</th>
                             <th>Phone</th>
-                            <th>Role</th>
+                            <th>Email</th>
                             <th>Balance</th>
-                            <th>Total Spent</th>
-                            <th>Orders</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af;">
+                            <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
                                 <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
                                 Loading users...
                             </td>
@@ -7882,26 +7880,20 @@
         let usersCurrentPage = 1;
         const usersPerPage = 50;
         
-        function renderUsersTable(searchTerm = '', statusFilter = '', roleFilter = '', agentIdFilter = '') {
+        function renderUsersTable(searchTerm = '', statusFilter = '', roleFilter = '') {
             const tbody = document.getElementById('usersTableBody');
             let filtered = [...usersData];
             
-            // Apply search filter
+            // Apply search filter (searches ID, Name, Phone, Email)
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
-                filtered = filtered.filter(u => 
-                    (u.name || '').toLowerCase().includes(term) ||
-                    (u.phone || '').toLowerCase().includes(term) ||
-                    (u.email || '').toLowerCase().includes(term)
-                );
-            }
-            
-            // Apply agent ID filter
-            if (agentIdFilter) {
-                const agentTerm = agentIdFilter.toUpperCase().replace('KDP-', '').replace('KDP', '');
+                const agentTerm = searchTerm.toUpperCase().replace('KDP-', '').replace('KDP', '');
                 filtered = filtered.filter(u => {
                     const userAgentCode = generateAgentCode(u.id);
-                    return userAgentCode.toUpperCase().includes(agentTerm) || 
+                    return (u.name || '').toLowerCase().includes(term) ||
+                           (u.phone || '').toLowerCase().includes(term) ||
+                           (u.email || '').toLowerCase().includes(term) ||
+                           userAgentCode.toUpperCase().includes(agentTerm) ||
                            userAgentCode.toUpperCase().includes('KDP-' + agentTerm);
                 });
             }
@@ -7925,7 +7917,7 @@
             if (filtered.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8">
+                        <td colspan="7">
                             ${createEmptyState(
                                 'fas fa-users-slash',
                                 'No Users Found',
@@ -7948,33 +7940,18 @@
             const endIdx = Math.min(startIdx + usersPerPage, totalUsers);
             const paginatedUsers = filtered.slice(startIdx, endIdx);
             
-            // Get orders for each user (use ordersCache from API)
-            const orders = [...ordersCache];
-            
             tbody.innerHTML = paginatedUsers.map(user => {
-                const userOrders = orders.filter(o => o.phone === user.phone || o.userId === user.id);
                 const status = user.status || 'active';
-                const role = user.role || 'AGENT';
-                const roleDisplay = role.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-                const roleClass = role.toLowerCase().replace(/_/g, '-');
+                const joinedDate = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
                 
                 return `
                     <tr>
-                        <td>
-                            <div class="user-profile">
-                                <div class="avatar">${(user.name || 'U').charAt(0)}</div>
-                                <div class="info">
-                                    <div class="name">${user.name || 'Unknown'} <span style="color:#3b82f6;font-size:0.75rem;font-weight:600;">${generateAgentCode(user.id)}</span></div>
-                                    <div class="email">${user.email || 'No email'}</div>
-                                </div>
-                            </div>
-                        </td>
+                        <td style="white-space: nowrap;">${joinedDate}</td>
+                        <td><span style="color:#3b82f6;font-weight:600;">${generateAgentCode(user.id)}</span></td>
+                        <td>${user.name || 'Unknown'}</td>
                         <td>${user.phone || 'N/A'}</td>
-                        <td><span class="user-role ${roleClass}">${roleDisplay}</span></td>
-                        <td class="balance-amount ${user.balance < 50 ? 'low' : ''}">GH₵ ${user.balance.toFixed(2)}</td>
-                        <td>GH₵ ${user.totalSpent.toFixed(2)}</td>
-                        <td>${userOrders.length}</td>
-                        <td><span class="user-status ${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
+                        <td>${user.email || '-'}</td>
+                        <td class="balance-amount ${user.balance < 50 ? 'low' : ''}">${user.balance.toFixed(2)}</td>
                         <td>
                             <div class="user-actions">
                                 <button class="user-action-btn view" data-action="view-user" data-id="${user.id}" title="View Details">
@@ -8055,41 +8032,29 @@
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
-            renderUsersTable(searchTerm, statusFilter, roleFilter, agentIdFilter);
+            renderUsersTable(searchTerm, statusFilter, roleFilter);
         }
         
-        // User search and filter
+        // User search and filter (instant as user types)
         document.getElementById('usersSearchInput')?.addEventListener('input', function() {
             usersCurrentPage = 1; // Reset to first page on filter change
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
-            renderUsersTable(this.value, statusFilter, roleFilter, agentIdFilter);
-        });
-        
-        document.getElementById('usersAgentIdFilter')?.addEventListener('input', function() {
-            usersCurrentPage = 1; // Reset to first page on filter change
-            const searchTerm = document.getElementById('usersSearchInput')?.value || '';
-            const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
-            const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            renderUsersTable(searchTerm, statusFilter, roleFilter, this.value);
+            renderUsersTable(this.value, statusFilter, roleFilter);
         });
         
         document.getElementById('usersStatusFilter')?.addEventListener('change', function() {
             usersCurrentPage = 1; // Reset to first page on filter change
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
-            renderUsersTable(searchTerm, this.value, roleFilter, agentIdFilter);
+            renderUsersTable(searchTerm, this.value, roleFilter);
         });
         
         document.getElementById('usersRoleFilter')?.addEventListener('change', function() {
             usersCurrentPage = 1; // Reset to first page on filter change
             const searchTerm = document.getElementById('usersSearchInput')?.value || '';
             const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
-            const agentIdFilter = document.getElementById('usersAgentIdFilter')?.value || '';
-            renderUsersTable(searchTerm, statusFilter, this.value, agentIdFilter);
+            renderUsersTable(searchTerm, statusFilter, this.value);
         });
         
         // Add/Edit User Modal
