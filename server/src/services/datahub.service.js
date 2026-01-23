@@ -62,10 +62,10 @@ const NETWORK_MAP = {
   'TELECEL': 'telecel',
   'telecel': 'telecel',
   'Telecel': 'telecel',
-  'AIRTELTIGO': 'atbigtime',  // or 'atpremium' depending on bundle type
-  'AirtelTigo': 'atbigtime',
-  'airteltigo': 'atbigtime',
-  'AT': 'atbigtime'
+  'AIRTELTIGO': 'atpremium',  // AT Premium (ishare)
+  'AirtelTigo': 'atpremium',
+  'airteltigo': 'atpremium',
+  'AT': 'atpremium'
 };
 
 const axios = require('axios');
