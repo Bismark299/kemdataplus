@@ -760,7 +760,7 @@ const financialOrderService = {
     const map = {
       'MTN': 'mtn', 'mtn': 'mtn',
       'TELECEL': 'telecel', 'telecel': 'telecel', 'Telecel': 'telecel',
-      'AIRTELTIGO': 'atpremium', 'AirtelTigo': 'atpremium', 'airteltigo': 'atpremium'
+      'AIRTELTIGO': 'atishare', 'AirtelTigo': 'atishare', 'airteltigo': 'atishare'
     };
     return map[network] || 'mtn';
   },

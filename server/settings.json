@@ -35,7 +35,7 @@
     "mcbis_mtnAPI": false,
     "mcbis_telecelAPI": false,
     "mcbis_airteltigoAPI": false,
-    "mcbisAutoSync": false,
+    "mcbisAutoSync": true,
     "placeOrders": true,
     "loadWallet": false,
     "claimWallet": true,
