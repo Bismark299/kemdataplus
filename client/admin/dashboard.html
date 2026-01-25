@@ -6147,8 +6147,8 @@
                             <i class="fas fa-times"></i> Clear Dates
                         </button>
                     </div>
-                    <div class="orders-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <table style="width: 100%; border-collapse: collapse;">
+                    <div class="orders-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 1100px;">
                             <thead>
                                 <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Order ID</th>
@@ -6157,13 +6157,14 @@
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Bundle</th>
                                     <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; font-size: 0.85rem;">Amount</th>
                                     <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Method</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Payment Ref</th>
                                     <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Status</th>
                                     <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Profit</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Date</th>
                                 </tr>
                             </thead>
                             <tbody id="storefrontOrdersTableBody">
-                                <tr><td colspan="9" style="padding: 40px; text-align: center; color: #6b7280;">Loading orders...</td></tr>
+                                <tr><td colspan="10" style="padding: 40px; text-align: center; color: #6b7280;">Loading orders...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -12214,11 +12215,18 @@
             const tbody = document.getElementById('storefrontOrdersTableBody');
             
             if (!storefrontsData.orders || storefrontsData.orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="padding: 40px; text-align: center; color: #6b7280;">No orders found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #6b7280;">No orders found</td></tr>';
                 return;
             }
             
-            tbody.innerHTML = storefrontsData.orders.map(order => `
+            tbody.innerHTML = storefrontsData.orders.map(order => {
+                // Get payment reference based on method
+                const paymentRef = order.paymentMethod === 'PAYSTACK' 
+                    ? order.paystackReference 
+                    : order.paymentReference;
+                const paymentPhone = order.paymentPhone || '';
+                
+                return `
                 <tr style="border-bottom: 1px solid #e5e7eb;">
                     <td style="padding: 12px; font-size: 0.85rem;">
                         <span style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${order.id.slice(0, 8)}</span>
@@ -12241,6 +12249,12 @@
                             ? '<span style="background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;">PAYSTACK</span>'
                             : '<span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;">MOMO</span>'}
                     </td>
+                    <td style="padding: 12px; font-size: 0.8rem;">
+                        ${paymentRef 
+                            ? `<div style="font-family: monospace; font-size: 0.75rem; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; color: #166534;" title="${paymentRef}">${paymentRef.length > 15 ? paymentRef.slice(0, 15) + '...' : paymentRef}</div>
+                               ${paymentPhone ? `<div style="font-size: 0.7rem; color: #6b7280;">${paymentPhone}</div>` : ''}`
+                            : '<span style="color: #9ca3af; font-size: 0.75rem;">No ref</span>'}
+                    </td>
                     <td style="padding: 12px; text-align: center;">
                         ${getOrderStatusBadge(order.status)}
                     </td>
@@ -12253,7 +12267,7 @@
                         ${new Date(order.createdAt).toLocaleString()}
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function getOrderStatusBadge(status) {

@@ -772,9 +772,11 @@ router.get('/storefront-orders', async (req, res, next) => {
         fulfillmentStatus: o.order?.status || null,  // Main order fulfillment status
         paymentStatus: o.paymentStatus,
         paymentMethod: o.paymentMethod || 'MOMO',
+        paymentReference: o.paymentReference,  // MoMo transaction reference
+        paymentPhone: o.paymentPhone,          // Phone customer paid from
+        paystackReference: o.paystackReference, // Paystack reference
         profitCredited: o.profitCredited,
         profitCreditedAt: o.profitCreditedAt,
-        paystackReference: o.paystackReference,
         orderId: o.orderId,
         mainOrderRef: o.order?.reference,
         externalRef: o.order?.externalReference,
