@@ -1112,18 +1112,28 @@ const storefrontService = {
     // This prevents race condition between webhook and frontend verify
     const result = await prisma.$transaction(async (tx) => {
       // ATOMIC: Lock the row and check if already completed in one step
-      // Using raw query for SELECT FOR UPDATE to get row-level lock
-      const lockedOrders = await tx.$queryRaw`
-        SELECT * FROM "StorefrontOrder" 
+      // Use Prisma's findUnique with a follow-up raw lock query
+      // This ensures we get proper camelCase field names
+      
+      // First, lock the row
+      await tx.$executeRaw`
+        SELECT id FROM "StorefrontOrder" 
         WHERE id = ${storefrontOrderId} 
         FOR UPDATE
       `;
       
-      if (!lockedOrders || lockedOrders.length === 0) {
+      // Now fetch with Prisma (row is locked)
+      const storefrontOrder = await tx.storefrontOrder.findUnique({
+        where: { id: storefrontOrderId },
+        include: {
+          storefront: { include: { owner: true } },
+          bundle: true
+        }
+      });
+      
+      if (!storefrontOrder) {
         throw new Error('Order not found');
       }
-      
-      const storefrontOrder = lockedOrders[0];
       
       // Check if already completed (NOW INSIDE TRANSACTION WITH LOCK!)
       if (storefrontOrder.orderId) {
@@ -1131,19 +1141,14 @@ const storefrontService = {
         return { success: true, alreadyCompleted: true, orderId: storefrontOrder.orderId };
       }
       
-      // Get related data
-      const storefront = await tx.storefront.findUnique({
-        where: { id: storefrontOrder.storefrontId },
-        include: { owner: true }
-      });
-      
-      const bundle = await tx.bundle.findUnique({
-        where: { id: storefrontOrder.bundleId }
-      });
+      const storefront = storefrontOrder.storefront;
+      const bundle = storefrontOrder.bundle;
       
       if (!storefront || !bundle) {
         throw new Error('Storefront or bundle not found');
       }
+      
+      console.log(`[Storefront] Processing order: ${storefrontOrderId}, Bundle: ${bundle.name}, Network: ${bundle.network}`);
       
       const supplierCost = storefrontOrder.supplierCost || bundle.baseCost;
       const customerPrice = storefrontOrder.amount; // What customer paid
