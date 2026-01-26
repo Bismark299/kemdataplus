@@ -1100,44 +1100,58 @@ const storefrontService = {
    * 1. Customer pays → Payment verified (we're here)
    * 2. Main order created → API fulfillment triggered
    * 3. On COMPLETED → Agent profit credited via financial-order.service
+   * 
+   * CRITICAL: Uses database-level locking to prevent race conditions
+   * between webhook and frontend verification calling simultaneously
    */
   async completePaystackOrder(storefrontOrderId, paystackReference) {
-    // Get the pending order
-    const storefrontOrder = await prisma.storefrontOrder.findUnique({
-      where: { id: storefrontOrderId },
-      include: {
-        storefront: {
-          include: {
-            owner: true
-          }
-        },
-        bundle: true
-      }
-    });
-
-    if (!storefrontOrder) {
-      throw new Error('Order not found');
-    }
-
-    // Check if already completed
-    if (storefrontOrder.orderId) {
-      console.log(`[Storefront] Order ${storefrontOrderId} already completed`);
-      return { success: true, alreadyCompleted: true };
-    }
-
-    const storefront = storefrontOrder.storefront;
-    const supplierCost = storefrontOrder.supplierCost || storefrontOrder.bundle.baseCost;
-    const customerPrice = storefrontOrder.amount; // What customer paid
-    const ownerCost = storefrontOrder.ownerCost;  // Agent's cost
-    
-    // Recipient phone = paymentPhone (where data goes) or fallback to customerPhone
-    const recipientPhone = storefrontOrder.paymentPhone || storefrontOrder.customerPhone;
-
     // Use the global order ID system
     const orderGroupService = require('./order-group.service');
     
-    // Complete in transaction - NO WALLET DEBIT for Paystack orders
+    // CRITICAL: Do EVERYTHING in a transaction with row-level locking
+    // This prevents race condition between webhook and frontend verify
     const result = await prisma.$transaction(async (tx) => {
+      // ATOMIC: Lock the row and check if already completed in one step
+      // Using raw query for SELECT FOR UPDATE to get row-level lock
+      const lockedOrders = await tx.$queryRaw`
+        SELECT * FROM "StorefrontOrder" 
+        WHERE id = ${storefrontOrderId} 
+        FOR UPDATE
+      `;
+      
+      if (!lockedOrders || lockedOrders.length === 0) {
+        throw new Error('Order not found');
+      }
+      
+      const storefrontOrder = lockedOrders[0];
+      
+      // Check if already completed (NOW INSIDE TRANSACTION WITH LOCK!)
+      if (storefrontOrder.orderId) {
+        console.log(`[Storefront] DUPLICATE PREVENTION: Order ${storefrontOrderId} already completed with orderId: ${storefrontOrder.orderId}`);
+        return { success: true, alreadyCompleted: true, orderId: storefrontOrder.orderId };
+      }
+      
+      // Get related data
+      const storefront = await tx.storefront.findUnique({
+        where: { id: storefrontOrder.storefrontId },
+        include: { owner: true }
+      });
+      
+      const bundle = await tx.bundle.findUnique({
+        where: { id: storefrontOrder.bundleId }
+      });
+      
+      if (!storefront || !bundle) {
+        throw new Error('Storefront or bundle not found');
+      }
+      
+      const supplierCost = storefrontOrder.supplierCost || bundle.baseCost;
+      const customerPrice = storefrontOrder.amount; // What customer paid
+      const ownerCost = storefrontOrder.ownerCost;  // Agent's cost
+      
+      // Recipient phone = paymentPhone (where data goes) or fallback to customerPhone
+      const recipientPhone = storefrontOrder.paymentPhone || storefrontOrder.customerPhone;
+
       // Create OrderGroup for global ID system
       const orderGroup = await tx.orderGroup.create({
         data: {
@@ -1174,7 +1188,7 @@ const storefrontService = {
           status: 'PENDING',           // Ready for API fulfillment
           paymentStatus: 'PAID',       // Customer already paid via Paystack
           storefrontId: storefront.id,
-          storefrontOrderId: storefrontOrder.id,
+          storefrontOrderId: storefrontOrderId,
           priceSnapshot: ownerCost     // Agent's cost price snapshot
         }
       });
@@ -1216,23 +1230,29 @@ const storefrontService = {
 
       return {
         orderId: order.id,
-        storefrontOrderId: storefrontOrder.id,
-        bundle: storefrontOrder.bundle.name,
+        storefrontOrderId: storefrontOrderId,
+        bundle: bundle.name,
+        bundleNetwork: bundle.network, // Pass network for API fulfillment
         phone: recipientPhone, // The phone where data goes
         amount: storefrontOrder.amount,
         agentProfit: storefrontOrder.ownerProfit,
         status: 'PROCESSING'
       };
     });
+    
+    // If already completed, just return
+    if (result.alreadyCompleted) {
+      return result;
+    }
 
     console.log(`[Storefront] ✅ Paystack order ready for fulfillment: ${storefrontOrderId}`);
-    console.log(`[Storefront] Agent profit (GHS ${storefrontOrder.ownerProfit}) will be credited on completion`);
+    console.log(`[Storefront] Agent profit (GHS ${result.agentProfit}) will be credited on completion`);
 
     // AUTO-PROCESS: Push order to API for fulfillment
     try {
       const settingsController = require('../controllers/settings.controller');
       const siteSettings = settingsController.getSiteSettings();
-      const orderNetwork = (storefrontOrder.bundle.network || '').toLowerCase();
+      const orderNetwork = (result.bundleNetwork || '').toLowerCase();
       
       // Check if API is enabled using the actual settings structure
       // Settings use: easydata_mtnAPI, easydata_telecelAPI, mcbis_mtnAPI, etc.
