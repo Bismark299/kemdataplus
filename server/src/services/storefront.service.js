@@ -1108,21 +1108,27 @@ const storefrontService = {
     // Use the global order ID system
     const orderGroupService = require('./order-group.service');
     
+    console.log(`[Storefront] completePaystackOrder called for: ${storefrontOrderId}`);
+    
     // CRITICAL: Do EVERYTHING in a transaction with row-level locking
     // This prevents race condition between webhook and frontend verify
     const result = await prisma.$transaction(async (tx) => {
-      // ATOMIC: Lock the row and check if already completed in one step
-      // Use Prisma's findUnique with a follow-up raw lock query
-      // This ensures we get proper camelCase field names
+      // First, fetch the order to check if already completed
+      const existingOrder = await tx.storefrontOrder.findUnique({
+        where: { id: storefrontOrderId }
+      });
       
-      // First, lock the row
-      await tx.$executeRaw`
-        SELECT id FROM "StorefrontOrder" 
-        WHERE id = ${storefrontOrderId} 
-        FOR UPDATE
-      `;
+      if (!existingOrder) {
+        throw new Error('Order not found');
+      }
       
-      // Now fetch with Prisma (row is locked)
+      // Check if already completed BEFORE doing anything else
+      if (existingOrder.orderId) {
+        console.log(`[Storefront] DUPLICATE PREVENTION: Order ${storefrontOrderId} already completed with orderId: ${existingOrder.orderId}`);
+        return { success: true, alreadyCompleted: true, orderId: existingOrder.orderId };
+      }
+      
+      // Now fetch full data with relations
       const storefrontOrder = await tx.storefrontOrder.findUnique({
         where: { id: storefrontOrderId },
         include: {
@@ -1130,16 +1136,6 @@ const storefrontService = {
           bundle: true
         }
       });
-      
-      if (!storefrontOrder) {
-        throw new Error('Order not found');
-      }
-      
-      // Check if already completed (NOW INSIDE TRANSACTION WITH LOCK!)
-      if (storefrontOrder.orderId) {
-        console.log(`[Storefront] DUPLICATE PREVENTION: Order ${storefrontOrderId} already completed with orderId: ${storefrontOrder.orderId}`);
-        return { success: true, alreadyCompleted: true, orderId: storefrontOrder.orderId };
-      }
       
       const storefront = storefrontOrder.storefront;
       const bundle = storefrontOrder.bundle;

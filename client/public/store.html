@@ -1574,9 +1574,13 @@
         // Check for payment callback on page load
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('payment') === 'callback') {
-            const reference = urlParams.get('reference');
+            // Paystack returns reference as 'trxref' or 'reference'
+            const reference = urlParams.get('trxref') || urlParams.get('reference');
             if (reference) {
+                console.log('[Store] Payment callback detected, verifying reference:', reference);
                 verifyPaystackPayment(reference);
+            } else {
+                console.log('[Store] Payment callback but no reference found. URL params:', window.location.search);
             }
         }
 
@@ -1844,7 +1848,7 @@
                 const res = await fetch(`/api/store/${slug}/paystack/verify/${reference}`);
                 const data = await res.json();
                 
-                if (data.success) {
+                if (res.ok && data.success) {
                     showSuccessModal({
                         message: 'Payment successful! Your data will be delivered shortly.',
                         order: {
@@ -1855,13 +1859,17 @@
                         }
                     });
                 } else {
-                    alert('Payment verification failed. Please contact support if you were charged.');
+                    // Show actual error from server if available
+                    const errorMsg = data.error || data.message || 'Payment verification failed';
+                    alert(`${errorMsg}. Please contact support if you were charged. Reference: ${reference}`);
+                    console.error('Verify failed:', data);
                 }
                 
                 // Clear URL params
                 window.history.replaceState({}, document.title, window.location.pathname);
             } catch (e) {
                 console.error('Verify error:', e);
+                alert(`Error verifying payment. Reference: ${reference}. Please contact support.`);
             }
         }
 
