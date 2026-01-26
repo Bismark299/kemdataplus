@@ -142,6 +142,8 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
     const host = req.headers['x-forwarded-host'] || req.get('host');
     const callbackUrl = `${protocol}://${host}/store/${req.params.slug}?payment=callback`;
 
+    console.log(`[Storefront] Callback URL: ${callbackUrl}`);
+
     // Use customer email or generate from phone
     const customerEmail = email || `${phone}@customer.store`;
 
@@ -152,6 +154,7 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
     const totalAmount = subtotal + processingFee;
 
     console.log(`[Storefront] Payment breakdown - Subtotal: ${subtotal}, Fee: ${processingFee}, Total: ${totalAmount}`);
+    console.log(`[Storefront] Initializing Paystack for storefrontOrderId: ${result.storefrontOrderId}`);
 
     // Initialize Paystack payment with TOTAL amount (subtotal + fee)
     const paystackResult = await paystackService.initializeStorefrontPayment({
@@ -165,11 +168,15 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
       customerPhone: phone
     });
 
+    console.log(`[Storefront] Paystack initialized - Reference: ${paystackResult.reference}, URL: ${paystackResult.authorizationUrl?.substring(0, 50)}...`);
+
     // Update storefront order with Paystack reference
     await prisma.storefrontOrder.update({
       where: { id: result.storefrontOrderId },
       data: { paystackReference: paystackResult.reference }
     });
+
+    console.log(`[Storefront] Order ${result.storefrontOrderId} updated with reference: ${paystackResult.reference}`);
 
     res.json({
       success: true,
@@ -194,14 +201,96 @@ router.get('/store/:slug/paystack/verify/:reference', async (req, res, next) => 
   try {
     const { reference } = req.params;
 
+    console.log(`[Storefront] Verifying payment reference: ${reference}`);
+
     const storefront = await storefrontService.getBySlug(req.params.slug);
     
     if (!storefront) {
       return res.status(404).json({ error: 'Store not found' });
     }
 
-    // Verify payment with Paystack
-    const verification = await paystackService.verifyPayment(reference);
+    // First check if we have a StorefrontOrder with this reference
+    // This helps us verify the payment even if Paystack session expired
+    const storefrontOrder = await prisma.storefrontOrder.findFirst({
+      where: { paystackReference: reference },
+      include: { bundle: true }
+    });
+
+    if (storefrontOrder) {
+      console.log(`[Storefront] Found order with reference ${reference}, status: ${storefrontOrder.paymentStatus}`);
+      
+      // If already paid and completed, return success
+      if (storefrontOrder.paymentStatus === 'PAID' && storefrontOrder.orderId) {
+        console.log(`[Storefront] Order already completed: ${storefrontOrder.orderId}`);
+        return res.json({
+          success: true,
+          message: 'Payment already verified',
+          orderId: storefrontOrder.orderId || reference,
+          bundle: storefrontOrder.bundle?.name || 'Data Bundle',
+          phone: storefrontOrder.paymentPhone || storefrontOrder.customerPhone || '',
+          amount: storefrontOrder.amount || 0,
+          status: 'COMPLETED'
+        });
+      }
+    }
+
+    // Verify payment with Paystack (with retry for transient errors)
+    let verification;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        verification = await paystackService.verifyPayment(reference);
+        break; // Success, exit loop
+      } catch (paystackError) {
+        retryCount++;
+        console.error(`[Storefront] Paystack verify API error (attempt ${retryCount}):`, paystackError.message);
+        
+        if (retryCount <= maxRetries) {
+          // Wait 1 second before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log(`[Storefront] Retrying verification...`);
+          continue;
+        }
+        
+        // All retries failed
+        // If Paystack fails but we have a pending order, check if it was paid via webhook
+        if (storefrontOrder && storefrontOrder.paymentStatus === 'PAID') {
+          console.log(`[Storefront] Paystack API failed but order is PAID - completing via stored data`);
+          try {
+            const orderResult = await storefrontService.completePaystackOrder(storefrontOrder.id, reference);
+            return res.json({
+              success: true,
+              message: 'Payment verified via webhook',
+              orderId: orderResult?.orderId || storefrontOrder.id,
+              bundle: storefrontOrder.bundle?.name || 'Data Bundle',
+              phone: storefrontOrder.paymentPhone || storefrontOrder.customerPhone || '',
+              amount: storefrontOrder.amount || 0,
+              status: orderResult?.status || 'PROCESSING'
+            });
+          } catch (completionError) {
+            if (completionError.message?.includes('already completed')) {
+              return res.json({
+                success: true,
+                message: 'Order already processed',
+                orderId: storefrontOrder.orderId || reference,
+                bundle: storefrontOrder.bundle?.name || 'Data Bundle',
+                phone: storefrontOrder.paymentPhone || storefrontOrder.customerPhone || '',
+                amount: storefrontOrder.amount || 0,
+                status: 'COMPLETED'
+              });
+            }
+          }
+        }
+        
+        // Return user-friendly error
+        return res.status(400).json({ 
+          error: 'Payment verification failed. If you were charged, please contact support with reference: ' + reference,
+          reference: reference
+        });
+      }
+    }
 
     if (!verification.success) {
       return res.json({

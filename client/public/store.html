@@ -1573,14 +1573,18 @@
         
         // Check for payment callback on page load
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('payment') === 'callback') {
-            // Paystack returns reference as 'trxref' or 'reference'
-            const reference = urlParams.get('trxref') || urlParams.get('reference');
+        // Paystack returns reference as 'trxref' or 'reference'
+        const reference = urlParams.get('trxref') || urlParams.get('reference');
+        
+        // Check if this is a payment callback (either explicit or has a reference)
+        if (urlParams.get('payment') === 'callback' || reference) {
             if (reference) {
                 console.log('[Store] Payment callback detected, verifying reference:', reference);
+                console.log('[Store] Full URL:', window.location.href);
                 verifyPaystackPayment(reference);
             } else {
                 console.log('[Store] Payment callback but no reference found. URL params:', window.location.search);
+                alert('Payment callback received but no reference found. Please check your order history.');
             }
         }
 
@@ -1844,9 +1848,25 @@
         
         // Verify Paystack payment callback
         async function verifyPaystackPayment(reference) {
+            // Show loading state
+            const loadingHtml = `
+                <div class="modal-overlay active" id="verifyLoadingModal">
+                    <div class="modal" style="text-align:center;padding:40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size:3rem;color:var(--primary);margin-bottom:15px;"></i>
+                        <h3>Verifying Payment...</h3>
+                        <p style="color:#64748b;margin-top:10px;">Please wait while we confirm your payment.</p>
+                        <p style="color:#94a3b8;font-size:0.85rem;margin-top:5px;">Reference: ${reference.slice(0,12)}...</p>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', loadingHtml);
+            
             try {
                 const res = await fetch(`/api/store/${slug}/paystack/verify/${reference}`);
                 const data = await res.json();
+                
+                // Remove loading modal
+                document.getElementById('verifyLoadingModal')?.remove();
                 
                 if (res.ok && data.success) {
                     showSuccessModal({
@@ -1861,16 +1881,45 @@
                 } else {
                     // Show actual error from server if available
                     const errorMsg = data.error || data.message || 'Payment verification failed';
-                    alert(`${errorMsg}. Please contact support if you were charged. Reference: ${reference}`);
+                    
+                    // Show error modal with support info
+                    const errorHtml = `
+                        <div class="modal-overlay active" id="verifyErrorModal" onclick="closeVerifyErrorModal(event)">
+                            <div class="modal" onclick="event.stopPropagation()" style="text-align:center;padding:30px;">
+                                <div style="width:70px;height:70px;background:#fef2f2;border-radius:50%;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;">
+                                    <i class="fas fa-exclamation-circle" style="font-size:2rem;color:#ef4444;"></i>
+                                </div>
+                                <h3 style="color:#1e293b;margin-bottom:10px;">Verification Issue</h3>
+                                <p style="color:#64748b;margin-bottom:15px;">${errorMsg}</p>
+                                <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:15px;text-align:left;">
+                                    <p style="font-size:0.85rem;color:#64748b;margin-bottom:5px;"><strong>Reference:</strong></p>
+                                    <code style="background:#e2e8f0;padding:4px 8px;border-radius:4px;font-size:0.8rem;">${reference}</code>
+                                </div>
+                                <p style="color:#64748b;font-size:0.85rem;margin-bottom:15px;">If you were charged, please contact the store owner with this reference number.</p>
+                                <button onclick="closeVerifyErrorModal()" style="background:var(--primary);color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;">OK</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.insertAdjacentHTML('beforeend', errorHtml);
                     console.error('Verify failed:', data);
                 }
                 
                 // Clear URL params
                 window.history.replaceState({}, document.title, window.location.pathname);
             } catch (e) {
+                // Remove loading modal
+                document.getElementById('verifyLoadingModal')?.remove();
                 console.error('Verify error:', e);
-                alert(`Error verifying payment. Reference: ${reference}. Please contact support.`);
+                
+                // Show network error
+                alert(`Network error verifying payment. Reference: ${reference}. Please check your order history or contact support.`);
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
+        }
+        
+        function closeVerifyErrorModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('verifyErrorModal')?.remove();
         }
 
         async function submitOrder() {

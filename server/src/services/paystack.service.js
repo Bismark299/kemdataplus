@@ -43,6 +43,12 @@ async function paystackRequest(endpoint, method = 'GET', body = null) {
   const config = getPaystackConfig();
   const url = `https://api.paystack.co${endpoint}`;
   
+  // Log key info for debugging (only first/last chars)
+  const keyPreview = config.secretKey ? 
+    `${config.secretKey.substring(0, 7)}...${config.secretKey.slice(-4)}` : 
+    'NOT SET';
+  console.log(`[Paystack] Using key: ${keyPreview}, Live mode: ${config.secretKey?.startsWith('sk_live')}`);
+  
   const options = {
     method,
     headers: {
@@ -62,6 +68,7 @@ async function paystackRequest(endpoint, method = 'GET', body = null) {
   
   if (!response.ok) {
     console.error('[Paystack] API Error:', data);
+    console.error(`[Paystack] Status: ${response.status}, Message: ${data.message}`);
     throw new Error(data.message || `Paystack API Error: ${response.status}`);
   }
   
