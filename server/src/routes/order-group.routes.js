@@ -1095,21 +1095,44 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
  * POST /api/order-groups/admin/complete-all-processing
  * Complete ALL orders with PROCESSING status (admin)
  * Works with both OrderItem (new system) and legacy Order records
+ * Accepts optional date filter to only complete orders from a specific date
  */
 router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    // Update all PROCESSING OrderItems to COMPLETED
+    const { date } = req.body; // Optional date filter (YYYY-MM-DD format)
+    
+    // Build date filter condition
+    let dateCondition = {};
+    if (date) {
+      const startOfDay = new Date(date + 'T00:00:00.000Z');
+      const endOfDay = new Date(date + 'T23:59:59.999Z');
+      dateCondition = {
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      };
+      console.log(`[Admin] Completing PROCESSING orders for date: ${date}`);
+    }
+    
+    // Update all PROCESSING OrderItems to COMPLETED (with optional date filter)
     const orderItemsResult = await prisma.orderItem.updateMany({
-      where: { status: 'PROCESSING' },
+      where: { 
+        status: 'PROCESSING',
+        ...dateCondition
+      },
       data: { 
         status: 'COMPLETED',
         processedAt: new Date()
       }
     });
     
-    // Update all PROCESSING legacy Orders to COMPLETED
+    // Update all PROCESSING legacy Orders to COMPLETED (with optional date filter)
     const legacyOrdersResult = await prisma.order.updateMany({
-      where: { status: 'PROCESSING' },
+      where: { 
+        status: 'PROCESSING',
+        ...dateCondition
+      },
       data: { 
         status: 'COMPLETED',
         processedAt: new Date()
@@ -1118,7 +1141,10 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
     
     // Update OrderGroup summaryStatus for affected groups
     const processingGroups = await prisma.orderGroup.findMany({
-      where: { summaryStatus: 'PROCESSING' },
+      where: { 
+        summaryStatus: 'PROCESSING',
+        ...dateCondition
+      },
       include: { items: true }
     });
     
@@ -1141,14 +1167,15 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
     
     const totalCompleted = orderItemsResult.count + legacyOrdersResult.count;
     
-    console.log(`[Admin] Completed ${totalCompleted} processing orders (${orderItemsResult.count} items, ${legacyOrdersResult.count} legacy)`);
+    console.log(`[Admin] Completed ${totalCompleted} processing orders (${orderItemsResult.count} items, ${legacyOrdersResult.count} legacy)${date ? ` for ${date}` : ''}`);
     
     res.json({
       success: true,
-      message: `${totalCompleted} order(s) marked as completed`,
+      message: `${totalCompleted} order(s) marked as completed${date ? ` for ${date}` : ''}`,
       count: totalCompleted,
       orderItems: orderItemsResult.count,
-      legacyOrders: legacyOrdersResult.count
+      legacyOrders: legacyOrdersResult.count,
+      dateFilter: date || null
     });
     
   } catch (error) {

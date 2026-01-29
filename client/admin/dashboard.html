@@ -10455,6 +10455,11 @@
             // Check if any orders are selected
             const selected = getSelectedOrders();
             
+            // Get current date filter
+            const dateFilter = document.getElementById('filterDate')?.value || '';
+            const todayUTC = getTodayUTC();
+            const targetDate = dateFilter || todayUTC; // Use filter date or today
+            
             // If orders are selected, complete only those
             if (selected.length > 0) {
                 const confirmed = await showConfirmModal({
@@ -10485,19 +10490,22 @@
                 document.getElementById('selectAll').checked = false;
                 showToast(`${success} order(s) completed`);
             } else {
-                // No orders selected - complete ALL processing orders
+                // No orders selected - complete ALL processing orders for the filtered date
+                const dateLabel = dateFilter ? new Date(dateFilter).toLocaleDateString() : 'today';
                 const confirmed = await showConfirmModal({
-                    title: 'Complete All Processing Orders',
-                    message: 'Mark ALL orders with PROCESSING status as COMPLETED?',
+                    title: 'Complete Processing Orders',
+                    message: `Mark ALL PROCESSING orders for ${dateLabel} as COMPLETED?`,
                     type: 'success',
-                    confirmText: 'Complete All Processing',
+                    confirmText: `Complete All for ${dateLabel}`,
                     cancelText: 'Cancel'
                 });
                 if (!confirmed) return;
                 
                 try {
                     const res = await adminFetch('/api/order-groups/admin/complete-all-processing', {
-                        method: 'POST'
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ date: targetDate })
                     });
                     if (res.ok) {
                         const result = await res.json();
