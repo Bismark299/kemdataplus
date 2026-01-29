@@ -1,0 +1,28 @@
+{
+  "agent_payouts": [
+    {
+      "id": "5ec053e4-6690-46f1-aed8-9e19dd94f6d1",
+      "userId": "70e78b0b-7a5b-417f-aaa9-ddfe4de10933",
+      "amount": 5.8,
+      "fee": 0,
+      "netAmount": 5.8,
+      "recipientCode": "RCP_9mhtubobzjzh2cw",
+      "transferCode": null,
+      "reference": "PAYOUT_70e78b0b_1768514364465",
+      "status": "FAILED",
+      "failureReason": "You cannot initiate third party payouts as a starter business",
+      "reason": "Store profit payout - 2026-01-15",
+      "payoutDate": "2026-01-15",
+      "createdAt": "2026-01-15T21:59:24.466Z",
+      "updatedAt": "2026-01-15T21:59:24.844Z",
+      "processedAt": null
+    }
+  ],
+  "users_paystackRecipientCode": [
+    {
+      "id": "70e78b0b-7a5b-417f-aaa9-ddfe4de10933",
+      "email": "partner@test.com",
+      "paystackRecipientCode": "RCP_9mhtubobzjzh2cw"
+    }
+  ]
+}

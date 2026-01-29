@@ -30,6 +30,7 @@ enum OrderStatus {
   COMPLETED
   FAILED
   CANCELLED
+  DUPLICATE_HOLD
 }
 
 enum TransactionType {

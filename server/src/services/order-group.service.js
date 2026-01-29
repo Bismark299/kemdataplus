@@ -88,7 +88,7 @@ const orderGroupService = {
     console.log(`[OrderGroup] Items: ${items.length}, IdempotencyKey: ${idempotencyKey}`);
 
     // ============================================================
-    // STEP 1: CHECK FOR DUPLICATE (Idempotency)
+    // STEP 1: CHECK FOR DUPLICATE (Idempotency Key)
     // ============================================================
     const existingOrder = await prisma.orderGroup.findUnique({
       where: { idempotencyKey },
@@ -107,6 +107,53 @@ const orderGroupService = {
         orderGroup: existingOrder,
         message: 'Order already exists (idempotency protection)'
       };
+    }
+
+    // ============================================================
+    // STEP 1.5: CHECK FOR POTENTIAL DUPLICATE ORDER (Same bundle+phone within 10 min)
+    // This prevents accidental double orders
+    // ============================================================
+    const DUPLICATE_WINDOW_MINUTES = 10;
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MINUTES * 60 * 1000);
+    
+    const potentialDuplicates = [];
+    for (const item of items) {
+      // Check if same user ordered same bundle for same phone recently
+      const recentOrder = await prisma.orderItem.findFirst({
+        where: {
+          bundleId: item.bundleId,
+          recipientPhone: item.recipientPhone,
+          orderGroup: {
+            userId: userId,
+            createdAt: { gte: duplicateCheckTime }
+          },
+          status: { notIn: ['CANCELLED', 'FAILED'] } // Ignore cancelled/failed orders
+        },
+        include: {
+          orderGroup: { select: { displayId: true, createdAt: true } },
+          bundle: { select: { name: true } }
+        },
+        orderBy: { orderGroup: { createdAt: 'desc' } }
+      });
+      
+      if (recentOrder) {
+        potentialDuplicates.push({
+          bundleId: item.bundleId,
+          recipientPhone: item.recipientPhone,
+          bundleName: recentOrder.bundle?.name || 'Unknown',
+          existingOrderId: recentOrder.orderGroup.displayId,
+          existingOrderTime: recentOrder.orderGroup.createdAt
+        });
+      }
+    }
+    
+    // If potential duplicates found, flag this for DUPLICATE_HOLD
+    const hasPotentialDuplicates = potentialDuplicates.length > 0;
+    if (hasPotentialDuplicates) {
+      console.log(`[OrderGroup] ⚠️ POTENTIAL DUPLICATE detected for ${potentialDuplicates.length} item(s)`);
+      potentialDuplicates.forEach(dup => {
+        console.log(`[OrderGroup]   - ${dup.bundleName} → ${dup.recipientPhone} (existing: ${dup.existingOrderId})`);
+      });
     }
 
     // ============================================================
@@ -163,6 +210,12 @@ const orderGroupService = {
 
     console.log(`[OrderGroup] Validated ${validatedItems.length} items, Total: ${grandTotal}`);
 
+    // Determine order status based on duplicate detection
+    const orderStatus = hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PENDING';
+    if (hasPotentialDuplicates) {
+      console.log(`[OrderGroup] ⚠️ DUPLICATE_HOLD: Found ${potentialDuplicates.length} potential duplicate(s) - order will be held for admin review`);
+    }
+
     // ============================================================
     // STEP 3: ATOMIC TRANSACTION - CHECK BALANCE & CREATE ORDER
     // Balance check MUST be inside transaction to prevent race conditions
@@ -185,8 +238,8 @@ const orderGroupService = {
           idempotencyKey,
           totalAmount: grandTotal,
           itemCount: validatedItems.length,
-          status: 'PENDING',
-          summaryStatus: 'PENDING'
+          status: orderStatus,
+          summaryStatus: orderStatus
         }
       });
 
@@ -217,7 +270,7 @@ const orderGroupService = {
             totalPrice: item.totalPrice,
             baseCost: item.baseCost,
             reference: itemRef,
-            status: 'PENDING',
+            status: orderStatus,
             itemIndex: i + 1
           }
         });
@@ -288,12 +341,22 @@ const orderGroupService = {
 
     console.log(`[OrderGroup] Order created successfully: ${result.orderGroup.displayId}`);
 
-    return {
+    // Build response with duplicate info if applicable
+    const response = {
       success: true,
       duplicate: false,
       orderGroup: result.orderGroup,
       message: `Order ${result.orderGroup.displayId} created with ${validatedItems.length} item(s)`
     };
+
+    // Add duplicate warning info if order is held
+    if (hasPotentialDuplicates) {
+      response.duplicateHold = true;
+      response.duplicateInfo = potentialDuplicates;
+      response.message = `Order ${result.orderGroup.displayId} created but HELD for admin review - potential duplicate detected (${potentialDuplicates.length} similar order(s) in last 10 minutes)`;
+    }
+
+    return response;
   },
 
   /**

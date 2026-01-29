@@ -1153,6 +1153,32 @@ const storefrontService = {
       // Recipient phone = paymentPhone (where data goes) or fallback to customerPhone
       const recipientPhone = storefrontOrder.paymentPhone || storefrontOrder.customerPhone;
 
+      // ============================================================
+      // DUPLICATE DETECTION: Check for same bundle+phone within 10 minutes
+      // If found, hold for admin review instead of auto-processing
+      // ============================================================
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const recentDuplicateOrders = await tx.orderItem.findMany({
+        where: {
+          bundleId: bundle.id,
+          recipientPhone: recipientPhone,
+          createdAt: { gte: tenMinutesAgo },
+          status: { in: ['PENDING', 'PROCESSING', 'COMPLETED'] }
+        },
+        include: {
+          orderGroup: { select: { displayId: true, createdAt: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      });
+      
+      const hasPotentialDuplicates = recentDuplicateOrders.length > 0;
+      const orderStatus = hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PENDING';
+      
+      if (hasPotentialDuplicates) {
+        console.log(`[Storefront] ⚠️ DUPLICATE_HOLD: Found ${recentDuplicateOrders.length} similar order(s) in last 10 mins - order will be held`);
+      }
+
       // Create OrderGroup for global ID system
       const orderGroup = await tx.orderGroup.create({
         data: {
@@ -1161,8 +1187,8 @@ const storefrontService = {
           tenantId: storefront.tenantId,
           totalAmount: customerPrice,
           itemCount: 1,
-          status: 'PENDING',
-          summaryStatus: 'PENDING'
+          status: orderStatus,
+          summaryStatus: orderStatus
         }
       });
 
@@ -1186,7 +1212,7 @@ const storefrontService = {
           totalPrice: customerPrice,    // Customer payment price
           baseCost: supplierCost,       // Platform's supplier cost
           reference: displayId,         // Use global order ID
-          status: 'PENDING',           // Ready for API fulfillment
+          status: orderStatus,         // PENDING or DUPLICATE_HOLD
           paymentStatus: 'PAID',       // Customer already paid via Paystack
           storefrontId: storefront.id,
           storefrontOrderId: storefrontOrderId,
@@ -1204,7 +1230,7 @@ const storefrontService = {
           unitPrice: customerPrice,
           totalPrice: customerPrice,
           baseCost: supplierCost,
-          status: 'PENDING',
+          status: orderStatus,
           reference: `${displayId}-01`
         }
       });
@@ -1214,7 +1240,7 @@ const storefrontService = {
         where: { id: storefrontOrderId },
         data: { 
           orderId: order.id,
-          status: 'PROCESSING',        // Being processed
+          status: hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PROCESSING', // Held or being processed
           paymentStatus: 'PAID',
           paystackReference
         }
@@ -1237,13 +1263,28 @@ const storefrontService = {
         phone: recipientPhone, // The phone where data goes
         amount: storefrontOrder.amount,
         agentProfit: storefrontOrder.ownerProfit,
-        status: 'PROCESSING'
+        status: hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PROCESSING',
+        duplicateHold: hasPotentialDuplicates,
+        duplicateInfo: hasPotentialDuplicates ? recentDuplicateOrders.map(d => ({
+          orderId: d.orderGroup?.displayId,
+          createdAt: d.createdAt
+        })) : null
       };
     });
     
     // If already completed, just return
     if (result.alreadyCompleted) {
       return result;
+    }
+
+    // If duplicate hold, skip auto-processing
+    if (result.duplicateHold) {
+      console.log(`[Storefront] ⚠️ Order ${result.storefrontOrderId} held for duplicate review - skipping auto-process`);
+      return { 
+        success: true, 
+        ...result,
+        message: 'Order created but held for admin review - potential duplicate detected'
+      };
     }
 
     console.log(`[Storefront] ✅ Paystack order ready for fulfillment: ${storefrontOrderId}`);

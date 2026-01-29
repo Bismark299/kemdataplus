@@ -4431,6 +4431,10 @@
                 <button class="wallet-main-tab" data-wallet-tab="transactions">
                     <i class="fas fa-history"></i> All Transactions
                 </button>
+                <button class="wallet-main-tab" data-wallet-tab="duplicates">
+                    <i class="fas fa-copy"></i> Duplicate Orders
+                    <span class="badge" id="duplicatesBadge" style="display: none; background: #f59e0b;">0</span>
+                </button>
             </div>
 
             <!-- TAB 1: User Wallets -->
@@ -4681,6 +4685,54 @@
                         <tr>
                             <td colspan="6" class="empty-state">
                                 <p>Loading transactions...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB 4: Duplicate Orders (DUPLICATE_HOLD) -->
+            <div class="wallet-tab-content" id="duplicatesTabContent">
+                <div class="section-header" style="background: white; padding: 15px 20px; border-radius: 12px 12px 0 0; margin-bottom: 0;">
+                    <h3><i class="fas fa-copy"></i> Duplicate Orders (Held for Review)</h3>
+                    <div class="search-box" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="dupAgentSearch" placeholder="Search by Agent ID or name..." style="min-width: 180px;">
+                        <select id="dupUserFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 150px;">
+                            <option value="">All Agents</option>
+                        </select>
+                        <button class="btn-refresh" onclick="loadDuplicateOrders()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <!-- Duplicate Orders Stats -->
+                <div style="display: flex; gap: 15px; padding: 15px 20px; background: #fef3c7; border-left: 4px solid #f59e0b;">
+                    <div style="flex: 1;">
+                        <span style="font-size: 0.875rem; color: #92400e;">Total Held</span>
+                        <div id="dupTotalHeld" style="font-size: 1.5rem; font-weight: 700; color: #b45309;">0</div>
+                    </div>
+                    <div style="flex: 1;">
+                        <span style="font-size: 0.875rem; color: #92400e;">Total Amount Held</span>
+                        <div id="dupTotalAmount" style="font-size: 1.5rem; font-weight: 700; color: #b45309;">GH₵ 0.00</div>
+                    </div>
+                </div>
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Order #</th>
+                            <th>Agent</th>
+                            <th>Bundle</th>
+                            <th>Phone</th>
+                            <th>Amount</th>
+                            <th>Similar Order</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="duplicateOrdersBody">
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <p>Loading duplicate orders...</p>
                             </td>
                         </tr>
                     </tbody>
@@ -6693,9 +6745,31 @@
             // Show loading skeletons
             showStatsSkeleton();
             
+            // Retry helper for resilience
+            const fetchWithRetry = async (url, retries = 2) => {
+                for (let i = 0; i <= retries; i++) {
+                    try {
+                        const res = await adminFetch(url);
+                        if (res.ok) return res;
+                        if (i < retries) {
+                            console.log(`[Stats] Retry ${i + 1}/${retries} for ${url}`);
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    } catch (e) {
+                        if (i < retries) {
+                            console.log(`[Stats] Retry ${i + 1}/${retries} after error: ${e.message}`);
+                            await new Promise(r => setTimeout(r, 1000));
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+                throw new Error('Failed after retries');
+            };
+            
             try {
                 // Fetch orders from OrderGroup API (returns flat list for compatibility)
-                const res = await adminFetch('/api/order-groups/admin/all?limit=200&compact=true');
+                const res = await fetchWithRetry('/api/order-groups/admin/all?limit=200&compact=true');
                 if (!res.ok) throw new Error('Failed to fetch orders');
                 const data = await res.json();
                 const orders = data.orders || [];
@@ -8578,6 +8652,10 @@
             await loadIncomingPayments();
             updatePaymentStats();
             
+            // Load duplicate orders and update badge
+            loadDuplicateOrders();
+            populateDupUserFilter();
+            
             // Auto-refresh every 30 seconds (reduced from 5 to prevent server overload)
             if (!window.walletRefreshInterval) {
                 window.walletRefreshInterval = setInterval(async () => {
@@ -8949,6 +9027,8 @@
                     renderIncomingPayments();
                 } else if (this.dataset.walletTab === 'transactions') {
                     renderAllTransactions();
+                } else if (this.dataset.walletTab === 'duplicates') {
+                    loadDuplicateOrders();
                 }
             });
         });
@@ -9471,6 +9551,173 @@
         document.getElementById('txnDateFrom')?.addEventListener('change', renderAllTransactions);
         document.getElementById('txnDateTo')?.addEventListener('change', renderAllTransactions);
 
+        // ========== DUPLICATE ORDERS MANAGEMENT ==========
+        let duplicateOrders = [];
+        let duplicatesLoaded = false;
+        
+        async function loadDuplicateOrders() {
+            const tbody = document.getElementById('duplicateOrdersBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><p><i class="fas fa-spinner fa-spin"></i> Loading duplicate orders...</p></td></tr>';
+            
+            try {
+                // Fetch orders with DUPLICATE_HOLD status
+                const res = await adminFetch('/api/order-groups/admin/all?status=DUPLICATE_HOLD&compact=true');
+                if (!res.ok) throw new Error('Failed to fetch duplicate orders');
+                
+                const data = await res.json();
+                duplicateOrders = (data.orders || []).filter(o => 
+                    o.status === 'DUPLICATE_HOLD' || o.summaryStatus === 'DUPLICATE_HOLD'
+                );
+                
+                duplicatesLoaded = true;
+                renderDuplicateOrders();
+                updateDuplicatesBadge();
+            } catch (err) {
+                console.error('Failed to load duplicate orders:', err);
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><p>Failed to load duplicate orders</p></td></tr>';
+            }
+        }
+        
+        function renderDuplicateOrders() {
+            const tbody = document.getElementById('duplicateOrdersBody');
+            const searchTerm = (document.getElementById('dupAgentSearch')?.value || '').toLowerCase();
+            const userFilter = document.getElementById('dupUserFilter')?.value || '';
+            
+            let filtered = duplicateOrders;
+            
+            // Apply search filter
+            if (searchTerm) {
+                filtered = filtered.filter(o => 
+                    (o.user?.name || '').toLowerCase().includes(searchTerm) ||
+                    (o.displayId || '').toLowerCase().includes(searchTerm) ||
+                    (o.user?.agentCode || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Apply user filter
+            if (userFilter) {
+                filtered = filtered.filter(o => o.userId === userFilter);
+            }
+            
+            // Update stats
+            const totalHeld = filtered.length;
+            const totalAmount = filtered.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+            document.getElementById('dupTotalHeld').textContent = totalHeld;
+            document.getElementById('dupTotalAmount').textContent = `GH₵ ${totalAmount.toFixed(2)}`;
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><p><i class="fas fa-check-circle" style="color: #10b981;"></i> No duplicate orders pending review</p></td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(order => {
+                const userName = order.user?.name || 'Unknown';
+                const agentCode = order.user?.agentCode || generateAgentCode(order.userId);
+                const item = order.items?.[0] || {};
+                const bundleName = item.bundle?.name || order.bundle?.name || 'Unknown Bundle';
+                const phone = item.recipientPhone || order.phone || 'N/A';
+                
+                return `
+                <tr>
+                    <td>${formatTransactionDate(order.createdAt)}</td>
+                    <td><strong>${order.displayId || order.id?.substring(0, 8)}</strong></td>
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar" style="width:30px;height:30px;font-size:0.75rem;">${userName.charAt(0)}</div>
+                            <div>
+                                <div class="user-name" style="font-size:0.9rem;">${userName}</div>
+                                <small style="color:#6b7280;">${agentCode}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${bundleName}</td>
+                    <td>${phone}</td>
+                    <td><strong>GH₵ ${(order.totalAmount || 0).toFixed(2)}</strong></td>
+                    <td><span class="status-badge" style="background: #fef3c7; color: #92400e;">Duplicate</span></td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="releaseDuplicateOrder('${order.displayId || order.id}')" class="btn-action release" title="Release for processing" style="background:#10b981;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
+                                <i class="fas fa-check"></i> Release
+                            </button>
+                            <button onclick="rejectDuplicateOrder('${order.displayId || order.id}')" class="btn-action reject" title="Reject and refund" style="background:#ef4444;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+        
+        async function releaseDuplicateOrder(orderId) {
+            if (!confirm(`Release order ${orderId} for processing?\n\nThis will change status to PENDING and process the order.`)) return;
+            
+            try {
+                const res = await adminFetch(`/api/order-groups/admin/${orderId}/release`, {
+                    method: 'POST'
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to release order');
+                }
+                
+                const result = await res.json();
+                showToast(`Order ${orderId} released! ${result.processed || 0} items processing.`, 'success');
+                loadDuplicateOrders(); // Refresh
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+        
+        async function rejectDuplicateOrder(orderId) {
+            const reason = prompt(`Reject order ${orderId}?\n\nEnter reason (optional):`);
+            if (reason === null) return; // User cancelled
+            
+            try {
+                const res = await adminFetch(`/api/order-groups/admin/${orderId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason || 'Duplicate order' })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to reject order');
+                }
+                
+                const result = await res.json();
+                showToast(`Order ${orderId} rejected. ${result.refunded ? `Refunded GH₵${result.refundAmount}` : 'Cancelled.'}`, 'success');
+                loadDuplicateOrders(); // Refresh
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+        
+        function updateDuplicatesBadge() {
+            const badge = document.getElementById('duplicatesBadge');
+            const count = duplicateOrders.length;
+            if (badge) {
+                badge.textContent = count;
+                badge.style.display = count > 0 ? 'inline-block' : 'none';
+            }
+        }
+        
+        // Duplicate orders filter listeners
+        document.getElementById('dupAgentSearch')?.addEventListener('input', renderDuplicateOrders);
+        document.getElementById('dupUserFilter')?.addEventListener('change', renderDuplicateOrders);
+        
+        // Populate duplicate orders user filter
+        function populateDupUserFilter() {
+            const select = document.getElementById('dupUserFilter');
+            if (!select || !allUsersCache.length) return;
+            
+            const options = ['<option value="">All Agents</option>'];
+            allUsersCache.forEach(u => {
+                options.push(`<option value="${u.id}">${u.name} - ${u.agentCode || ''}</option>`);
+            });
+            select.innerHTML = options.join('');
+        }
+
         // ========== HISTORY SECTION ==========
         let historyData = [];
         let historyPerPage = 100;
@@ -9483,7 +9730,7 @@
             if (dateFromInput && !dateFromInput.value) dateFromInput.value = today;
             if (dateToInput && !dateToInput.value) dateToInput.value = today;
             
-            // Fetch ALL orders (no limit) for history
+            // Fetch ALL orders for history
             try {
                 const res = await adminFetch('/api/order-groups/admin/all?compact=true');
                 if (res.ok) {

@@ -14,6 +14,8 @@
  * GET    /api/admin/order-groups          - Get all orders
  * GET    /api/admin/order-groups/:id      - Get order details (admin view)
  * POST   /api/admin/order-groups/:id/process - Manually process order
+ * POST   /api/admin/order-groups/:id/release - Release DUPLICATE_HOLD order for processing
+ * POST   /api/admin/order-groups/:id/reject  - Reject DUPLICATE_HOLD order and refund
  */
 
 const express = require('express');
@@ -88,6 +90,29 @@ router.post('/', authenticate, async (req, res, next) => {
           itemCount: result.orderGroup.itemCount,
           totalAmount: result.orderGroup.totalAmount,
           status: result.orderGroup.summaryStatus
+        }
+      });
+    }
+
+    // Check if order is held for duplicate review - don't auto-process
+    if (result.duplicateHold) {
+      return res.status(201).json({
+        message: result.message,
+        duplicateHold: true,
+        duplicateInfo: result.duplicateInfo,
+        order: {
+          orderId: result.orderGroup.displayId,
+          itemCount: result.orderGroup.itemCount,
+          isBatch: result.orderGroup.itemCount > 1,
+          totalAmount: result.orderGroup.totalAmount,
+          status: 'DUPLICATE_HOLD',
+          items: result.orderGroup.items.map(item => ({
+            itemNumber: item.itemIndex,
+            reference: item.reference,
+            bundle: item.bundleName,
+            recipientPhone: item.recipientPhone,
+            totalPrice: item.totalPrice
+          }))
         }
       });
     }
@@ -240,6 +265,8 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 200));
     const compact = req.query.compact === 'true';
 
+    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit})`);
+
     // Fetch both OrderGroups AND legacy Orders
     const [orderGroups, legacyOrders] = await Promise.all([
       prisma.orderGroup.findMany({
@@ -256,9 +283,10 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
             orderBy: { itemIndex: 'asc' }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: limit
       }),
-      // Fetch ALL legacy orders
+      // Fetch legacy orders
       prisma.order.findMany({
         include: {
           user: {
@@ -268,9 +296,12 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
             select: { id: true, name: true, network: true, dataAmount: true }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: limit
       })
     ]);
+    
+    console.log(`[OrderGroup] Fetched ${orderGroups.length} order groups, ${legacyOrders.length} legacy orders`);
 
     // Flatten OrderGroups into individual order items for dashboard compatibility
     const orders = [];
@@ -450,6 +481,207 @@ router.post('/admin/:id/process', authenticate, authorize('ADMIN'), async (req, 
     res.json({
       message: `Processed ${result.processed} items`,
       ...result
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/order-groups/:id/release
+ * Release a DUPLICATE_HOLD order for processing (admin)
+ * Changes status from DUPLICATE_HOLD to PENDING and triggers processing
+ */
+router.post('/admin/:id/release', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+
+    // Get order group
+    const orderGroup = await prisma.orderGroup.findFirst({
+      where: {
+        OR: [
+          { id: orderId },
+          { displayId: orderId }
+        ]
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!orderGroup) {
+      return res.status(404).json({
+        error: 'Order not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    // Check if order is in DUPLICATE_HOLD status
+    if (orderGroup.status !== 'DUPLICATE_HOLD') {
+      return res.status(400).json({
+        error: `Order is not on hold. Current status: ${orderGroup.status}`,
+        code: 'INVALID_STATUS'
+      });
+    }
+
+    // Update order group status to PENDING
+    await prisma.orderGroup.update({
+      where: { id: orderGroup.id },
+      data: {
+        status: 'PENDING',
+        summaryStatus: 'PENDING'
+      }
+    });
+
+    // Update all items to PENDING
+    await prisma.orderItem.updateMany({
+      where: { orderGroupId: orderGroup.id },
+      data: { status: 'PENDING' }
+    });
+
+    console.log(`[Admin] Released DUPLICATE_HOLD order ${orderGroup.displayId} for processing`);
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        tenantId: orderGroup.tenantId,
+        action: 'ORDER_DUPLICATE_RELEASE',
+        entityType: 'OrderGroup',
+        entityId: orderGroup.id,
+        newValues: {
+          displayId: orderGroup.displayId,
+          releasedBy: req.user.email,
+          previousStatus: 'DUPLICATE_HOLD',
+          newStatus: 'PENDING'
+        }
+      }
+    });
+
+    // Now process the order
+    const result = await orderGroupService.processOrderItems(orderGroup.id);
+
+    res.json({
+      message: `Order ${orderGroup.displayId} released and processing started`,
+      orderId: orderGroup.displayId,
+      processed: result.processed,
+      success: result.success,
+      failed: result.failed
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/order-groups/:id/reject
+ * Reject a DUPLICATE_HOLD order and refund (admin)
+ * Changes status to CANCELLED and refunds wallet
+ */
+router.post('/admin/:id/reject', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+    const { reason } = req.body;
+
+    // Get order group
+    const orderGroup = await prisma.orderGroup.findFirst({
+      where: {
+        OR: [
+          { id: orderId },
+          { displayId: orderId }
+        ]
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!orderGroup) {
+      return res.status(404).json({
+        error: 'Order not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    // Check if order is in DUPLICATE_HOLD status
+    if (orderGroup.status !== 'DUPLICATE_HOLD') {
+      return res.status(400).json({
+        error: `Order is not on hold. Current status: ${orderGroup.status}`,
+        code: 'INVALID_STATUS'
+      });
+    }
+
+    // Check if wallet was already deducted and needs refund
+    if (orderGroup.walletDeducted) {
+      // Refund to wallet
+      await prisma.wallet.update({
+        where: { userId: orderGroup.userId },
+        data: {
+          balance: { increment: orderGroup.totalAmount }
+        }
+      });
+
+      // Get wallet for transaction record
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId: orderGroup.userId }
+      });
+
+      // Create refund transaction
+      await prisma.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'REFUND',
+          amount: orderGroup.totalAmount,
+          reference: `REFUND-${orderGroup.displayId}`,
+          description: `Duplicate order refund - ${orderGroup.displayId}${reason ? ` (Reason: ${reason})` : ''}`,
+          status: 'COMPLETED'
+        }
+      });
+
+      console.log(`[Admin] Refunded ${orderGroup.totalAmount} for rejected duplicate order ${orderGroup.displayId}`);
+    }
+
+    // Update order group status to CANCELLED
+    await prisma.orderGroup.update({
+      where: { id: orderGroup.id },
+      data: {
+        status: 'CANCELLED',
+        summaryStatus: 'CANCELLED'
+      }
+    });
+
+    // Update all items to CANCELLED
+    await prisma.orderItem.updateMany({
+      where: { orderGroupId: orderGroup.id },
+      data: { status: 'CANCELLED' }
+    });
+
+    console.log(`[Admin] Rejected DUPLICATE_HOLD order ${orderGroup.displayId}`);
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        tenantId: orderGroup.tenantId,
+        action: 'ORDER_DUPLICATE_REJECT',
+        entityType: 'OrderGroup',
+        entityId: orderGroup.id,
+        newValues: {
+          displayId: orderGroup.displayId,
+          rejectedBy: req.user.email,
+          reason: reason || 'Duplicate order',
+          refundAmount: orderGroup.walletDeducted ? orderGroup.totalAmount : 0
+        }
+      }
+    });
+
+    res.json({
+      message: `Order ${orderGroup.displayId} rejected and ${orderGroup.walletDeducted ? 'refunded' : 'cancelled'}`,
+      orderId: orderGroup.displayId,
+      refunded: orderGroup.walletDeducted,
+      refundAmount: orderGroup.walletDeducted ? orderGroup.totalAmount : 0
     });
 
   } catch (error) {
