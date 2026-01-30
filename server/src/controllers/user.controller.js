@@ -40,6 +40,20 @@ const userController = {
       // Handle password change
       let passwordChanged = false;
       if (currentPassword && newPassword) {
+        // Validate password strength (same rules as registration)
+        if (newPassword.length < 8) {
+          return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        }
+        if (!/[A-Z]/.test(newPassword)) {
+          return res.status(400).json({ error: 'Password must contain at least one uppercase letter' });
+        }
+        if (!/[a-z]/.test(newPassword)) {
+          return res.status(400).json({ error: 'Password must contain at least one lowercase letter' });
+        }
+        if (!/[0-9]/.test(newPassword)) {
+          return res.status(400).json({ error: 'Password must contain at least one number' });
+        }
+
         const user = await prisma.user.findUnique({
           where: { id: req.user.id }
         });

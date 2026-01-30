@@ -132,11 +132,14 @@ const allowedOrigins = isProduction
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (same-origin, mobile apps, server-to-server)
-    if (!origin) return callback(null, true);
-    
-    // In development, allow all origins
+    // In development, allow all origins including null
     if (!isProduction) {
+      return callback(null, true);
+    }
+    
+    // In production: Allow same-origin requests (origin is undefined for same-origin)
+    // But block explicit null origin (can be from file:// or privacy redirects)
+    if (origin === undefined) {
       return callback(null, true);
     }
     
@@ -155,6 +158,13 @@ app.use(cors({
 
 // Cookie parser (for httpOnly token cookies)
 app.use(cookieParser());
+
+// Generate unique request ID for tracing
+app.use((req, res, next) => {
+  req.requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+});
 
 // Logging
 app.use(morgan(isProduction ? 'combined' : 'dev'));

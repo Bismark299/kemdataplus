@@ -12,18 +12,18 @@ const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// SECURITY: JWT_SECRET must be set in environment - no fallback in production
+// SECURITY: JWT_SECRET must be set in environment - no fallback ever
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('CRITICAL: JWT_SECRET environment variable must be set in production!');
-  }
-  console.warn('⚠️ WARNING: JWT_SECRET not set. Using insecure default for development only.');
+  console.error('FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
 }
-const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production';
+const EFFECTIVE_JWT_SECRET = JWT_SECRET;
 const COOKIE_NAME = 'store_customer_token';
 
-// In-memory store for failed login attempts (use Redis in production for multiple instances)
+// In-memory store for failed login attempts
+// NOTE: This resets on server restart and doesn't share across instances
+// For horizontal scaling, consider using Redis: https://www.npmjs.com/package/rate-limit-redis
 const loginAttempts = new Map();
 const LOCKOUT_THRESHOLD = 5; // Lock after 5 failed attempts
 const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes lockout

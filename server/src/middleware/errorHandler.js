@@ -1,10 +1,12 @@
 const errorHandler = (err, req, res, next) => {
   // Only log full error in development
   const isProduction = process.env.NODE_ENV === 'production';
+  const requestId = req.requestId || 'unknown';
   
   if (isProduction) {
-    // In production, log sanitized error info
+    // In production, log sanitized error info with request ID
     console.error('Error:', {
+      requestId,
       message: err.message,
       code: err.code,
       name: err.name,
@@ -12,7 +14,7 @@ const errorHandler = (err, req, res, next) => {
       method: req.method
     });
   } else {
-    console.error('Error:', err);
+    console.error(`Error [${requestId}]:`, err);
   }
 
   // Prisma errors
@@ -53,7 +55,8 @@ const errorHandler = (err, req, res, next) => {
   // CORS errors
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
-      error: 'Access denied'
+      error: 'Access denied',
+      requestId
     });
   }
 
@@ -63,6 +66,7 @@ const errorHandler = (err, req, res, next) => {
     error: isProduction && statusCode === 500 
       ? 'An unexpected error occurred' 
       : (err.message || 'Internal server error'),
+    requestId,
     ...(!isProduction && { stack: err.stack })
   });
 };

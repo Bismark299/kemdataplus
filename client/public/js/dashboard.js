@@ -761,10 +761,17 @@
     }
 
     let total = 0;
+    // XSS Protection: Escape user-provided data before inserting into HTML
+    const escapeHtml = (str) => {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    };
     const html = cart.map(item => {
       total += (item.price || 0);
-      const phones = (item.numbers || []).join(', ');
-      return `<div class="cart-item"><div class="cart-item-info"><strong>${item.network}</strong><br><small style="color:#666;word-break:break-word;">${phones}</small><br>${item.bundle}<br><span class="cart-item-price">GHS ${(item.price||0).toFixed(2)}</span></div><button class="cart-remove" data-id="${item.id}" title="Delete"><i class="fas fa-trash-alt"></i></button></div>`;
+      const phones = escapeHtml((item.numbers || []).join(', '));
+      const network = escapeHtml(item.network);
+      const bundle = escapeHtml(item.bundle);
+      return `<div class="cart-item"><div class="cart-item-info"><strong>${network}</strong><br><small style="color:#666;word-break:break-word;">${phones}</small><br>${bundle}<br><span class="cart-item-price">GHS ${(item.price||0).toFixed(2)}</span></div><button class="cart-remove" data-id="${item.id}" title="Delete"><i class="fas fa-trash-alt"></i></button></div>`;
     }).join('');
 
     refs.cartItems.innerHTML = html;
