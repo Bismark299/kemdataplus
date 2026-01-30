@@ -141,7 +141,7 @@ const datahubService = {
     
     console.log('[DataHub Test] Testing connection with axios...');
     console.log('[DataHub Test] URL:', url);
-    console.log('[DataHub Test] Token (first 10 chars):', config.token?.substring(0, 10) + '...');
+    console.log('[DataHub Test] Token configured:', !!config.token);
     
     try {
       const response = await axios({

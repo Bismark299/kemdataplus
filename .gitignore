@@ -7,6 +7,10 @@ server/node_modules/
 server/.env
 *.local
 
+# Settings files with API keys
+server/settings.json
+settings.json
+
 # Build outputs
 dist/
 build/

@@ -113,9 +113,9 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
     let customerAccountPhone = phone; // Default to recipient phone if not logged in
     const jwt = require('jsonwebtoken');
     const customerToken = req.cookies['store_customer_token'];
-    if (customerToken) {
+    if (customerToken && process.env.JWT_SECRET) {
       try {
-        const decoded = jwt.verify(customerToken, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production');
+        const decoded = jwt.verify(customerToken, process.env.JWT_SECRET);
         if (decoded.type === 'store_customer') {
           const customer = await prisma.storeCustomer.findUnique({ where: { id: decoded.id } });
           if (customer && customer.isActive) {

@@ -43,11 +43,11 @@ async function paystackRequest(endpoint, method = 'GET', body = null) {
   const config = getPaystackConfig();
   const url = `https://api.paystack.co${endpoint}`;
   
-  // Log key info for debugging (only first/last chars)
-  const keyPreview = config.secretKey ? 
-    `${config.secretKey.substring(0, 7)}...${config.secretKey.slice(-4)}` : 
-    'NOT SET';
-  console.log(`[Paystack] Using key: ${keyPreview}, Live mode: ${config.secretKey?.startsWith('sk_live')}`);
+  // Validate key is present (don't log actual key values)
+  if (!config.secretKey) {
+    console.error('[Paystack] Secret key not configured');
+    throw new Error('Paystack secret key not configured');
+  }
   
   const options = {
     method,
@@ -166,9 +166,11 @@ const paystackService = {
     const config = getPaystackConfig();
     
     // Debug logging - remove after fixing
-    console.log(`[Paystack] Secret key present: ${!!config.secretKey}`);
-    console.log(`[Paystack] Secret key length: ${config.secretKey?.length || 0}`);
-    console.log(`[Paystack] Secret key starts with: ${config.secretKey?.substring(0, 10) || 'N/A'}`);
+    // Validate secret key exists (never log key values)
+    if (!config.secretKey) {
+      console.error('[Paystack] Cannot verify signature - secret key not configured');
+      return false;
+    }
     console.log(`[Paystack] Signature received: ${signature?.substring(0, 20)}...`);
     
     const hash = crypto

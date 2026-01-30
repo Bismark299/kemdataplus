@@ -1,0 +1,50 @@
+{
+  "adminSettings": {
+    "adminName": "Administrator",
+    "adminEmail": "admin@example.com",
+    "momoNumbers": [
+      {
+        "number": "0XX-XXX-XXXX",
+        "name": "Your Name"
+      }
+    ],
+    "autoApprove": false,
+    "autoApproveLimit": 50,
+    "emailNotify": true,
+    "smsNotify": false,
+    "maintenance": false,
+    "apiUrl": "https://datahub.mcbissolution.com/api/v1",
+    "apiKey": "YOUR_DATAHUB_API_KEY",
+    "maxExcelUpload": 50,
+    "maxBulkUpload": 50,
+    "mcbisApiUrl": "https://datahub.mcbissolution.com/api/v1",
+    "mcbisApiToken": "YOUR_MCBIS_API_TOKEN",
+    "easyDataApiUrl": "https://easydatagh.pro/wp-json/custom/v1",
+    "easyDataUsername": "YOUR_EASYDATA_USERNAME",
+    "easyDataPassword": "YOUR_EASYDATA_PASSWORD",
+    "paystackSecretKey": "sk_live_YOUR_PAYSTACK_SECRET_KEY",
+    "paystackPublicKey": "pk_live_YOUR_PAYSTACK_PUBLIC_KEY"
+  },
+  "siteSettings": {
+    "masterAPI": false,
+    "easydata_mtnAPI": false,
+    "easydata_telecelAPI": false,
+    "easydata_airteltigoAPI": false,
+    "easyDataAutoSync": false,
+    "mcbisAPI": false,
+    "mcbis_mtnAPI": false,
+    "mcbis_telecelAPI": false,
+    "mcbis_airteltigoAPI": false,
+    "mcbisAutoSync": false,
+    "placeOrders": true,
+    "loadWallet": false,
+    "claimWallet": true,
+    "bulkOrders": true,
+    "excelImport": false,
+    "cartOrder": true,
+    "newRegistration": true,
+    "websiteUpdate": false,
+    "paystackEnabled": true,
+    "momoClaimEnabled": true
+  }
+}

@@ -255,7 +255,16 @@ app.get('/store/:slug', (req, res) => {
 
 app.get('/pages/*', (req, res) => {
   const page = req.params[0];
-  res.sendFile(path.join(__dirname, `../../client/pages/${page}`));
+  // Security: Sanitize path to prevent directory traversal
+  const safePage = path.basename(page);
+  const safePath = path.join(__dirname, '../../client/pages', safePage);
+  const realPath = path.resolve(safePath);
+  const allowedDir = path.resolve(__dirname, '../../client/pages');
+  
+  if (!realPath.startsWith(allowedDir)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  res.sendFile(realPath);
 });
 
 // Catch-all for SPA routing - serve index for non-API routes
