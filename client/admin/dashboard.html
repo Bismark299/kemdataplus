@@ -4460,14 +4460,15 @@
                             <thead>
                                 <tr>
                                     <th>User</th>
-                                    <th>Balance</th>
+                                    <th>Total Loads</th>
                                     <th>Total Spent</th>
+                                    <th>Balance</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="userWalletsBody">
                                 <tr>
-                                    <td colspan="4" class="empty-state">
+                                    <td colspan="5" class="empty-state">
                                         <p>Loading users...</p>
                                     </td>
                                 </tr>
@@ -8387,12 +8388,16 @@
                         <div class="value">${user.network || 'None'}</div>
                     </div>
                     <div class="user-detail-card">
-                        <h4>Wallet Balance</h4>
-                        <div class="value" style="color: #10b981;">GH₵ ${(user.balance || 0).toFixed(2)}</div>
+                        <h4>Total Loads</h4>
+                        <div class="value" style="color: #10b981;">GH₵ ${(user.totalLoads || 0).toFixed(2)}</div>
                     </div>
                     <div class="user-detail-card">
                         <h4>Total Spent</h4>
-                        <div class="value">GH₵ ${(user.totalSpent || 0).toFixed(2)}</div>
+                        <div class="value" style="color: #ef4444;">GH₵ ${(user.totalSpent || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="user-detail-card">
+                        <h4>Wallet Balance</h4>
+                        <div class="value" style="color: #3b82f6; font-weight: 700;">GH₵ ${(user.balance || 0).toFixed(2)}</div>
                     </div>
                     <div class="user-detail-card">
                         <h4>Total Orders</h4>
@@ -8602,7 +8607,7 @@
                 if (!res.ok) throw new Error('Failed to fetch users');
                 const data = await res.json();
                 
-                // Map users - wallet balance and totalSpent are included in the response
+                // Map users - wallet balance, totalSpent, and totalLoads are included in the response
                 usersData = (Array.isArray(data.users) ? data.users : []).map(u => ({
                     id: u.id,
                     name: u.name,
@@ -8612,6 +8617,7 @@
                     status: u.isActive ? 'active' : 'inactive',
                     balance: parseFloat(u.wallet?.balance) || 0,
                     totalSpent: parseFloat(u.totalSpent) || 0,
+                    totalLoads: parseFloat(u.totalLoads) || 0,
                     transactions: [], // Transactions loaded on-demand when viewing user details
                     joinedAt: u.createdAt
                 }));
@@ -8769,6 +8775,7 @@
             tbody.innerHTML = paginatedUsers.map(u => {
                 const balance = parseFloat(u.balance) || 0;
                 const totalSpent = parseFloat(u.totalSpent) || 0;
+                const totalLoads = parseFloat(u.totalLoads) || 0;
                 return `
                 <tr>
                     <td>
@@ -8780,8 +8787,9 @@
                             </div>
                         </div>
                     </td>
+                    <td style="color:#10b981;font-weight:600;">GH₵ ${totalLoads.toFixed(2)}</td>
+                    <td style="color:#ef4444;">GH₵ ${totalSpent.toFixed(2)}</td>
                     <td class="balance-amount ${balance < 50 ? 'low' : ''}">GH₵ ${balance.toFixed(2)}</td>
-                    <td>GH₵ ${totalSpent.toFixed(2)}</td>
                     <td>
                         <div class="wallet-actions">
                             <button class="wallet-action-btn fund" onclick="quickFund('${u.id}')">

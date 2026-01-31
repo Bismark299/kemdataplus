@@ -126,7 +126,17 @@ const userController = {
             isActive: true,
             createdAt: true,
             wallet: {
-              select: { balance: true }
+              select: { 
+                balance: true,
+                // Get all completed deposit/credit transactions
+                transactions: {
+                  where: {
+                    status: 'COMPLETED',
+                    type: { in: ['DEPOSIT', 'PROFIT_CREDIT', 'TRANSFER_IN', 'COMMISSION'] }
+                  },
+                  select: { amount: true }
+                }
+              }
             },
             // Get total spent from completed legacy orders
             orders: {
@@ -146,20 +156,23 @@ const userController = {
         prisma.user.count()
       ]);
 
-      // Calculate totalSpent for each user (combine legacy orders + new order groups)
-      const usersWithSpent = users.map(u => {
+      // Calculate totalSpent and totalLoads for each user
+      const usersWithStats = users.map(u => {
         const legacySpent = (u.orders || []).reduce((sum, o) => sum + (o.totalPrice || 0), 0);
         const newSpent = (u.orderGroups || []).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        const totalLoads = (u.wallet?.transactions || []).reduce((sum, t) => sum + (t.amount || 0), 0);
         return {
           ...u,
           totalSpent: legacySpent + newSpent,
-          orders: undefined, // Remove from response
-          orderGroups: undefined // Remove from response
+          totalLoads: totalLoads,
+          wallet: u.wallet ? { balance: u.wallet.balance } : null, // Remove transactions from response
+          orders: undefined,
+          orderGroups: undefined
         };
       });
 
       res.json({
-        users: usersWithSpent,
+        users: usersWithStats,
         pagination: {
           page,
           limit,
