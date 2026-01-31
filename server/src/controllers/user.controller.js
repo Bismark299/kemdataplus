@@ -128,10 +128,17 @@ const userController = {
             wallet: {
               select: { balance: true }
             },
-            // Get total spent from completed orders
+            // Get total spent from completed legacy orders
             orders: {
               where: { status: 'COMPLETED' },
               select: { totalPrice: true }
+            },
+            // Get total spent from completed order groups (new system)
+            orderGroups: {
+              where: { 
+                summaryStatus: { in: ['COMPLETED', 'PARTIAL'] }
+              },
+              select: { totalAmount: true }
             }
           },
           orderBy: { createdAt: 'desc' }
@@ -139,12 +146,17 @@ const userController = {
         prisma.user.count()
       ]);
 
-      // Calculate totalSpent for each user
-      const usersWithSpent = users.map(u => ({
-        ...u,
-        totalSpent: (u.orders || []).reduce((sum, o) => sum + (o.totalPrice || 0), 0),
-        orders: undefined // Remove orders array from response
-      }));
+      // Calculate totalSpent for each user (combine legacy orders + new order groups)
+      const usersWithSpent = users.map(u => {
+        const legacySpent = (u.orders || []).reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+        const newSpent = (u.orderGroups || []).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        return {
+          ...u,
+          totalSpent: legacySpent + newSpent,
+          orders: undefined, // Remove from response
+          orderGroups: undefined // Remove from response
+        };
+      });
 
       res.json({
         users: usersWithSpent,
