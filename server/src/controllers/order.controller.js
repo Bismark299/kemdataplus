@@ -281,8 +281,10 @@ const orderController = {
             throw new Error('WALLET_FROZEN');
           }
 
-          // Check balance INSIDE transaction
-          if (wallet.balance < totalPrice) {
+          // Check balance INSIDE transaction (round to 2 decimals to avoid float precision issues)
+          const availableBalance = Math.round(wallet.balance * 100) / 100;
+          const requiredAmount = Math.round(totalPrice * 100) / 100;
+          if (availableBalance < requiredAmount) {
             throw new Error('INSUFFICIENT_BALANCE');
           }
 

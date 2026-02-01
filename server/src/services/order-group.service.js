@@ -226,9 +226,13 @@ const orderGroupService = {
         where: { userId }
       });
 
-      if (!wallet || wallet.balance < grandTotal) {
-        const available = wallet?.balance || 0;
-        throw new Error(`INSUFFICIENT_BALANCE:${grandTotal}:${available}`);
+      // Round both values to 2 decimal places to avoid floating point precision issues
+      // e.g., 4.1999999999 should be treated as 4.20
+      const availableBalance = Math.round((wallet?.balance || 0) * 100) / 100;
+      const requiredAmount = Math.round(grandTotal * 100) / 100;
+      
+      if (!wallet || availableBalance < requiredAmount) {
+        throw new Error(`INSUFFICIENT_BALANCE:${requiredAmount}:${availableBalance}`);
       }
       // 4a. Create OrderGroup (this auto-generates sequenceNum via database)
       const orderGroup = await tx.orderGroup.create({
