@@ -67,13 +67,28 @@ if (isProduction) {
 // Compression middleware
 app.use(compression());
 
-// Rate limiting
+// Rate limiting - Tiered by user role for scalability
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isProduction ? 100 : 1000, // limit each IP
+  max: (req) => {
+    // Check if user is authenticated (token decoded by auth middleware later)
+    // For now, use generous limit - auth routes have separate stricter limits
+    if (!isProduction) return 2000; // Development: very high limit
+    
+    // Production limits based on endpoint patterns
+    // Admin endpoints get higher limits
+    if (req.path.includes('/admin')) return 500;
+    
+    // Default for all other API calls
+    return 300; // Increased from 100 for growing client base
+  },
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use IP + User-Agent for better identification
+  keyGenerator: (req) => {
+    return req.ip + '-' + (req.headers['user-agent'] || 'unknown').substring(0, 50);
+  }
 });
 app.use('/api/', limiter);
 
