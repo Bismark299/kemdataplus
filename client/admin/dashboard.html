@@ -9728,11 +9728,11 @@
         // Populate duplicate orders user filter
         function populateDupUserFilter() {
             const select = document.getElementById('dupUserFilter');
-            if (!select || !allUsersCache.length) return;
+            if (!select || !usersData || !usersData.length) return;
             
             const options = ['<option value="">All Agents</option>'];
-            allUsersCache.forEach(u => {
-                options.push(`<option value="${u.id}">${u.name} - ${u.agentCode || ''}</option>`);
+            usersData.forEach(u => {
+                options.push(`<option value="${u.id}">${u.name} - ${u.phone || ''}</option>`);
             });
             select.innerHTML = options.join('');
         }

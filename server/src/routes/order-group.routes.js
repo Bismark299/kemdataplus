@@ -614,33 +614,40 @@ router.post('/admin/:id/reject', authenticate, authorize('ADMIN'), async (req, r
     }
 
     // Check if wallet was already deducted and needs refund
+    let refunded = false;
     if (orderGroup.walletDeducted) {
-      // Refund to wallet
-      await prisma.wallet.update({
-        where: { userId: orderGroup.userId },
-        data: {
-          balance: { increment: orderGroup.totalAmount }
-        }
-      });
-
-      // Get wallet for transaction record
+      // Get wallet first to verify it exists
       const wallet = await prisma.wallet.findUnique({
         where: { userId: orderGroup.userId }
       });
 
-      // Create refund transaction
-      await prisma.transaction.create({
-        data: {
-          walletId: wallet.id,
-          type: 'REFUND',
-          amount: orderGroup.totalAmount,
-          reference: `REFUND-${orderGroup.displayId}`,
-          description: `Duplicate order refund - ${orderGroup.displayId}${reason ? ` (Reason: ${reason})` : ''}`,
-          status: 'COMPLETED'
-        }
-      });
+      if (wallet) {
+        // Refund to wallet
+        await prisma.wallet.update({
+          where: { userId: orderGroup.userId },
+          data: {
+            balance: { increment: orderGroup.totalAmount }
+          }
+        });
 
-      console.log(`[Admin] Refunded ${orderGroup.totalAmount} for rejected duplicate order ${orderGroup.displayId}`);
+        // Create refund transaction with unique reference
+        const refundRef = `REFUND-${orderGroup.displayId}-${Date.now()}`;
+        await prisma.transaction.create({
+          data: {
+            walletId: wallet.id,
+            type: 'REFUND',
+            amount: orderGroup.totalAmount,
+            reference: refundRef,
+            description: `Duplicate order refund - ${orderGroup.displayId}${reason ? ` (Reason: ${reason})` : ''}`,
+            status: 'COMPLETED'
+          }
+        });
+
+        refunded = true;
+        console.log(`[Admin] Refunded ${orderGroup.totalAmount} for rejected duplicate order ${orderGroup.displayId}`);
+      } else {
+        console.log(`[Admin] No wallet found for user ${orderGroup.userId}, skipping refund for order ${orderGroup.displayId}`);
+      }
     }
 
     // Update order group status to CANCELLED
@@ -672,16 +679,16 @@ router.post('/admin/:id/reject', authenticate, authorize('ADMIN'), async (req, r
           displayId: orderGroup.displayId,
           rejectedBy: req.user.email,
           reason: reason || 'Duplicate order',
-          refundAmount: orderGroup.walletDeducted ? orderGroup.totalAmount : 0
+          refundAmount: refunded ? orderGroup.totalAmount : 0
         }
       }
     });
 
     res.json({
-      message: `Order ${orderGroup.displayId} rejected and ${orderGroup.walletDeducted ? 'refunded' : 'cancelled'}`,
+      message: `Order ${orderGroup.displayId} rejected and ${refunded ? 'refunded' : 'cancelled'}`,
       orderId: orderGroup.displayId,
-      refunded: orderGroup.walletDeducted,
-      refundAmount: orderGroup.walletDeducted ? orderGroup.totalAmount : 0
+      refunded: refunded,
+      refundAmount: refunded ? orderGroup.totalAmount : 0
     });
 
   } catch (error) {
