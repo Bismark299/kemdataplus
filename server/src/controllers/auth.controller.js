@@ -343,13 +343,15 @@ const authController = {
       // Hash new password
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Update password and clear reset token
+      // Update password and clear reset token, failed attempts, and lock
       await prisma.user.update({
         where: { id: user.id },
         data: {
           password: hashedPassword,
           resetToken: null,
-          resetTokenExpiry: null
+          resetTokenExpiry: null,
+          failedLoginAttempts: 0,
+          lockedUntil: null
         }
       });
 

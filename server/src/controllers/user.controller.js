@@ -301,7 +301,10 @@ const userController = {
           passwordChangedAt: new Date(),
           // Clear any reset tokens
           resetToken: null,
-          resetTokenExpiry: null
+          resetTokenExpiry: null,
+          // Clear failed login attempts and account lock
+          failedLoginAttempts: 0,
+          lockedUntil: null
         }
       });
 
