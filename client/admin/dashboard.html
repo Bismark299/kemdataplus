@@ -7311,8 +7311,8 @@
                 if ((o.status || '').toLowerCase() !== 'pending') return false;
                 const net = (o.bundle?.network || o.network || '').toUpperCase();
                 if (network === 'MTN') return net.includes('MTN');
-                if (network === 'Telecel') return net.includes('TELECEL');
-                if (network === 'AirtelTigo') return net.includes('AIRTELTIGO') || net.includes('AIRTEL');
+                if (network === 'TELECEL') return net.includes('TELECEL');
+                if (network === 'AIRTELTIGO') return net.includes('AIRTELTIGO') || net.includes('AIRTEL');
                 return false;
             });
             if (pendingOrders.length === 0) {
@@ -12162,8 +12162,8 @@
                     if ((o.status || '').toLowerCase() !== 'pending') return false;
                     const net = (o.bundle?.network || o.network || '').toUpperCase();
                     if (network === 'MTN') return net.includes('MTN');
-                    if (network === 'Telecel') return net.includes('TELECEL');
-                    if (network === 'AirtelTigo') return net.includes('AIRTELTIGO') || net.includes('AIRTEL');
+                    if (network === 'TELECEL') return net.includes('TELECEL');
+                    if (network === 'AIRTELTIGO') return net.includes('AIRTELTIGO') || net.includes('AIRTEL');
                     return false;
                 });
                 
