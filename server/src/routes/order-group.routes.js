@@ -262,52 +262,44 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    // If no limit specified, fetch all orders; otherwise cap at 10000
-    const limit = req.query.limit ? Math.min(10000, Math.max(1, parseInt(req.query.limit))) : null;
+    // Default to 5000 orders if no limit specified (enough for ~2+ months of data)
+    const limit = Math.min(10000, Math.max(1, parseInt(req.query.limit) || 5000));
     const compact = req.query.compact === 'true';
 
-    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit || 'ALL'})`);
-
-    // Build query options - only add 'take' if limit is specified
-    const queryOptions = {
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, phone: true, role: true }
-        },
-        items: {
-          include: {
-            bundle: {
-              select: { id: true, name: true, network: true, dataAmount: true }
-            }
-          },
-          orderBy: { itemIndex: 'asc' }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    };
-    
-    const legacyQueryOptions = {
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, phone: true, role: true }
-        },
-        bundle: {
-          select: { id: true, name: true, network: true, dataAmount: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    };
-    
-    // Only add limit if specified
-    if (limit) {
-      queryOptions.take = limit;
-      legacyQueryOptions.take = limit;
-    }
+    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit})`);
 
     // Fetch both OrderGroups AND legacy Orders
     const [orderGroups, legacyOrders] = await Promise.all([
-      prisma.orderGroup.findMany(queryOptions),
-      prisma.order.findMany(legacyQueryOptions)
+      prisma.orderGroup.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, role: true }
+          },
+          items: {
+            include: {
+              bundle: {
+                select: { id: true, name: true, network: true, dataAmount: true }
+              }
+            },
+            orderBy: { itemIndex: 'asc' }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+      }),
+      // Fetch legacy orders
+      prisma.order.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, role: true }
+          },
+          bundle: {
+            select: { id: true, name: true, network: true, dataAmount: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+      })
     ]);
     
     console.log(`[OrderGroup] Fetched ${orderGroups.length} order groups, ${legacyOrders.length} legacy orders`);
