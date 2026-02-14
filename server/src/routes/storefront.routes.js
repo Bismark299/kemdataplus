@@ -10,6 +10,7 @@
 
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const { authenticate, authorize } = require('../middleware/auth');
 const storefrontService = require('../services/storefront.service');
 const paystackService = require('../services/paystack.service');
@@ -671,6 +672,139 @@ router.post('/admin/:id/disable', authenticate, authorize('ADMIN'), async (req, 
     res.json({
       message: 'Storefront permanently disabled',
       storefront
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// STORE CUSTOMER MANAGEMENT (Owner only)
+// ============================================
+
+/**
+ * GET /api/storefronts/:id/customers
+ * Get list of customers who have ordered from this store
+ * Only returns customers who have registered accounts
+ */
+router.get('/:id/customers', authenticate, async (req, res, next) => {
+  try {
+    // Verify store ownership
+    const storefront = await prisma.storefront.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!storefront) {
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    if (storefront.ownerId !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get unique customer phone numbers from orders
+    const orders = await prisma.storefrontOrder.findMany({
+      where: { storefrontId: req.params.id },
+      select: { customerPhone: true },
+      distinct: ['customerPhone']
+    });
+
+    const customerPhones = orders.map(o => o.customerPhone);
+
+    // Find registered customers matching those phone numbers
+    const customers = await prisma.storeCustomer.findMany({
+      where: {
+        phone: { in: customerPhones }
+      },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        email: true,
+        isActive: true,
+        createdAt: true,
+        lastLoginAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Get order count for each customer
+    const customersWithStats = await Promise.all(customers.map(async (customer) => {
+      const orderCount = await prisma.storefrontOrder.count({
+        where: {
+          storefrontId: req.params.id,
+          customerPhone: customer.phone
+        }
+      });
+      return { ...customer, orderCount };
+    }));
+
+    res.json({
+      customers: customersWithStats,
+      total: customersWithStats.length
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/storefronts/:id/customers/:customerId/reset-pin
+ * Reset a customer's PIN (store owner only)
+ * Generates a random 4-digit PIN
+ */
+router.post('/:id/customers/:customerId/reset-pin', authenticate, async (req, res, next) => {
+  try {
+    // Verify store ownership
+    const storefront = await prisma.storefront.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!storefront) {
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    if (storefront.ownerId !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get customer
+    const customer = await prisma.storeCustomer.findUnique({
+      where: { id: req.params.customerId }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Verify customer has ordered from this store
+    const hasOrdered = await prisma.storefrontOrder.findFirst({
+      where: {
+        storefrontId: req.params.id,
+        customerPhone: customer.phone
+      }
+    });
+
+    if (!hasOrdered) {
+      return res.status(403).json({ error: 'This customer has not ordered from your store' });
+    }
+
+    // Generate new 4-digit PIN
+    const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const hashedPin = await bcrypt.hash(newPin, 10);
+
+    // Update customer PIN
+    await prisma.storeCustomer.update({
+      where: { id: req.params.customerId },
+      data: { pin: hashedPin }
+    });
+
+    res.json({
+      success: true,
+      message: 'PIN reset successfully',
+      newPin: newPin, // Return plain PIN so owner can share with customer
+      customerPhone: customer.phone,
+      customerName: customer.name
     });
   } catch (error) {
     next(error);

@@ -366,6 +366,261 @@ const auditService = {
         reason: o.metadata?.reason
       }))
     };
+  },
+
+  // ========== PAYOUT AUDIT METHODS ==========
+  
+  /**
+   * Log payout request
+   */
+  async logPayoutRequest(data) {
+    return await this.log({
+      userId: data.userId,
+      action: 'PAYOUT_REQUEST',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      newValues: {
+        amount: data.amount,
+        fee: data.fee,
+        netAmount: data.netAmount,
+        accountNumber: data.accountNumber?.slice(-4) ? `****${data.accountNumber.slice(-4)}` : null,
+        network: data.network
+      },
+      metadata: {
+        reference: data.reference,
+        accountName: data.accountName
+      }
+    });
+  },
+
+  /**
+   * Log payout accumulation (adding to existing request)
+   */
+  async logPayoutAccumulate(data) {
+    return await this.log({
+      userId: data.userId,
+      action: 'PAYOUT_ACCUMULATE',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: {
+        amount: data.previousAmount,
+        fee: data.previousFee
+      },
+      newValues: {
+        amount: data.newAmount,
+        fee: data.newFee,
+        addedAmount: data.addedAmount
+      },
+      metadata: {
+        reference: data.reference
+      }
+    });
+  },
+
+  /**
+   * Log payout approval/processing start
+   */
+  async logPayoutApprove(data) {
+    return await this.log({
+      userId: data.adminId,
+      action: 'PAYOUT_APPROVE',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: data.newStatus },
+      metadata: {
+        reference: data.reference,
+        agentId: data.agentId,
+        amount: data.amount
+      }
+    });
+  },
+
+  /**
+   * Log payout rejection
+   */
+  async logPayoutReject(data) {
+    return await this.log({
+      userId: data.adminId,
+      action: 'PAYOUT_REJECT',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: 'REJECTED' },
+      metadata: {
+        reference: data.reference,
+        agentId: data.agentId,
+        amount: data.amount,
+        reason: data.reason
+      }
+    });
+  },
+
+  /**
+   * Log payout processing (sent to Paystack)
+   */
+  async logPayoutProcess(data) {
+    return await this.log({
+      userId: data.adminId,
+      action: 'PAYOUT_PROCESS',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: 'RESERVED' },
+      newValues: { status: 'PROCESSING', transferCode: data.transferCode },
+      metadata: {
+        reference: data.reference,
+        paystackReference: data.paystackReference,
+        amount: data.amount
+      }
+    });
+  },
+
+  /**
+   * Log payout completion (successful)
+   */
+  async logPayoutComplete(data) {
+    return await this.log({
+      userId: data.adminId || null,
+      action: 'PAYOUT_COMPLETE',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: 'COMPLETED' },
+      metadata: {
+        reference: data.reference,
+        agentId: data.agentId,
+        amount: data.amount,
+        completedVia: data.completedVia || 'webhook' // 'webhook', 'manual', 'force'
+      }
+    });
+  },
+
+  /**
+   * Log payout failure
+   */
+  async logPayoutFail(data) {
+    return await this.log({
+      userId: data.adminId || null,
+      action: 'PAYOUT_FAIL',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: 'FAILED' },
+      metadata: {
+        reference: data.reference,
+        agentId: data.agentId,
+        amount: data.amount,
+        failureReason: data.failureReason,
+        failedVia: data.failedVia || 'webhook'
+      }
+    });
+  },
+
+  /**
+   * Log force complete by admin
+   */
+  async logPayoutForceComplete(data) {
+    return await this.log({
+      userId: data.adminId,
+      action: 'PAYOUT_FORCE_COMPLETE',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: 'COMPLETED' },
+      metadata: {
+        reference: data.reference,
+        agentId: data.agentId,
+        amount: data.amount,
+        reason: data.reason || 'Admin force complete'
+      }
+    });
+  },
+
+  /**
+   * Log force cancel by admin
+   */
+  async logPayoutForceCancel(data) {
+    return await this.log({
+      userId: data.adminId,
+      action: 'PAYOUT_FORCE_CANCEL',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: 'FAILED' },
+      metadata: {
+        reference: data.reference,
+        agentId: data.agentId,
+        amount: data.amount,
+        reason: data.reason
+      }
+    });
+  },
+
+  /**
+   * Log user cancellation
+   */
+  async logPayoutCancel(data) {
+    return await this.log({
+      userId: data.userId,
+      action: 'PAYOUT_CANCEL',
+      entityType: 'AgentPayout',
+      entityId: data.payoutId,
+      oldValues: { status: data.oldStatus },
+      newValues: { status: 'CANCELLED' },
+      metadata: {
+        reference: data.reference,
+        amount: data.amount
+      }
+    });
+  },
+
+  /**
+   * Query payout audit trail
+   */
+  async getPayoutAuditTrail(payoutId) {
+    return await prisma.auditLog.findMany({
+      where: {
+        entityType: 'AgentPayout',
+        entityId: payoutId
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, role: true }
+        }
+      }
+    });
+  },
+
+  /**
+   * Query all payout audits within a period
+   */
+  async getPayoutAuditSummary(startDate, endDate) {
+    const where = {
+      entityType: 'AgentPayout',
+      createdAt: {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      }
+    };
+
+    const [byAction, total] = await Promise.all([
+      prisma.auditLog.groupBy({
+        by: ['action'],
+        where,
+        _count: { action: true }
+      }),
+      prisma.auditLog.count({ where })
+    ]);
+
+    return {
+      period: { startDate, endDate },
+      total,
+      byAction: byAction.reduce((acc, a) => {
+        acc[a.action] = a._count.action;
+        return acc;
+      }, {})
+    };
   }
 };
 

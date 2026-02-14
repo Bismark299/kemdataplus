@@ -121,8 +121,185 @@
         .alert-badge.momo-badge {
             background: #f59e0b;
         }
+        .alert-badge.alert-badge-critical {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            animation: pulse-badge-critical 1.5s infinite;
+        }
+        @keyframes pulse-badge-critical {
+            0%, 100% { transform: translateY(-50%) scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: translateY(-50%) scale(1.15); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+        }
         .alert-badge.visible {
             display: flex;
+        }
+
+        /* ===== ALERTS SECTION STYLES ===== */
+        .alert-filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #64748b;
+        }
+        .alert-filter-btn:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .alert-filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .alert-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            transition: background 0.2s;
+        }
+        .alert-item:hover {
+            background: #f8fafc;
+        }
+        .alert-item.unread {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+        }
+        .alert-item.severity-CRITICAL {
+            border-left-color: #ef4444;
+        }
+        .alert-item.severity-CRITICAL.unread {
+            background: #fef2f2;
+        }
+        .alert-item.severity-HIGH {
+            border-left-color: #f97316;
+        }
+        .alert-item.severity-HIGH.unread {
+            background: #fff7ed;
+        }
+        .alert-item.severity-MEDIUM {
+            border-left-color: #eab308;
+        }
+        .alert-item.severity-MEDIUM.unread {
+            background: #fefce8;
+        }
+        .alert-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .alert-icon.PAYOUT_FAILED, .alert-icon.SECURITY_ALERT {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .alert-icon.PAYOUT_STUCK {
+            background: #ffedd5;
+            color: #ea580c;
+        }
+        .alert-icon.LOW_PAYSTACK_BALANCE {
+            background: #fef9c3;
+            color: #ca8a04;
+        }
+        .alert-icon.WEBHOOK_FAILURE {
+            background: #fce7f3;
+            color: #db2777;
+        }
+        .alert-icon.HIGH_WITHDRAWAL_VOLUME, .alert-icon.SYSTEM_ERROR {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .alert-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .alert-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        .alert-message {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .alert-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        .alert-severity {
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        .alert-severity.CRITICAL {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .alert-severity.HIGH {
+            background: #fff7ed;
+            color: #ea580c;
+        }
+        .alert-severity.MEDIUM {
+            background: #fefce8;
+            color: #ca8a04;
+        }
+        .alert-severity.LOW {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .alert-action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .alert-action-btn.mark-read {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .alert-action-btn.mark-read:hover {
+            background: #3b82f6;
+            color: white;
+        }
+        .alert-action-btn.dismiss {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .alert-action-btn.dismiss:hover {
+            background: #ef4444;
+            color: white;
+        }
+        .alerts-empty {
+            padding: 60px 20px;
+            text-align: center;
+            color: #94a3b8;
+        }
+        .alerts-empty i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            color: #cbd5e1;
         }
         @keyframes pulse-badge {
             0%, 100% { transform: translateY(-50%) scale(1); }
@@ -4138,6 +4315,13 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="#" class="nav-link" id="navAlerts" data-section="alerts">
+                    <i class="fas fa-bell"></i>
+                    <span>System Alerts</span>
+                    <span class="alert-badge alert-badge-critical" id="alertsBadge" title="System Alerts">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link" id="navSettings" data-section="settings">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
@@ -4173,6 +4357,10 @@
                 <div class="header-stat" style="cursor: pointer; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 8px; padding: 8px 12px;" onclick="refreshPaystackBalance()" title="Click to refresh Paystack balance">
                     <div class="label" style="color: rgba(255,255,255,0.85);"><i class="fas fa-university"></i> Paystack:</div>
                     <div class="value" id="headerPaystackBalance" style="color: white; font-weight: 600;">Loading...</div>
+                </div>
+                <div class="header-stat sms-stat" style="cursor: pointer; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; padding: 8px 12px; display: none;" onclick="refreshSmsBalance()" id="smsBalanceContainer" title="Click to refresh SMS balance">
+                    <div class="label" style="color: rgba(255,255,255,0.85);"><i class="fas fa-sms"></i> SMS:</div>
+                    <div class="value" id="headerSmsBalance" style="color: white; font-weight: 600;">-</div>
                 </div>
                 <div class="header-stat" style="cursor: pointer;" onclick="refreshMcbisBalance()" title="Click to refresh MCBIS balance">
                     <div class="label"><i class="fas fa-server"></i> MCBIS Balance:</div>
@@ -4748,153 +4936,210 @@
                 </table>
             </div>
             
-            <!-- TAB 6: Profit Payouts (Daily Batch Distribution) -->
+            <!-- TAB 6: Profit Payouts (Daily Batch Distribution) - ULTRA MODERN REDESIGN -->
             <div class="wallet-tab-content" id="profitPayoutsTabContent">
-                <div class="section-header" style="background: white; padding: 15px 20px; border-radius: 12px 12px 0 0; margin-bottom: 0;">
-                    <h3><i class="fas fa-clock"></i> Daily Profit Distribution</h3>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                        <button onclick="loadProfitPayouts()" style="padding: 8px 16px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                        <button onclick="processManualBatch()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                            <i class="fas fa-play-circle"></i> Process Batch Now
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Profit Payout Stats -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 20px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                    <div style="background: rgba(255,255,255,0.2); padding: 18px; border-radius: 10px; text-align: center;">
-                        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.85); text-transform: uppercase;">Total Pending</span>
-                        <div id="profitStatPending" style="font-size: 2rem; font-weight: 700; color: white;">GH₵ 0</div>
-                        <div id="profitStatPendingCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">0 profits from 0 users</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.2); padding: 18px; border-radius: 10px; text-align: center;">
-                        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.85); text-transform: uppercase;">Today's Profits</span>
-                        <div id="profitStatToday" style="font-size: 2rem; font-weight: 700; color: white;">GH₵ 0</div>
-                        <div id="profitStatTodayCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">0 orders</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.2); padding: 18px; border-radius: 10px; text-align: center;">
-                        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.85); text-transform: uppercase;">Total Paid Out</span>
-                        <div id="profitStatTotalPaid" style="font-size: 2rem; font-weight: 700; color: white;">GH₵ 0</div>
-                        <div id="profitStatTotalPaidCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">0 payouts</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.2); padding: 18px; border-radius: 10px; text-align: center;">
-                        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.85); text-transform: uppercase;">Payout Mode</span>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: white;"><i class="fas fa-user-shield"></i> Manual</div>
-                        <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">Admin Triggered</div>
-                    </div>
-                </div>
-                
-                <!-- Recent Batches -->
-                <div style="background: white; padding: 20px; border-radius: 12px; margin-top: 20px;">
-                    <h4 style="margin: 0 0 15px 0; color: #1e293b;"><i class="fas fa-history"></i> Recent Batch Payouts</h4>
-                    <div style="overflow-x: auto;">
-                        <table class="transactions-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Total Amount</th>
-                                    <th>Users Paid</th>
-                                    <th>Profits Processed</th>
-                                    <th>Type</th>
-                                    <th>Processed By</th>
-                                </tr>
-                            </thead>
-                            <tbody id="profitBatchHistoryBody">
-                                <tr>
-                                    <td colspan="6" class="empty-state">
-                                        <p>Loading...</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- Paystack Balance Card -->
-                <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 20px; border-radius: 12px; margin-top: 20px; color: white;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">
-                                <i class="fas fa-university"></i> Paystack Balance (Available for Payouts)
+                <!-- Modern Hero Header -->
+                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); border-radius: 20px; padding: 32px; margin-bottom: 24px; position: relative; overflow: hidden;">
+                    <!-- Decorative Elements -->
+                    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,146,60,0.1)); border-radius: 50%; filter: blur(40px);"></div>
+                    <div style="position: absolute; bottom: -30px; left: 20%; width: 150px; height: 150px; background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(74,222,128,0.1)); border-radius: 50%; filter: blur(30px);"></div>
+                    
+                    <div style="position: relative; z-index: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+                            <div>
+                                <h2 style="margin: 0 0 8px 0; color: white; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px;">
+                                    <i class="fas fa-bolt" style="color: #f59e0b; margin-right: 10px;"></i>Profit Distribution Center
+                                </h2>
+                                <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">Manage agent earnings and process MoMo payouts</p>
                             </div>
-                            <div id="paystackBalanceAmount" style="font-size: 2.2rem; font-weight: 700; margin-top: 5px;">
-                                Loading...
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <button onclick="loadProfitPayouts()" style="padding: 12px 20px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; cursor: pointer; font-weight: 500; backdrop-filter: blur(10px); transition: all 0.3s;">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                                <button onclick="processManualBatch()" style="padding: 12px 24px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(245,158,11,0.4); transition: all 0.3s;">
+                                    <i class="fas fa-paper-plane"></i> Process Bulk Transfer
+                                </button>
                             </div>
-                            <div id="paystackBalanceStatus" style="font-size: 0.75rem; opacity: 0.8; margin-top: 3px;"></div>
                         </div>
-                        <button onclick="loadPaystackBalance()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer;">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
+                        
+                        <!-- Stats Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 28px;">
+                            <!-- Pending Profits Card -->
+                            <div style="background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; transition: transform 0.3s, box-shadow 0.3s;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-hourglass-half" style="color: white; font-size: 1.1rem;"></i>
+                                    </div>
+                                    <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">Pending Profits</span>
+                                </div>
+                                <div id="profitStatPending" style="font-size: 2rem; font-weight: 700; color: white; margin-bottom: 4px;">GH₵ 0.00</div>
+                                <div id="profitStatPendingCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">0 profits from 0 users</div>
+                            </div>
+                            
+                            <!-- Today's Earnings Card -->
+                            <div style="background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; transition: transform 0.3s, box-shadow 0.3s;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-chart-line" style="color: white; font-size: 1.1rem;"></i>
+                                    </div>
+                                    <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">Today's Profits</span>
+                                </div>
+                                <div id="profitStatToday" style="font-size: 2rem; font-weight: 700; color: white; margin-bottom: 4px;">GH₵ 0.00</div>
+                                <div id="profitStatTodayCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">0 orders</div>
+                            </div>
+                            
+                            <!-- Total Paid Card -->
+                            <div style="background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; transition: transform 0.3s, box-shadow 0.3s;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-check-circle" style="color: white; font-size: 1.1rem;"></i>
+                                    </div>
+                                    <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">Total Paid Out</span>
+                                </div>
+                                <div id="profitStatTotalPaid" style="font-size: 2rem; font-weight: 700; color: #4ade80; margin-bottom: 4px;">GH₵ 0.00</div>
+                                <div id="profitStatTotalPaidCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">0 payouts</div>
+                            </div>
+                            
+                            <!-- Paystack Balance Card -->
+                            <div style="background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2)); backdrop-filter: blur(20px); border: 1px solid rgba(139,92,246,0.3); border-radius: 16px; padding: 20px; transition: transform 0.3s, box-shadow 0.3s;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #8b5cf6, #6366f1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-university" style="color: white; font-size: 1.1rem;"></i>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">Paystack Balance</span>
+                                        <button onclick="loadPaystackBalance()" style="background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 2px;"><i class="fas fa-sync-alt" style="font-size: 0.7rem;"></i></button>
+                                    </div>
+                                </div>
+                                <div id="paystackBalanceAmount" style="font-size: 2rem; font-weight: 700; color: #c4b5fd; margin-bottom: 4px;">Loading...</div>
+                                <div id="paystackBalanceStatus" style="font-size: 0.75rem; color: rgba(255,255,255,0.4);"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Withdrawal Requests Section -->
-                <div style="background: white; padding: 20px; border-radius: 12px; margin-top: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h4 style="margin: 0; color: #1e293b;"><i class="fas fa-hand-holding-usd"></i> Withdrawal Requests</h4>
-                        <div style="display: flex; gap: 10px;">
-                            <select id="withdrawalStatusFilter" onchange="loadWithdrawalRequests()" style="padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px;">
-                                <option value="">All Status</option>
-                                <option value="PENDING" selected>Pending</option>
-                                <option value="PROCESSING">Processing</option>
-                                <option value="COMPLETED">Completed</option>
-                                <option value="FAILED">Failed</option>
-                                <option value="REJECTED">Rejected</option>
-                            </select>
-                            <button onclick="loadWithdrawalRequests()" style="padding: 6px 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
+                <!-- Main Content Grid -->
+                <style>
+                    .profit-payout-grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+                    @media (max-width: 1024px) { .profit-payout-grid { grid-template-columns: 1fr; } }
+                </style>
+                <div class="profit-payout-grid">
+                    
+                    <!-- Left Column: Withdrawal Requests -->
+                    <div style="background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
+                        <!-- Section Header -->
+                        <div style="padding: 24px 24px 20px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                                <div>
+                                    <h3 style="margin: 0 0 4px 0; color: #0f172a; font-size: 1.15rem; font-weight: 700;">
+                                        <i class="fas fa-hand-holding-usd" style="color: #f59e0b; margin-right: 8px;"></i>Withdrawal Requests
+                                    </h3>
+                                    <p style="margin: 0; color: #64748b; font-size: 0.8rem;">Agent MoMo payout requests</p>
+                                </div>
+                                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                    <input type="date" id="withdrawalStartDate" onchange="loadWithdrawalRequests()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #334155; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s;" title="Start date">
+                                    <span style="color: #94a3b8;">to</span>
+                                    <input type="date" id="withdrawalEndDate" onchange="loadWithdrawalRequests()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #334155; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s;" title="End date">
+                                    <select id="withdrawalStatusFilter" onchange="loadWithdrawalRequests()" style="padding: 10px 16px; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #334155; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                                        <option value="">All Status</option>
+                                        <option value="PENDING" selected>⏳ Pending</option>
+                                        <option value="PROCESSING">🔄 Processing</option>
+                                        <option value="COMPLETED">✅ Completed</option>
+                                        <option value="FAILED">❌ Failed</option>
+                                        <option value="REJECTED">🚫 Rejected</option>
+                                    </select>
+                                    <button onclick="clearWithdrawalFilters()" style="padding: 10px 14px; background: #f1f5f9; color: #64748b; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; transition: all 0.2s;" title="Clear filters">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <button onclick="loadWithdrawalRequests()" style="width: 42px; height: 42px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Mini Stats Bar -->
+                            <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 14px 16px; border-radius: 12px;">
+                                    <div style="font-size: 0.65rem; color: #92400e; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Pending</div>
+                                    <div id="withdrawalStatPending" style="font-size: 1.25rem; font-weight: 700; color: #d97706;">GH₵ 0</div>
+                                    <div id="withdrawalStatPendingCount" style="font-size: 0.7rem; color: #b45309;">0 requests</div>
+                                </div>
+                                <div style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #d1fae5, #a7f3d0); padding: 14px 16px; border-radius: 12px;">
+                                    <div style="font-size: 0.65rem; color: #065f46; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Completed</div>
+                                    <div id="withdrawalStatCompleted" style="font-size: 1.25rem; font-weight: 700; color: #059669;">GH₵ 0</div>
+                                    <div id="withdrawalStatCompletedCount" style="font-size: 0.7rem; color: #047857;">0 paid</div>
+                                </div>
+                                <div style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #fee2e2, #fecaca); padding: 14px 16px; border-radius: 12px;">
+                                    <div style="font-size: 0.65rem; color: #991b1b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Failed</div>
+                                    <div id="withdrawalStatFailed" style="font-size: 1.25rem; font-weight: 700; color: #dc2626;">GH₵ 0</div>
+                                    <div id="withdrawalStatFailedCount" style="font-size: 0.7rem; color: #b91c1c;">0</div>
+                                </div>
+                                <div style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); padding: 14px 16px; border-radius: 12px;">
+                                    <div style="font-size: 0.65rem; color: #475569; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Rejected</div>
+                                    <div id="withdrawalStatRejected" style="font-size: 1.25rem; font-weight: 700; color: #64748b;">GH₵ 0</div>
+                                    <div id="withdrawalStatRejectedCount" style="font-size: 0.7rem; color: #475569;">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Requests List -->
+                        <div id="withdrawalRequestsContainer" style="max-height: 600px; overflow-y: auto; padding: 16px;">
+                            <div id="withdrawalRequestsBody" style="display: flex; flex-direction: column; gap: 12px;">
+                                <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 12px;"></i>
+                                    <p>Loading requests...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Withdrawal Stats -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 15px;">
-                        <div style="background: #fef3c7; padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; color: #92400e; text-transform: uppercase;">Pending</div>
-                            <div id="withdrawalStatPending" style="font-size: 1.3rem; font-weight: 700; color: #d97706;">GH₵ 0</div>
-                            <div id="withdrawalStatPendingCount" style="font-size: 0.75rem; color: #92400e;">0 requests</div>
+                    <!-- Right Column: Batch History & Info -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Quick Info Card -->
+                        <div style="background: linear-gradient(135deg, #0ea5e9, #0284c7); border-radius: 16px; padding: 20px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <i class="fas fa-info-circle" style="font-size: 1.2rem;"></i>
+                                <span style="font-weight: 600;">How It Works</span>
+                            </div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 0.85rem; line-height: 1.8; opacity: 0.9;">
+                                <li>Agents request withdrawal from earnings</li>
+                                <li>Review pending requests below</li>
+                                <li>Click "Process" to send MoMo instantly</li>
+                                <li>Or "Bulk Transfer" to process all at once</li>
+                            </ul>
+                            <div style="background: rgba(255,255,255,0.15); border-radius: 10px; padding: 12px; margin-top: 16px; font-size: 0.8rem;">
+                                <i class="fas fa-shield-alt" style="margin-right: 6px;"></i>
+                                <strong>Fee:</strong> GH₵0.50 per transfer (deducted from payout)
+                            </div>
                         </div>
-                        <div style="background: #d1fae5; padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; color: #065f46; text-transform: uppercase;">Completed</div>
-                            <div id="withdrawalStatCompleted" style="font-size: 1.3rem; font-weight: 700; color: #059669;">GH₵ 0</div>
-                            <div id="withdrawalStatCompletedCount" style="font-size: 0.75rem; color: #065f46;">0 paid</div>
+                        
+                        <!-- Recent Batches -->
+                        <div style="background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); flex: 1; overflow: hidden;">
+                            <div style="padding: 20px 20px 16px; border-bottom: 1px solid #f1f5f9;">
+                                <h4 style="margin: 0; color: #0f172a; font-size: 1rem; font-weight: 700;">
+                                    <i class="fas fa-history" style="color: #6366f1; margin-right: 8px;"></i>Recent Batches
+                                </h4>
+                            </div>
+                            <div id="profitBatchHistoryContainer" style="max-height: 350px; overflow-y: auto;">
+                                <div id="profitBatchHistoryBody" style="padding: 16px;">
+                                    <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                                        <p style="margin: 0;">No batch history yet</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div style="background: #fee2e2; padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; color: #991b1b; text-transform: uppercase;">Failed</div>
-                            <div id="withdrawalStatFailed" style="font-size: 1.3rem; font-weight: 700; color: #dc2626;">GH₵ 0</div>
-                            <div id="withdrawalStatFailedCount" style="font-size: 0.75rem; color: #991b1b;">0</div>
-                        </div>
-                        <div style="background: #e5e7eb; padding: 12px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; color: #374151; text-transform: uppercase;">Rejected</div>
-                            <div id="withdrawalStatRejected" style="font-size: 1.3rem; font-weight: 700; color: #6b7280;">GH₵ 0</div>
-                            <div id="withdrawalStatRejectedCount" style="font-size: 0.75rem; color: #374151;">0</div>
-                        </div>
-                    </div>
-                    
-                    <div style="overflow-x: auto;">
-                        <table class="transactions-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Agent</th>
-                                    <th>Amount</th>
-                                    <th>MoMo Details</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="withdrawalRequestsBody">
-                                <tr>
-                                    <td colspan="6" class="empty-state">
-                                        <p>Loading...</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
+                
+                <!-- Responsive Grid Fix -->
+                <style>
+                    @media (max-width: 1024px) {
+                        #profitPayoutsTabContent > div:nth-child(2) {
+                            grid-template-columns: 1fr !important;
+                        }
+                    }
+                </style>
             </div>
         </div>
 
@@ -5915,6 +6160,108 @@
             </div>
         </div>
 
+        <!-- ========== SYSTEM ALERTS SECTION ========== -->
+        <div class="alerts-section" id="alertsSection" style="display: none;">
+            <div class="section-header">
+                <div class="section-header-left">
+                    <h2 style="font-size: 1.5rem; font-weight: 700;"><i class="fas fa-bell" style="color: #f59e0b; margin-right: 10px;"></i>System Alerts</h2>
+                    <p style="color: #64748b; margin-top: 5px;">Monitor failed payouts, stuck transfers, and system issues</p>
+                </div>
+                <div class="section-header-right">
+                    <button class="btn-secondary" onclick="checkStuckPayouts()" title="Check for stuck payouts">
+                        <i class="fas fa-search"></i> Check Stuck
+                    </button>
+                    <button class="btn-secondary" onclick="markAllAlertsRead()" title="Mark all as read">
+                        <i class="fas fa-check-double"></i> Mark All Read
+                    </button>
+                    <button class="btn-primary" onclick="loadAlerts()">
+                        <i class="fas fa-refresh"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alert Stats Cards -->
+            <div class="alert-stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div class="alert-stat-card" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; background: #ef4444; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-exclamation-triangle" style="color: white; font-size: 1.2rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.8rem; font-weight: 700; color: #dc2626;" id="criticalAlertCount">0</div>
+                            <div style="font-size: 0.85rem; color: #991b1b;">Critical</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert-stat-card" style="background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; background: #f97316; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-exclamation-circle" style="color: white; font-size: 1.2rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.8rem; font-weight: 700; color: #ea580c;" id="highAlertCount">0</div>
+                            <div style="font-size: 0.85rem; color: #9a3412;">High</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert-stat-card" style="background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; background: #eab308; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-info-circle" style="color: white; font-size: 1.2rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.8rem; font-weight: 700; color: #ca8a04;" id="mediumAlertCount">0</div>
+                            <div style="font-size: 0.85rem; color: #854d0e;">Medium</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert-stat-card" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; background: #3b82f6; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-bell" style="color: white; font-size: 1.2rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.8rem; font-weight: 700; color: #2563eb;" id="totalUnreadAlerts">0</div>
+                            <div style="font-size: 0.85rem; color: #1e40af;">Unread</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="alert-filter-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                <button class="alert-filter-btn active" data-filter="all" onclick="filterAlerts('all', this)">
+                    <i class="fas fa-list"></i> All
+                </button>
+                <button class="alert-filter-btn" data-filter="PAYOUT_FAILED" onclick="filterAlerts('PAYOUT_FAILED', this)">
+                    <i class="fas fa-times-circle"></i> Failed Payouts
+                </button>
+                <button class="alert-filter-btn" data-filter="PAYOUT_STUCK" onclick="filterAlerts('PAYOUT_STUCK', this)">
+                    <i class="fas fa-clock"></i> Stuck Payouts
+                </button>
+                <button class="alert-filter-btn" data-filter="LOW_PAYSTACK_BALANCE" onclick="filterAlerts('LOW_PAYSTACK_BALANCE', this)">
+                    <i class="fas fa-wallet"></i> Low Balance
+                </button>
+                <button class="alert-filter-btn" data-filter="SECURITY_ALERT" onclick="filterAlerts('SECURITY_ALERT', this)">
+                    <i class="fas fa-shield-alt"></i> Security
+                </button>
+            </div>
+
+            <!-- Alerts List -->
+            <div class="alerts-list-container" style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div id="alertsList" style="max-height: 600px; overflow-y: auto;">
+                    <div class="alerts-loading" style="padding: 60px; text-align: center; color: #64748b;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Loading alerts...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="alerts-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 20px;" id="alertsPagination">
+            </div>
+        </div>
+
         <!-- ========== SETTINGS SECTION ========== -->
         <div class="settings-section" id="settingsSection">
             <div class="settings-header">
@@ -6030,6 +6377,43 @@
                                     <p id="websiteUpdateStatus">Portal is available for use</p>
                                 </div>
                                 <div class="toggle-switch" id="toggleWebsiteUpdate" data-site-setting="websiteUpdate"></div>
+                            </div>
+                        </div>
+
+                        <!-- SMS & Notifications -->
+                        <div class="settings-section-title" style="margin-top: 30px;"><i class="fas fa-bell" style="color: #8b5cf6;"></i> Notifications</div>
+                        <div class="settings-grid settings-grid-2">
+                            <div class="setting-card" style="border-left: 3px solid #10b981;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #10b981;"><i class="fas fa-sms"></i> SMS Notify (mNotify)</h4>
+                                    <p id="smsNotifyStatus">Send SMS to agents when payouts complete</p>
+                                </div>
+                                <div class="toggle-switch" id="toggleSmsNotify" data-admin-setting="smsNotify"></div>
+                            </div>
+                            <div class="setting-card" style="border-left: 3px solid #3b82f6;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #3b82f6;"><i class="fas fa-envelope"></i> Email Notify</h4>
+                                    <p id="emailNotifyStatus">Send email notifications</p>
+                                </div>
+                                <div class="toggle-switch" id="toggleEmailNotify" data-admin-setting="emailNotify"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- SMS Test Section -->
+                        <div id="smsTestSection" style="display: none; margin-top: 20px; background: #f0fdf4; border: 1px solid #10b981; border-radius: 12px; padding: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 15px; color: #059669;"><i class="fas fa-vial"></i> Test SMS Configuration</div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 5px;">Phone Number</label>
+                                    <input type="text" id="testSmsPhone" placeholder="0244123456" style="padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; width: 150px;">
+                                </div>
+                                <button onclick="sendTestSms()" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-paper-plane"></i> Send Test SMS
+                                </button>
+                                <div id="smsBalanceDisplay" style="margin-left: auto; padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #d1d5db;">
+                                    <span style="color: #64748b; font-size: 0.85rem;">Balance: </span>
+                                    <span id="smsBalanceAmount" style="font-weight: 600; color: #059669;">Loading...</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -6302,14 +6686,21 @@
 
                 <!-- Stores Tab Content -->
                 <div id="storesTabContent" class="tab-content">
-                    <div class="storefront-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                        <input type="text" id="storeSearchInput" placeholder="Search stores..." style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px; min-width: 200px;">
-                        <select id="storeStatusFilter" style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                    <div class="storefront-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="storeSearchInput" placeholder="Search stores..." style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px; min-width: 200px;" onkeyup="if(event.key==='Enter') loadStorefronts()">
+                        <select id="storeStatusFilter" style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px;" onchange="loadStorefronts()">
                             <option value="">All Status</option>
                             <option value="ACTIVE">Active</option>
                             <option value="SUSPENDED">Suspended</option>
                             <option value="INACTIVE">Inactive</option>
                         </select>
+                        <select id="storePageSize" style="padding: 10px 15px; border: 1px solid #e5e7eb; border-radius: 8px;" onchange="loadStorefronts(1)">
+                            <option value="10">10 per page</option>
+                            <option value="20" selected>20 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                        <button onclick="loadStorefronts()" style="padding: 10px 15px; border: none; background: #024959; color: white; border-radius: 8px; cursor: pointer;"><i class="fas fa-search"></i> Search</button>
                     </div>
                     <div class="storefront-table-container" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <table style="width: 100%; border-collapse: collapse;">
@@ -6328,6 +6719,11 @@
                                 <tr><td colspan="7" style="padding: 40px; text-align: center; color: #6b7280;">Loading stores...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <!-- Stores Pagination -->
+                    <div id="storesPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 15px;">
+                        <div id="storesPaginationInfo" style="font-size: 0.9rem; color: #6b7280;">Showing 0 stores</div>
+                        <div id="storesPaginationControls" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
                     </div>
                 </div>
 
@@ -7974,6 +8370,7 @@
             document.getElementById('settingsSection')?.classList.remove('active');
             document.getElementById('storefrontsSection')?.classList.remove('active');
             document.getElementById('complaintsSection')?.classList.remove('active');
+            document.getElementById('alertsSection')?.style.setProperty('display', 'none');
         }
         
         function showDashboard() {
@@ -8029,6 +8426,12 @@
             loadComplaintsSection();
         }
         
+        function showAlerts() {
+            hideAllSections();
+            document.getElementById('alertsSection').style.display = 'block';
+            loadAlerts();
+        }
+        
         // Navigate to a section and update URL hash
         function navigateToSection(section) {
             // Update URL hash without triggering page reload
@@ -8067,6 +8470,9 @@
                 case 'complaints':
                     showComplaints();
                     break;
+                case 'alerts':
+                    showAlerts();
+                    break;
                 case 'settings':
                     showSettings();
                     break;
@@ -8080,7 +8486,7 @@
         // Restore section from URL hash on page load
         function restoreSectionFromHash() {
             const hash = window.location.hash.replace('#', '');
-            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'storefronts', 'reports', 'complaints', 'settings'].includes(hash)) {
+            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'storefronts', 'reports', 'complaints', 'alerts', 'settings'].includes(hash)) {
                 navigateToSection(hash);
             }
         }
@@ -9975,29 +10381,37 @@
         }
 
         function renderProfitBatchHistory() {
-            const tbody = document.getElementById('profitBatchHistoryBody');
-            if (!tbody) return;
+            const container = document.getElementById('profitBatchHistoryBody');
+            if (!container) return;
             
             if (!profitBatchHistory.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><p>No batch history yet</p></td></tr>`;
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p style="margin: 0;">No batch history yet</p>
+                    </div>
+                `;
                 return;
             }
             
-            tbody.innerHTML = profitBatchHistory.map(b => {
-                const date = new Date(b.processedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            container.innerHTML = profitBatchHistory.slice(0, 10).map(b => {
+                const date = new Date(b.processedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                const isManual = b.isManual;
                 return `
-                    <tr>
-                        <td>${date}</td>
-                        <td style="font-weight:600;color:#10b981;">GH₵ ${(b.totalAmount || 0).toFixed(2)}</td>
-                        <td>${b.userCount || 0}</td>
-                        <td>${b.profitCount || 0}</td>
-                        <td>
-                            <span style="background:${b.isManual ? '#fef3c7' : '#dbeafe'};color:${b.isManual ? '#92400e' : '#1d4ed8'};padding:3px 8px;border-radius:4px;font-size:0.75rem;">
-                                ${b.isManual ? 'Manual' : 'Scheduled'}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 12px; background: #f8fafc; margin-bottom: 10px; border-left: 4px solid ${isManual ? '#f59e0b' : '#3b82f6'};">
+                        <div>
+                            <div style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">GH₵ ${(b.totalAmount || 0).toFixed(2)}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+                                ${b.userCount || 0} users • ${b.profitCount || 0} profits
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.7rem; color: #94a3b8;">${date}</div>
+                            <span style="display: inline-block; margin-top: 4px; background: ${isManual ? '#fef3c7' : '#dbeafe'}; color: ${isManual ? '#92400e' : '#1d4ed8'}; padding: 2px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase;">
+                                ${isManual ? 'Manual' : 'Auto'}
                             </span>
-                        </td>
-                        <td>${b.processorName || 'System'}</td>
-                    </tr>
+                        </div>
+                    </div>
                 `;
             }).join('');
         }
@@ -10047,9 +10461,16 @@
         async function loadWithdrawalRequests() {
             try {
                 const statusFilter = document.getElementById('withdrawalStatusFilter')?.value || 'PENDING';
+                const startDate = document.getElementById('withdrawalStartDate')?.value || '';
+                const endDate = document.getElementById('withdrawalEndDate')?.value || '';
+                
+                // Build query params
+                let url = `/api/profit-payouts/admin/withdrawals?status=${statusFilter}`;
+                if (startDate) url += `&startDate=${startDate}`;
+                if (endDate) url += `&endDate=${endDate}`;
                 
                 const [requestsRes, statsRes] = await Promise.all([
-                    adminFetch(`/api/profit-payouts/admin/withdrawals?status=${statusFilter}`),
+                    adminFetch(url),
                     adminFetch('/api/profit-payouts/admin/withdrawal-stats')
                 ]);
                 
@@ -10066,6 +10487,13 @@
             } catch (err) {
                 console.error('Error loading withdrawal requests:', err);
             }
+        }
+        
+        function clearWithdrawalFilters() {
+            document.getElementById('withdrawalStatusFilter').value = '';
+            document.getElementById('withdrawalStartDate').value = '';
+            document.getElementById('withdrawalEndDate').value = '';
+            loadWithdrawalRequests();
         }
 
         function updateWithdrawalStats() {
@@ -10091,70 +10519,121 @@
         }
 
         function renderWithdrawalRequests() {
-            const tbody = document.getElementById('withdrawalRequestsBody');
-            if (!tbody) return;
+            const container = document.getElementById('withdrawalRequestsBody');
+            if (!container) return;
             
             if (!withdrawalRequests.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><p>No withdrawal requests found</p></td></tr>`;
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 50px; color: #94a3b8;">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 16px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-inbox" style="font-size: 2rem; color: #cbd5e1;"></i>
+                        </div>
+                        <p style="margin: 0; font-weight: 500;">No withdrawal requests found</p>
+                        <p style="margin: 8px 0 0; font-size: 0.85rem;">Requests will appear here when agents request payouts</p>
+                    </div>
+                `;
                 return;
             }
             
-            tbody.innerHTML = withdrawalRequests.map(req => {
-                const date = new Date(req.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            container.innerHTML = withdrawalRequests.map(req => {
+                const date = new Date(req.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
                 
-                // Status badge colors
-                const statusColors = {
-                    PENDING: { bg: '#fef3c7', color: '#92400e' },
-                    PROCESSING: { bg: '#dbeafe', color: '#1d4ed8' },
-                    COMPLETED: { bg: '#d1fae5', color: '#065f46' },
-                    FAILED: { bg: '#fee2e2', color: '#b91c1c' },
-                    REJECTED: { bg: '#e5e7eb', color: '#374151' }
+                // Status styles
+                const statusConfig = {
+                    PENDING: { bg: 'linear-gradient(135deg, #fef3c7, #fde68a)', color: '#92400e', icon: 'clock', label: 'Pending' },
+                    PROCESSING: { bg: 'linear-gradient(135deg, #dbeafe, #bfdbfe)', color: '#1d4ed8', icon: 'sync-alt fa-spin', label: 'Processing' },
+                    COMPLETED: { bg: 'linear-gradient(135deg, #d1fae5, #a7f3d0)', color: '#065f46', icon: 'check-circle', label: 'Completed' },
+                    FAILED: { bg: 'linear-gradient(135deg, #fee2e2, #fecaca)', color: '#b91c1c', icon: 'times-circle', label: 'Failed' },
+                    REJECTED: { bg: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)', color: '#475569', icon: 'ban', label: 'Rejected' },
+                    RESERVED: { bg: 'linear-gradient(135deg, #ede9fe, #ddd6fe)', color: '#6d28d9', icon: 'lock', label: 'Reserved' }
                 };
-                const statusStyle = statusColors[req.status] || statusColors.PENDING;
+                const status = statusConfig[req.status] || statusConfig.PENDING;
                 
-                // Network display
-                const networkNames = { MTN: 'MTN Mobile Money', VOD: 'Telecel Cash', ATL: 'AirtelTigo Money' };
-                const networkDisplay = networkNames[req.bankCode] || req.bankName || req.bankCode;
+                // Network icons
+                const networkIcons = { MTN: '🟡', VOD: '🔴', ATL: '🔵' };
+                const networkIcon = networkIcons[req.bankCode] || '📱';
+                const networkNames = { MTN: 'MTN MoMo', VOD: 'Telecel Cash', ATL: 'AirtelTigo' };
+                const networkDisplay = networkNames[req.bankCode] || req.bankName || 'Mobile Money';
+                
+                const fee = req.fee || 0.50;
+                const netAmount = req.netAmount || (req.amount - fee);
                 
                 return `
-                    <tr>
-                        <td>
-                            <div>${date}</div>
-                            <div style="font-size:0.7rem;color:#94a3b8;">${req.reference || ''}</div>
-                        </td>
-                        <td>
-                            <div style="font-weight:500;">${req.user?.name || 'Unknown'}</div>
-                            <div style="font-size:0.75rem;color:#6b7280;">${req.user?.phone || ''}</div>
-                        </td>
-                        <td style="font-weight:600;color:#f59e0b;">GH₵ ${(req.amount || 0).toFixed(2)}</td>
-                        <td>
-                            <div style="font-weight:500;">${req.accountName || '-'}</div>
-                            <div style="font-size:0.8rem;color:#6b7280;">${req.accountNumber || '-'}</div>
-                            <div style="font-size:0.75rem;color:#94a3b8;">${networkDisplay}</div>
-                        </td>
-                        <td>
-                            <span style="background:${statusStyle.bg};color:${statusStyle.color};padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:500;">
-                                ${req.status}
-                            </span>
-                            ${req.notes ? `<div style="font-size:0.7rem;color:#94a3b8;margin-top:3px;">${req.notes}</div>` : ''}
-                        </td>
-                        <td>
-                            ${req.status === 'PENDING' ? `
-                                <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                                    <button onclick="processWithdrawal('${req.id}')" style="background:#10b981;color:white;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem;">
-                                        <i class="fas fa-paper-plane"></i> Process
-                                    </button>
-                                    <button onclick="rejectWithdrawal('${req.id}')" style="background:#ef4444;color:white;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem;">
-                                        <i class="fas fa-times"></i> Reject
-                                    </button>
+                    <div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onmouseover="this.style.boxShadow='0 8px 25px rgba(0,0,0,0.1)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)'; this.style.transform='translateY(0)';">
+                        <!-- Card Header -->
+                        <div style="padding: 16px 18px; background: ${status.bg}; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.5); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    ${networkIcon}
                                 </div>
-                            ` : `
-                                <span style="color:#94a3b8;font-size:0.75rem;">
-                                    ${req.processedAt ? new Date(req.processedAt).toLocaleDateString('en-GB') : '-'}
-                                </span>
-                            `}
-                        </td>
-                    </tr>
+                                <div>
+                                    <div style="font-weight: 700; color: ${status.color}; font-size: 1.15rem;">GH₵ ${(req.amount || 0).toFixed(2)}</div>
+                                    <div style="font-size: 0.7rem; color: ${status.color}; opacity: 0.8;">Fee: ₵${fee.toFixed(2)} → Receive: <strong>₵${netAmount.toFixed(2)}</strong></div>
+                                </div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.6); padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; color: ${status.color}; text-transform: uppercase; letter-spacing: 0.5px;">
+                                <i class="fas fa-${status.icon}" style="margin-right: 4px;"></i>${status.label}
+                            </div>
+                        </div>
+                        
+                        <!-- Card Body -->
+                        <div style="padding: 16px 18px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                                <div>
+                                    <div style="font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px;">Agent</div>
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 0.9rem;">${req.user?.name || 'Unknown'}</div>
+                                    <div style="font-size: 0.8rem; color: #64748b;">${req.user?.phone || ''}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px;">MoMo Account</div>
+                                    <div style="font-weight: 600; color: #1e293b; font-size: 0.9rem;">${req.accountName || '-'}</div>
+                                    <div style="font-size: 0.8rem; color: #64748b;">${req.accountNumber || '-'} <span style="color: #94a3b8;">• ${networkDisplay}</span></div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+                                <div style="font-size: 0.75rem; color: #94a3b8;">
+                                    <i class="far fa-clock" style="margin-right: 4px;"></i>${date}
+                                    <span style="margin-left: 8px; font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">${req.reference || ''}</span>
+                                </div>
+                                
+                                ${req.status === 'PENDING' ? `
+                                    <div style="display: flex; gap: 8px;">
+                                        <button onclick="processWithdrawal('${req.id}')" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3); transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                            <i class="fas fa-paper-plane"></i> Process
+                                        </button>
+                                        <button onclick="rejectWithdrawal('${req.id}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                ` : req.status === 'PROCESSING' ? `
+                                    <div style="display: flex; gap: 8px;">
+                                        <button onclick="forceCompleteWithdrawal('${req.id}')" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Mark as completed if transfer was successful">
+                                            <i class="fas fa-check-double"></i> Force Complete
+                                        </button>
+                                        <button onclick="forceCancelWithdrawal('${req.id}')" style="background: #fef3c7; color: #92400e; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: all 0.2s;" onmouseover="this.style.background='#fde68a'" onmouseout="this.style.background='#fef3c7'" title="Cancel if transfer failed - allows user to request again">
+                                            <i class="fas fa-undo"></i> Force Cancel
+                                        </button>
+                                    </div>
+                                ` : `
+                                    <div style="font-size: 0.75rem; color: #94a3b8;">
+                                        ${req.processedAt ? `<i class="fas fa-check" style="color: #10b981; margin-right: 4px;"></i>${new Date(req.processedAt).toLocaleDateString('en-GB')}` : ''}
+                                    </div>
+                                `}
+                            </div>
+                            
+                            ${req.failureReason ? `
+                                <div style="margin-top: 12px; padding: 10px 12px; background: #fee2e2; border-radius: 8px; font-size: 0.8rem; color: #b91c1c;">
+                                    <i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i>${req.failureReason}
+                                </div>
+                            ` : ''}
+                            ${req.reviewNotes ? `
+                                <div style="margin-top: 12px; padding: 10px 12px; background: #f1f5f9; border-radius: 8px; font-size: 0.8rem; color: #64748b;">
+                                    <i class="fas fa-comment" style="margin-right: 6px;"></i>${req.reviewNotes}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
                 `;
             }).join('');
         }
@@ -10172,8 +10651,16 @@
             const otp = prompt('Enter Paystack OTP (sent to your registered email/phone).\n\nLeave blank if OTP is disabled on your Paystack account:');
             if (otp === null) return; // User cancelled
             
+            // Show loading state on button
+            const btn = event?.target?.closest('button');
+            const originalText = btn?.innerHTML;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            }
+            
             try {
-                showToast('Processing withdrawal...', 'info');
+                showToast('Processing withdrawal via Paystack...', 'info');
                 const res = await adminFetch(`/api/profit-payouts/admin/process-withdrawal/${payoutId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -10190,21 +10677,36 @@
                 // Check if OTP is required
                 if (result.requiresOtp) {
                     showToast('OTP required! Check your email/phone and try again.', 'warning');
+                    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
                     return;
                 }
                 
-                showToast(result.message || 'Withdrawal processed successfully', 'success');
+                // Show enhanced success message with transfer details
+                const successMsg = result.transfer?.reference 
+                    ? `Transfer initiated! Ref: ${result.transfer.reference.slice(0, 12)}...`
+                    : (result.message || 'Withdrawal processed successfully');
+                showToast(successMsg, 'success');
+                
                 loadWithdrawalRequests();
                 loadProfitPayouts(); // Refresh profits too
                 refreshPaystackBalance(); // Update header balance
             } catch (err) {
                 showToast(err.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
             }
         }
 
         async function rejectWithdrawal(payoutId) {
             const reason = prompt('Enter rejection reason (optional):');
             if (reason === null) return; // User cancelled
+            
+            // Show loading state on button
+            const btn = event?.target?.closest('button');
+            const originalText = btn?.innerHTML;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
             
             try {
                 const res = await adminFetch(`/api/profit-payouts/admin/reject-withdrawal/${payoutId}`, {
@@ -10222,6 +10724,81 @@
                 loadWithdrawalRequests();
             } catch (err) {
                 showToast(err.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        }
+
+        async function forceCompleteWithdrawal(payoutId) {
+            if (!confirm('Force complete this withdrawal?\n\nUse this if the transfer was actually successful but the webhook didn\'t update the status.\n\nThis will mark all associated profits as PAID.')) {
+                return;
+            }
+            
+            // Show loading state
+            const btn = event?.target?.closest('button');
+            const originalText = btn?.innerHTML;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+            
+            try {
+                const res = await adminFetch(`/api/profit-payouts/admin/withdrawals/${payoutId}/force-complete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to force complete withdrawal');
+                }
+                
+                showToast('Withdrawal marked as completed', 'success');
+                loadWithdrawalRequests();
+                
+                // Check for and refresh alerts since this was a stuck payout
+                updateAlertCounts();
+            } catch (err) {
+                showToast(err.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        }
+
+        async function forceCancelWithdrawal(payoutId) {
+            const reason = prompt('Enter cancellation reason (e.g., "Transfer failed", "Invalid account"):');
+            if (reason === null) return; // User cancelled
+            
+            if (!confirm('Force cancel this withdrawal?\n\nThis will mark it as FAILED and the user will be able to request a new withdrawal.')) {
+                return;
+            }
+            
+            // Show loading state
+            const btn = event?.target?.closest('button');
+            const originalText = btn?.innerHTML;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+            
+            try {
+                const res = await adminFetch(`/api/profit-payouts/admin/withdrawals/${payoutId}/force-cancel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason || 'Cancelled by admin' })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to cancel withdrawal');
+                }
+                
+                showToast('Withdrawal cancelled - user can request again', 'success');
+                loadWithdrawalRequests();
+                
+                // Refresh alerts since this was likely a stuck payout
+                updateAlertCounts();
+            } catch (err) {
+                showToast(err.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
             }
         }
 
@@ -12125,6 +12702,14 @@
             
             // Load Mcbis settings
             loadMcbisSettings();
+            
+            // Load notification settings (admin settings)
+            setToggleState('toggleSmsNotify', adminSettings.smsNotify);
+            setToggleState('toggleEmailNotify', adminSettings.emailNotify);
+            updateNotificationStatusTexts();
+            
+            // Check SMS configuration and show test section if enabled
+            checkSmsConfiguration();
         }
         
         function updateSettingStatusTexts() {
@@ -12225,6 +12810,127 @@
             };
             
             setToggleState(toggleMap[setting], adminSettings[setting]);
+        }
+        
+        // Toggle admin notification settings (SMS, Email)
+        async function toggleAdminNotifySetting(setting) {
+            if (!settingsLoaded) {
+                showToast('Please wait, loading settings...', 'warning');
+                return;
+            }
+            
+            adminSettings[setting] = !adminSettings[setting];
+            
+            const toggleId = 'toggle' + setting.charAt(0).toUpperCase() + setting.slice(1);
+            setToggleState(toggleId, adminSettings[setting]);
+            
+            // Update status texts
+            updateNotificationStatusTexts();
+            
+            // Show/hide SMS test section based on setting
+            if (setting === 'smsNotify') {
+                const testSection = document.getElementById('smsTestSection');
+                if (testSection) {
+                    testSection.style.display = adminSettings.smsNotify ? 'block' : 'none';
+                }
+            }
+            
+            // Auto-save
+            await saveSettingsToAPI();
+            
+            const label = setting === 'smsNotify' ? 'SMS Notifications' : 'Email Notifications';
+            showToast(`${label} ${adminSettings[setting] ? 'enabled' : 'disabled'}`, 'success');
+        }
+        
+        // Update notification status texts
+        function updateNotificationStatusTexts() {
+            const smsStatusEl = document.getElementById('smsNotifyStatus');
+            const emailStatusEl = document.getElementById('emailNotifyStatus');
+            
+            if (smsStatusEl) {
+                smsStatusEl.textContent = adminSettings.smsNotify 
+                    ? 'SMS notifications enabled for payouts' 
+                    : 'SMS notifications disabled';
+            }
+            if (emailStatusEl) {
+                emailStatusEl.textContent = adminSettings.emailNotify 
+                    ? 'Email notifications enabled' 
+                    : 'Email notifications disabled';
+            }
+        }
+        
+        // Check SMS configuration status
+        async function checkSmsConfiguration() {
+            try {
+                const res = await adminFetch('/api/admin/sms/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    const testSection = document.getElementById('smsTestSection');
+                    const balanceEl = document.getElementById('smsBalanceAmount');
+                    
+                    if (data.configured) {
+                        // Show test section if SMS is enabled
+                        if (testSection && adminSettings.smsNotify) {
+                            testSection.style.display = 'block';
+                        }
+                        
+                        // Update balance
+                        if (balanceEl && data.balance) {
+                            balanceEl.textContent = `${data.balance.sms} SMS`;
+                        } else if (balanceEl) {
+                            balanceEl.textContent = data.enabled ? 'Ready' : 'Not checked';
+                        }
+                    } else {
+                        // Not configured - update status text
+                        const smsStatusEl = document.getElementById('smsNotifyStatus');
+                        if (smsStatusEl) {
+                            smsStatusEl.innerHTML = 'Not configured - <a href="#" onclick="showSmsSetupHelp()" style="color: #3b82f6;">Setup mNotify</a>';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log('SMS status check failed:', err.message);
+            }
+        }
+        
+        // Show SMS setup help
+        function showSmsSetupHelp() {
+            alert('To enable SMS notifications:\\n\\n1. Sign up at mnotify.com\\n2. Get your API key from https://apps.mnotify.com/developers\\n3. Add to your server .env file:\\n   MNOTIFY_API_KEY=your_api_key\\n   MNOTIFY_SENDER_ID=KemDataplus\\n4. Restart the server');
+        }
+        
+        // Send test SMS
+        async function sendTestSms() {
+            const phone = document.getElementById('testSmsPhone')?.value;
+            if (!phone) {
+                showToast('Please enter a phone number', 'error');
+                return;
+            }
+            
+            showToast('Sending test SMS...', 'info');
+            
+            try {
+                const res = await adminFetch('/api/admin/sms/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Test SMS sent successfully!', 'success');
+                    // Update balance if returned
+                    if (data.balance) {
+                        const balanceEl = document.getElementById('smsBalanceAmount');
+                        if (balanceEl) balanceEl.textContent = `${data.balance} SMS`;
+                    }
+                } else {
+                    showToast(`Failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (err) {
+                showToast('Failed to send test SMS: ' + err.message, 'error');
+            }
         }
         
         // Update admin setting (for number inputs like upload limits)
@@ -12489,10 +13195,48 @@
             }
         }
 
+        // Refresh SMS (mNotify) balance for header
+        async function refreshSmsBalance() {
+            const container = document.getElementById('smsBalanceContainer');
+            const headerBalance = document.getElementById('headerSmsBalance');
+            
+            try {
+                const res = await adminFetch('/api/admin/sms/status');
+                const data = await res.json();
+                
+                if (data.configured) {
+                    container.style.display = 'block';
+                    
+                    if (data.balance) {
+                        headerBalance.textContent = `${data.balance.sms} msgs`;
+                        
+                        // Change color based on balance level
+                        if (data.balance.sms < 50) {
+                            container.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                            headerBalance.title = 'Low SMS balance! Top up soon.';
+                        } else if (data.balance.sms < 200) {
+                            container.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+                        } else {
+                            container.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                        }
+                    } else {
+                        headerBalance.textContent = data.enabled ? 'Ready' : 'Disabled';
+                    }
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch (err) {
+                console.log('SMS status check failed:', err.message);
+                // Hide SMS indicator if not configured
+                container.style.display = 'none';
+            }
+        }
+
         // Load balances on page load
         document.addEventListener('DOMContentLoaded', function() {
             refreshMcbisBalance();
             refreshPaystackBalance();
+            refreshSmsBalance();
         });
 
         async function syncAllMcbisOrders() {
@@ -12835,6 +13579,16 @@
             });
         });
 
+        // Toggle switch handlers for admin settings (notifications)
+        document.querySelectorAll('.toggle-switch[data-admin-setting]').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const setting = this.getAttribute('data-admin-setting');
+                if (setting) {
+                    toggleAdminNotifySetting(setting);
+                }
+            });
+        });
+
         // Report tab handlers
         document.querySelectorAll('.report-tab').forEach(tab => {
             tab.addEventListener('click', function() {
@@ -12869,9 +13623,10 @@
         });
 
         // ========== STOREFRONTS MANAGEMENT ==========
-        let storefrontsData = { stores: [], orders: [], profits: null };
+        let storefrontsData = { stores: [], orders: [], profits: null, storesPagination: null };
         let currentStorefrontTab = 'stores';
         let storefrontOrdersPage = 1;
+        let storesCurrentPage = 1;
 
         async function loadStorefrontsSection() {
             await Promise.all([
@@ -12883,12 +13638,20 @@
             setupStorefrontEventHandlers();
         }
 
-        async function loadStorefronts() {
+        async function loadStorefronts(page = storesCurrentPage) {
+            storesCurrentPage = page;
             const search = document.getElementById('storeSearchInput')?.value || '';
             const status = document.getElementById('storeStatusFilter')?.value || '';
+            const limit = document.getElementById('storePageSize')?.value || 20;
+            
+            // Show loading state
+            document.getElementById('storefrontsTableBody').innerHTML = 
+                '<tr><td colspan="7" style="padding: 40px; text-align: center; color: #6b7280;"><i class="fas fa-spinner fa-spin"></i> Loading stores...</td></tr>';
             
             try {
                 const params = new URLSearchParams();
+                params.append('page', page);
+                params.append('limit', limit);
                 if (search) params.append('search', search);
                 if (status) params.append('status', status);
                 
@@ -12897,7 +13660,9 @@
                 
                 if (res.ok) {
                     storefrontsData.stores = data.storefronts;
+                    storefrontsData.storesPagination = data.pagination;
                     renderStorefrontsTable();
+                    renderStoresPagination(data.pagination);
                 } else {
                     throw new Error(data.error);
                 }
@@ -12959,6 +13724,70 @@
                 'INACTIVE': 'background: #e5e7eb; color: #374151;'
             };
             return `<span style="${styles[status] || styles.INACTIVE} padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${status}</span>`;
+        }
+
+        function renderStoresPagination(pagination) {
+            const infoEl = document.getElementById('storesPaginationInfo');
+            const controlsEl = document.getElementById('storesPaginationControls');
+            
+            if (!pagination || !infoEl || !controlsEl) return;
+            
+            const { page, limit, total, pages } = pagination;
+            const start = (page - 1) * limit + 1;
+            const end = Math.min(page * limit, total);
+            
+            // Update info text
+            infoEl.textContent = total > 0 
+                ? `Showing ${start}-${end} of ${total} stores`
+                : 'No stores found';
+            
+            if (pages <= 1) {
+                controlsEl.innerHTML = '';
+                return;
+            }
+            
+            // Build pagination controls
+            let html = '';
+            
+            // Previous button
+            html += `<button onclick="loadStorefronts(${page - 1})" ${page === 1 ? 'disabled' : ''} style="padding: 8px 14px; border: 1px solid ${page === 1 ? '#e5e7eb' : '#024959'}; background: ${page === 1 ? '#f9fafb' : 'white'}; color: ${page === 1 ? '#9ca3af' : '#024959'}; border-radius: 6px; cursor: ${page === 1 ? 'not-allowed' : 'pointer'}; font-weight: 500;">
+                <i class="fas fa-chevron-left"></i>
+            </button>`;
+            
+            // Page numbers
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(pages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            if (startPage > 1) {
+                html += `<button onclick="loadStorefronts(1)" style="padding: 8px 14px; border: 1px solid #e5e7eb; background: white; color: #374151; border-radius: 6px; cursor: pointer;">1</button>`;
+                if (startPage > 2) {
+                    html += `<span style="padding: 8px; color: #9ca3af;">...</span>`;
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === page;
+                html += `<button onclick="loadStorefronts(${i})" style="padding: 8px 14px; border: 1px solid ${isActive ? '#024959' : '#e5e7eb'}; background: ${isActive ? '#024959' : 'white'}; color: ${isActive ? 'white' : '#374151'}; border-radius: 6px; cursor: pointer; font-weight: ${isActive ? '600' : '400'};">${i}</button>`;
+            }
+            
+            if (endPage < pages) {
+                if (endPage < pages - 1) {
+                    html += `<span style="padding: 8px; color: #9ca3af;">...</span>`;
+                }
+                html += `<button onclick="loadStorefronts(${pages})" style="padding: 8px 14px; border: 1px solid #e5e7eb; background: white; color: #374151; border-radius: 6px; cursor: pointer;">${pages}</button>`;
+            }
+            
+            // Next button
+            html += `<button onclick="loadStorefronts(${page + 1})" ${page === pages ? 'disabled' : ''} style="padding: 8px 14px; border: 1px solid ${page === pages ? '#e5e7eb' : '#024959'}; background: ${page === pages ? '#f9fafb' : 'white'}; color: ${page === pages ? '#9ca3af' : '#024959'}; border-radius: 6px; cursor: ${page === pages ? 'not-allowed' : 'pointer'}; font-weight: 500;">
+                <i class="fas fa-chevron-right"></i>
+            </button>`;
+            
+            controlsEl.innerHTML = html;
         }
 
         async function loadStorefrontOrders(page = 1) {
@@ -13849,10 +14678,288 @@
             }
         }
 
+        // ========== SYSTEM ALERTS MANAGEMENT ==========
+        let currentAlertFilter = 'all';
+        let currentAlertPage = 1;
+        let alertsCache = { alerts: [], pagination: {} };
+
+        async function loadAlerts(page = 1) {
+            currentAlertPage = page;
+            const alertsList = document.getElementById('alertsList');
+            
+            alertsList.innerHTML = `
+                <div class="alerts-loading" style="padding: 60px; text-align: center; color: #64748b;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>Loading alerts...</p>
+                </div>
+            `;
+
+            try {
+                // Fetch alerts with filter
+                let url = `/api/admin/alerts?page=${page}&limit=20`;
+                if (currentAlertFilter !== 'all') {
+                    url += `&type=${currentAlertFilter}`;
+                }
+                
+                const res = await adminFetch(url);
+                if (!res.ok) throw new Error('Failed to fetch alerts');
+                
+                const data = await res.json();
+                alertsCache = data;
+                
+                // Update counts
+                await updateAlertCounts();
+                
+                // Render alerts
+                renderAlerts(data.alerts);
+                renderAlertPagination(data.pagination);
+                
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                alertsList.innerHTML = `
+                    <div class="alerts-empty">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Failed to load alerts</p>
+                        <button onclick="loadAlerts()" class="btn-primary" style="margin-top: 16px;">
+                            <i class="fas fa-refresh"></i> Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        async function updateAlertCounts() {
+            try {
+                const res = await adminFetch('/api/admin/alerts/counts');
+                if (res.ok) {
+                    const counts = await res.json();
+                    
+                    document.getElementById('criticalAlertCount').textContent = counts.bySeverity?.CRITICAL || 0;
+                    document.getElementById('highAlertCount').textContent = counts.bySeverity?.HIGH || 0;
+                    document.getElementById('mediumAlertCount').textContent = counts.bySeverity?.MEDIUM || 0;
+                    document.getElementById('totalUnreadAlerts').textContent = counts.unread || 0;
+                    
+                    // Update sidebar badge
+                    updateBadge('alertsBadge', counts.unread || 0);
+                }
+            } catch (error) {
+                console.error('Error updating alert counts:', error);
+            }
+        }
+
+        function renderAlerts(alerts) {
+            const alertsList = document.getElementById('alertsList');
+            
+            if (!alerts || alerts.length === 0) {
+                alertsList.innerHTML = `
+                    <div class="alerts-empty">
+                        <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                        <h3 style="color: #1e293b; margin-bottom: 8px;">All Clear!</h3>
+                        <p>No alerts at this time. Your payout system is running smoothly.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            alertsList.innerHTML = alerts.map(alert => {
+                const iconMap = {
+                    'PAYOUT_FAILED': 'fas fa-times-circle',
+                    'PAYOUT_STUCK': 'fas fa-clock',
+                    'LOW_PAYSTACK_BALANCE': 'fas fa-wallet',
+                    'WEBHOOK_FAILURE': 'fas fa-unlink',
+                    'HIGH_WITHDRAWAL_VOLUME': 'fas fa-chart-line',
+                    'SYSTEM_ERROR': 'fas fa-bug',
+                    'SECURITY_ALERT': 'fas fa-shield-alt'
+                };
+                
+                const icon = iconMap[alert.type] || 'fas fa-bell';
+                const timeAgo = formatTimeAgo(new Date(alert.createdAt));
+                const unreadClass = alert.isRead ? '' : 'unread';
+                
+                return `
+                    <div class="alert-item ${unreadClass} severity-${alert.severity}" data-alert-id="${alert.id}">
+                        <div class="alert-icon ${alert.type}">
+                            <i class="${icon}"></i>
+                        </div>
+                        <div class="alert-content">
+                            <div class="alert-title">${escapeHtml(alert.title)}</div>
+                            <div class="alert-message">${escapeHtml(alert.message)}</div>
+                            <div class="alert-meta">
+                                <span class="alert-severity ${alert.severity}">${alert.severity}</span>
+                                <span><i class="fas fa-tag"></i> ${alert.type.replace(/_/g, ' ')}</span>
+                                <span><i class="fas fa-clock"></i> ${timeAgo}</span>
+                                ${alert.entityId ? `<span><i class="fas fa-link"></i> ${alert.entityType}: ${alert.entityId.slice(0, 8)}...</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="alert-actions">
+                            ${!alert.isRead ? `
+                                <button class="alert-action-btn mark-read" onclick="markAlertRead('${alert.id}')" title="Mark as read">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            ` : ''}
+                            <button class="alert-action-btn dismiss" onclick="dismissAlert('${alert.id}')" title="Dismiss">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderAlertPagination(pagination) {
+            const container = document.getElementById('alertsPagination');
+            if (!pagination || pagination.pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            
+            // Previous button
+            html += `<button class="btn-secondary" onclick="loadAlerts(${pagination.page - 1})" ${pagination.page <= 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>`;
+            
+            // Page numbers
+            for (let i = 1; i <= Math.min(pagination.pages, 5); i++) {
+                html += `<button class="${pagination.page === i ? 'btn-primary' : 'btn-secondary'}" onclick="loadAlerts(${i})">${i}</button>`;
+            }
+            
+            // Next button  
+            html += `<button class="btn-secondary" onclick="loadAlerts(${pagination.page + 1})" ${pagination.page >= pagination.pages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>`;
+            
+            container.innerHTML = html;
+        }
+
+        function filterAlerts(filter, btn) {
+            currentAlertFilter = filter;
+            currentAlertPage = 1;
+            
+            // Update active button
+            document.querySelectorAll('.alert-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            loadAlerts(1);
+        }
+
+        async function markAlertRead(alertId) {
+            try {
+                const res = await adminFetch(`/api/admin/alerts/${alertId}/read`, {
+                    method: 'POST'
+                });
+                if (!res.ok) throw new Error('Failed to mark alert as read');
+                
+                // Update UI immediately
+                const alertItem = document.querySelector(`[data-alert-id="${alertId}"]`);
+                if (alertItem) {
+                    alertItem.classList.remove('unread');
+                    alertItem.querySelector('.mark-read')?.remove();
+                }
+                
+                await updateAlertCounts();
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        async function markAllAlertsRead() {
+            try {
+                const unreadAlerts = alertsCache.alerts.filter(a => !a.isRead).map(a => a.id);
+                if (unreadAlerts.length === 0) {
+                    showAdminToast('No unread alerts', 'info');
+                    return;
+                }
+                
+                const res = await adminFetch('/api/admin/alerts/mark-many-read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alertIds: unreadAlerts })
+                });
+                
+                if (!res.ok) throw new Error('Failed to mark alerts as read');
+                
+                showAdminToast(`Marked ${unreadAlerts.length} alerts as read`, 'success');
+                loadAlerts(currentAlertPage);
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        async function dismissAlert(alertId) {
+            try {
+                const res = await adminFetch(`/api/admin/alerts/${alertId}/dismiss`, {
+                    method: 'POST'
+                });
+                if (!res.ok) throw new Error('Failed to dismiss alert');
+                
+                // Remove from UI  
+                const alertItem = document.querySelector(`[data-alert-id="${alertId}"]`);
+                if (alertItem) {
+                    alertItem.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => {
+                        alertItem.remove();
+                        // Check if list is empty
+                        const remaining = document.querySelectorAll('.alert-item').length;
+                        if (remaining === 0) {
+                            loadAlerts(currentAlertPage);
+                        }
+                    }, 300);
+                }
+                
+                await updateAlertCounts();
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        async function checkStuckPayouts() {
+            try {
+                showAdminToast('Checking for stuck payouts...', 'info');
+                
+                const res = await adminFetch('/api/admin/alerts/check-stuck-payouts', {
+                    method: 'POST'
+                });
+                
+                if (!res.ok) throw new Error('Failed to check stuck payouts');
+                
+                const data = await res.json();
+                
+                if (data.stuckPayouts > 0) {
+                    showAdminToast(`Found ${data.stuckPayouts} stuck payouts!`, 'warning');
+                    loadAlerts(1);
+                } else {
+                    showAdminToast('No stuck payouts found', 'success');
+                }
+            } catch (error) {
+                showAdminToast(error.message, 'error');
+            }
+        }
+
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+            return date.toLocaleDateString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Start badge refresh interval (every 30 seconds)
         function startBadgeRefresh() {
             updateAlertBadges(); // Initial load
+            updateAlertCounts(); // Load system alert count
             setInterval(updateAlertBadges, 30000); // Refresh every 30 seconds
+            setInterval(updateAlertCounts, 30000); // Refresh system alerts too
         }
 
         // Initialize

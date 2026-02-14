@@ -1227,6 +1227,9 @@
                             <button class="wallet-tab" data-tab="sendFunds">
                                 <i class="fas fa-paper-plane"></i> Send Funds
                             </button>
+                            <button class="wallet-tab" data-tab="pendingEarnings">
+                                <i class="fas fa-coins"></i> Earnings <span id="pendingEarningsCount" style="background:#10b981;color:white;padding:1px 6px;border-radius:10px;font-size:0.75rem;margin-left:4px;display:none;">0</span>
+                            </button>
                         </div>
                         
                         <div class="success-msg" id="successMsg">✓ Operation successful!</div>
@@ -1370,6 +1373,230 @@
                                 <h4><i class="fas fa-exchange-alt"></i> Recent Transfers</h4>
                                 <div id="recentTransfersList">
                                     <div class="no-pending">No recent transfers</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- PENDING EARNINGS TAB (with Withdrawal Request) -->
+                        <div class="tab-content" id="pendingEarningsTab">
+                            <div class="claim-info" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #10b981;">
+                                <h4 style="color: #065f46;"><i class="fas fa-coins"></i> Your Store Earnings</h4>
+                                <p style="color: #047857;">Profits from your store sales accumulate here. Request a withdrawal to receive funds to your MoMo.</p>
+                            </div>
+                            
+                            <!-- Earnings Stats -->
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+                                <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 16px; border-radius: 10px; text-align: center; border: 1px solid #f59e0b;">
+                                    <div style="font-size: 0.85rem; color: #92400e; margin-bottom: 4px;">Today's Earnings</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #b45309;" id="pendingTodayAmount">GH₵ 0.00</div>
+                                    <div style="font-size: 0.75rem; color: #a16207;"><span id="pendingTodayCount">0</span> orders</div>
+                                </div>
+                                <div style="background: linear-gradient(135deg, #d1fae5, #a7f3d0); padding: 16px; border-radius: 10px; text-align: center; border: 1px solid #10b981;">
+                                    <div style="font-size: 0.85rem; color: #065f46; margin-bottom: 4px;">Available to Withdraw</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #059669;" id="pendingTotalAmount">GH₵ 0.00</div>
+                                    <div style="font-size: 0.75rem; color: #047857;"><span id="pendingTotalCount">0</span> orders</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Withdrawal Request Form -->
+                            <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #10b981; margin-bottom: 20px;">
+                                <h4 style="margin: 0 0 15px 0; color: #065f46; font-size: 1rem;">
+                                    <i class="fas fa-money-bill-wave"></i> Request Withdrawal
+                                </h4>
+                                
+                                <div style="background: #f0fdf4; padding: 10px 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; border: 1px solid #bbf7d0;">
+                                    <i class="fas fa-info-circle" style="color: #059669;"></i>
+                                    Minimum withdrawal: <strong>GH₵ 5</strong> • Processed within 24 hours
+                                </div>
+                                
+                                <form id="profitWithdrawForm">
+                                    <div class="form-group">
+                                        <label>MoMo Network</label>
+                                        <select id="profitWithdrawNetwork" required>
+                                            <option value="">-- Select Network --</option>
+                                            <option value="mtn">MTN Mobile Money</option>
+                                            <option value="vodafone">Vodafone Cash / Telecel</option>
+                                            <option value="airteltigo">AirtelTigo Money</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>MoMo Number</label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <input type="tel" id="profitWithdrawPhone" placeholder="0240000000" pattern="[0-9]{10}" style="flex: 1;" required>
+                                            <button type="button" onclick="verifyProfitMomoAccount()" style="padding: 10px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+                                                <i class="fas fa-check-circle"></i> Verify
+                                            </button>
+                                        </div>
+                                        <div id="profitMomoVerifyResult" style="margin-top: 8px; font-size: 0.85rem; display: none;"></div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Account Name <span style="font-size: 0.75rem; color: #64748b;">(Auto-filled after verification)</span></label>
+                                        <input type="text" id="profitWithdrawAccountName" placeholder="Verify to auto-fill" readonly required style="background: #f1f5f9;">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Withdrawal Amount (GH₵)</label>
+                                        <input type="number" id="profitWithdrawAmount" placeholder="Min GH₵ 5" min="5" step="0.01" required oninput="updateProfitFeeBreakdown()">
+                                        <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">
+                                            Max available: <strong id="maxWithdrawableAmount">GH₵ 0.00</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Fee Breakdown -->
+                                    <div id="profitFeeBreakdown" style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; margin-bottom: 15px; display: none;">
+                                        <div style="font-size: 0.85rem; font-weight: 600; color: #92400e; margin-bottom: 8px;">
+                                            <i class="fas fa-receipt"></i> Fee Breakdown
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                                            <span>Withdrawal Amount:</span>
+                                            <span id="feeBreakdownAmount">GH₵ 0.00</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: #dc2626;">
+                                            <span>Processing Fee:</span>
+                                            <span id="feeBreakdownFee">- GH₵ 0.50</span>
+                                        </div>
+                                        <hr style="border: none; border-top: 1px dashed #d1d5db; margin: 8px 0;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; color: #059669;">
+                                            <span>You Receive:</span>
+                                            <span id="feeBreakdownNet">GH₵ 0.00</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn-topup" id="profitWithdrawBtn" style="background: linear-gradient(90deg, #10b981 0%, #059669 100%);" disabled>
+                                        <i class="fas fa-paper-plane"></i> Request Withdrawal
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <!-- Pending Profits List -->
+                            <div class="pending-claims">
+                                <h4><i class="fas fa-list-ul"></i> Earnings Breakdown</h4>
+                                <div id="pendingProfitsList" style="max-height: 250px; overflow-y: auto;">
+                                    <div class="no-pending">No pending profits</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Withdrawal Request History -->
+                            <div class="pending-claims" style="margin-top: 20px;">
+                                <h4><i class="fas fa-history"></i> Withdrawal Requests</h4>
+                                <div id="profitWithdrawalHistory" style="max-height: 250px; overflow-y: auto;">
+                                    <div class="no-pending">No withdrawal requests</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- WITHDRAW TAB -->
+                        <div class="tab-content" id="withdrawTab">
+                            <div class="claim-info" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #10b981;">
+                                <h4 style="color: #065f46;"><i class="fas fa-money-bill-wave"></i> Withdraw Funds</h4>
+                                <p style="color: #047857;">Withdraw money from your wallet to your Mobile Money or bank account. Withdrawals are processed within 24 hours.</p>
+                            </div>
+                            
+                            <!-- Withdrawal Settings Display -->
+                            <div id="withdrawalSettingsDisplay" style="background: #f0fdf4; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bbf7d0; font-size: 0.85rem;">
+                                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                                    <span>Min: <strong id="minWithdrawal">GH₵ 10</strong></span>
+                                    <span>Max: <strong id="maxWithdrawal">GH₵ 5,000</strong></span>
+                                    <span>Fee: <strong id="withdrawalFee">0%</strong></span>
+                                </div>
+                            </div>
+                            
+                            <form id="withdrawForm">
+                                <div class="form-group">
+                                    <label>Account Type</label>
+                                    <select id="withdrawAccountType" required onchange="toggleWithdrawFields()">
+                                        <option value="">-- Select Type --</option>
+                                        <option value="mobile_money">Mobile Money</option>
+                                        <option value="bank">Bank Account</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Mobile Money Fields -->
+                                <div id="momoFields" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Network</label>
+                                        <select id="withdrawNetwork" required>
+                                            <option value="">-- Select Network --</option>
+                                            <option value="mtn">MTN Mobile Money</option>
+                                            <option value="vodafone">Vodafone Cash / Telecel</option>
+                                            <option value="airteltigo">AirtelTigo Money</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Phone Number</label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <input type="tel" id="withdrawMomoNumber" placeholder="0240000000" pattern="[0-9]{10}" style="flex: 1;">
+                                            <button type="button" id="verifyMomoBtn" onclick="verifyMomoAccount()" style="padding: 10px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+                                                <i class="fas fa-check-circle"></i> Verify
+                                            </button>
+                                        </div>
+                                        <div id="momoVerifyResult" style="margin-top: 8px; font-size: 0.85rem; display: none;"></div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Bank Fields -->
+                                <div id="bankFields" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Bank</label>
+                                        <select id="withdrawBank">
+                                            <option value="">-- Select Bank --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Account Number</label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <input type="text" id="withdrawBankAccount" placeholder="Enter account number" style="flex: 1;">
+                                            <button type="button" id="verifyBankBtn" onclick="verifyBankAccount()" style="padding: 10px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+                                                <i class="fas fa-check-circle"></i> Verify
+                                            </button>
+                                        </div>
+                                        <div id="bankVerifyResult" style="margin-top: 8px; font-size: 0.85rem; display: none;"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Account Name <span style="font-size: 0.75rem; color: #64748b;">(Auto-filled after verification)</span></label>
+                                    <input type="text" id="withdrawAccountName" placeholder="Verify account to auto-fill" required readonly style="background: #f1f5f9;">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Amount (GH₵)</label>
+                                    <input type="number" id="withdrawAmount" placeholder="Enter amount" min="10" step="0.01" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Reason (Optional)</label>
+                                    <input type="text" id="withdrawReason" placeholder="E.g., Personal withdrawal">
+                                </div>
+                                
+                                <!-- Withdrawal Summary -->
+                                <div id="withdrawSummary" style="display: none; background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bbf7d0;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                        <span>Amount:</span>
+                                        <strong id="withdrawSummaryAmount">GH₵ 0.00</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                        <span>Fee:</span>
+                                        <strong id="withdrawSummaryFee">GH₵ 0.00</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; border-top: 1px solid #bbf7d0; padding-top: 8px;">
+                                        <span>You'll Receive:</span>
+                                        <strong id="withdrawSummaryNet" style="color: #059669;">GH₵ 0.00</strong>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn-topup" style="background: linear-gradient(90deg, #10b981 0%, #059669 100%);">
+                                    <i class="fas fa-money-bill-wave"></i> Request Withdrawal
+                                </button>
+                            </form>
+                            
+                            <!-- Withdrawal History -->
+                            <div class="pending-claims" style="margin-top: 20px;">
+                                <h4><i class="fas fa-history"></i> Withdrawal History</h4>
+                                <div id="withdrawalHistoryList">
+                                    <div class="no-pending">No withdrawal requests</div>
                                 </div>
                             </div>
                         </div>
@@ -2302,10 +2529,769 @@
             await loadMomoSettings();
             await loadPaystackKey();
             await loadPaymentHistory();
+            // Old wallet withdrawal removed - agents use profit payouts only
+            await loadPendingEarnings();
+            await loadSavedMomoDetails(); // Load saved MoMo for quick withdrawals
             renderRecentTransfers();
             
             // Check for payment callback
             await checkPaymentCallback();
+        });
+        
+        // ========== WITHDRAWAL FUNCTIONALITY (DISABLED) ==========
+        // NOTE: Wallet withdrawals are disabled. Agents can only withdraw profits from pending earnings.
+        let withdrawalSettings = { minWithdrawal: 10, maxWithdrawal: 5000, payoutsEnabled: false };
+        let withdrawalHistory = [];
+        
+        // These functions are stubs - wallet withdrawals removed
+        async function loadWithdrawalSettings() { console.log('Wallet withdrawals disabled - use Pending Earnings to request profit payouts'); }
+        async function loadBanks() { }
+        async function loadWithdrawalHistory() { }
+        
+        function renderWithdrawalHistory() {
+            const container = document.getElementById('withdrawalHistoryList');
+            if (!container) return;
+            
+            if (withdrawalHistory.length === 0) {
+                container.innerHTML = '<div class="no-pending">No withdrawal requests</div>';
+                return;
+            }
+            
+            container.innerHTML = withdrawalHistory.slice(0, 10).map(w => {
+                const statusColors = {
+                    'PENDING': { bg: '#fef3c7', color: '#92400e', text: 'Pending' },
+                    'PROCESSING': { bg: '#dbeafe', color: '#1e40af', text: 'Processing' },
+                    'COMPLETED': { bg: '#dcfce7', color: '#166534', text: 'Completed' },
+                    'FAILED': { bg: '#fee2e2', color: '#b91c1c', text: 'Failed' },
+                    'REJECTED': { bg: '#f3f4f6', color: '#6b7280', text: 'Rejected' }
+                };
+                const status = statusColors[w.status] || statusColors.PENDING;
+                const date = new Date(w.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                
+                return `
+                    <div class="pending-claim-item" style="border-color: ${status.color}20;">
+                        <div class="claim-header">
+                            <span class="claim-amount" style="color: ${w.status === 'COMPLETED' ? '#22c55e' : '#1e293b'};">
+                                GH₵ ${w.netAmount?.toFixed(2) || w.amount?.toFixed(2)}
+                            </span>
+                            <span class="claim-status" style="background: ${status.bg}; color: ${status.color};">
+                                ${status.text}
+                            </span>
+                        </div>
+                        <div class="claim-details">
+                            <div><strong>Account:</strong> ${w.accountNumber} (${w.accountType === 'mobile_money' ? w.bankName || 'MoMo' : w.bankName || 'Bank'})</div>
+                            <div><strong>Date:</strong> ${date}</div>
+                            ${w.failureReason ? `<div style="color:#ef4444;"><strong>Reason:</strong> ${w.failureReason}</div>` : ''}
+                        </div>
+                        ${w.status === 'PENDING' ? `
+                            <button onclick="cancelWithdrawal('${w.id}')" style="margin-top:10px;padding:6px 12px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;font-size:0.8rem;">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Network to bank code mapping
+        const MOMO_BANK_CODES = {
+            'mtn': 'MTN',
+            'vodafone': 'VOD',
+            'airteltigo': 'ATL'
+        };
+        
+        let accountVerified = false;
+        
+        async function verifyMomoAccount() {
+            const network = document.getElementById('withdrawNetwork').value;
+            const phoneNumber = document.getElementById('withdrawMomoNumber').value.trim();
+            const resultDiv = document.getElementById('momoVerifyResult');
+            const btn = document.getElementById('verifyMomoBtn');
+            
+            if (!network) {
+                showError('Please select a network first');
+                return;
+            }
+            
+            if (!phoneNumber || !phoneNumber.match(/^[0-9]{10}$/)) {
+                showError('Please enter a valid 10-digit phone number');
+                return;
+            }
+            
+            const bankCode = MOMO_BANK_CODES[network];
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span style="color:#3b82f6;"><i class="fas fa-spinner fa-spin"></i> Verifying account...</span>';
+            
+            try {
+                const result = await apiRequest('/profit-payouts/resolve-account', 'POST', {
+                    accountNumber: phoneNumber,
+                    bankCode: bankCode
+                });
+                
+                if (result.verified) {
+                    document.getElementById('withdrawAccountName').value = result.accountName;
+                    resultDiv.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Verified: <strong>${result.accountName}</strong></span>`;
+                    accountVerified = true;
+                } else {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> Could not verify account</span>`;
+                    accountVerified = false;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> ${err.message || 'Verification failed'}</span>`;
+                accountVerified = false;
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify';
+        }
+        
+        async function verifyBankAccount() {
+            const bankSelect = document.getElementById('withdrawBank');
+            const bankCode = bankSelect.value;
+            const accountNumber = document.getElementById('withdrawBankAccount').value.trim();
+            const resultDiv = document.getElementById('bankVerifyResult');
+            const btn = document.getElementById('verifyBankBtn');
+            
+            if (!bankCode) {
+                showError('Please select a bank first');
+                return;
+            }
+            
+            if (!accountNumber) {
+                showError('Please enter an account number');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span style="color:#3b82f6;"><i class="fas fa-spinner fa-spin"></i> Verifying account...</span>';
+            
+            try {
+                const result = await apiRequest('/profit-payouts/resolve-account', 'POST', {
+                    accountNumber: accountNumber,
+                    bankCode: bankCode
+                });
+                
+                if (result.verified) {
+                    document.getElementById('withdrawAccountName').value = result.accountName;
+                    resultDiv.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Verified: <strong>${result.accountName}</strong></span>`;
+                    accountVerified = true;
+                } else {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> Could not verify account</span>`;
+                    accountVerified = false;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> ${err.message || 'Verification failed'}</span>`;
+                accountVerified = false;
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify';
+        }
+        
+        // Reset verification when account details change
+        document.getElementById('withdrawMomoNumber')?.addEventListener('input', function() {
+            accountVerified = false;
+            document.getElementById('withdrawAccountName').value = '';
+            document.getElementById('momoVerifyResult').style.display = 'none';
+        });
+        document.getElementById('withdrawNetwork')?.addEventListener('change', function() {
+            accountVerified = false;
+            document.getElementById('withdrawAccountName').value = '';
+            document.getElementById('momoVerifyResult').style.display = 'none';
+        });
+        document.getElementById('withdrawBankAccount')?.addEventListener('input', function() {
+            accountVerified = false;
+            document.getElementById('withdrawAccountName').value = '';
+            document.getElementById('bankVerifyResult').style.display = 'none';
+        });
+        document.getElementById('withdrawBank')?.addEventListener('change', function() {
+            accountVerified = false;
+            document.getElementById('withdrawAccountName').value = '';
+            document.getElementById('bankVerifyResult').style.display = 'none';
+        });
+        
+        function toggleWithdrawFields() {
+            const accountType = document.getElementById('withdrawAccountType').value;
+            document.getElementById('momoFields').style.display = accountType === 'mobile_money' ? 'block' : 'none';
+            document.getElementById('bankFields').style.display = accountType === 'bank' ? 'block' : 'none';
+            
+            // Update required attributes
+            const momoNetwork = document.getElementById('withdrawNetwork');
+            const momoNumber = document.getElementById('withdrawMomoNumber');
+            const bankSelect = document.getElementById('withdrawBank');
+            const bankAccount = document.getElementById('withdrawBankAccount');
+            
+            if (accountType === 'mobile_money') {
+                momoNetwork.required = true;
+                momoNumber.required = true;
+                bankSelect.required = false;
+                bankAccount.required = false;
+            } else if (accountType === 'bank') {
+                momoNetwork.required = false;
+                momoNumber.required = false;
+                bankSelect.required = true;
+                bankAccount.required = true;
+            } else {
+                momoNetwork.required = false;
+                momoNumber.required = false;
+                bankSelect.required = false;
+                bankAccount.required = false;
+            }
+        }
+        
+        // Update withdrawal summary on amount change
+        document.getElementById('withdrawAmount')?.addEventListener('input', function() {
+            const amount = parseFloat(this.value) || 0;
+            const summary = document.getElementById('withdrawSummary');
+            
+            if (amount > 0) {
+                const feePercent = (amount * (withdrawalSettings.withdrawalFeePercent || 0)) / 100;
+                const fee = feePercent + (withdrawalSettings.withdrawalFeeFlat || 0);
+                const netAmount = amount - fee;
+                
+                document.getElementById('withdrawSummaryAmount').textContent = `GH₵ ${amount.toFixed(2)}`;
+                document.getElementById('withdrawSummaryFee').textContent = `GH₵ ${fee.toFixed(2)}`;
+                document.getElementById('withdrawSummaryNet').textContent = `GH₵ ${netAmount.toFixed(2)}`;
+                summary.style.display = 'block';
+            } else {
+                summary.style.display = 'none';
+            }
+        });
+        
+        // Withdrawal form submission
+        document.getElementById('withdrawForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const accountType = document.getElementById('withdrawAccountType').value;
+            const accountName = document.getElementById('withdrawAccountName').value.trim();
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const reason = document.getElementById('withdrawReason').value.trim();
+            
+            if (!accountType) {
+                showError('Please select an account type');
+                return;
+            }
+            
+            // Require account verification
+            if (!accountVerified) {
+                showError('Please verify your account first by clicking the Verify button');
+                return;
+            }
+            
+            if (!accountName) {
+                showError('Please verify your account to get the account name');
+                return;
+            }
+            
+            if (!amount || amount < withdrawalSettings.minWithdrawal) {
+                showError(`Minimum withdrawal is GH₵ ${withdrawalSettings.minWithdrawal}`);
+                return;
+            }
+            
+            if (amount > withdrawalSettings.maxWithdrawal) {
+                showError(`Maximum withdrawal is GH₵ ${withdrawalSettings.maxWithdrawal}`);
+                return;
+            }
+            
+            if (amount > walletBalance) {
+                showError(`Insufficient balance. Your balance is GH₵ ${walletBalance.toFixed(2)}`);
+                return;
+            }
+            
+            let accountNumber, network, bankCode, bankName;
+            
+            if (accountType === 'mobile_money') {
+                network = document.getElementById('withdrawNetwork').value;
+                accountNumber = document.getElementById('withdrawMomoNumber').value.trim();
+                
+                if (!network) {
+                    showError('Please select a network');
+                    return;
+                }
+                if (!accountNumber || !accountNumber.match(/^[0-9]{10}$/)) {
+                    showError('Please enter a valid 10-digit phone number');
+                    return;
+                }
+            } else {
+                const bankSelect = document.getElementById('withdrawBank');
+                bankCode = bankSelect.value;
+                bankName = bankSelect.options[bankSelect.selectedIndex]?.dataset?.name || '';
+                accountNumber = document.getElementById('withdrawBankAccount').value.trim();
+                
+                if (!bankCode) {
+                    showError('Please select a bank');
+                    return;
+                }
+                if (!accountNumber) {
+                    showError('Please enter your account number');
+                    return;
+                }
+            }
+            
+            try {
+                const btn = this.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                
+                // Wallet withdrawals disabled - redirect to pending earnings
+                showError('Wallet withdrawals are disabled. Please use the Pending Earnings tab to request profit payouts.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Request Withdrawal';
+            } catch (error) {
+                showError(error.message || 'Failed to submit withdrawal request');
+                const btn = this.querySelector('button[type="submit"]');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Request Withdrawal';
+            }
+        });
+        
+        async function cancelWithdrawal(payoutId) {
+            // Wallet withdrawals disabled - this function is a stub
+            showError('Wallet withdrawals are disabled. Use Pending Earnings to request profit payouts.');
+        }
+        
+        // ========== PENDING EARNINGS FUNCTIONALITY ==========
+        let pendingEarningsData = { profits: [], total: 0, count: 0 };
+        let profitPayoutSettings = { payoutTime: '23:30', minPayout: 5 };
+        
+        async function loadPendingEarnings() {
+            try {
+                // Load settings
+                const settings = await apiRequest('/profit-payouts/settings');
+                profitPayoutSettings = settings;
+                
+                // Load stats
+                const stats = await apiRequest('/profit-payouts/my/stats');
+                
+                document.getElementById('pendingTodayAmount').textContent = `GH₵ ${(stats.todayAmount || 0).toFixed(2)}`;
+                document.getElementById('pendingTodayCount').textContent = stats.todayCount || 0;
+                document.getElementById('pendingTotalAmount').textContent = `GH₵ ${(stats.pendingAmount || 0).toFixed(2)}`;
+                document.getElementById('pendingTotalCount').textContent = stats.pendingCount || 0;
+                
+                // Update available amount for withdrawal
+                profitAvailableAmount = stats.pendingAmount || 0;
+                updateProfitWithdrawUI();
+                
+                // Update badge on tab
+                const badge = document.getElementById('pendingEarningsCount');
+                if (stats.pendingAmount > 0) {
+                    badge.textContent = `₵${stats.pendingAmount.toFixed(0)}`;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+                
+                // Load pending profits list
+                const pending = await apiRequest('/profit-payouts/my/pending');
+                pendingEarningsData = pending;
+                renderPendingProfits();
+                
+                // Load withdrawal history
+                loadProfitWithdrawalHistory();
+                
+            } catch (e) {
+                console.warn('Could not load pending earnings:', e);
+            }
+        }
+        
+        function formatTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        }
+        
+        function renderPendingProfits() {
+            const container = document.getElementById('pendingProfitsList');
+            const profits = pendingEarningsData.profits || [];
+            
+            if (profits.length === 0) {
+                container.innerHTML = '<div class="no-pending">No pending profits</div>';
+                return;
+            }
+            
+            container.innerHTML = profits.map(p => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #fffbf0; border: 1px solid #fde68a; border-radius: 8px; margin-bottom: 8px;">
+                    <div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 0.9rem;">${p.description || 'Store profit'}</div>
+                        <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+                            ${p.storefront?.name || 'Store'} • ${new Date(p.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    </div>
+                    <div style="font-weight: 700; color: #f59e0b; font-size: 1rem;">+GH₵ ${p.amount.toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+        
+        function renderProfitHistory(profits) {
+            const container = document.getElementById('profitHistoryList');
+            
+            // Filter to show only paid profits
+            const paidProfits = profits.filter(p => p.status === 'PAID');
+            
+            if (paidProfits.length === 0) {
+                container.innerHTML = '<div class="no-pending">No payout history yet</div>';
+                return;
+            }
+            
+            container.innerHTML = paidProfits.map(p => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 6px;">
+                    <div>
+                        <div style="font-weight: 500; color: #1e293b; font-size: 0.85rem;">${p.description || 'Profit payout'}</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">
+                            Paid ${new Date(p.paidAt || p.updatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; color: #10b981;">GH₵ ${p.amount.toFixed(2)}</div>
+                        <div style="font-size: 0.7rem; padding: 2px 6px; background: #d1fae5; color: #065f46; border-radius: 4px;">PAID</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // ========== PROFIT WITHDRAWAL FUNCTIONALITY ==========
+        let profitAccountVerified = false;
+        let profitAvailableAmount = 0;
+        let savedMomoDetails = null; // Store saved MoMo details
+        const MOMO_TRANSFER_FEE = 0.50; // GH₵0.50 per transfer
+        
+        // Load saved MoMo details for quick withdrawals
+        async function loadSavedMomoDetails() {
+            try {
+                const data = await apiRequest('/profit-payouts/momo-details');
+                if (data && data.hasSavedDetails) {
+                    savedMomoDetails = data;
+                    
+                    // Pre-fill form with saved details
+                    const networkMap = { 'MTN': 'mtn', 'VOD': 'vodafone', 'ATL': 'airteltigo' };
+                    const networkSelect = document.getElementById('profitWithdrawNetwork');
+                    const phoneInput = document.getElementById('profitWithdrawPhone');
+                    const accountNameInput = document.getElementById('profitWithdrawAccountName');
+                    
+                    if (networkSelect) networkSelect.value = networkMap[data.momoNetwork] || '';
+                    if (phoneInput) phoneInput.value = data.momoNumber || '';
+                    if (accountNameInput) {
+                        accountNameInput.value = data.momoName || '';
+                        accountNameInput.style.background = '#d1fae5'; // Green background
+                    }
+                    
+                    // Mark as verified since these are saved details
+                    profitAccountVerified = true;
+                    
+                    // Show saved details indicator
+                    const verifyResult = document.getElementById('profitMomoVerifyResult');
+                    if (verifyResult) {
+                        verifyResult.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 8px; color: #059669;">
+                                <i class="fas fa-check-circle"></i>
+                                <span><strong>Saved account:</strong> ${data.momoName} (${data.momoNetwork})</span>
+                                <button type="button" onclick="clearSavedMomo()" style="padding: 2px 8px; font-size: 0.75rem; background: #fee2e2; color: #dc2626; border: none; border-radius: 4px; cursor: pointer;">
+                                    Change
+                                </button>
+                            </div>
+                        `;
+                        verifyResult.style.display = 'block';
+                    }
+                    
+                    // Update button state
+                    updateProfitFeeBreakdown();
+                    console.log('[MoMo] Loaded saved details:', data.momoName, data.momoNetwork);
+                }
+            } catch (error) {
+                console.log('[MoMo] No saved details or error:', error.message);
+            }
+        }
+        
+        // Clear saved MoMo to enter new details
+        function clearSavedMomo() {
+            savedMomoDetails = null;
+            profitAccountVerified = false;
+            
+            document.getElementById('profitWithdrawNetwork').value = '';
+            document.getElementById('profitWithdrawPhone').value = '';
+            document.getElementById('profitWithdrawAccountName').value = '';
+            document.getElementById('profitWithdrawAccountName').style.background = '#f1f5f9';
+            
+            const verifyResult = document.getElementById('profitMomoVerifyResult');
+            if (verifyResult) {
+                verifyResult.innerHTML = '<span style="color: #64748b;">Enter new MoMo details and click Verify</span>';
+                verifyResult.style.display = 'block';
+            }
+            
+            updateProfitFeeBreakdown();
+        }
+        
+        function updateProfitFeeBreakdown() {
+            const amount = parseFloat(document.getElementById('profitWithdrawAmount').value) || 0;
+            const breakdownDiv = document.getElementById('profitFeeBreakdown');
+            
+            if (amount > 0) {
+                const fee = MOMO_TRANSFER_FEE;
+                const netAmount = Math.max(0, amount - fee);
+                
+                document.getElementById('feeBreakdownAmount').textContent = `GH₵ ${amount.toFixed(2)}`;
+                document.getElementById('feeBreakdownFee').textContent = `- GH₵ ${fee.toFixed(2)}`;
+                document.getElementById('feeBreakdownNet').textContent = `GH₵ ${netAmount.toFixed(2)}`;
+                
+                breakdownDiv.style.display = 'block';
+                
+                // Update button text to show net amount
+                const btn = document.getElementById('profitWithdrawBtn');
+                if (btn && profitAccountVerified) {
+                    btn.innerHTML = `<i class="fas fa-paper-plane"></i> Request GH₵${netAmount.toFixed(2)}`;
+                }
+            } else {
+                breakdownDiv.style.display = 'none';
+            }
+            
+            // Always update button enabled state
+            updateProfitWithdrawButton();
+        }
+        
+        async function verifyProfitMomoAccount() {
+            const network = document.getElementById('profitWithdrawNetwork').value;
+            const phone = document.getElementById('profitWithdrawPhone').value;
+            const resultDiv = document.getElementById('profitMomoVerifyResult');
+            
+            if (!network) {
+                showError('Please select a network first');
+                return;
+            }
+            
+            if (!phone || phone.length !== 10) {
+                showError('Please enter a valid 10-digit phone number');
+                return;
+            }
+            
+            // Map network to Paystack bank code
+            const bankCodes = {
+                'mtn': 'MTN',
+                'vodafone': 'VOD',
+                'airteltigo': 'ATL'
+            };
+            
+            const bankCode = bankCodes[network];
+            
+            resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.color = '#3b82f6';
+            
+            try {
+                const result = await apiRequest('/profit-payouts/resolve-account', 'POST', {
+                    accountNumber: phone,
+                    bankCode: bankCode
+                });
+                
+                if (result.success && result.accountName) {
+                    document.getElementById('profitWithdrawAccountName').value = result.accountName;
+                    resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> Verified: <strong>${result.accountName}</strong>`;
+                    resultDiv.style.color = '#059669';
+                    profitAccountVerified = true;
+                    updateProfitWithdrawButton();
+                } else {
+                    resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> ${result.message || 'Could not verify account'}`;
+                    resultDiv.style.color = '#dc2626';
+                    profitAccountVerified = false;
+                    updateProfitWithdrawButton();
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> ${error.message || 'Verification failed'}`;
+                resultDiv.style.color = '#dc2626';
+                profitAccountVerified = false;
+                updateProfitWithdrawButton();
+            }
+        }
+        
+        function updateProfitWithdrawButton() {
+            const btn = document.getElementById('profitWithdrawBtn');
+            const amount = parseFloat(document.getElementById('profitWithdrawAmount').value) || 0;
+            
+            // Enable button only if: verified, amount >= 5, amount <= available
+            const canWithdraw = profitAccountVerified && amount >= 5 && amount <= profitAvailableAmount;
+            btn.disabled = !canWithdraw;
+        }
+        
+        async function loadProfitWithdrawalHistory() {
+            try {
+                const result = await apiRequest('/profit-payouts/my/withdrawals');
+                const container = document.getElementById('profitWithdrawalHistory');
+                
+                // Filter for only profit withdrawals or show all
+                const payouts = result.payouts || [];
+                
+                if (payouts.length === 0) {
+                    container.innerHTML = '<div class="no-pending">No withdrawal requests yet</div>';
+                    return;
+                }
+                
+                container.innerHTML = payouts.map(p => {
+                    let statusColor, statusBg;
+                    switch(p.status) {
+                        case 'COMPLETED': statusColor = '#065f46'; statusBg = '#d1fae5'; break;
+                        case 'PENDING': statusColor = '#92400e'; statusBg = '#fef3c7'; break;
+                        case 'RESERVED': statusColor = '#7c3aed'; statusBg = '#ede9fe'; break;
+                        case 'PROCESSING': statusColor = '#1e40af'; statusBg = '#dbeafe'; break;
+                        case 'FAILED': case 'REJECTED': statusColor = '#991b1b'; statusBg = '#fee2e2'; break;
+                        default: statusColor = '#475569'; statusBg = '#f1f5f9';
+                    }
+                    
+                    const fee = p.fee || 0;
+                    const netAmount = p.netAmount || (p.amount - fee);
+                    
+                    return `
+                        <div style="padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div style="font-weight: 600; color: #1e293b;">GH₵ ${p.amount.toFixed(2)}</div>
+                                    ${fee > 0 ? `
+                                        <div style="font-size: 0.7rem; color: #dc2626; margin-top: 2px;">
+                                            Fee: GH₵${fee.toFixed(2)} → Receive: <strong style="color: #059669;">GH₵${netAmount.toFixed(2)}</strong>
+                                        </div>
+                                    ` : ''}
+                                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+                                        ${p.accountNumber} (${p.bankName || p.accountType})
+                                    </div>
+                                    <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
+                                        ${new Date(p.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.7rem; padding: 3px 8px; background: ${statusBg}; color: ${statusColor}; border-radius: 4px; font-weight: 500;">
+                                    ${p.status}
+                                </div>
+                            </div>
+                            ${p.status === 'PENDING' ? `
+                                <button onclick="cancelProfitWithdrawal('${p.id}')" style="margin-top: 8px; font-size: 0.75rem; padding: 4px 10px; background: #fee2e2; color: #dc2626; border: none; border-radius: 4px; cursor: pointer;">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            ` : ''}
+                            ${p.failureReason ? `<div style="font-size: 0.75rem; color: #dc2626; margin-top: 6px;"><i class="fas fa-exclamation-circle"></i> ${p.failureReason}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.warn('Could not load withdrawal history:', e);
+            }
+        }
+        
+        async function cancelProfitWithdrawal(payoutId) {
+            if (!confirm('Cancel this withdrawal request?')) return;
+            
+            try {
+                await apiRequest(`/profit-payouts/my/withdrawals/${payoutId}/cancel`, 'POST');
+                showSuccess('Withdrawal cancelled');
+                loadPendingEarnings();
+                loadProfitWithdrawalHistory();
+            } catch (error) {
+                showError(error.message || 'Failed to cancel');
+            }
+        }
+        
+        // Handle profit withdrawal form submission
+        document.getElementById('profitWithdrawForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const network = document.getElementById('profitWithdrawNetwork').value;
+            const phone = document.getElementById('profitWithdrawPhone').value;
+            const accountName = document.getElementById('profitWithdrawAccountName').value;
+            const amount = parseFloat(document.getElementById('profitWithdrawAmount').value);
+            
+            if (!profitAccountVerified) {
+                showError('Please verify your MoMo number first');
+                return;
+            }
+            
+            if (amount < 5) {
+                showError('Minimum withdrawal is GH₵ 5');
+                return;
+            }
+            
+            if (amount > profitAvailableAmount) {
+                showError(`You can only withdraw up to GH₵ ${profitAvailableAmount.toFixed(2)}`);
+                return;
+            }
+            
+            const bankCodes = { 'mtn': 'MTN', 'vodafone': 'VOD', 'airteltigo': 'ATL' };
+            const bankNames = { 'mtn': 'MTN Mobile Money', 'vodafone': 'Vodafone Cash', 'airteltigo': 'AirtelTigo Money' };
+            
+            const btn = document.getElementById('profitWithdrawBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                console.log('Submitting withdrawal:', { amount, accountName, phone, network });
+                
+                const result = await apiRequest('/profit-payouts/withdraw', 'POST', {
+                    amount,
+                    accountName,
+                    accountNumber: phone,
+                    accountType: 'mobile_money',
+                    network,
+                    bankCode: bankCodes[network],
+                    bankName: bankNames[network]
+                });
+                
+                console.log('Withdrawal result:', result);
+                
+                if (result.error) {
+                    showError(result.error);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Request Withdrawal';
+                    return;
+                }
+                
+                showSuccess(result.message || 'Withdrawal request submitted! Admin will process it within 24 hours.');
+                
+                // Reset amount only, keep MoMo details
+                document.getElementById('profitWithdrawAmount').value = '';
+                document.getElementById('profitFeeBreakdown').style.display = 'none';
+                
+                // Reload data (this will also update saved MoMo details in case they were new)
+                loadPendingEarnings();
+                loadProfitWithdrawalHistory();
+                
+                // If new details were provided, reload saved details
+                if (!savedMomoDetails) {
+                    loadSavedMomoDetails();
+                }
+                
+            } catch (error) {
+                console.error('[Withdraw] Error:', error);
+                showError(error.message || 'Failed to submit withdrawal request');
+            } finally {
+                // Always reset button
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Request Withdrawal';
+            }
+        });
+        
+        // Update available amount display and button state on load
+        function updateProfitWithdrawUI() {
+            document.getElementById('maxWithdrawableAmount').textContent = `GH₵ ${profitAvailableAmount.toFixed(2)}`;
+            document.getElementById('profitWithdrawAmount').max = profitAvailableAmount;
+            updateProfitWithdrawButton();
+        }
+        
+        // Listen to amount changes
+        document.getElementById('profitWithdrawAmount')?.addEventListener('input', updateProfitWithdrawButton);
+        document.getElementById('profitWithdrawNetwork')?.addEventListener('change', function() {
+            // Reset verification when network changes
+            profitAccountVerified = false;
+            document.getElementById('profitWithdrawAccountName').value = '';
+            document.getElementById('profitMomoVerifyResult').style.display = 'none';
+            updateProfitWithdrawButton();
+        });
+        document.getElementById('profitWithdrawPhone')?.addEventListener('input', function() {
+            // Reset verification when phone changes
+            profitAccountVerified = false;
+            document.getElementById('profitWithdrawAccountName').value = '';
+            document.getElementById('profitMomoVerifyResult').style.display = 'none';
+            updateProfitWithdrawButton();
         });
         
         // Load payment method settings from API

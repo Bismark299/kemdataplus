@@ -40,6 +40,7 @@ const storeCustomerRoutes = require('./routes/store-customer.routes');
 const datahubRoutes = require('./routes/datahub.routes');
 const easydataRoutes = require('./routes/easydata.routes');
 const paystackRoutes = require('./routes/paystack.routes');
+const profitPayoutRoutes = require('./routes/profit-payout.routes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -250,6 +251,7 @@ app.use('/api/store-customer', storeCustomerRoutes);
 app.use('/api/datahub', datahubRoutes);
 app.use('/api/easydata', easydataRoutes);
 app.use('/api/paystack', paystackRoutes);
+app.use('/api/profit-payouts', profitPayoutRoutes);
 app.use('/api/complaints', require('./routes/complaint.routes'));
 
 // Public storefront route (no auth required)
@@ -322,6 +324,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   
   // Start auto-sync background job
   startAutoSync();
+  
+  // Start profit payout scheduler (11:30 PM Ghana time)
+  startProfitPayoutScheduler();
 });
 
 // ============================================
@@ -330,9 +335,19 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 const settingsController = require('./controllers/settings.controller');
 const datahubService = require('./services/datahub.service');
 const orderGroupService = require('./services/order-group.service');
+const profitScheduler = require('./services/profit-scheduler');
 
 let autoSyncInterval = null;
 const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
+
+// Start profit payout scheduler
+function startProfitPayoutScheduler() {
+  try {
+    profitScheduler.startScheduler();
+  } catch (err) {
+    console.error('[Server] Failed to start profit scheduler:', err.message);
+  }
+}
 
 function startAutoSync() {
   // Clear any existing interval
@@ -439,6 +454,9 @@ process.on('SIGTERM', () => {
     clearInterval(autoSyncInterval);
     console.log('Auto-sync stopped');
   }
+  
+  // Stop profit scheduler
+  profitScheduler.stopScheduler();
   
   server.close(() => {
     console.log('Server closed');

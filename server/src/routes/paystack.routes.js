@@ -193,7 +193,28 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const event = JSON.parse(rawBody);
     console.log(`[Paystack] Webhook received: ${event.event}`);
     
-    // Process the webhook
+    // Handle transfer webhooks for profit payouts
+    const profitPayoutService = require('../services/profit-payout.service');
+    
+    if (event.event === 'transfer.success') {
+      const result = await profitPayoutService.handleTransferSuccess(event.data);
+      console.log(`[Paystack] Transfer success processed:`, result);
+      return res.status(200).json({ received: true, result });
+    }
+    
+    if (event.event === 'transfer.failed') {
+      const result = await profitPayoutService.handleTransferFailed(event.data);
+      console.log(`[Paystack] Transfer failed processed:`, result);
+      return res.status(200).json({ received: true, result });
+    }
+    
+    if (event.event === 'transfer.reversed') {
+      const result = await profitPayoutService.handleTransferReversed(event.data);
+      console.log(`[Paystack] Transfer reversed processed:`, result);
+      return res.status(200).json({ received: true, result });
+    }
+    
+    // Process the webhook (for charge events)
     const result = await paystackService.processWebhook(event);
     
     if (result.processed) {
@@ -257,6 +278,22 @@ router.get('/history', authenticate, async (req, res, next) => {
     res.json({ payments });
   } catch (error) {
     console.error('[Paystack] History error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/paystack/admin/balance
+ * Get Paystack account balance (Admin only)
+ */
+const { authorize } = require('../middleware/auth');
+
+router.get('/admin/balance', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const result = await paystackService.getBalance();
+    res.json(result);
+  } catch (error) {
+    console.error('[Paystack] Balance error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

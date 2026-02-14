@@ -697,6 +697,16 @@ const datahubService = {
           console.error(`[DataHub] Failed to credit profit for order ${orderId}:`, err.message);
         }
       }
+      
+      // If order failed/cancelled and has storefront order, cancel pending profit
+      if ((newStatus === 'FAILED' || newStatus === 'CANCELLED') && order.storefrontOrderId) {
+        try {
+          const profitPayoutService = require('./profit-payout.service');
+          await profitPayoutService.cancelPendingProfit(order.storefrontOrderId, `Order ${newStatus.toLowerCase()}`);
+        } catch (err) {
+          console.error(`[DataHub] Failed to cancel pending profit for order ${orderId}:`, err.message);
+        }
+      }
 
       return {
         success: true,

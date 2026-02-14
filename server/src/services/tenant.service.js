@@ -20,27 +20,43 @@ const tenantService = {
    * Create root tenant (for initial setup)
    */
   async createRootTenant(data) {
-    const existing = await prisma.tenant.findFirst({ where: { isRoot: true } });
+    // Check by both isRoot and slug
+    const existing = await prisma.tenant.findFirst({ 
+      where: { 
+        OR: [
+          { isRoot: true },
+          { slug: data.slug || 'root' }
+        ]
+      } 
+    });
     if (existing) {
-      throw new Error('Root tenant already exists');
+      return existing; // Return existing instead of throwing
     }
 
-    const tenant = await prisma.tenant.create({
-      data: {
-        id: uuidv4(),
-        name: data.name || 'KemDataplus',
-        slug: data.slug || 'root',
-        isRoot: true,
-        hierarchyLevel: 0,
-        hierarchyPath: '/',
-        canCreateSubTenant: true,
-        maxSubTenants: 999,
-        maxUsers: 99999,
-        status: 'ACTIVE',
+    try {
+      const tenant = await prisma.tenant.create({
+        data: {
+          id: uuidv4(),
+          name: data.name || 'KemDataplus',
+          slug: data.slug || 'root',
+          isRoot: true,
+          hierarchyLevel: 0,
+          hierarchyPath: '/',
+          canCreateSubTenant: true,
+          maxSubTenants: 999,
+          maxUsers: 99999,
+          status: 'ACTIVE',
+        }
+      });
+      return tenant;
+    } catch (err) {
+      // Handle race condition - another request created it first
+      if (err.code === 'P2002') {
+        const existing = await prisma.tenant.findFirst({ where: { isRoot: true } });
+        if (existing) return existing;
       }
-    });
-
-    return tenant;
+      throw err;
+    }
   },
 
   /**

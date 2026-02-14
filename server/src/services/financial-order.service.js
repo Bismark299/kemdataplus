@@ -867,14 +867,20 @@ const financialOrderService = {
       totalProfit,
       agentProfitPercent: totalProfit > 0 ? (agentProfit / totalProfit * 100).toFixed(1) : 0,
       platformProfitPercent: totalProfit > 0 ? (platformProfit / totalProfit * 100).toFixed(1) : 0
-    };
+  };
   },
 
   /**
-   * Credit agent profit to their wallet
+   * Credit agent profit to their wallet (or record as pending for daily batch)
    * Called when Paystack storefront order status changes to COMPLETED
+   * 
+   * NEW BEHAVIOR: Uses profitPayoutSettings to determine instant vs batch mode
+   * - instant: Credit to wallet immediately (legacy)
+   * - daily_batch: Record as pending profit for 11:30 PM payout
    */
   async creditAgentProfit(storefrontOrderId) {
+    const profitPayoutService = require('./profit-payout.service');
+    
     const storefrontOrder = await prisma.storefrontOrder.findUnique({
       where: { id: storefrontOrderId },
       include: {
@@ -937,7 +943,51 @@ const financialOrderService = {
       };
     }
 
-    // Credit in transaction
+    // Check payout mode: instant vs batch modes (daily_batch or weekly_momo)
+    const payoutSettings = profitPayoutService.getSettings();
+    const isBatchMode = payoutSettings.mode === 'daily_batch' || payoutSettings.mode === 'weekly_momo';
+    
+    if (isBatchMode) {
+      // BATCH MODE: Record as pending profit (agent requests withdrawal later)
+      try {
+        await profitPayoutService.recordPendingProfit({
+          userId: owner.id,
+          storefrontId: storefrontOrder.storefrontId,
+          orderId: storefrontOrderId,
+          orderReference: storefrontOrder.reference || storefrontOrderId.slice(0, 8),
+          amount: agentProfit,
+          description: `Store profit - ${storefrontOrder.bundle.name} to ${storefrontOrder.customerPhone}`
+        });
+
+        // Mark storefront order as profit recorded (pending)
+        await prisma.storefrontOrder.update({
+          where: { id: storefrontOrderId },
+          data: {
+            profitCredited: true, // Mark as handled (will be credited at batch time)
+            profitCreditedAt: new Date()
+          }
+        });
+
+        console.log(`[Financial] 📋 Agent profit queued for ${payoutSettings.mode} payout: GHS ${agentProfit.toFixed(2)} to ${owner.name}`);
+        
+        return {
+          credited: false,
+          pending: true,
+          amount: agentProfit,
+          ownerId: owner.id,
+          ownerName: owner.name,
+          payoutMode: payoutSettings.mode,
+          payoutDay: payoutSettings.payoutDay,
+          reason: `Profit queued for ${payoutSettings.mode} payout`
+        };
+      } catch (err) {
+        console.error(`[Financial] Failed to record pending profit:`, err.message);
+        // Fall back to instant credit on error
+        console.log(`[Financial] Falling back to instant credit...`);
+      }
+    }
+
+    // INSTANT MODE (or fallback): Credit to wallet immediately
     const result = await prisma.$transaction(async (tx) => {
       // Get or create wallet
       let wallet = owner.wallet;

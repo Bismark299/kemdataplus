@@ -51,6 +51,21 @@ enum TransactionStatus {
   REVERSED
 }
 
+enum PayoutStatus {
+  PENDING
+  RESERVED      // Balance reserved, awaiting processing
+  PROCESSING    // Sent to Paystack, awaiting webhook confirmation
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+enum PendingProfitStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED
@@ -75,6 +90,17 @@ enum AuditAction {
   TENANT_CREATE
   TENANT_SUSPEND
   ROLE_CHANGE
+  // Payout audit actions
+  PAYOUT_REQUEST
+  PAYOUT_ACCUMULATE
+  PAYOUT_APPROVE
+  PAYOUT_REJECT
+  PAYOUT_PROCESS
+  PAYOUT_COMPLETE
+  PAYOUT_FAIL
+  PAYOUT_FORCE_COMPLETE
+  PAYOUT_FORCE_CANCEL
+  PAYOUT_CANCEL
 }
 
 // ============================================
@@ -152,6 +178,12 @@ model User {
   canCreateUsers   Boolean       @default(false)
   maxDownlineUsers Int           @default(0)
   
+  // MoMo Payout Details (cached for faster payouts)
+  momoNetwork      String?       // MTN, VOD, ATL
+  momoNumber       String?       // Mobile money number
+  momoName         String?       // Account holder name
+  momoRecipientCode String?      // Paystack recipient_code (cached)
+  
   // Security
   lastLoginAt      DateTime?
   lastLoginIp      String?
@@ -188,6 +220,13 @@ model User {
   complaints           Complaint[]
   assignedComplaints   Complaint[]         @relation("AssignedComplaints")
   complaintResponses   ComplaintResponse[]
+  
+  // Payout relations
+  payouts              AgentPayout[]
+  reviewedPayouts      AgentPayout[]       @relation("PayoutReviewer")
+  
+  // Pending profit relations
+  pendingProfits       PendingProfit[]
 
   @@index([tenantId])
   @@index([parentUserId])
@@ -639,6 +678,60 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// Admin Alerts - Important notifications for administrators
+model AdminAlert {
+  id          String        @id @default(uuid())
+  type        AlertType
+  severity    AlertSeverity @default(MEDIUM)
+  title       String
+  message     String
+  
+  // Related entity
+  entityType  String?       // "AgentPayout", "Order", etc.
+  entityId    String?
+  
+  // Metadata for context
+  metadata    Json?
+  
+  // Status
+  isRead      Boolean       @default(false)
+  readBy      String?
+  readAt      DateTime?
+  isDismissed Boolean       @default(false)
+  dismissedBy String?
+  dismissedAt DateTime?
+  
+  // Auto-resolve
+  isResolved  Boolean       @default(false)
+  resolvedAt  DateTime?
+  
+  createdAt   DateTime      @default(now())
+  
+  @@index([type])
+  @@index([severity])
+  @@index([isRead])
+  @@index([isDismissed])
+  @@index([createdAt])
+  @@map("admin_alerts")
+}
+
+enum AlertType {
+  PAYOUT_FAILED
+  PAYOUT_STUCK
+  LOW_PAYSTACK_BALANCE
+  WEBHOOK_FAILURE
+  SYSTEM_ERROR
+  SECURITY_ALERT
+  HIGH_WITHDRAWAL_VOLUME
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 // ============================================
 // SYSTEM SETTINGS & CONFIGURATION
 // ============================================
@@ -734,6 +827,7 @@ model Storefront {
   products        StorefrontProduct[]
   customerOrders  StorefrontOrder[]
   customerFavorites CustomerFavorite[]
+  pendingProfits  PendingProfit[]
   
   @@index([ownerId])
   @@index([tenantId])
@@ -1141,4 +1235,134 @@ model ComplaintResponse {
   @@index([userId])
   @@index([createdAt])
   @@map("complaint_responses")
+}
+
+// ============================================
+// PAYOUT MODEL - Agent Withdrawals
+// ============================================
+
+model AgentPayout {
+  id                  String        @id @default(uuid())
+  userId              String
+  batchId             String?       // Link to PayoutBatch when processed
+  
+  // Payout details
+  amount              Float         // Requested amount
+  fee                 Float         @default(0) // Processing fee (Paystack charges)
+  netAmount           Float         // Amount after fee (user receives)
+  
+  // Bank/Mobile Money details
+  accountName         String
+  accountNumber       String
+  bankCode            String?       // For bank transfers
+  bankName            String?
+  accountType         String        @default("mobile_money") // "bank" or "mobile_money"
+  
+  // Paystack integration
+  recipientCode       String?       // Paystack recipient code
+  transferCode        String?       // Paystack transfer code
+  paystackReference   String?       // Paystack's internal reference
+  reference           String        @unique
+  
+  // Status tracking
+  status              PayoutStatus  @default(PENDING)
+  failureReason       String?
+  reason              String?       // User's withdrawal reason/note
+  
+  // Admin processing
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  
+  // Webhook tracking
+  webhookReceived     Boolean       @default(false)
+  webhookData         String?       // JSON of webhook payload for audit
+  
+  // Timestamps
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  processedAt         DateTime?
+  
+  // Relations
+  user                User          @relation(fields: [userId], references: [id])
+  reviewer            User?         @relation("PayoutReviewer", fields: [reviewedBy], references: [id])
+  batch               PayoutBatch?  @relation(fields: [batchId], references: [id])
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([reference])
+  @@index([batchId])
+  @@index([transferCode])
+  @@map("agent_payouts")
+}
+
+// ============================================
+// PENDING PROFIT MODEL - Daily Batch Payouts
+// ============================================
+
+model PendingProfit {
+  id              String              @id @default(uuid())
+  userId          String              // Agent who earns the profit
+  storefrontId    String?             // Which store generated the profit
+  orderId         String?             // Order that generated the profit (StorefrontOrder)
+  orderReference  String?             // Order reference for display
+  
+  // Profit details
+  amount          Float               // Profit amount
+  description     String?             // E.g., "Store sale - MTN 5GB"
+  
+  // Status
+  status          PendingProfitStatus @default(PENDING)
+  
+  // Batch processing
+  batchId         String?             // Links to PayoutBatch when paid
+  
+  // Timestamps
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  paidAt          DateTime?           // When credited to wallet
+  cancelledAt     DateTime?           // When cancelled (e.g., refund)
+  cancelReason    String?             // Why it was cancelled
+  
+  // Relations
+  user            User                @relation(fields: [userId], references: [id])
+  storefront      Storefront?         @relation(fields: [storefrontId], references: [id])
+  batch           PayoutBatch?        @relation(fields: [batchId], references: [id])
+  
+  @@index([userId])
+  @@index([storefrontId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([batchId])
+  @@map("pending_profits")
+}
+
+model PayoutBatch {
+  id              String          @id @default(uuid())
+  
+  // Batch details
+  totalAmount     Float           @default(0) // Sum of all payouts in batch
+  payoutCount     Int             @default(0) // Number of withdrawal requests processed
+  successCount    Int             @default(0)
+  failedCount     Int             @default(0)
+  
+  // Paystack bulk transfer
+  bulkTransferCode String?        // Paystack bulk transfer code
+  bulkTransferStatus String?      // queued, pending, success, failed
+  
+  // Processing
+  processedAt     DateTime        @default(now())
+  processedBy     String?         // Admin user ID
+  processorName   String?         // Admin name for display
+  
+  notes           String?
+  
+  // Relations
+  profits         PendingProfit[]
+  payouts         AgentPayout[]   // All payouts in this batch
+  
+  @@index([processedAt])
+  @@index([bulkTransferCode])
+  @@map("payout_batches")
 }

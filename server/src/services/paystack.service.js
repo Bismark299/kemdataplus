@@ -463,6 +463,163 @@ const paystackService = {
       storefrontOrderId,
       reference
     };
+  },
+
+  // ============================================================
+  // TRANSFER / PAYOUT FUNCTIONS
+  // ============================================================
+
+  /**
+   * Create a transfer recipient for MoMo
+   * @param {string} name - Recipient name
+   * @param {string} accountNumber - Mobile money number (e.g., 0241234567)
+   * @param {string} bankCode - Bank/network code (MTN, VOD, ATL)
+   */
+  async createTransferRecipient({ name, accountNumber, bankCode }) {
+    try {
+      const response = await paystackRequest('/transferrecipient', 'POST', {
+        type: 'mobile_money',
+        name,
+        account_number: accountNumber,
+        bank_code: bankCode,
+        currency: 'GHS'
+      });
+
+      return {
+        success: true,
+        recipientCode: response.data.recipient_code,
+        details: response.data
+      };
+    } catch (error) {
+      console.error('[Paystack] Error creating recipient:', error);
+      throw new Error(`Failed to create recipient: ${error.message}`);
+    }
+  },
+
+  /**
+   * Initiate a MoMo transfer
+   * @param {number} amount - Amount in GHS
+   * @param {string} recipientName - Recipient name
+   * @param {string} recipientAccount - Mobile money number
+   * @param {string} bankCode - Network code (MTN, VOD, ATL)
+   * @param {string} reason - Transfer reason/description
+   * @param {string} reference - Unique reference
+   * @param {string} otp - OTP for transfer (if required)
+   */
+  async initiateMoMoTransfer({ amount, recipientName, recipientAccount, bankCode, reason, reference, otp }) {
+    try {
+      // First, create the transfer recipient
+      const recipientResult = await this.createTransferRecipient({
+        name: recipientName,
+        accountNumber: recipientAccount,
+        bankCode
+      });
+
+      if (!recipientResult.success) {
+        throw new Error('Failed to create transfer recipient');
+      }
+
+      // Amount in pesewas
+      const amountInPesewas = Math.round(amount * 100);
+
+      // Build transfer payload
+      const transferPayload = {
+        source: 'balance',
+        amount: amountInPesewas,
+        recipient: recipientResult.recipientCode,
+        reason: reason || 'Profit withdrawal',
+        reference: reference || `TRF_${Date.now()}`
+      };
+
+      // If OTP is provided, use finalize_transfer endpoint
+      if (otp) {
+        // First initiate the transfer
+        const initResponse = await paystackRequest('/transfer', 'POST', transferPayload);
+        
+        // Then finalize with OTP
+        const finalizeResponse = await paystackRequest('/transfer/finalize_transfer', 'POST', {
+          transfer_code: initResponse.data.transfer_code,
+          otp: otp
+        });
+
+        console.log(`[Paystack] Transfer finalized with OTP: ${finalizeResponse.data.transfer_code} - ${amount} GHS to ${recipientAccount}`);
+
+        return {
+          success: true,
+          transfer_code: finalizeResponse.data.transfer_code,
+          reference: finalizeResponse.data.reference,
+          status: finalizeResponse.data.status,
+          details: finalizeResponse.data
+        };
+      }
+
+      // Initiate the transfer (without OTP - assumes OTP disabled on account)
+      const response = await paystackRequest('/transfer', 'POST', transferPayload);
+
+      console.log(`[Paystack] Transfer initiated: ${response.data.transfer_code} - ${amount} GHS to ${recipientAccount}`);
+
+      return {
+        success: true,
+        transfer_code: response.data.transfer_code,
+        reference: response.data.reference,
+        status: response.data.status,
+        details: response.data
+      };
+    } catch (error) {
+      console.error('[Paystack] Transfer error:', error);
+      
+      // Check if it's an OTP required error
+      if (error.message && error.message.toLowerCase().includes('otp')) {
+        throw new Error('OTP required. Please enter the OTP sent to your registered email/phone.');
+      }
+      
+      throw new Error(`Transfer failed: ${error.message}`);
+    }
+  },
+
+  /**
+   * Check transfer status
+   * @param {string} transferCode - Transfer code from initiation
+   */
+  async checkTransferStatus(transferCode) {
+    try {
+      const response = await paystackRequest(`/transfer/${transferCode}`);
+      return {
+        success: true,
+        status: response.data.status,
+        details: response.data
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Resolve account number (verify MoMo details)
+   * @param {string} accountNumber - Mobile money number
+   * @param {string} bankCode - Network code
+   */
+  async resolveAccountNumber(accountNumber, bankCode) {
+    try {
+      const response = await paystackRequest(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
+      return {
+        success: true,
+        verified: true,
+        accountName: response.data.account_name,
+        accountNumber: response.data.account_number,
+        bankId: response.data.bank_id
+      };
+    } catch (error) {
+      // Paystack returns 422 if account not found
+      if (error.message && error.message.includes('resolve')) {
+        return {
+          success: false,
+          verified: false,
+          error: 'Could not verify account. Please check the number and network.'
+        };
+      }
+      throw error;
+    }
   }
 };
 

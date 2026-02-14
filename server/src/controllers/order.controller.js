@@ -629,6 +629,16 @@ const orderController = {
             // Don't fail the order update, just log
           }
         }
+        
+        // CANCEL PENDING PROFIT: If order fails/cancels, cancel any pending profit
+        if ((status === 'FAILED' || status === 'CANCELLED') && existingOrder.status !== status) {
+          try {
+            const profitPayoutService = require('../services/profit-payout.service');
+            await profitPayoutService.cancelPendingProfit(storefrontOrder.id, `Order ${status.toLowerCase()}`);
+          } catch (cancelError) {
+            console.error('[Order] Cancel pending profit failed:', cancelError);
+          }
+        }
       }
 
       // MULTI-TENANT: Trigger profit distribution when order completes (regular orders)

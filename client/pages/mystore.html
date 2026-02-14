@@ -424,6 +424,16 @@
             to { transform: translateY(0); opacity: 1; }
         }
         
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
         .modal-header { 
             padding: var(--space-5); 
             border-bottom: 1px solid var(--gray-100); 
@@ -614,6 +624,22 @@
             /* Hide orders table on mobile - use cards instead */
             #ordersTable { display: none !important; }
             .orders-cards { display: block !important; }
+            
+            /* PIN Result Modal - Mobile */
+            #pinResultModal .modal { margin: 10px; max-width: calc(100% - 20px); }
+            #pinResultModal .modal-body { padding: 20px 15px; }
+            #pinResultModal #pinResultPin { font-size: 2rem; letter-spacing: 6px; }
+            #pinResultModal .modal-body > div:last-of-type { flex-direction: column; }
+            #pinResultModal .modal-body > div:last-of-type .btn { width: 100%; justify-content: center; }
+            
+            /* Confirmation Modal - Mobile */
+            #confirmModal .modal { margin: 10px; max-width: calc(100% - 20px); }
+            #confirmModal .modal-footer { flex-direction: row; }
+            #confirmModal .modal-footer .btn { flex: 1; padding: 10px 15px; }
+            
+            /* Toast Notifications - Mobile */
+            #toastContainer { left: 10px; right: 10px; top: 10px; }
+            #toastContainer > div { min-width: auto; max-width: 100%; }
         }
         
         /* Orders Cards for Mobile */
@@ -747,6 +773,7 @@
                 <div class="tabs">
                     <button class="tab active" data-tab="products">Bundle Prices</button>
                     <button class="tab" data-tab="orders">Store Orders</button>
+                    <button class="tab" data-tab="customers">Customers</button>
                     <button class="tab" data-tab="settings">Payment Settings</button>
                 </div>
                 <div class="tab-content active" id="products-tab">
@@ -774,7 +801,11 @@
                         </select>
                         <input type="date" id="orderDateFrom" style="display:none;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;" onchange="filterStoreOrders()">
                         <input type="date" id="orderDateTo" style="display:none;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;" onchange="filterStoreOrders()">
+                        <button onclick="loadOrders()" style="padding:8px 14px;background:#024959;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
                         <span id="ordersCount" style="margin-left:auto;color:#64748b;font-size:0.9rem;"></span>
+                    </div>
+                    <div style="background:#dbeafe;color:#1e40af;padding:10px 15px;border-radius:8px;margin-bottom:15px;font-size:0.85rem;display:flex;align-items:center;gap:8px;">
+                        <i class="fas fa-info-circle"></i> Orders auto-refresh every 15 seconds. Status: <strong>PENDING</strong> → <strong style="color:#3b82f6">PROCESSING</strong> → <strong style="color:#22c55e">COMPLETED</strong>
                     </div>
                     <div id="ordersEmpty" class="empty-state"><i class="fas fa-receipt"></i><p>No orders yet. Share your store link to get customers!</p></div>
                     <table class="products-table" id="ordersTable" style="display:none;">
@@ -782,6 +813,104 @@
                         <tbody id="ordersBody"></tbody>
                     </table>
                     <div class="orders-cards" id="ordersCards"></div>
+                </div>
+                <div class="tab-content" id="customers-tab">
+                    <div class="info-box" style="background:#dbeafe;border-color:#93c5fd;">
+                        <p><i class="fas fa-users"></i> <strong>Manage your store customers.</strong> You can reset PINs for customers who have forgotten their login credentials.</p>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                        <span id="customerCount" style="color:#64748b;font-size:0.9rem;">Loading customers...</span>
+                        <button onclick="loadCustomers()" style="padding:8px 14px;background:#024959;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    </div>
+                    <div id="customersEmpty" class="empty-state" style="display:none;">
+                        <i class="fas fa-user-friends"></i>
+                        <p>No registered customers yet. Customers who create accounts on your store will appear here.</p>
+                    </div>
+                    <div id="customersContainer"></div>
+                    <style>
+                        .customer-card {
+                            background: white;
+                            border: 1px solid #e2e8f0;
+                            border-radius: 12px;
+                            padding: 16px;
+                            margin-bottom: 12px;
+                            display: flex;
+                            align-items: center;
+                            gap: 16px;
+                            transition: all 0.2s;
+                        }
+                        .customer-card:hover {
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                            border-color: #cbd5e1;
+                        }
+                        .customer-avatar {
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 50%;
+                            background: linear-gradient(135deg, #024959, #026773);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-weight: 700;
+                            font-size: 1.2rem;
+                            flex-shrink: 0;
+                        }
+                        .customer-info {
+                            flex: 1;
+                            min-width: 0;
+                        }
+                        .customer-name {
+                            font-weight: 600;
+                            color: #0f172a;
+                            margin-bottom: 4px;
+                        }
+                        .customer-phone {
+                            color: #64748b;
+                            font-size: 0.9rem;
+                        }
+                        .customer-stats {
+                            display: flex;
+                            gap: 12px;
+                            font-size: 0.85rem;
+                            color: #64748b;
+                            margin-top: 4px;
+                        }
+                        .customer-actions {
+                            display: flex;
+                            gap: 8px;
+                        }
+                        .btn-reset-pin {
+                            padding: 8px 16px;
+                            background: linear-gradient(135deg, #f59e0b, #d97706);
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.85rem;
+                            font-weight: 500;
+                            transition: all 0.2s;
+                        }
+                        .btn-reset-pin:hover {
+                            transform: translateY(-1px);
+                            box-shadow: 0 2px 8px rgba(245,158,11,0.4);
+                        }
+                        .btn-reset-pin:disabled {
+                            opacity: 0.6;
+                            cursor: not-allowed;
+                            transform: none;
+                        }
+                        @media (max-width: 600px) {
+                            .customer-card {
+                                flex-direction: column;
+                                text-align: center;
+                            }
+                            .customer-actions {
+                                width: 100%;
+                                justify-content: center;
+                            }
+                        }
+                    </style>
                 </div>
                 <div class="tab-content" id="settings-tab">
                     <!-- Branding Section -->
@@ -946,8 +1075,165 @@
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closePriceModal()">Cancel</button><button class="btn btn-primary" onclick="confirmSetPrice()"><i class="fas fa-save"></i> Save Price</button></div>
         </div>
     </div>
+    
+    <!-- PIN Reset Result Modal -->
+    <div class="modal-overlay" id="pinResultModal">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#10b981,#059669);border-radius:12px 12px 0 0;">
+                <h2 style="color:white;display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-check-circle"></i> PIN Reset Successful
+                </h2>
+                <button class="modal-close" onclick="closePinResultModal()" style="color:white;">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align:center;padding:30px 25px;">
+                <div style="width:80px;height:80px;background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-key" style="font-size:2rem;color:#10b981;"></i>
+                </div>
+                <p style="color:#64748b;margin-bottom:20px;">The customer's PIN has been reset successfully.</p>
+                
+                <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:20px;">
+                    <div style="margin-bottom:15px;">
+                        <span style="color:#64748b;font-size:0.85rem;display:block;">Customer</span>
+                        <span id="pinResultCustomer" style="font-weight:600;color:#0f172a;font-size:1.1rem;">-</span>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <span style="color:#64748b;font-size:0.85rem;display:block;">Phone</span>
+                        <span id="pinResultPhone" style="font-weight:600;color:#0f172a;">-</span>
+                    </div>
+                    <div style="background:linear-gradient(135deg,#024959,#026773);padding:20px;border-radius:10px;">
+                        <span style="color:rgba(255,255,255,0.7);font-size:0.85rem;display:block;margin-bottom:8px;">New PIN</span>
+                        <span id="pinResultPin" style="font-size:2.5rem;font-weight:700;color:#F2C12E;letter-spacing:8px;font-family:monospace;">----</span>
+                    </div>
+                </div>
+                
+                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-bottom:20px;">
+                    <p style="color:#92400e;font-size:0.85rem;margin:0;display:flex;align-items:center;gap:8px;justify-content:center;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Share this PIN securely with your customer
+                    </p>
+                </div>
+                
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                    <button onclick="copyPinToClipboard()" class="btn" style="background:#024959;color:white;padding:10px 20px;border-radius:8px;display:flex;align-items:center;gap:8px;">
+                        <i class="fas fa-copy"></i> Copy PIN
+                    </button>
+                    <button onclick="sharePinWhatsApp()" class="btn" style="background:#25d366;color:white;padding:10px 20px;border-radius:8px;display:flex;align-items:center;gap:8px;">
+                        <i class="fab fa-whatsapp"></i> Share via WhatsApp
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:center;">
+                <button class="btn btn-primary" onclick="closePinResultModal()" style="padding:12px 40px;">Done</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <h2 id="confirmModalTitle">Confirm Action</h2>
+                <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align:center;padding:25px;">
+                <div id="confirmModalIcon" style="width:60px;height:60px;background:#fef3c7;border-radius:50%;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-question" style="font-size:1.5rem;color:#f59e0b;"></i>
+                </div>
+                <p id="confirmModalMessage" style="color:#475569;margin-bottom:0;">Are you sure?</p>
+            </div>
+            <div class="modal-footer" style="justify-content:center;gap:15px;">
+                <button class="btn btn-secondary" onclick="closeConfirmModal()" style="padding:10px 25px;">Cancel</button>
+                <button class="btn" id="confirmModalBtn" style="background:#f59e0b;color:white;padding:10px 25px;">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" style="position:fixed;top:20px;right:20px;z-index:10001;display:flex;flex-direction:column;gap:10px;"></div>
+    
     <script>
         const API='/api';let store=null,products=[],selectedBundle=null,storeOrders=[],currentFilter='all';
+        
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: { bg: '#dcfce7', border: '#86efac', text: '#166534', icon: 'fa-check-circle' },
+                error: { bg: '#fee2e2', border: '#fca5a5', text: '#991b1b', icon: 'fa-exclamation-circle' },
+                warning: { bg: '#fef3c7', border: '#fcd34d', text: '#92400e', icon: 'fa-exclamation-triangle' },
+                info: { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af', icon: 'fa-info-circle' }
+            };
+            
+            const c = colors[type] || colors.info;
+            
+            toast.innerHTML = `
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <i class="fas ${c.icon}" style="font-size:1.2rem;"></i>
+                    <span style="flex:1;">${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;opacity:0.6;">&times;</button>
+                </div>
+            `;
+            
+            toast.style.cssText = `
+                background:${c.bg};border:1px solid ${c.border};color:${c.text};
+                padding:14px 18px;border-radius:10px;min-width:300px;max-width:400px;
+                box-shadow:0 4px 15px rgba(0,0,0,0.15);font-size:0.9rem;
+                animation:slideIn 0.3s ease;
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+        
+        // PIN result modal data
+        let currentPinData = null;
+        
+        function showPinResultModal(data) {
+            currentPinData = data;
+            document.getElementById('pinResultCustomer').textContent = data.customerName || 'Customer';
+            document.getElementById('pinResultPhone').textContent = data.customerPhone;
+            document.getElementById('pinResultPin').textContent = data.newPin;
+            document.getElementById('pinResultModal').classList.add('active');
+        }
+        
+        function closePinResultModal() {
+            document.getElementById('pinResultModal').classList.remove('active');
+            currentPinData = null;
+        }
+        
+        function copyPinToClipboard() {
+            if (!currentPinData) return;
+            navigator.clipboard.writeText(currentPinData.newPin);
+            showToast('PIN copied to clipboard!', 'success', 2000);
+        }
+        
+        function sharePinWhatsApp() {
+            if (!currentPinData) return;
+            const message = `Hello ${currentPinData.customerName || 'Customer'},\n\nYour PIN has been reset.\n\nNew PIN: ${currentPinData.newPin}\n\nPlease change it after logging in.\n\n- ${store?.name || 'Store'}`;
+            window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+        }
+        
+        // Custom confirmation modal
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').textContent = message;
+            document.getElementById('confirmModalBtn').onclick = () => {
+                closeConfirmModal();
+                onConfirm();
+            };
+            document.getElementById('confirmModal').classList.add('active');
+        }
+        
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+        }
+        
         async function checkAuth(){try{const r=await fetch(API+'/auth/me',{credentials:'include'});return r.ok}catch(e){return false}}
         function logout(){localStorage.removeItem('currentUser');window.location.href='login.html'}
         async function api(e,o={}){const r=await fetch(API+e,{...o,credentials:'include',headers:{'Content-Type':'application/json',...o.headers}});return 401===r.status&&logout(),r}
@@ -1073,7 +1359,7 @@
             // Render table rows
             tbody.innerHTML=orders.map(o=>{
                 const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-                const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444';
+                const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PROCESSING'?'#3b82f6':o.status==='PENDING'?'#f59e0b':'#ef4444';
                 const payColor=o.paymentStatus==='PAID'?'#22c55e':'#f59e0b';
                 return `<tr>
                     <td>${d}</td>
@@ -1089,8 +1375,8 @@
             // Render mobile cards
             cards.innerHTML=orders.map(o=>{
                 const d=new Date(o.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-                const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PENDING'?'#f59e0b':'#ef4444';
-                const statusBg=o.status==='COMPLETED'?'#dcfce7':o.status==='PENDING'?'#fef3c7':'#fee2e2';
+                const statusColor=o.status==='COMPLETED'?'#22c55e':o.status==='PROCESSING'?'#3b82f6':o.status==='PENDING'?'#f59e0b':'#ef4444';
+                const statusBg=o.status==='COMPLETED'?'#dcfce7':o.status==='PROCESSING'?'#dbeafe':o.status==='PENDING'?'#fef3c7':'#fee2e2';
                 return `<div class="order-card">
                     <div class="order-card-header">
                         <div>
@@ -1123,6 +1409,113 @@
             }).join('');
         }
         
+        // ==========================================
+        // CUSTOMER MANAGEMENT
+        // ==========================================
+        let storeCustomers = [];
+        
+        async function loadCustomers() {
+            if (!store) return;
+            
+            try {
+                const container = document.getElementById('customersContainer');
+                const emptyState = document.getElementById('customersEmpty');
+                const countEl = document.getElementById('customerCount');
+                
+                container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#024959;"></i><p style="margin-top:10px;color:#64748b;">Loading customers...</p></div>';
+                
+                const res = await api('/storefronts/' + store.id + '/customers');
+                if (!res.ok) {
+                    const err = await res.json();
+                    container.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-exclamation-circle"></i> ' + (err.error || 'Failed to load customers') + '</div>';
+                    return;
+                }
+                
+                const data = await res.json();
+                storeCustomers = data.customers || [];
+                
+                countEl.textContent = storeCustomers.length + ' registered customer' + (storeCustomers.length !== 1 ? 's' : '');
+                
+                if (storeCustomers.length === 0) {
+                    container.innerHTML = '';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                emptyState.style.display = 'none';
+                renderCustomers();
+            } catch (e) {
+                console.error('Error loading customers:', e);
+                document.getElementById('customersContainer').innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-exclamation-circle"></i> Error loading customers</div>';
+            }
+        }
+        
+        function renderCustomers() {
+            const container = document.getElementById('customersContainer');
+            
+            container.innerHTML = storeCustomers.map(c => {
+                const initials = (c.name || c.phone).substring(0, 2).toUpperCase();
+                const lastLogin = c.lastLoginAt ? new Date(c.lastLoginAt).toLocaleDateString() : 'Never';
+                const joinDate = new Date(c.createdAt).toLocaleDateString();
+                
+                return `<div class="customer-card">
+                    <div class="customer-avatar">${initials}</div>
+                    <div class="customer-info">
+                        <div class="customer-name">${c.name || 'No name'}</div>
+                        <div class="customer-phone"><i class="fas fa-phone"></i> ${c.phone}</div>
+                        <div class="customer-stats">
+                            <span><i class="fas fa-shopping-bag"></i> ${c.orderCount || 0} orders</span>
+                            <span><i class="fas fa-calendar-alt"></i> Joined ${joinDate}</span>
+                        </div>
+                    </div>
+                    <div class="customer-actions">
+                        <button class="btn-reset-pin" onclick="resetCustomerPin('${c.id}', '${c.phone}')" id="reset-btn-${c.id}">
+                            <i class="fas fa-key"></i> Reset PIN
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        async function resetCustomerPin(customerId, phone) {
+            showConfirmModal(
+                'Reset Customer PIN',
+                'Are you sure you want to reset the PIN for ' + phone + '? A new PIN will be generated.',
+                async () => {
+                    const btn = document.getElementById('reset-btn-' + customerId);
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+                    
+                    try {
+                        const res = await api('/storefronts/' + store.id + '/customers/' + customerId + '/reset-pin', {
+                            method: 'POST'
+                        });
+                        
+                        const data = await res.json();
+                        
+                        if (!res.ok) {
+                            showToast('Failed to reset PIN: ' + (data.error || 'Unknown error'), 'error');
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
+                            return;
+                        }
+                        
+                        // Show success modal with the new PIN
+                        showPinResultModal(data);
+                        
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    } catch (e) {
+                        console.error('Error resetting PIN:', e);
+                        showToast('An error occurred while resetting the PIN', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+            );
+        }
+        
         function openPriceModal(bundleId){selectedBundle=products.find(p=>p.bundleId===bundleId);if(!selectedBundle)return;document.getElementById('selectedBundleInfo').innerHTML='<div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:15px"><strong>'+selectedBundle.bundle.name+'</strong><br><small>'+selectedBundle.bundle.network+' • '+selectedBundle.bundle.dataAmount+' • '+selectedBundle.bundle.validity+'</small></div>',document.getElementById('priceCost').value='GHS '+selectedBundle.costPrice.toFixed(2),document.getElementById('priceSellingInput').value=(selectedBundle.sellingPrice||selectedBundle.costPrice).toFixed(2),document.getElementById('priceSellingInput').min=selectedBundle.costPrice,document.getElementById('priceProfit').value='GHS '+(selectedBundle.profit||0).toFixed(2),document.getElementById('priceModal').classList.add('active'),document.getElementById('priceSellingInput').oninput=function(){document.getElementById('priceProfit').value='GHS '+(parseFloat(this.value)-selectedBundle.costPrice).toFixed(2)}}
         function closePriceModal(){document.getElementById('priceModal').classList.remove('active'),selectedBundle=null}
         async function confirmSetPrice(){const sellingPrice=parseFloat(document.getElementById('priceSellingInput').value);if(sellingPrice<selectedBundle.costPrice)return alert('Price cannot be less than cost (GHS '+selectedBundle.costPrice.toFixed(2)+')');const btn=document.querySelector('#priceModal .btn-primary');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving...';const r=await api('/storefronts/'+store.id+'/prices/'+selectedBundle.bundleId,{method:'PUT',body:JSON.stringify({sellingPrice})});if(r.ok){closePriceModal();loadProducts();}else{alert((await r.json()).error);}btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Save Price';}
@@ -1135,7 +1528,7 @@
         async function saveStore(){const e={name:document.getElementById('inputName').value.trim(),description:document.getElementById('inputDesc').value.trim(),contactPhone:document.getElementById('inputPhone').value.trim(),contactWhatsapp:document.getElementById('inputWhatsapp').value.trim()};if(!e.name)return alert('Store name required');const o=document.getElementById('saveStoreBtn');o.disabled=!0,o.textContent='Saving...';const t=null!==store,r=await api(t?'/storefronts/'+store.id:'/storefronts',{method:t?'PUT':'POST',body:JSON.stringify(e)}),n=await r.json();r.ok?(closeModal(),t||alert('Store created!\\n\\nYour link:\\n'+window.location.origin+'/store/'+n.slug),loadStore()):alert(n.error),o.disabled=!1,o.textContent=t?'Save Changes':'Create Store'}
         function copyLink(){navigator.clipboard.writeText(document.getElementById('storeLink').value),alert('Link copied!')}
         function shareWhatsApp(){window.open('https://wa.me/?text='+encodeURIComponent('Check out my data store! '+document.getElementById('storeLink').value),'_blank')}
-        document.querySelectorAll('.tab').forEach(e=>e.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active')),document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')),e.classList.add('active'),document.getElementById(e.dataset.tab+'-tab').classList.add('active')}));
+        document.querySelectorAll('.tab').forEach(e=>e.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active')),document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')),e.classList.add('active'),document.getElementById(e.dataset.tab+'-tab').classList.add('active');if(e.dataset.tab==='customers'){loadCustomers();}}));
         document.getElementById('priceFilter').addEventListener('click',e=>{if(e.target.classList.contains('network-btn')){document.querySelectorAll('#priceFilter .network-btn').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');renderProducts(e.target.dataset.network);}});
         
         // Store orders date filter listeners
@@ -1330,7 +1723,10 @@
             saveBranding();
         }
         
-        (async()=>{if(await checkAuth()){loadStore()}else{window.location.href='login.html?redirect=mystore.html'}})();
+        (async()=>{if(await checkAuth()){loadStore();
+            // Auto-refresh orders every 15 seconds to show status changes
+            setInterval(()=>{if(store)loadOrders();},15000);
+        }else{window.location.href='login.html?redirect=mystore.html'}})();
     </script>
     <script src="../public/js/session-timeout.js"></script>
 </body>

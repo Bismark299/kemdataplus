@@ -12,6 +12,9 @@ const pricingEngine = require('../services/pricing.service');
 const profitService = require('../services/profit.service');
 const walletService = require('../services/wallet.service');
 const auditService = require('../services/audit.service');
+const alertService = require('../services/alert.service');
+const jobQueueService = require('../services/job-queue.service');
+const smsService = require('../services/sms.service');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -860,11 +863,15 @@ router.get('/storefront-profits', async (req, res, next) => {
     ] = await Promise.all([
       // Uncredited profits (Paystack orders completed but profit not credited)
       // NOTE: Only PAYSTACK orders need profit crediting - MoMo orders use upfront wallet debit
+      // Check BOTH StorefrontOrder.status and linked Order.status for completeness
       prisma.storefrontOrder.findMany({
         where: {
           profitCredited: false,
           paymentMethod: 'PAYSTACK',  // Only Paystack orders need crediting
-          order: { status: 'COMPLETED' }
+          OR: [
+            { status: 'COMPLETED' },  // StorefrontOrder is completed
+            { order: { status: 'COMPLETED' } }  // Or linked Order is completed
+          ]
         },
         include: {
           storefront: { select: { name: true, owner: { select: { name: true } } } },
@@ -1008,6 +1015,15 @@ router.post('/storefront-profits/credit/:orderId', async (req, res, next) => {
       return res.status(400).json({ 
         error: 'Only Paystack orders can be credited. MoMo orders use upfront wallet debit.',
         paymentMethod: storefrontOrder.paymentMethod
+      });
+    }
+
+    // ADMIN OVERRIDE: Ensure StorefrontOrder.status is COMPLETED before crediting
+    // This handles cases where linked Order is complete but StorefrontOrder wasn't updated
+    if (storefrontOrder.status !== 'COMPLETED') {
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrder.id },
+        data: { status: 'COMPLETED' }
       });
     }
 
@@ -1355,6 +1371,453 @@ router.get('/audit-report', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Audit report error:', error);
+    next(error);
+  }
+});
+
+/**
+ * ========== ADMIN ALERTS ==========
+ */
+
+/**
+ * GET /api/admin/alerts
+ * Get all alerts with filters
+ */
+router.get('/alerts', async (req, res, next) => {
+  try {
+    const { type, severity, isRead, page = 1, limit = 20 } = req.query;
+    const result = await alertService.getAll({
+      type,
+      severity,
+      isRead: isRead === 'true' ? true : isRead === 'false' ? false : undefined,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/alerts/unread
+ * Get unread alerts (for notification badge)
+ */
+router.get('/alerts/unread', async (req, res, next) => {
+  try {
+    const alerts = await alertService.getUnread({ limit: 10 });
+    const counts = await alertService.getCounts();
+    res.json({ alerts, counts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/alerts/counts
+ * Get alert counts by type and severity
+ */
+router.get('/alerts/counts', async (req, res, next) => {
+  try {
+    const counts = await alertService.getCounts();
+    res.json(counts);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/alerts/:id/read
+ * Mark alert as read
+ */
+router.post('/alerts/:id/read', async (req, res, next) => {
+  try {
+    const alert = await alertService.markRead(req.params.id, req.user.id);
+    res.json({ success: true, alert });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/alerts/mark-many-read
+ * Mark multiple alerts as read
+ */
+router.post('/alerts/mark-many-read', async (req, res, next) => {
+  try {
+    const { alertIds } = req.body;
+    if (!alertIds || !Array.isArray(alertIds)) {
+      return res.status(400).json({ error: 'alertIds array required' });
+    }
+    await alertService.markManyRead(alertIds, req.user.id);
+    res.json({ success: true, marked: alertIds.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/alerts/:id/dismiss
+ * Dismiss an alert
+ */
+router.post('/alerts/:id/dismiss', async (req, res, next) => {
+  try {
+    const alert = await alertService.dismiss(req.params.id, req.user.id);
+    res.json({ success: true, alert });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/alerts/check-stuck-payouts
+ * Manually trigger check for stuck payouts
+ */
+router.post('/alerts/check-stuck-payouts', async (req, res, next) => {
+  try {
+    const stuckCount = await alertService.checkStuckPayouts(6); // 6 hours threshold
+    res.json({ success: true, stuckPayouts: stuckCount });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payout-audit/:payoutId
+ * Get full audit trail for a specific payout
+ */
+router.get('/payout-audit/:payoutId', async (req, res, next) => {
+  try {
+    const trail = await auditService.getPayoutAuditTrail(req.params.payoutId);
+    res.json({ trail });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payout-audit-summary
+ * Get payout audit summary for a period
+ */
+router.get('/payout-audit-summary', async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    
+    const summary = await auditService.getPayoutAuditSummary(start, end);
+    res.json(summary);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * ========== JOB QUEUE (BATCH PAYOUTS) ==========
+ */
+
+/**
+ * GET /api/admin/job-queue/status
+ * Get current job queue status
+ */
+router.get('/job-queue/status', async (req, res, next) => {
+  try {
+    const status = jobQueueService.getStatus();
+    res.json(status);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/job-queue/history
+ * Get recent job history
+ */
+router.get('/job-queue/history', async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const history = jobQueueService.getHistory(limit);
+    res.json({ history });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/job-queue/job/:jobId
+ * Get specific job details
+ */
+router.get('/job-queue/job/:jobId', async (req, res, next) => {
+  try {
+    const job = jobQueueService.getJob(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json({ job });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/job-queue/batch/:batchId
+ * Get batch status
+ */
+router.get('/job-queue/batch/:batchId', async (req, res, next) => {
+  try {
+    const status = jobQueueService.getBatchStatus(req.params.batchId);
+    if (!status) {
+      return res.status(404).json({ error: 'Batch not found' });
+    }
+    res.json(status);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/job-queue/add
+ * Add a single payout job to the queue
+ */
+router.post('/job-queue/add', async (req, res, next) => {
+  try {
+    const { payoutId, otp, priority } = req.body;
+    
+    if (!payoutId) {
+      return res.status(400).json({ error: 'payoutId is required' });
+    }
+    
+    // Verify payout exists and is pending
+    const payout = await prisma.payoutRequest.findUnique({
+      where: { id: payoutId }
+    });
+    
+    if (!payout) {
+      return res.status(404).json({ error: 'Payout not found' });
+    }
+    
+    if (payout.status !== 'PENDING') {
+      return res.status(400).json({ error: `Payout is ${payout.status}, not PENDING` });
+    }
+    
+    const job = jobQueueService.addJob(payoutId, req.user.id, { otp, priority });
+    
+    // Log audit
+    await auditService.log({
+      action: 'PAYOUT_PROCESS',
+      userId: req.user.id,
+      targetId: payoutId,
+      targetType: 'PayoutRequest',
+      details: { source: 'job_queue_manual', jobId: job.id }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Job added to queue',
+      job: { id: job.id, status: job.status }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/job-queue/batch
+ * Add multiple pending payouts to the queue
+ */
+router.post('/job-queue/batch', async (req, res, next) => {
+  try {
+    const { payoutIds, otp, priority } = req.body;
+    
+    if (!payoutIds || !Array.isArray(payoutIds) || payoutIds.length === 0) {
+      return res.status(400).json({ error: 'payoutIds array is required' });
+    }
+    
+    // Verify all payouts exist and are pending
+    const payouts = await prisma.payoutRequest.findMany({
+      where: { 
+        id: { in: payoutIds },
+        status: 'PENDING'
+      }
+    });
+    
+    if (payouts.length === 0) {
+      return res.status(400).json({ error: 'No valid pending payouts found' });
+    }
+    
+    const validIds = payouts.map(p => p.id);
+    const batch = jobQueueService.addBatch(validIds, req.user.id, { otp, priority });
+    
+    // Log audit
+    await auditService.log({
+      action: 'PAYOUT_PROCESS',
+      userId: req.user.id,
+      targetType: 'PayoutRequest',
+      details: { 
+        source: 'job_queue_batch', 
+        batchId: batch.batchId,
+        jobCount: batch.jobCount
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Added ${batch.jobCount} jobs to queue`,
+      batchId: batch.batchId,
+      jobCount: batch.jobCount,
+      skipped: payoutIds.length - batch.jobCount
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/job-queue/cancel/:jobId
+ * Cancel a pending job
+ */
+router.post('/job-queue/cancel/:jobId', async (req, res, next) => {
+  try {
+    const result = jobQueueService.cancelJob(req.params.jobId);
+    
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    
+    res.json({ success: true, message: 'Job cancelled' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/job-queue/cleanup
+ * Clean up old completed/failed jobs
+ */
+router.post('/job-queue/cleanup', async (req, res, next) => {
+  try {
+    const result = jobQueueService.cleanup();
+    res.json({ success: true, cleaned: result.cleaned });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * ========== SMS (mNotify) ==========
+ */
+
+/**
+ * GET /api/admin/sms/status
+ * Get SMS service status and balance
+ */
+router.get('/sms/status', async (req, res, next) => {
+  try {
+    const isEnabled = smsService.isEnabled();
+    const balance = await smsService.getBalance();
+    
+    res.json({
+      enabled: isEnabled,
+      configured: !!process.env.MNOTIFY_API_KEY,
+      senderId: process.env.MNOTIFY_SENDER_ID || 'KemDataplus',
+      balance: balance.success ? {
+        sms: balance.balance,
+        bonus: balance.bonus
+      } : null,
+      error: balance.error
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/sms/test
+ * Send a test SMS
+ */
+router.post('/sms/test', async (req, res, next) => {
+  try {
+    const { phone, message } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+    
+    const testMessage = message || `Test SMS from KemDataplus Admin Dashboard. Time: ${new Date().toLocaleString('en-GH')}`;
+    
+    const result = await smsService.sendSMS(phone, testMessage);
+    
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Test SMS sent successfully',
+        messageId: result.messageId,
+        balance: result.balance
+      });
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        error: result.error || result.reason 
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/sms/send-payout-notification
+ * Manually send payout notification SMS
+ */
+router.post('/sms/send-payout-notification', async (req, res, next) => {
+  try {
+    const { payoutId } = req.body;
+    
+    if (!payoutId) {
+      return res.status(400).json({ error: 'payoutId is required' });
+    }
+    
+    // Get payout with user details
+    const payout = await prisma.agentPayout.findUnique({
+      where: { id: payoutId },
+      include: { user: { select: { name: true, phone: true, momoNumber: true } } }
+    });
+    
+    if (!payout) {
+      return res.status(404).json({ error: 'Payout not found' });
+    }
+    
+    const phone = payout.user?.momoNumber || payout.user?.phone;
+    if (!phone) {
+      return res.status(400).json({ error: 'No phone number found for agent' });
+    }
+    
+    let result;
+    if (payout.status === 'COMPLETED') {
+      result = await smsService.sendPayoutCompletedSMS(
+        phone,
+        payout.user?.name,
+        payout.netAmount,
+        payout.reference
+      );
+    } else if (payout.status === 'FAILED') {
+      result = await smsService.sendPayoutFailedSMS(
+        phone,
+        payout.user?.name,
+        payout.amount,
+        payout.failureReason || 'Payout failed'
+      );
+    } else {
+      return res.status(400).json({ error: `Cannot send notification for ${payout.status} payout` });
+    }
+    
+    if (result.success) {
+      res.json({ success: true, message: 'SMS notification sent' });
+    } else {
+      res.status(400).json({ success: false, error: result.error || result.reason });
+    }
+  } catch (error) {
     next(error);
   }
 });
