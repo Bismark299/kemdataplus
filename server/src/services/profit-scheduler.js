@@ -4,12 +4,22 @@
  * Runs weekly on Fridays at 7:30 PM Ghana time (Africa/Accra)
  * 
  * Bulk MoMo payout - sends profits directly to agent MoMo wallets
+ * 
+ * Also runs a background checker every 5 minutes to verify stuck
+ * PROCESSING withdrawals with Paystack (in case webhooks fail)
  */
 
 const profitPayoutService = require('../services/profit-payout.service');
+const paystackService = require('../services/paystack.service');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 let schedulerInterval = null;
+let stuckCheckerInterval = null;
 let lastRunWeek = null;
+
+// Check stuck PROCESSING withdrawals every 5 minutes
+const STUCK_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Days of week mapping
 const DAYS = {
@@ -90,10 +100,152 @@ async function runWeeklyBatch() {
 }
 
 /**
+ * Check and complete stuck PROCESSING withdrawals
+ * This runs every 5 minutes as a fallback for failed webhooks
+ */
+async function checkStuckWithdrawals() {
+  try {
+    // Find PROCESSING withdrawals older than 2 minutes
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    
+    const stuckPayouts = await prisma.agentPayout.findMany({
+      where: {
+        status: 'PROCESSING',
+        updatedAt: { lt: twoMinutesAgo }
+      },
+      include: {
+        user: { select: { id: true, name: true, profitBalance: true } }
+      }
+    });
+    
+    if (stuckPayouts.length === 0) return;
+    
+    console.log(`[StuckChecker] Found ${stuckPayouts.length} PROCESSING withdrawal(s) to verify`);
+    
+    for (const payout of stuckPayouts) {
+      try {
+        // Try to get transfer status from Paystack
+        const transferCode = payout.transferCode || payout.reference;
+        const result = await paystackService.getTransferStatus(transferCode);
+        
+        if (!result.success) {
+          // Try verify by reference
+          const verifyResult = await paystackService.verifyTransfer(payout.reference);
+          if (verifyResult.success) {
+            await processStuckResult(payout, verifyResult.status);
+          } else {
+            console.log(`[StuckChecker] Could not verify ${payout.reference}: ${verifyResult.error}`);
+          }
+          continue;
+        }
+        
+        await processStuckResult(payout, result.status, result.transferCode);
+        
+      } catch (err) {
+        console.error(`[StuckChecker] Error checking ${payout.reference}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[StuckChecker] Error in stuck withdrawals check:', err.message);
+  }
+}
+
+/**
+ * Process the result from Paystack status check
+ */
+async function processStuckResult(payout, paystackStatus, transferCode) {
+  console.log(`[StuckChecker] ${payout.reference}: Paystack status = ${paystackStatus}`);
+  
+  if (paystackStatus === 'success') {
+    // Mark as completed
+    await prisma.$transaction(async (tx) => {
+      // Mark profits as paid
+      const profits = await tx.pendingProfit.findMany({
+        where: { userId: payout.userId, status: 'PENDING' },
+        orderBy: { createdAt: 'asc' }
+      });
+      
+      let remaining = payout.amount;
+      const profitIdsToMark = [];
+      for (const profit of profits) {
+        if (remaining <= 0) break;
+        profitIdsToMark.push(profit.id);
+        remaining -= profit.amount;
+      }
+      
+      if (profitIdsToMark.length > 0) {
+        await tx.pendingProfit.updateMany({
+          where: { id: { in: profitIdsToMark } },
+          data: { status: 'PAID', payoutId: payout.id }
+        });
+      }
+      
+      await tx.agentPayout.update({
+        where: { id: payout.id },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          transferCode: transferCode || payout.transferCode,
+          reviewNotes: (payout.reviewNotes || '') + '\nAuto-completed by stuck checker (webhook missed)'
+        }
+      });
+    });
+    
+    console.log(`[StuckChecker] ✅ ${payout.reference} marked as COMPLETED`);
+    
+  } else if (paystackStatus === 'failed' || paystackStatus === 'reversed') {
+    // Refund and mark as failed
+    await prisma.$transaction(async (tx) => {
+      await tx.agentPayout.update({
+        where: { id: payout.id },
+        data: {
+          status: 'FAILED',
+          failureReason: `Paystack status: ${paystackStatus}`,
+          reviewNotes: (payout.reviewNotes || '') + '\nAuto-failed by stuck checker'
+        }
+      });
+      
+      // Refund to profit balance
+      await tx.user.update({
+        where: { id: payout.userId },
+        data: {
+          profitBalance: { increment: payout.amount }
+        }
+      });
+    });
+    
+    console.log(`[StuckChecker] ❌ ${payout.reference} marked as FAILED, GH₵${payout.amount} refunded`);
+    
+  } else {
+    console.log(`[StuckChecker] ${payout.reference} still pending on Paystack (${paystackStatus})`);
+  }
+}
+
+/**
+ * Start the stuck withdrawals checker
+ */
+function startStuckChecker() {
+  if (stuckCheckerInterval) {
+    clearInterval(stuckCheckerInterval);
+  }
+  
+  console.log(`[StuckChecker] Starting background checker (every 5 minutes)`);
+  
+  // Run every 5 minutes
+  stuckCheckerInterval = setInterval(checkStuckWithdrawals, STUCK_CHECK_INTERVAL_MS);
+  
+  // Run once after 30 seconds on startup
+  setTimeout(checkStuckWithdrawals, 30000);
+}
+
+/**
  * Start the scheduler
  */
 function startScheduler() {
   const settings = profitPayoutService.getSettings();
+  
+  // Always start the stuck checker (regardless of auto/manual mode)
+  startStuckChecker();
   
   // Admin-triggered mode - no automatic scheduling
   if (!settings.autoProcess) {
@@ -130,6 +282,11 @@ function stopScheduler() {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
     console.log('[Scheduler] Weekly payout scheduler stopped');
+  }
+  if (stuckCheckerInterval) {
+    clearInterval(stuckCheckerInterval);
+    stuckCheckerInterval = null;
+    console.log('[StuckChecker] Background checker stopped');
   }
 }
 
@@ -171,5 +328,7 @@ module.exports = {
   stopScheduler,
   getSchedulerStatus,
   runWeeklyBatch,
-  forceRunBatch
+  forceRunBatch,
+  checkStuckWithdrawals,
+  startStuckChecker
 };

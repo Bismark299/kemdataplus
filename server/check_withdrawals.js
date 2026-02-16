@@ -2,12 +2,15 @@
  * Check and manage withdrawal requests in the database
  * 
  * Usage: 
- *   node check_withdrawals.js list    - List all withdrawal requests
- *   node check_withdrawals.js clear   - Clear/cancel all PENDING, RESERVED, PROCESSING requests
+ *   node check_withdrawals.js list                - List all withdrawal requests
+ *   node check_withdrawals.js clear               - Clear/cancel all PENDING, RESERVED, PROCESSING requests
+ *   node check_withdrawals.js verify <reference>  - Check Paystack status and complete if successful
+ *   node check_withdrawals.js verify-all          - Check all PROCESSING withdrawals
  */
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const paystackService = require('./src/services/paystack.service');
 
 async function listWithdrawals() {
   console.log('\n📋 All AgentPayout Records:\n');
@@ -85,16 +88,167 @@ async function clearStuckRequests() {
   console.log('  Users can now submit new withdrawal requests.\n');
 }
 
+async function verifyWithdrawal(reference) {
+  console.log(`\n🔍 Verifying withdrawal: ${reference}\n`);
+  
+  // Find the withdrawal
+  const payout = await prisma.agentPayout.findFirst({
+    where: {
+      OR: [
+        { reference: reference },
+        { transferCode: reference }
+      ]
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } }
+    }
+  });
+  
+  if (!payout) {
+    console.log(`  ❌ No withdrawal found with reference: ${reference}`);
+    return;
+  }
+  
+  console.log(`  Found: ${payout.reference}`);
+  console.log(`  User: ${payout.user?.name} (${payout.user?.email})`);
+  console.log(`  Amount: GH₵${payout.amount?.toFixed(2)} | Net: GH₵${payout.netAmount?.toFixed(2)}`);
+  console.log(`  Current Status: ${payout.status}`);
+  console.log(`  Transfer Code: ${payout.transferCode || 'Not set'}`);
+  
+  if (payout.status === 'COMPLETED') {
+    console.log(`\n  ✅ Already completed - no action needed.`);
+    return;
+  }
+  
+  // Check Paystack status
+  const transferCode = payout.transferCode || reference;
+  console.log(`\n  Checking Paystack status for: ${transferCode}...`);
+  
+  const result = await paystackService.getTransferStatus(transferCode);
+  
+  if (!result.success) {
+    console.log(`  ❌ Could not get transfer status: ${result.error}`);
+    
+    // Try verify by reference
+    console.log(`  Trying to verify by reference: ${payout.reference}...`);
+    const verifyResult = await paystackService.verifyTransfer(payout.reference);
+    
+    if (!verifyResult.success) {
+      console.log(`  ❌ Could not verify transfer: ${verifyResult.error}`);
+      return;
+    }
+    
+    console.log(`  Paystack status: ${verifyResult.status}`);
+    
+    if (verifyResult.status === 'success') {
+      await completeWithdrawal(payout);
+    } else if (verifyResult.status === 'failed' || verifyResult.status === 'reversed') {
+      await failWithdrawal(payout, `Paystack status: ${verifyResult.status}`);
+    } else {
+      console.log(`  ⏳ Transfer still pending on Paystack.`);
+    }
+    return;
+  }
+  
+  console.log(`  Paystack status: ${result.status}`);
+  console.log(`  Paystack reference: ${result.reference}`);
+  console.log(`  Paystack amount: GH₵${result.amount?.toFixed(2)}`);
+  
+  if (result.status === 'success') {
+    await completeWithdrawal(payout, result.transferCode);
+  } else if (result.status === 'failed' || result.status === 'reversed') {
+    await failWithdrawal(payout, `Paystack status: ${result.status}`);
+  } else {
+    console.log(`\n  ⏳ Transfer still pending on Paystack (${result.status}).`);
+  }
+}
+
+async function completeWithdrawal(payout, transferCode) {
+  console.log(`\n  ✅ Marking withdrawal as COMPLETED...`);
+  
+  await prisma.agentPayout.update({
+    where: { id: payout.id },
+    data: {
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      transferCode: transferCode || payout.transferCode,
+      reviewNotes: (payout.reviewNotes || '') + '\nManually verified via check_withdrawals script'
+    }
+  });
+  
+  console.log(`  ✅ Withdrawal ${payout.reference} marked as COMPLETED!`);
+}
+
+async function failWithdrawal(payout, reason) {
+  console.log(`\n  ❌ Marking withdrawal as FAILED...`);
+  
+  // Refund the amount to user's profit balance
+  await prisma.$transaction(async (tx) => {
+    await tx.agentPayout.update({
+      where: { id: payout.id },
+      data: {
+        status: 'FAILED',
+        failureReason: reason,
+        reviewNotes: (payout.reviewNotes || '') + '\nManually verified via check_withdrawals script'
+      }
+    });
+    
+    // Refund to profit balance
+    await tx.user.update({
+      where: { id: payout.userId },
+      data: {
+        profitBalance: { increment: payout.amount }
+      }
+    });
+    
+    console.log(`  ✅ Withdrawal ${payout.reference} marked as FAILED.`);
+    console.log(`  ✅ Refunded GH₵${payout.amount?.toFixed(2)} to user's profit balance.`);
+  });
+}
+
+async function verifyAllProcessing() {
+  console.log('\n🔍 Checking all PROCESSING withdrawals...\n');
+  
+  const processing = await prisma.agentPayout.findMany({
+    where: { status: 'PROCESSING' },
+    include: {
+      user: { select: { id: true, name: true, email: true } }
+    }
+  });
+  
+  if (processing.length === 0) {
+    console.log('  No PROCESSING withdrawals found.\n');
+    return;
+  }
+  
+  console.log(`  Found ${processing.length} PROCESSING withdrawal(s):\n`);
+  
+  for (const payout of processing) {
+    console.log(`  --- ${payout.reference} ---`);
+    await verifyWithdrawal(payout.transferCode || payout.reference);
+    console.log('');
+  }
+}
+
 async function main() {
   const command = process.argv[2] || 'list';
+  const arg = process.argv[3];
   
   try {
     if (command === 'list') {
       await listWithdrawals();
     } else if (command === 'clear') {
       await clearStuckRequests();
+    } else if (command === 'verify' && arg) {
+      await verifyWithdrawal(arg);
+    } else if (command === 'verify-all') {
+      await verifyAllProcessing();
     } else {
-      console.log('Usage: node check_withdrawals.js [list|clear]');
+      console.log('Usage:');
+      console.log('  node check_withdrawals.js list                - List all withdrawals');
+      console.log('  node check_withdrawals.js clear               - Clear stuck requests');
+      console.log('  node check_withdrawals.js verify <reference>  - Verify single withdrawal');
+      console.log('  node check_withdrawals.js verify-all          - Verify all PROCESSING');
     }
   } catch (err) {
     console.error('Error:', err.message);

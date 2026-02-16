@@ -620,6 +620,55 @@ const paystackService = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Get transfer status by transfer code or ID
+   * @param {string} idOrCode - Transfer code (TRF_xxx) or ID
+   */
+  async getTransferStatus(idOrCode) {
+    try {
+      const response = await paystackRequest(`/transfer/${idOrCode}`);
+      return {
+        success: true,
+        status: response.data.status, // success, failed, pending, reversed
+        reference: response.data.reference,
+        transferCode: response.data.transfer_code,
+        amount: response.data.amount / 100,
+        recipient: response.data.recipient,
+        reason: response.data.reason,
+        createdAt: response.data.createdAt,
+        updatedAt: response.data.updatedAt
+      };
+    } catch (error) {
+      console.error(`[Paystack] Failed to get transfer status for ${idOrCode}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+
+  /**
+   * Verify transfer by reference
+   * @param {string} reference - Transfer reference
+   */
+  async verifyTransfer(reference) {
+    try {
+      const response = await paystackRequest(`/transfer/verify/${reference}`);
+      return {
+        success: true,
+        status: response.data.status,
+        reference: response.data.reference,
+        amount: response.data.amount / 100
+      };
+    } catch (error) {
+      console.error(`[Paystack] Failed to verify transfer ${reference}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 };
 
