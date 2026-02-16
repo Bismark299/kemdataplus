@@ -416,4 +416,19 @@ router.get('/admin/batches', authenticate, authorize('ADMIN'), async (req, res) 
   }
 });
 
+/**
+ * GET /api/profit-payouts/admin/agent-profits
+ * Get all agents' profit summary with date filtering
+ * Query params: startDate, endDate
+ */
+router.get('/admin/agent-profits', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const result = await profitPayoutService.getAgentProfitsSummary({ startDate, endDate });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

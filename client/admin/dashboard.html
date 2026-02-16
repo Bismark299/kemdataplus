@@ -1905,6 +1905,15 @@
             display: block;
         }
         
+        /* ========== AGENT PROFITS SECTION ========== */
+        .agent-profits-section {
+            display: none;
+            padding: 25px;
+        }
+        .agent-profits-section.active {
+            display: block;
+        }
+        
         /* Users Stats Row */
         .users-stats {
             display: grid;
@@ -4284,6 +4293,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="#" class="nav-link" id="navAgentProfits" data-section="agentProfits">
+                    <i class="fas fa-coins"></i>
+                    <span>Agent Profits</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link" id="navHistory" data-section="history">
                     <i class="fas fa-history"></i>
                     <span>History</span>
@@ -5421,6 +5436,78 @@
                             <i class="fas fa-key"></i> Reset Password
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== AGENT PROFITS SECTION ========== -->
+        <div class="agent-profits-section" id="agentProfitsSection">
+            <!-- Section Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-coins" style="color: white; font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <h2 style="margin: 0; color: #1e293b; font-size: 1.4rem;">Agent Profits</h2>
+                        <p style="margin: 0; color: #64748b; font-size: 0.85rem;">View profits earned by agents</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-size: 0.85rem; color: #64748b;">From:</label>
+                        <input type="date" id="agentProfitsStartDate" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-size: 0.85rem; color: #64748b;">To:</label>
+                        <input type="date" id="agentProfitsEndDate" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+                    </div>
+                    <button onclick="loadAgentProfits()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <button onclick="clearAgentProfitsFilter()" style="padding: 8px 16px; background: #e2e8f0; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Totals Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 5px;">Total Profit Earned</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" id="agentProfitsTotalEarned">GH₵ 0.00</div>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 5px;">This Month</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;" id="agentProfitsThisMonth">GH₵ 0.00</div>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 5px;">Available for Withdrawal</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;" id="agentProfitsAvailable">GH₵ 0.00</div>
+                </div>
+            </div>
+
+            <!-- Agent Profits Table -->
+            <div style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                                <th style="padding: 14px 16px; text-align: left; font-weight: 600; color: #475569;">Agent</th>
+                                <th style="padding: 14px 16px; text-align: right; font-weight: 600; color: #475569;">Total Profit</th>
+                                <th style="padding: 14px 16px; text-align: right; font-weight: 600; color: #475569;">This Month</th>
+                                <th style="padding: 14px 16px; text-align: right; font-weight: 600; color: #475569;">Available</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agentProfitsTableBody">
+                            <tr>
+                                <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
+                                    <p>Loading agent profits...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -8371,6 +8458,7 @@
             document.getElementById('storefrontsSection')?.classList.remove('active');
             document.getElementById('complaintsSection')?.classList.remove('active');
             document.getElementById('alertsSection')?.style.setProperty('display', 'none');
+            document.getElementById('agentProfitsSection')?.classList.remove('active');
         }
         
         function showDashboard() {
@@ -8432,6 +8520,12 @@
             loadAlerts();
         }
         
+        function showAgentProfits() {
+            hideAllSections();
+            document.getElementById('agentProfitsSection').classList.add('active');
+            loadAgentProfits();
+        }
+        
         // Navigate to a section and update URL hash
         function navigateToSection(section) {
             // Update URL hash without triggering page reload
@@ -8454,6 +8548,9 @@
                     break;
                 case 'users':
                     showUsers();
+                    break;
+                case 'agentProfits':
+                    showAgentProfits();
                     break;
                 case 'history':
                     showHistory();
@@ -8486,7 +8583,7 @@
         // Restore section from URL hash on page load
         function restoreSectionFromHash() {
             const hash = window.location.hash.replace('#', '');
-            if (hash && ['dashboard', 'wallet', 'users', 'history', 'networks', 'storefronts', 'reports', 'complaints', 'alerts', 'settings'].includes(hash)) {
+            if (hash && ['dashboard', 'wallet', 'users', 'agentProfits', 'history', 'networks', 'storefronts', 'reports', 'complaints', 'alerts', 'settings'].includes(hash)) {
                 navigateToSection(hash);
             }
         }
@@ -11873,6 +11970,87 @@
             } catch (err) {
                 showToast('Error: ' + err.message, 'error');
             }
+        }
+
+        // ========== AGENT PROFITS SECTION ==========
+        async function loadAgentProfits() {
+            const tbody = document.getElementById('agentProfitsTableBody');
+            const startDate = document.getElementById('agentProfitsStartDate')?.value || '';
+            const endDate = document.getElementById('agentProfitsEndDate')?.value || '';
+            
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
+                        <p>Loading agent profits...</p>
+                    </td>
+                </tr>
+            `;
+            
+            try {
+                let url = '/api/profit-payouts/admin/agent-profits';
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                if (params.toString()) url += '?' + params.toString();
+                
+                const res = await adminFetch(url);
+                if (!res.ok) throw new Error('Failed to load agent profits');
+                const data = await res.json();
+                
+                // Update totals
+                document.getElementById('agentProfitsTotalEarned').textContent = 'GH₵ ' + (data.totals?.totalProfit || 0).toFixed(2);
+                document.getElementById('agentProfitsThisMonth').textContent = 'GH₵ ' + (data.totals?.thisMonthProfit || 0).toFixed(2);
+                document.getElementById('agentProfitsAvailable').textContent = 'GH₵ ' + (data.totals?.availableForWithdrawal || 0).toFixed(2);
+                
+                // Render table
+                if (!data.agents || data.agents.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                                <i class="fas fa-coins" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                                <p>No agent profits found</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = data.agents.map(agent => `
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 14px 16px;">
+                            <div style="font-weight: 600; color: #1e293b;">${agent.name || 'Unknown'}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">${agent.phone || agent.email || '-'}</div>
+                        </td>
+                        <td style="padding: 14px 16px; text-align: right; font-weight: 600; color: #10b981;">
+                            GH₵ ${agent.totalProfit.toFixed(2)}
+                        </td>
+                        <td style="padding: 14px 16px; text-align: right; color: #3b82f6;">
+                            GH₵ ${agent.thisMonthProfit.toFixed(2)}
+                        </td>
+                        <td style="padding: 14px 16px; text-align: right; color: #f59e0b; font-weight: 600;">
+                            GH₵ ${agent.availableForWithdrawal.toFixed(2)}
+                        </td>
+                    </tr>
+                `).join('');
+                
+            } catch (err) {
+                console.error('Error loading agent profits:', err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="padding: 40px; text-align: center; color: #ef4444;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
+                            <p>Error loading agent profits: ${err.message}</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        function clearAgentProfitsFilter() {
+            document.getElementById('agentProfitsStartDate').value = '';
+            document.getElementById('agentProfitsEndDate').value = '';
+            loadAgentProfits();
         }
 
         // ========== REPORTS SECTION ==========

@@ -1558,6 +1558,94 @@ const profitPayoutService = {
       currency: 'GHS',
       description: `GH₵${PAYSTACK_MOMO_FEE.toFixed(2)} per MoMo transfer`
     };
+  },
+
+  /**
+   * Get agent profits summary for admin view
+   * Shows: Agent, Total Profit, This Month, Available for Withdrawal
+   */
+  async getAgentProfitsSummary({ startDate, endDate } = {}) {
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter.lte = end;
+    }
+    const hasDateFilter = startDate || endDate;
+
+    // Get all agents (non-admin users)
+    const agents = await prisma.user.findMany({
+      where: { role: { not: 'ADMIN' } },
+      select: { id: true, name: true, phone: true, email: true, role: true }
+    });
+
+    // Get this month's date range
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    // Get profit data for all agents
+    const results = await Promise.all(agents.map(async (agent) => {
+      // Total profit (all PAID profits, with optional date filter)
+      const totalProfitResult = await prisma.pendingProfit.aggregate({
+        where: {
+          userId: agent.id,
+          status: 'PAID',
+          ...(hasDateFilter && { createdAt: dateFilter })
+        },
+        _sum: { amount: true }
+      });
+
+      // This month's profit (PAID)
+      const monthProfitResult = await prisma.pendingProfit.aggregate({
+        where: {
+          userId: agent.id,
+          status: 'PAID',
+          createdAt: { gte: monthStart, lte: monthEnd }
+        },
+        _sum: { amount: true }
+      });
+
+      // Available for withdrawal (PENDING profits)
+      const availableResult = await prisma.pendingProfit.aggregate({
+        where: {
+          userId: agent.id,
+          status: 'PENDING'
+        },
+        _sum: { amount: true }
+      });
+
+      return {
+        id: agent.id,
+        name: agent.name,
+        phone: agent.phone,
+        email: agent.email,
+        role: agent.role,
+        totalProfit: totalProfitResult._sum.amount || 0,
+        thisMonthProfit: monthProfitResult._sum.amount || 0,
+        availableForWithdrawal: availableResult._sum.amount || 0
+      };
+    }));
+
+    // Filter out agents with no profit activity and sort by total profit
+    const filtered = results
+      .filter(a => a.totalProfit > 0 || a.availableForWithdrawal > 0)
+      .sort((a, b) => b.totalProfit - a.totalProfit);
+
+    // Calculate totals
+    const totals = filtered.reduce((acc, a) => ({
+      totalProfit: acc.totalProfit + a.totalProfit,
+      thisMonthProfit: acc.thisMonthProfit + a.thisMonthProfit,
+      availableForWithdrawal: acc.availableForWithdrawal + a.availableForWithdrawal
+    }), { totalProfit: 0, thisMonthProfit: 0, availableForWithdrawal: 0 });
+
+    return {
+      agents: filtered,
+      totals,
+      dateFilter: hasDateFilter ? { startDate, endDate } : null
+    };
   }
 };
 
