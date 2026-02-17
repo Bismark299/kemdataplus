@@ -35,6 +35,57 @@
             height: 100vh;
             background: #1a1f36;
             z-index: 1000;
+            transition: width 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 70px;
+        }
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .menu-label,
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .logout-btn span,
+        .sidebar.collapsed .alert-badge {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-logo {
+            justify-content: center;
+            padding: 20px 10px;
+        }
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding: 12px;
+        }
+        .sidebar.collapsed .nav-link i {
+            width: auto;
+            font-size: 1.1rem;
+        }
+        .sidebar.collapsed .logout-btn {
+            justify-content: center;
+            padding: 12px;
+        }
+        .sidebar-toggle {
+            position: absolute;
+            right: -12px;
+            top: 70px;
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            border: 2px solid #1a1f36;
+            border-radius: 50%;
+            color: white;
+            font-size: 0.7rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-toggle:hover {
+            background: #2563eb;
+        }
+        .sidebar.collapsed .sidebar-toggle {
+            transform: rotate(180deg);
         }
         .sidebar-logo {
             padding: 20px;
@@ -336,6 +387,10 @@
         .main-content {
             margin-left: 240px;
             min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+        .main-content.sidebar-collapsed {
+            margin-left: 70px;
         }
 
         /* ===== TOP HEADER ===== */
@@ -4266,6 +4321,9 @@
         <button class="sidebar-close-btn" id="sidebarCloseBtn">
             <i class="fas fa-times"></i>
         </button>
+        <button class="sidebar-toggle" id="sidebarToggle" title="Collapse/Expand Sidebar">
+            <i class="fas fa-chevron-left"></i>
+        </button>
         <div class="sidebar-logo">
             <div class="logo-box">KDP</div>
             <span class="logo-text">KemDataplus</span>
@@ -5455,6 +5513,10 @@
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-size: 0.85rem; color: #64748b;">Search:</label>
+                        <input type="text" id="agentProfitsSearchName" placeholder="Agent name..." style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; width: 150px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
                         <label style="font-size: 0.85rem; color: #64748b;">From:</label>
                         <input type="date" id="agentProfitsStartDate" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
                     </div>
@@ -5508,6 +5570,24 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="agentProfitsPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; flex-wrap: wrap; gap: 10px;">
+                <div style="font-size: 0.85rem; color: #64748b;">
+                    Showing <span id="agentProfitsShowingFrom">0</span>-<span id="agentProfitsShowingTo">0</span> of <span id="agentProfitsTotal">0</span> agents
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button onclick="agentProfitsPrevPage()" id="agentProfitsPrevBtn" style="padding: 8px 12px; background: #e2e8f0; color: #475569; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;" disabled>
+                        <i class="fas fa-chevron-left"></i> Prev
+                    </button>
+                    <span style="padding: 8px 12px; font-size: 0.85rem; color: #475569;">
+                        Page <span id="agentProfitsCurrentPage">1</span> of <span id="agentProfitsTotalPages">1</span>
+                    </span>
+                    <button onclick="agentProfitsNextPage()" id="agentProfitsNextBtn" style="padding: 8px 12px; background: #e2e8f0; color: #475569; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;" disabled>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -11973,10 +12053,15 @@
         }
 
         // ========== AGENT PROFITS SECTION ==========
+        let agentProfitsData = []; // Store all agents for pagination
+        let agentProfitsPage = 1;
+        const agentProfitsPerPage = 10;
+        
         async function loadAgentProfits() {
             const tbody = document.getElementById('agentProfitsTableBody');
             const startDate = document.getElementById('agentProfitsStartDate')?.value || '';
             const endDate = document.getElementById('agentProfitsEndDate')?.value || '';
+            const searchName = document.getElementById('agentProfitsSearchName')?.value?.trim().toLowerCase() || '';
             
             tbody.innerHTML = `
                 <tr>
@@ -12003,36 +12088,19 @@
                 document.getElementById('agentProfitsThisMonth').textContent = 'GH₵ ' + (data.totals?.thisMonthProfit || 0).toFixed(2);
                 document.getElementById('agentProfitsAvailable').textContent = 'GH₵ ' + (data.totals?.availableForWithdrawal || 0).toFixed(2);
                 
-                // Render table
-                if (!data.agents || data.agents.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
-                                <i class="fas fa-coins" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
-                                <p>No agent profits found</p>
-                            </td>
-                        </tr>
-                    `;
-                    return;
+                // Filter by name (client-side)
+                agentProfitsData = data.agents || [];
+                if (searchName) {
+                    agentProfitsData = agentProfitsData.filter(agent => 
+                        (agent.name || '').toLowerCase().includes(searchName) ||
+                        (agent.phone || '').toLowerCase().includes(searchName) ||
+                        (agent.email || '').toLowerCase().includes(searchName)
+                    );
                 }
                 
-                tbody.innerHTML = data.agents.map(agent => `
-                    <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 14px 16px;">
-                            <div style="font-weight: 600; color: #1e293b;">${agent.name || 'Unknown'}</div>
-                            <div style="font-size: 0.8rem; color: #94a3b8;">${agent.phone || agent.email || '-'}</div>
-                        </td>
-                        <td style="padding: 14px 16px; text-align: right; font-weight: 600; color: #10b981;">
-                            GH₵ ${agent.totalProfit.toFixed(2)}
-                        </td>
-                        <td style="padding: 14px 16px; text-align: right; color: #3b82f6;">
-                            GH₵ ${agent.thisMonthProfit.toFixed(2)}
-                        </td>
-                        <td style="padding: 14px 16px; text-align: right; color: #f59e0b; font-weight: 600;">
-                            GH₵ ${agent.availableForWithdrawal.toFixed(2)}
-                        </td>
-                    </tr>
-                `).join('');
+                // Reset to page 1 when filtering
+                agentProfitsPage = 1;
+                renderAgentProfitsTable();
                 
             } catch (err) {
                 console.error('Error loading agent profits:', err);
@@ -12044,12 +12112,99 @@
                         </td>
                     </tr>
                 `;
+                updateAgentProfitsPagination(0, 0, 0);
+            }
+        }
+        
+        function renderAgentProfitsTable() {
+            const tbody = document.getElementById('agentProfitsTableBody');
+            const totalAgents = agentProfitsData.length;
+            const totalPages = Math.ceil(totalAgents / agentProfitsPerPage) || 1;
+            
+            // Ensure page is within bounds
+            if (agentProfitsPage > totalPages) agentProfitsPage = totalPages;
+            if (agentProfitsPage < 1) agentProfitsPage = 1;
+            
+            const startIdx = (agentProfitsPage - 1) * agentProfitsPerPage;
+            const endIdx = Math.min(startIdx + agentProfitsPerPage, totalAgents);
+            const pageData = agentProfitsData.slice(startIdx, endIdx);
+            
+            if (pageData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                            <i class="fas fa-coins" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                            <p>No agent profits found</p>
+                        </td>
+                    </tr>
+                `;
+                updateAgentProfitsPagination(0, 0, 0);
+                return;
+            }
+            
+            tbody.innerHTML = pageData.map(agent => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 14px 16px;">
+                        <div style="font-weight: 600; color: #1e293b;">${agent.name || 'Unknown'}</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8;">${agent.phone || agent.email || '-'}</div>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: right; font-weight: 600; color: #10b981;">
+                        GH₵ ${agent.totalProfit.toFixed(2)}
+                    </td>
+                    <td style="padding: 14px 16px; text-align: right; color: #3b82f6;">
+                        GH₵ ${agent.thisMonthProfit.toFixed(2)}
+                    </td>
+                    <td style="padding: 14px 16px; text-align: right; color: #f59e0b; font-weight: 600;">
+                        GH₵ ${agent.availableForWithdrawal.toFixed(2)}
+                    </td>
+                </tr>
+            `).join('');
+            
+            updateAgentProfitsPagination(startIdx + 1, endIdx, totalAgents);
+        }
+        
+        function updateAgentProfitsPagination(from, to, total) {
+            document.getElementById('agentProfitsShowingFrom').textContent = from;
+            document.getElementById('agentProfitsShowingTo').textContent = to;
+            document.getElementById('agentProfitsTotal').textContent = total;
+            
+            const totalPages = Math.ceil(total / agentProfitsPerPage) || 1;
+            document.getElementById('agentProfitsCurrentPage').textContent = agentProfitsPage;
+            document.getElementById('agentProfitsTotalPages').textContent = totalPages;
+            
+            // Update button states
+            const prevBtn = document.getElementById('agentProfitsPrevBtn');
+            const nextBtn = document.getElementById('agentProfitsNextBtn');
+            
+            prevBtn.disabled = agentProfitsPage <= 1;
+            prevBtn.style.opacity = agentProfitsPage <= 1 ? '0.5' : '1';
+            prevBtn.style.cursor = agentProfitsPage <= 1 ? 'not-allowed' : 'pointer';
+            
+            nextBtn.disabled = agentProfitsPage >= totalPages;
+            nextBtn.style.opacity = agentProfitsPage >= totalPages ? '0.5' : '1';
+            nextBtn.style.cursor = agentProfitsPage >= totalPages ? 'not-allowed' : 'pointer';
+        }
+        
+        function agentProfitsPrevPage() {
+            if (agentProfitsPage > 1) {
+                agentProfitsPage--;
+                renderAgentProfitsTable();
+            }
+        }
+        
+        function agentProfitsNextPage() {
+            const totalPages = Math.ceil(agentProfitsData.length / agentProfitsPerPage);
+            if (agentProfitsPage < totalPages) {
+                agentProfitsPage++;
+                renderAgentProfitsTable();
             }
         }
         
         function clearAgentProfitsFilter() {
             document.getElementById('agentProfitsStartDate').value = '';
             document.getElementById('agentProfitsEndDate').value = '';
+            document.getElementById('agentProfitsSearchName').value = '';
+            agentProfitsPage = 1;
             loadAgentProfits();
         }
 
@@ -13668,6 +13823,24 @@
         mobileMenuBtn?.addEventListener('click', openMobileSidebar);
         sidebarCloseBtn?.addEventListener('click', closeMobileSidebar);
         sidebarOverlay?.addEventListener('click', closeMobileSidebar);
+        
+        // ===== SIDEBAR COLLAPSE TOGGLE =====
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const mainContent = document.querySelector('.main-content');
+        
+        // Load saved sidebar state
+        const savedSidebarState = localStorage.getItem('sidebarCollapsed');
+        if (savedSidebarState === 'true') {
+            sidebar?.classList.add('collapsed');
+            mainContent?.classList.add('sidebar-collapsed');
+        }
+        
+        sidebarToggle?.addEventListener('click', () => {
+            sidebar?.classList.toggle('collapsed');
+            mainContent?.classList.toggle('sidebar-collapsed');
+            // Save state
+            localStorage.setItem('sidebarCollapsed', sidebar?.classList.contains('collapsed') ? 'true' : 'false');
+        });
         
         // Close sidebar when nav item clicked on mobile
         document.querySelectorAll('.nav-link').forEach(link => {
