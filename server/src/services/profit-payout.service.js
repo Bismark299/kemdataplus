@@ -1597,29 +1597,30 @@ const profitPayoutService = {
       let filteredProfitResult = { _sum: { amount: null } };
       
       if (hasDateFilter) {
-        // Get profits where the linked StorefrontOrder was created in the date range
-        const ordersInRange = await prisma.storefrontOrder.findMany({
-          where: {
-            storefront: { userId: agent.id },
-            createdAt: {
-              ...(dateFilterStart && { gte: dateFilterStart }),
-              ...(dateFilterEnd && { lte: dateFilterEnd })
-            }
-          },
+        // First get the agent's storefront IDs
+        const agentStorefronts = await prisma.storefront.findMany({
+          where: { ownerId: agent.id },
           select: { id: true }
         });
         
-        const orderIds = ordersInRange.map(o => o.id);
+        const storefrontIds = agentStorefronts.map(s => s.id);
         
-        if (orderIds.length > 0) {
-          // Get profits linked to these orders (any status - PAID or PENDING)
-          filteredProfitResult = await prisma.pendingProfit.aggregate({
+        if (storefrontIds.length > 0) {
+          // Sum ownerProfit directly from StorefrontOrder for the date range
+          // This is the actual profit earned on orders placed in that period
+          const orderProfitResult = await prisma.storefrontOrder.aggregate({
             where: {
-              userId: agent.id,
-              orderId: { in: orderIds }
+              storefrontId: { in: storefrontIds },
+              status: { in: ['COMPLETED', 'PROCESSING'] }, // Successful orders only
+              createdAt: {
+                ...(dateFilterStart && { gte: dateFilterStart }),
+                ...(dateFilterEnd && { lte: dateFilterEnd })
+              }
             },
-            _sum: { amount: true }
+            _sum: { ownerProfit: true }
           });
+          
+          filteredProfitResult = { _sum: { amount: orderProfitResult._sum.ownerProfit } };
         }
       }
       

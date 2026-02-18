@@ -113,7 +113,7 @@ async function checkStuckWithdrawals() {
         updatedAt: { lt: twoMinutesAgo }
       },
       include: {
-        user: { select: { id: true, name: true, profitBalance: true } }
+        user: { select: { id: true, name: true, email: true } }
       }
     });
     
@@ -204,16 +204,18 @@ async function processStuckResult(payout, paystackStatus, transferCode) {
         }
       });
       
-      // Refund to profit balance
-      await tx.user.update({
-        where: { id: payout.userId },
+      // Refund as new pending profit
+      await tx.pendingProfit.create({
         data: {
-          profitBalance: { increment: payout.amount }
+          userId: payout.userId,
+          amount: payout.amount,
+          description: `Refund: Failed withdrawal ${payout.reference}`,
+          status: 'PENDING'
         }
       });
     });
     
-    console.log(`[StuckChecker] ❌ ${payout.reference} marked as FAILED, GH₵${payout.amount} refunded`);
+    console.log(`[StuckChecker] ❌ ${payout.reference} marked as FAILED, GH₵${payout.amount} refunded as pending profit`);
     
   } else {
     console.log(`[StuckChecker] ${payout.reference} still pending on Paystack (${paystackStatus})`);

@@ -182,7 +182,7 @@ async function completeWithdrawal(payout, transferCode) {
 async function failWithdrawal(payout, reason) {
   console.log(`\n  ❌ Marking withdrawal as FAILED...`);
   
-  // Refund the amount to user's profit balance
+  // Refund the amount as pending profit
   await prisma.$transaction(async (tx) => {
     await tx.agentPayout.update({
       where: { id: payout.id },
@@ -193,16 +193,18 @@ async function failWithdrawal(payout, reason) {
       }
     });
     
-    // Refund to profit balance
-    await tx.user.update({
-      where: { id: payout.userId },
+    // Refund as new pending profit
+    await tx.pendingProfit.create({
       data: {
-        profitBalance: { increment: payout.amount }
+        userId: payout.userId,
+        amount: payout.amount,
+        description: `Refund: Failed withdrawal ${payout.reference}`,
+        status: 'PENDING'
       }
     });
     
     console.log(`  ✅ Withdrawal ${payout.reference} marked as FAILED.`);
-    console.log(`  ✅ Refunded GH₵${payout.amount?.toFixed(2)} to user's profit balance.`);
+    console.log(`  ✅ Refunded GH₵${payout.amount?.toFixed(2)} as pending profit.`);
   });
 }
 
