@@ -13,12 +13,11 @@
  * 7. Frozen wallets cannot transact
  */
 
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const tenantService = require('./tenant.service');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const walletService = {
   /**

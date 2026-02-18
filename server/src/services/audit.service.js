@@ -11,10 +11,9 @@
  * 5. Logs are queryable for reports
  */
 
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const auditService = {
   /**

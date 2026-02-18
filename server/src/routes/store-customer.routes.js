@@ -7,10 +7,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // SECURITY: JWT_SECRET must be set in environment - no fallback ever
 const JWT_SECRET = process.env.JWT_SECRET;

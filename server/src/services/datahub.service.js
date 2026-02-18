@@ -12,10 +12,9 @@
  * - GET /allProducts - Get available products and prices
  */
 
-const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Helper to get API config from settings
 // Priority: Environment variables > settings.json > defaults

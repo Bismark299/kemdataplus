@@ -1,9 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Import multi-tenant services (optional - graceful fallback if not available)
 let pricingEngine, profitService, walletService, auditService, datahubService, easyDataService, settingsController, financialOrderService;

@@ -21,11 +21,11 @@
  * @module services/financial-order.service
  */
 
-const { PrismaClient, Prisma } = require('@prisma/client');
+const { Prisma } = require('@prisma/client');
 const crypto = require('crypto');
 const axios = require('axios');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // ============================================================================
 // CONFIGURATION

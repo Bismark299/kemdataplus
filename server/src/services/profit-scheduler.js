@@ -11,8 +11,7 @@
 
 const profitPayoutService = require('../services/profit-payout.service');
 const paystackService = require('../services/paystack.service');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 let schedulerInterval = null;
 let stuckCheckerInterval = null;

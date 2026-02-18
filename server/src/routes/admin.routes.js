@@ -15,9 +15,8 @@ const auditService = require('../services/audit.service');
 const alertService = require('../services/alert.service');
 const jobQueueService = require('../services/job-queue.service');
 const smsService = require('../services/sms.service');
-const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // All routes require ADMIN role
 router.use(authenticate);

@@ -16,14 +16,13 @@
  * - Full audit trail with alerts
  */
 
-const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
 const auditService = require('./audit.service');
 const alertService = require('./alert.service');
 const smsService = require('./sms.service');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Ghana Mobile Money codes for Paystack
 const MOBILE_MONEY_CODES = {
@@ -1563,17 +1562,22 @@ const profitPayoutService = {
   /**
    * Get agent profits summary for admin view
    * Shows: Agent, Total Profit, This Month, Available for Withdrawal
+   * When date filter is applied, filters by the ORDER's creation date (when profit was actually earned)
    */
   async getAgentProfitsSummary({ startDate, endDate } = {}) {
-    // Build date filter
-    const dateFilter = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      dateFilter.lte = end;
+    // Build date filter - use UTC consistently to avoid timezone issues
+    const hasDateFilter = Boolean(startDate || endDate);
+    let dateFilterStart = null;
+    let dateFilterEnd = null;
+    
+    if (startDate) {
+      // Parse as start of day in UTC
+      dateFilterStart = new Date(startDate + 'T00:00:00.000Z');
     }
-    const hasDateFilter = startDate || endDate;
+    if (endDate) {
+      // Parse as end of day in UTC
+      dateFilterEnd = new Date(endDate + 'T23:59:59.999Z');
+    }
 
     // Get all agents (non-admin users)
     const agents = await prisma.user.findMany({
@@ -1581,24 +1585,54 @@ const profitPayoutService = {
       select: { id: true, name: true, phone: true, email: true, role: true }
     });
 
-    // Get this month's date range
+    // Get this month's date range (UTC)
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
     // Get profit data for all agents
     const results = await Promise.all(agents.map(async (agent) => {
-      // Total profit (all PAID profits, with optional date filter)
+      // When date filter is applied, filter by the associated order's createdAt date
+      // This shows profit earned on specific days based on order date
+      let filteredProfitResult = { _sum: { amount: null } };
+      
+      if (hasDateFilter) {
+        // Get profits where the linked StorefrontOrder was created in the date range
+        const ordersInRange = await prisma.storefrontOrder.findMany({
+          where: {
+            storefront: { userId: agent.id },
+            createdAt: {
+              ...(dateFilterStart && { gte: dateFilterStart }),
+              ...(dateFilterEnd && { lte: dateFilterEnd })
+            }
+          },
+          select: { id: true }
+        });
+        
+        const orderIds = ordersInRange.map(o => o.id);
+        
+        if (orderIds.length > 0) {
+          // Get profits linked to these orders (any status - PAID or PENDING)
+          filteredProfitResult = await prisma.pendingProfit.aggregate({
+            where: {
+              userId: agent.id,
+              orderId: { in: orderIds }
+            },
+            _sum: { amount: true }
+          });
+        }
+      }
+      
+      // Total profit (all-time PAID profits - no date filter)
       const totalProfitResult = await prisma.pendingProfit.aggregate({
         where: {
           userId: agent.id,
-          status: 'PAID',
-          ...(hasDateFilter && { createdAt: dateFilter })
+          status: 'PAID'
         },
         _sum: { amount: true }
       });
 
-      // This month's profit (PAID)
+      // This month's profit (PAID, based on profit record's createdAt)
       const monthProfitResult = await prisma.pendingProfit.aggregate({
         where: {
           userId: agent.id,
@@ -1623,15 +1657,26 @@ const profitPayoutService = {
         phone: agent.phone,
         email: agent.email,
         role: agent.role,
-        totalProfit: totalProfitResult._sum.amount || 0,
+        // When filtering by date, show filtered profit; otherwise show all-time total
+        totalProfit: hasDateFilter 
+          ? (filteredProfitResult._sum.amount || 0)
+          : (totalProfitResult._sum.amount || 0),
+        allTimeProfit: totalProfitResult._sum.amount || 0,
         thisMonthProfit: monthProfitResult._sum.amount || 0,
         availableForWithdrawal: availableResult._sum.amount || 0
       };
     }));
 
-    // Filter out agents with no profit activity and sort by total profit
+    // Filter out agents based on activity
+    // When date filter: show agents with profit in that period OR available balance
+    // Otherwise: show agents with any profit OR available balance
     const filtered = results
-      .filter(a => a.totalProfit > 0 || a.availableForWithdrawal > 0)
+      .filter(a => {
+        if (hasDateFilter) {
+          return a.totalProfit > 0 || a.availableForWithdrawal > 0;
+        }
+        return a.allTimeProfit > 0 || a.availableForWithdrawal > 0;
+      })
       .sort((a, b) => b.totalProfit - a.totalProfit);
 
     // Calculate totals

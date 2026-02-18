@@ -7,13 +7,12 @@
 
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const paystackService = require('../services/paystack.service');
 const { authenticate } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Helper to check if Paystack is enabled
 function isPaystackEnabled() {

@@ -12,12 +12,11 @@
  * 6. Profit entries must be audited
  */
 
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const tenantService = require('./tenant.service');
 const walletService = require('./wallet.service');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const profitService = {
   /**

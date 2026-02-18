@@ -11,11 +11,10 @@
  * 5. Frontend NEVER sends price - always ignored
  */
 
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const tenantService = require('./tenant.service');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const pricingEngine = {
   /**

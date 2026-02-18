@@ -14,9 +14,8 @@ const bcrypt = require('bcryptjs');
 const { authenticate, authorize } = require('../middleware/auth');
 const storefrontService = require('../services/storefront.service');
 const paystackService = require('../services/paystack.service');
-const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // ============================================
 // PUBLIC ENDPOINTS (No auth required)

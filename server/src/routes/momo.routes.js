@@ -14,10 +14,9 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const momoService = require('../services/momo.service');
-const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Helper to check if MoMo Claim is enabled
 function isMomoClaimEnabled() {

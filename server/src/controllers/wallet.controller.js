@@ -1,7 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const walletController = {
   // Get user's wallet (admin can fetch any user's wallet via ?userId=)

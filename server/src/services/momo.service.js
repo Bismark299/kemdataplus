@@ -15,11 +15,10 @@
  * - Full audit trail
  */
 
-const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Configuration
 const CLAIM_WINDOW_HOURS = 24; // Hours before pending claim expires

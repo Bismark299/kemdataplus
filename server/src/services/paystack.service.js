@@ -7,12 +7,11 @@
  * API Docs: https://paystack.com/docs/api/
  */
 
-const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Get Paystack config from settings or env
 function getPaystackConfig() {

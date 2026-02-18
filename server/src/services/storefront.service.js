@@ -5,8 +5,7 @@
  * Handles store creation, product management, and public access.
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // Roles allowed to create storefronts
 const STOREFRONT_ALLOWED_ROLES = ['ADMIN', 'PARTNER', 'SUPER_DEALER', 'DEALER', 'SUPER_AGENT', 'AGENT'];

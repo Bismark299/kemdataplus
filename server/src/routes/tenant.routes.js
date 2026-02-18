@@ -10,6 +10,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const tenantService = require('../services/tenant.service');
 const pricingEngine = require('../services/pricing.service');
 const { v4: uuidv4 } = require('uuid');
+const prisma = require('../lib/prisma');  // Shared Prisma client
 
 /**
  * GET /api/tenants/current
@@ -132,9 +133,6 @@ router.put('/:id', authenticate, authorize('ADMIN', 'PARTNER'), async (req, res,
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     const allowedUpdates = ['name', 'brandName', 'logoUrl', 'primaryColor', 'secondaryColor'];
     const adminOnlyUpdates = ['canCreateSubTenant', 'maxSubTenants', 'maxUsers', 'dailyTransactionCap', 'status'];
 
@@ -199,9 +197,6 @@ router.post('/:id/suspend', authenticate, authorize('ADMIN'), async (req, res, n
  */
 router.post('/:id/activate', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     const tenant = await prisma.tenant.update({
       where: { id: req.params.id },
       data: { status: 'ACTIVE' }
@@ -245,9 +240,6 @@ router.get('/:id/hierarchy', authenticate, async (req, res, next) => {
  */
 router.get('/:id/prices', authenticate, async (req, res, next) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     const bundles = await prisma.bundle.findMany({
       where: { isActive: true },
       include: {

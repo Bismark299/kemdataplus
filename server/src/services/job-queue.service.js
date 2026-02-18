@@ -11,8 +11,7 @@
  * consider using Redis-backed solutions like Bull or BullMQ.
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 const alertService = require('./alert.service');
 const auditService = require('./audit.service');
 
