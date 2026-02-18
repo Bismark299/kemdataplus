@@ -1570,6 +1570,8 @@ const profitPayoutService = {
     let dateFilterStart = null;
     let dateFilterEnd = null;
     
+    console.log('[AgentProfits] Request params:', { startDate, endDate, hasDateFilter });
+    
     if (startDate) {
       // Parse as start of day in UTC
       dateFilterStart = new Date(startDate + 'T00:00:00.000Z');
@@ -1578,6 +1580,8 @@ const profitPayoutService = {
       // Parse as end of day in UTC
       dateFilterEnd = new Date(endDate + 'T23:59:59.999Z');
     }
+    
+    console.log('[AgentProfits] Parsed dates:', { dateFilterStart, dateFilterEnd });
 
     // Get all agents (non-admin users)
     const agents = await prisma.user.findMany({
@@ -1604,6 +1608,7 @@ const profitPayoutService = {
         });
         
         const storefrontIds = agentStorefronts.map(s => s.id);
+        console.log(`[AgentProfits] Agent ${agent.name}: ${storefrontIds.length} storefronts`);
         
         if (storefrontIds.length > 0) {
           // Sum ownerProfit directly from StorefrontOrder for the date range
@@ -1620,6 +1625,7 @@ const profitPayoutService = {
             _sum: { ownerProfit: true }
           });
           
+          console.log(`[AgentProfits] Agent ${agent.name}: Orders profit in range = ${orderProfitResult._sum.ownerProfit}`);
           filteredProfitResult = { _sum: { amount: orderProfitResult._sum.ownerProfit } };
         }
       }
