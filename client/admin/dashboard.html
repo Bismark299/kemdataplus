@@ -14344,9 +14344,9 @@
         }
 
         function setupStorefrontEventHandlers() {
-            // Search and filter handlers
-            document.getElementById('storeSearchInput')?.addEventListener('input', debounce(loadStorefronts, 300));
-            document.getElementById('storeStatusFilter')?.addEventListener('change', loadStorefronts);
+            // Search and filter handlers - wrap in arrow functions to avoid passing event as page
+            document.getElementById('storeSearchInput')?.addEventListener('input', debounce(() => loadStorefronts(1), 300));
+            document.getElementById('storeStatusFilter')?.addEventListener('change', () => loadStorefronts(1));
             document.getElementById('orderSearchInput')?.addEventListener('input', debounce(() => loadStorefrontOrders(1), 300));
             document.getElementById('orderPaymentMethodFilter')?.addEventListener('change', () => loadStorefrontOrders(1));
             document.getElementById('orderProfitStatusFilter')?.addEventListener('change', () => loadStorefrontOrders(1));
