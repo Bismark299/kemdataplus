@@ -258,7 +258,7 @@ const profitPayoutService = {
     const todayEnd = new Date();
     todayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [pending, paid, today] = await Promise.all([
+    const [pending, paid, today, pendingWithdrawals] = await Promise.all([
       prisma.pendingProfit.aggregate({
         where: { userId, status: 'PENDING' },
         _sum: { amount: true },
@@ -277,14 +277,29 @@ const profitPayoutService = {
         },
         _sum: { amount: true },
         _count: true
+      }),
+      // Get pending/processing withdrawal requests that haven't been completed
+      prisma.agentPayout.aggregate({
+        where: { 
+          userId, 
+          status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
+        },
+        _sum: { amount: true }
       })
     ]);
 
     const settings = getPayoutSettings();
+    
+    // Available = Total pending profits - amounts already requested for withdrawal
+    const totalPending = pending._sum.amount || 0;
+    const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
+    const availableForWithdrawal = Math.max(0, totalPending - reservedForWithdrawal);
 
     return {
-      pendingAmount: pending._sum.amount || 0,
+      pendingAmount: totalPending,
       pendingCount: pending._count || 0,
+      availableForWithdrawal,  // This is what they can actually withdraw
+      reservedForWithdrawal,   // Amount already in pending withdrawal requests
       totalPaidAmount: paid._sum.amount || 0,
       totalPaidCount: paid._count || 0,
       todayAmount: today._sum.amount || 0,
@@ -335,14 +350,26 @@ const profitPayoutService = {
       throw new Error(`Minimum withdrawal is GH₵${settings.minPayout} (after GH₵${fee.toFixed(2)} fee)`);
     }
 
-    // Check available earnings
-    const pending = await prisma.pendingProfit.aggregate({
-      where: { userId, status: 'PENDING' },
-      _sum: { amount: true }
-    });
+    // Check available earnings (total pending minus already-requested withdrawals)
+    const [pendingProfits, pendingWithdrawals] = await Promise.all([
+      prisma.pendingProfit.aggregate({
+        where: { userId, status: 'PENDING' },
+        _sum: { amount: true }
+      }),
+      prisma.agentPayout.aggregate({
+        where: { 
+          userId, 
+          status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
+        },
+        _sum: { amount: true }
+      })
+    ]);
 
-    const available = pending._sum.amount || 0;
-    console.log('[requestWithdrawal] Available earnings:', available);
+    const totalPending = pendingProfits._sum.amount || 0;
+    const alreadyRequested = pendingWithdrawals._sum.amount || 0;
+    const available = Math.max(0, totalPending - alreadyRequested);
+    
+    console.log('[requestWithdrawal] Available earnings:', { totalPending, alreadyRequested, available });
     
     if (amount > available) {
       throw new Error(`Insufficient earnings. Available: GH₵${available.toFixed(2)}`);
@@ -1649,14 +1676,27 @@ const profitPayoutService = {
         _sum: { amount: true }
       });
 
-      // Available for withdrawal (PENDING profits)
-      const availableResult = await prisma.pendingProfit.aggregate({
-        where: {
-          userId: agent.id,
-          status: 'PENDING'
-        },
-        _sum: { amount: true }
-      });
+      // Available for withdrawal (PENDING profits minus pending withdrawal requests)
+      const [availableProfits, pendingWithdrawals] = await Promise.all([
+        prisma.pendingProfit.aggregate({
+          where: {
+            userId: agent.id,
+            status: 'PENDING'
+          },
+          _sum: { amount: true }
+        }),
+        prisma.agentPayout.aggregate({
+          where: {
+            userId: agent.id,
+            status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
+          },
+          _sum: { amount: true }
+        })
+      ]);
+      
+      const totalPendingProfits = availableProfits._sum.amount || 0;
+      const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
+      const availableForWithdrawal = Math.max(0, totalPendingProfits - reservedForWithdrawal);
 
       return {
         id: agent.id,
@@ -1670,7 +1710,9 @@ const profitPayoutService = {
           : (totalProfitResult._sum.amount || 0),
         allTimeProfit: totalProfitResult._sum.amount || 0,
         thisMonthProfit: monthProfitResult._sum.amount || 0,
-        availableForWithdrawal: availableResult._sum.amount || 0
+        availableForWithdrawal,
+        reservedForWithdrawal,
+        totalPendingProfits
       };
     }));
 
