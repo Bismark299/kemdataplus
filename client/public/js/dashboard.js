@@ -411,6 +411,9 @@
       persistCart();
       renderCart();
       showInlineNotice('Added to cart', 'success');
+      
+      // Clear phone input for next entry
+      if (refs.phoneInput) refs.phoneInput.value = '';
     });
   }
 
