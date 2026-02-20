@@ -1278,6 +1278,12 @@ model AgentPayout {
   webhookReceived     Boolean       @default(false)
   webhookData         String?       // JSON of webhook payload for audit
   
+  // Manual payment tracking (when admin pays externally)
+  manualPayment       Boolean       @default(false)
+  manualPaymentMethod String?       // "cash", "bank_transfer", "manual_momo"
+  manualReference     String?       // External payment reference
+  manualNote          String?       // Admin note about the manual payment
+  
   // Timestamps
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt

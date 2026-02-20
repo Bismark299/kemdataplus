@@ -10775,9 +10775,12 @@
                                 </div>
                                 
                                 ${req.status === 'PENDING' ? `
-                                    <div style="display: flex; gap: 8px;">
-                                        <button onclick="processWithdrawal('${req.id}')" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3); transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                                            <i class="fas fa-paper-plane"></i> Process
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <button onclick="processWithdrawal('${req.id}')" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3); transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Send via Paystack">
+                                            <i class="fas fa-paper-plane"></i> Paystack
+                                        </button>
+                                        <button onclick="manualPayWithdrawal('${req.id}', '${req.user?.name || 'Agent'}', ${req.netAmount})" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(139,92,246,0.3); transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Paid manually via cash/bank/MoMo">
+                                            <i class="fas fa-hand-holding-usd"></i> Manual
                                         </button>
                                         <button onclick="rejectWithdrawal('${req.id}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
                                             <i class="fas fa-times"></i>
@@ -10899,6 +10902,53 @@
                 
                 showToast('Withdrawal request rejected', 'success');
                 loadWithdrawalRequests();
+            } catch (err) {
+                showToast(err.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        }
+
+        async function manualPayWithdrawal(payoutId, agentName, amount) {
+            // Single confirmation
+            const confirmed = await showConfirmModal({
+                title: 'Manual Payment',
+                message: `Mark as manually paid?\n\nAgent: ${agentName}\nAmount: GH₵ ${amount.toFixed(2)}\n\nThis will debit the agent's pending profits.`,
+                confirmText: 'Confirm Paid',
+                type: 'warning'
+            });
+            
+            if (!confirmed) return;
+            
+            // Show loading state on button
+            const btn = event?.target?.closest('button');
+            const originalText = btn?.innerHTML;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+            
+            try {
+                showToast('Recording manual payment...', 'info');
+                const res = await adminFetch(`/api/admin/payouts/${payoutId}/manual-complete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        paymentMethod: 'manual_momo',
+                        externalReference: null,
+                        note: null
+                    })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to record manual payment');
+                }
+                
+                const result = await res.json();
+                showToast(`✅ Manual payment recorded! GH₵ ${result.amount?.toFixed(2) || amount.toFixed(2)} paid to ${result.agentName || agentName}`, 'success');
+                
+                loadWithdrawalRequests();
+                loadProfitPayouts();
             } catch (err) {
                 showToast(err.message, 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = originalText; }

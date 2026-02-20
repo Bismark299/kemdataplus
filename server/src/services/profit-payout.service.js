@@ -1322,6 +1322,113 @@ const profitPayoutService = {
   },
 
   // ============================================================
+  // MANUAL PAYOUT COMPLETION
+  // ============================================================
+
+  /**
+   * Manually complete a payout (admin paid externally)
+   * Used when Paystack is unavailable or for cash/bank payments
+   */
+  async manualComplete({ payoutId, paymentMethod, externalReference, note, adminId }) {
+    console.log(`[Payout] Manual completion requested for payout ${payoutId}`);
+
+    // Find the payout
+    const payout = await prisma.agentPayout.findUnique({
+      where: { id: payoutId },
+      include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
+    });
+
+    if (!payout) {
+      throw new Error('Payout not found');
+    }
+
+    // Check valid statuses for manual completion
+    const validStatuses = ['PENDING', 'APPROVED', 'RESERVED', 'PROCESSING', 'FAILED'];
+    if (!validStatuses.includes(payout.status)) {
+      throw new Error(`Cannot manually complete payout with status: ${payout.status}`);
+    }
+
+    // Prevent duplicate completion
+    if (payout.status === 'COMPLETED') {
+      throw new Error('Payout already completed');
+    }
+
+    const oldStatus = payout.status;
+
+    // Mark profits as paid
+    const profits = await prisma.pendingProfit.findMany({
+      where: { userId: payout.userId, status: 'PENDING' },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    let remaining = payout.amount;
+    const profitIdsToMark = [];
+    for (const profit of profits) {
+      if (remaining <= 0) break;
+      profitIdsToMark.push(profit.id);
+      remaining -= profit.amount;
+    }
+
+    // Finalize payout with manual completion data
+    await prisma.$transaction([
+      prisma.agentPayout.update({
+        where: { id: payout.id },
+        data: {
+          status: 'COMPLETED',
+          processedAt: new Date(),
+          reviewedBy: adminId,
+          manualPayment: true,
+          manualPaymentMethod: paymentMethod,
+          manualReference: externalReference,
+          manualNote: note
+        }
+      }),
+      prisma.pendingProfit.updateMany({
+        where: { id: { in: profitIdsToMark } },
+        data: { status: 'PAID', paidAt: new Date() }
+      })
+    ]);
+
+    console.log(`[Payout] ✅ Manually completed payout ${payout.reference}: GH₵${payout.netAmount} via ${paymentMethod}`);
+
+    // Audit log
+    await auditService.logPayoutComplete({
+      payoutId: payout.id,
+      oldStatus,
+      reference: payout.reference,
+      agentId: payout.userId,
+      amount: payout.netAmount,
+      completedVia: `manual_${paymentMethod}`,
+      adminId,
+      note: `External ref: ${externalReference || 'N/A'}. ${note || ''}`
+    });
+
+    // Send SMS notification to agent
+    try {
+      const agentPhone = payout.user?.momoNumber || payout.user?.phone;
+      if (agentPhone) {
+        await smsService.sendPayoutCompletedSMS(
+          agentPhone,
+          payout.user?.name,
+          payout.netAmount,
+          payout.reference
+        );
+      }
+    } catch (smsError) {
+      console.error('[Payout] SMS notification failed:', smsError.message);
+    }
+
+    return { 
+      success: true, 
+      payoutId: payout.id, 
+      amount: payout.netAmount,
+      paymentMethod,
+      reference: externalReference,
+      agentName: payout.user?.name
+    };
+  },
+
+  // ============================================================
   // WEBHOOK HANDLERS
   // ============================================================
 

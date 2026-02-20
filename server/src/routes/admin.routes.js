@@ -10,6 +10,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const tenantService = require('../services/tenant.service');
 const pricingEngine = require('../services/pricing.service');
 const profitService = require('../services/profit.service');
+const profitPayoutService = require('../services/profit-payout.service');
 const walletService = require('../services/wallet.service');
 const auditService = require('../services/audit.service');
 const alertService = require('../services/alert.service');
@@ -1508,6 +1509,39 @@ router.get('/payout-audit-summary', async (req, res, next) => {
     const summary = await auditService.getPayoutAuditSummary(start, end);
     res.json(summary);
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/payouts/:payoutId/manual-complete
+ * Manually complete a payout (admin pays externally via cash/bank/MoMo)
+ * Used when Paystack is unavailable
+ */
+router.post('/payouts/:payoutId/manual-complete', async (req, res, next) => {
+  try {
+    const { payoutId } = req.params;
+    const { paymentMethod, externalReference, note } = req.body;
+    
+    // Validate payment method
+    const validMethods = ['cash', 'bank_transfer', 'manual_momo', 'other'];
+    if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+      return res.status(400).json({ 
+        error: `Invalid payment method. Must be one of: ${validMethods.join(', ')}` 
+      });
+    }
+    
+    const result = await profitPayoutService.manualComplete({
+      payoutId,
+      paymentMethod,
+      externalReference: externalReference || null,
+      note: note || null,
+      adminId: req.user.id
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('[Admin] Manual payout completion error:', error.message);
     next(error);
   }
 });
