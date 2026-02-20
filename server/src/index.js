@@ -190,6 +190,7 @@ app.use(morgan(isProduction ? 'combined' : 'dev'));
 app.use('/api/paystack/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     const paystackService = require('./services/paystack.service');
+    const profitPayoutService = require('./services/profit-payout.service');
     const signature = req.headers['x-paystack-signature'];
     const rawBody = req.body.toString();
     
@@ -202,7 +203,26 @@ app.use('/api/paystack/webhook', express.raw({ type: 'application/json' }), asyn
     const event = JSON.parse(rawBody);
     console.log(`[Paystack] Webhook received: ${event.event}`);
     
-    // Process the webhook
+    // Handle transfer webhooks for profit payouts
+    if (event.event === 'transfer.success') {
+      const result = await profitPayoutService.handleTransferSuccess(event.data);
+      console.log(`[Paystack] ✅ Transfer success processed:`, result);
+      return res.status(200).json({ received: true, result });
+    }
+    
+    if (event.event === 'transfer.failed') {
+      const result = await profitPayoutService.handleTransferFailed(event.data);
+      console.log(`[Paystack] ⚠️ Transfer failed processed:`, result);
+      return res.status(200).json({ received: true, result });
+    }
+    
+    if (event.event === 'transfer.reversed') {
+      const result = await profitPayoutService.handleTransferReversed(event.data);
+      console.log(`[Paystack] ↩️ Transfer reversed processed:`, result);
+      return res.status(200).json({ received: true, result });
+    }
+    
+    // Process charge webhooks (payments)
     const result = await paystackService.processWebhook(event);
     
     if (result.processed) {
