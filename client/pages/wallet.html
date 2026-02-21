@@ -2580,7 +2580,6 @@
                         <div class="claim-details">
                             <div><strong>Account:</strong> ${w.accountNumber} (${w.accountType === 'mobile_money' ? w.bankName || 'MoMo' : w.bankName || 'Bank'})</div>
                             <div><strong>Date:</strong> ${date}</div>
-                            ${w.failureReason ? `<div style="color:#ef4444;"><strong>Reason:</strong> ${w.failureReason}</div>` : ''}
                         </div>
                         ${w.status === 'PENDING' ? `
                             <button onclick="cancelWithdrawal('${w.id}')" style="margin-top:10px;padding:6px 12px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;font-size:0.8rem;">
@@ -3169,7 +3168,6 @@
                                     <i class="fas fa-times"></i> Cancel
                                 </button>
                             ` : ''}
-                            ${p.failureReason ? `<div style="font-size: 0.75rem; color: #dc2626; margin-top: 6px;"><i class="fas fa-exclamation-circle"></i> ${p.failureReason}</div>` : ''}
                         </div>
                     `;
                 }).join('');

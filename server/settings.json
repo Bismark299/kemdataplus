@@ -11,7 +11,7 @@
     "autoApprove": false,
     "autoApproveLimit": 50,
     "emailNotify": true,
-    "smsNotify": false,
+    "smsNotify": true,
     "maintenance": false,
     "apiUrl": "https://datahub.mcbissolution.com/api/v1",
     "apiKey": "44|XWxomstKxT6Evxv2FUpvBq3uDs3yukPT4iFQSrsc894d387f",

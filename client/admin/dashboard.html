@@ -4959,6 +4959,29 @@
                         </tr>
                     </tbody>
                 </table>
+                <!-- Pagination Controls -->
+                <div id="txnPaginationControls" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f9fafb; border-radius: 0 0 12px 12px; margin-top: 0;">
+                    <div style="color: #6b7280; font-size: 0.9rem;">
+                        <span id="txnPaginationInfo">Showing 0 of 0 transactions</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="txnPrevPage" onclick="changeTxnPage(-1)" style="padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85rem;" disabled>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <span id="txnPageIndicator" style="padding: 8px 14px; background: #3b82f6; color: white; border-radius: 6px; font-weight: 600; min-width: 60px; text-align: center;">1 / 1</span>
+                        <button id="txnNextPage" onclick="changeTxnPage(1)" style="padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85rem;" disabled>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="color: #6b7280; font-size: 0.85rem;">Per page:</label>
+                        <select id="txnPerPage" onchange="loadAllTransactions(true)" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+                            <option value="50">50</option>
+                            <option value="100" selected>100</option>
+                            <option value="200">200</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- TAB 4: Duplicate Orders (DUPLICATE_HOLD) -->
@@ -7238,6 +7261,16 @@
 
     <script src="../public/js/dashboard-nav.js"></script>
     <script>
+        // Global handler for unhandled promise rejections (prevents console errors)
+        window.addEventListener('unhandledrejection', (event) => {
+            // Suppress API errors that are already handled by UI
+            const reason = event.reason;
+            if (reason && (reason.error || reason.message || typeof reason === 'object')) {
+                event.preventDefault(); // Suppress console error
+                console.log('[Handled] Promise rejection:', reason.error || reason.message || 'API error');
+            }
+        });
+        
         // Auth Check - verify user is logged in as admin (uses httpOnly cookies)
         // Auth is handled via httpOnly cookies - verify session on load
         (async function verifySession() {
@@ -10149,21 +10182,62 @@
         // ========== ALL TRANSACTIONS TAB ==========
         let allTransactions = [];
         let transactionsLoaded = false;
+        let txnPagination = { page: 1, limit: 100, total: 0, pages: 1 };
         
-        async function loadAllTransactions() {
-            if (transactionsLoaded) return; // Only load once per session
+        async function loadAllTransactions(resetPage = false) {
+            if (resetPage) {
+                txnPagination.page = 1;
+            }
+            
+            // Get filter values (server-side filtering for user)
+            const userFilter = document.getElementById('txnUserFilter')?.value || '';
+            const limit = parseInt(document.getElementById('txnPerPage')?.value) || 100;
+            txnPagination.limit = limit;
+            
             try {
-                const res = await adminFetch('/api/wallet/transactions/all?limit=500');
+                let url = `/api/wallet/transactions/all?page=${txnPagination.page}&limit=${limit}`;
+                if (userFilter) {
+                    url += `&userId=${userFilter}`;
+                }
+                
+                const res = await adminFetch(url);
                 if (!res.ok) throw new Error('Failed to fetch transactions');
                 const data = await res.json();
                 allTransactions = (data.transactions || []).map(t => ({
                     ...t,
                     date: t.createdAt
                 }));
+                
+                // Update pagination info
+                txnPagination = data.pagination || { page: 1, limit: limit, total: allTransactions.length, pages: 1 };
                 transactionsLoaded = true;
+                
+                updateTxnPaginationUI();
             } catch (err) {
                 console.error('Failed to load transactions:', err);
                 allTransactions = [];
+            }
+        }
+        
+        function updateTxnPaginationUI() {
+            const { page, limit, total, pages } = txnPagination;
+            const start = (page - 1) * limit + 1;
+            const end = Math.min(page * limit, total);
+            
+            document.getElementById('txnPaginationInfo').textContent = 
+                total > 0 ? `Showing ${start}-${end} of ${total} transactions` : 'No transactions';
+            document.getElementById('txnPageIndicator').textContent = `${page} / ${pages}`;
+            
+            document.getElementById('txnPrevPage').disabled = page <= 1;
+            document.getElementById('txnNextPage').disabled = page >= pages;
+        }
+        
+        async function changeTxnPage(delta) {
+            const newPage = txnPagination.page + delta;
+            if (newPage >= 1 && newPage <= txnPagination.pages) {
+                txnPagination.page = newPage;
+                await loadAllTransactions();
+                renderAllTransactions();
             }
         }
         
@@ -10172,10 +10246,10 @@
             const select = document.getElementById('txnUserFilter');
             if (!select) return;
             
-            // Keep "All Users" option and add users sorted by name
+            // Keep "All Users" option and add users sorted by name - use userId for reliable filtering
             const sortedUsers = [...usersData].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             select.innerHTML = '<option value="">All Users</option>' + 
-                sortedUsers.map(u => `<option value="${u.name}">${u.name || 'Unknown'} (${u.phone || 'N/A'})</option>`).join('');
+                sortedUsers.map(u => `<option value="${u.id}">${u.name || 'Unknown'} (${u.phone || 'N/A'})</option>`).join('');
         }
         
         // Get date range based on filter selection
@@ -10226,7 +10300,7 @@
             
             let filtered = allTransactions;
             
-            // Apply search filter
+            // Apply search filter (client-side)
             if (searchTerm) {
                 filtered = filtered.filter(t => 
                     (t.userName || '').toLowerCase().includes(searchTerm) ||
@@ -10236,10 +10310,7 @@
                 );
             }
             
-            // Apply user filter
-            if (userFilter) {
-                filtered = filtered.filter(t => (t.userName || '') === userFilter);
-            }
+            // User filter is now handled server-side in loadAllTransactions()
             
             // Apply type filter
             if (typeFilter) {
@@ -10268,7 +10339,8 @@
                 return;
             }
             
-            tbody.innerHTML = filtered.slice(0, 200).map(txn => {
+            // Pagination is now handled server-side
+            tbody.innerHTML = filtered.map(txn => {
                 const txnType = (txn.type || '').toLowerCase();
                 const isCredit = txnType === 'credit' || txnType === 'deposit' || txnType === 'refund' || txnType === 'profit_credit' || txnType === 'commission' || txnType === 'transfer_in';
                 return `
@@ -10292,7 +10364,9 @@
         
         // Transaction filter event listeners
         document.getElementById('txnSearch')?.addEventListener('input', renderAllTransactions);
-        document.getElementById('txnUserFilter')?.addEventListener('change', renderAllTransactions);
+        document.getElementById('txnUserFilter')?.addEventListener('change', function() {
+            loadAllTransactions(true).then(() => renderAllTransactions());
+        });
         document.getElementById('txnTypeFilter')?.addEventListener('change', renderAllTransactions);
         document.getElementById('txnDateFilter')?.addEventListener('change', function() {
             const customInputs = this.value === 'custom';

@@ -494,10 +494,18 @@ const walletController = {
       const limit = Math.min(parseInt(req.query.limit) || 100, 500);
       const skip = (page - 1) * limit;
       const typeFilter = req.query.type; // Optional filter
+      const userIdFilter = req.query.userId; // Optional user filter
 
       const where = {};
       if (typeFilter) {
         where.type = typeFilter.toUpperCase();
+      }
+      
+      // Filter by userId (through wallet relation)
+      if (userIdFilter) {
+        where.wallet = {
+          userId: userIdFilter
+        };
       }
 
       const [transactions, total] = await Promise.all([
