@@ -111,9 +111,21 @@ const userController = {
       const page = Math.max(1, Math.min(parseInt(req.query.page) || 1, 10000));
       const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 500, 1000));
       const skip = (page - 1) * limit;
+      const search = req.query.search?.trim() || '';
+
+      // Build where clause for search
+      const where = {};
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search } }
+        ];
+      }
 
       const [users, total] = await Promise.all([
         prisma.user.findMany({
+          where,
           skip,
           take: limit,
           select: {
@@ -152,7 +164,7 @@ const userController = {
           },
           orderBy: { createdAt: 'desc' }
         }),
-        prisma.user.count()
+        prisma.user.count({ where })
       ]);
 
       // Calculate totalSpent and totalLoads for each user

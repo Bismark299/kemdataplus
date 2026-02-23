@@ -7538,7 +7538,7 @@
                 // Fetch total wallet balance from all users
                 // The /api/users endpoint already includes wallet.balance for each user
                 try {
-                    const usersRes = await adminFetch('/api/users?limit=500');
+                    const usersRes = await adminFetch('/api/users?limit=1000');
                     if (usersRes.ok) {
                         const usersData = await usersRes.json();
                         const users = usersData.users || [];
@@ -8720,10 +8720,10 @@
         });
         
         // ========== USERS MANAGEMENT ==========
-        function loadUsersSection() {
-            initUsersData();
+        async function loadUsersSection() {
+            await initUsersData();
             updateUsersStats();
-            renderUsersTable();
+            // renderUsersTable is already called inside initUsersData when skipRender=false
         }
         
         function updateUsersStats() {
@@ -8899,12 +8899,24 @@
             renderUsersTable(searchTerm, statusFilter, roleFilter);
         }
         
-        // User search and filter (instant as user types)
+        // User search and filter (server-side search with debounce)
         document.getElementById('usersSearchInput')?.addEventListener('input', function() {
             usersCurrentPage = 1; // Reset to first page on filter change
-            const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
-            const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
-            renderUsersTable(this.value, statusFilter, roleFilter);
+            const searchTerm = this.value.trim();
+            
+            // If search term is 2+ chars, do server-side search
+            // Otherwise filter locally from loaded data
+            if (searchTerm.length >= 2) {
+                searchUsersFromServer(searchTerm);
+            } else if (currentSearchTerm) {
+                // User cleared/shortened search below threshold, reload all users
+                searchUsersFromServer('');
+            } else {
+                // Filter locally for partial typing (no server search active)
+                const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
+                const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
+                renderUsersTable(searchTerm, statusFilter, roleFilter);
+            }
         });
         
         document.getElementById('usersStatusFilter')?.addEventListener('change', function() {
@@ -9373,12 +9385,15 @@
         // ========== WALLET MANAGEMENT ==========
         let usersData = [];
         let pendingTopups = [];
+        let currentSearchTerm = '';
+        let searchDebounceTimer = null;
 
         // Fetch users and their wallet data from backend API
-        // The /api/users endpoint already includes wallet.balance for each user
-        async function initUsersData() {
+        // The /api/users endpoint supports server-side search with ?search=term
+        async function initUsersData(search = '', skipRender = false) {
             try {
-                const res = await adminFetch('/api/users?limit=500');
+                const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+                const res = await adminFetch(`/api/users?limit=1000${searchParam}`);
                 if (!res.ok) throw new Error('Failed to fetch users');
                 const data = await res.json();
                 
@@ -9397,20 +9412,35 @@
                     joinedAt: u.createdAt
                 }));
                 
+                currentSearchTerm = search;
+                
                 // Populate transaction user filter
                 populateTxnUserFilter();
                 
                 // Update stats after loading users
                 updateUsersStats();
                 await updateWalletStats();
-                renderUsersTable();
+                if (!skipRender) renderUsersTable();
             } catch (err) {
                 showToast('Error loading users: ' + err.message, 'error');
                 usersData = [];
                 updateUsersStats();
                 await updateWalletStats();
-                renderUsersTable();
+                if (!skipRender) renderUsersTable();
             }
+        }
+        
+        // Debounced server search for users
+        function searchUsersFromServer(searchTerm) {
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(async () => {
+                await initUsersData(searchTerm, true); // Skip auto-render
+                // Render tables with filters applied
+                const statusFilter = document.getElementById('usersStatusFilter')?.value || '';
+                const roleFilter = document.getElementById('usersRoleFilter')?.value || '';
+                renderUsersTable(searchTerm, statusFilter, roleFilter);
+                renderUserWallets(searchTerm, document.getElementById('walletBalanceFilter')?.value || '');
+            }, 300);
         }
 
         // No longer save users or pending topups to localStorage
@@ -9779,11 +9809,22 @@
         });
         document.getElementById('closeTransactionModalBtn')?.addEventListener('click', closeTransactionModal);
         
-        // User wallet search
+        // User wallet search (server-side search with debounce)
         document.getElementById('userSearch')?.addEventListener('input', function() {
             walletUsersCurrentPage = 1; // Reset to first page on search
+            const searchTerm = this.value.trim();
             const balanceFilter = document.getElementById('walletBalanceFilter')?.value || '';
-            renderUserWallets(this.value, balanceFilter);
+            
+            // If search term is 2+ chars, do server-side search
+            if (searchTerm.length >= 2) {
+                searchUsersFromServer(searchTerm);
+            } else if (currentSearchTerm) {
+                // User cleared/shortened search below threshold, reload all users
+                searchUsersFromServer('');
+            } else {
+                // Filter locally for partial typing (no server search active)
+                renderUserWallets(searchTerm, balanceFilter);
+            }
         });
         
         // Wallet balance filter
@@ -12591,7 +12632,7 @@
             document.getElementById('userReportDate').textContent = dateStr;
             try {
                 const [usersRes, walletsRes, ordersRes] = await Promise.all([
-                    adminFetch('/api/users?limit=500'),
+                    adminFetch('/api/users?limit=1000'),
                     adminFetch('/api/wallet/all'),
                     adminFetch('/api/order-groups/admin/all')
                 ]);
@@ -12722,7 +12763,7 @@
             let csvContent = "Agent,Wallet Loads,Total Orders (GHS),Data Capacity,Profit (GHS)\n";
             try {
                 const [usersRes, walletsRes, ordersRes] = await Promise.all([
-                    adminFetch('/api/users?limit=500'),
+                    adminFetch('/api/users?limit=1000'),
                     adminFetch('/api/wallet/all'),
                     adminFetch('/api/order-groups/admin/all')
                 ]);
