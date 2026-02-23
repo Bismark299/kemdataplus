@@ -9393,7 +9393,7 @@
         async function initUsersData(search = '', skipRender = false) {
             try {
                 const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-                const res = await adminFetch(`/api/users?limit=1000${searchParam}`);
+                const res = await adminFetch(`/api/users?limit=5000${searchParam}`);
                 if (!res.ok) throw new Error('Failed to fetch users');
                 const data = await res.json();
                 
