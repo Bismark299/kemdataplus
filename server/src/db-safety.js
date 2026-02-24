@@ -87,23 +87,27 @@ async function applyFinancialSafety() {
               ARRAY['PENDING', 'COMPLETED'],
               ARRAY['PENDING', 'FAILED'],
               ARRAY['PENDING', 'CANCELLED'],
+              ARRAY['PENDING', 'DUPLICATE_HOLD'],
+              ARRAY['DUPLICATE_HOLD', 'PENDING'],
+              ARRAY['DUPLICATE_HOLD', 'CANCELLED'],
               ARRAY['PROCESSING', 'COMPLETED'],
               ARRAY['PROCESSING', 'FAILED']
           ];
           i INTEGER;
           is_valid BOOLEAN := FALSE;
       BEGIN
-          IF OLD.status = NEW.status THEN
+          -- Cast enum to text for comparison (OrderStatus enum vs TEXT array)
+          IF OLD.status::text = NEW.status::text THEN
               RETURN NEW;
           END IF;
           FOR i IN 1..array_length(valid_transitions, 1) LOOP
-              IF valid_transitions[i][1] = OLD.status AND valid_transitions[i][2] = NEW.status THEN
+              IF valid_transitions[i][1] = OLD.status::text AND valid_transitions[i][2] = NEW.status::text THEN
                   is_valid := TRUE;
                   EXIT;
               END IF;
           END LOOP;
           IF NOT is_valid THEN
-              RAISE EXCEPTION 'Invalid state transition from % to %', OLD.status, NEW.status;
+              RAISE EXCEPTION 'Invalid state transition from % to %', OLD.status::text, NEW.status::text;
           END IF;
           RETURN NEW;
       END;
@@ -131,9 +135,10 @@ async function applyFinancialSafety() {
       `CREATE OR REPLACE FUNCTION log_order_state_transition()
       RETURNS TRIGGER AS $$
       BEGIN
-          IF OLD.status IS DISTINCT FROM NEW.status THEN
+          -- Cast enum to text for comparison and insertion
+          IF OLD.status::text IS DISTINCT FROM NEW.status::text THEN
               INSERT INTO order_state_transitions ("orderId", "fromState", "toState", "triggeredBy", "triggerSource")
-              VALUES (NEW.id, OLD.status, NEW.status, COALESCE(NEW."lockedBy", 'system'), 'database_trigger');
+              VALUES (NEW.id, OLD.status::text, NEW.status::text, COALESCE(NEW."lockedBy", 'system'), 'database_trigger');
           END IF;
           RETURN NEW;
       END;

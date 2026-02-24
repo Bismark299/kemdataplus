@@ -1158,8 +1158,8 @@ router.get('/audit-report', async (req, res, next) => {
       if (isPaystack) {
         paystackDeposits.count++;
         paystackDeposits.amount += d.amount;
-        // Platform absorbs 0.5% of total (customer paid 1.5%, Paystack takes ~1.95%)
-        paystackDeposits.fees += d.amount * 0.005;
+        // Platform absorbs ~0% (customer paid 2%, Paystack takes ~1.95%)
+        paystackDeposits.fees += d.amount * 0.001;
       } else {
         momoDeposits.count++;
         momoDeposits.amount += d.amount;
@@ -1304,7 +1304,7 @@ router.get('/audit-report', async (req, res, next) => {
     // 7. FINAL PROFIT SUMMARY
     // System gross profit = revenue - cost from direct orders
     const systemGrossProfit = systemOrders.profit;
-    // System net profit = gross - Paystack fees (0.5%)
+    // System net profit = gross - Paystack fees (~0.1% absorbed)
     const systemNetProfit = systemGrossProfit - paystackDeposits.fees;
     
     // Store profit breakdown

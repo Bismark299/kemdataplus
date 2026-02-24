@@ -773,7 +773,26 @@ const orderGroupService = {
    * - Checks API wallet balance BEFORE each item
    * - Items stay PENDING if API disabled or insufficient balance
    */
+  // Track which orderGroups are currently being processed to prevent concurrent runs
+  _processingLocks: new Set(),
+
   async processOrderItems(orderGroupId) {
+    // ============ CONCURRENCY GUARD ============
+    // Prevent multiple concurrent processOrderItems for the same orderGroup
+    if (this._processingLocks.has(orderGroupId)) {
+      console.log(`[OrderGroup] SKIP: ${orderGroupId} is already being processed (concurrency guard)`);
+      return { processed: 0, skipped: 0, results: [], reason: 'Already processing' };
+    }
+    this._processingLocks.add(orderGroupId);
+
+    try {
+      return await this._doProcessOrderItems(orderGroupId);
+    } finally {
+      this._processingLocks.delete(orderGroupId);
+    }
+  },
+
+  async _doProcessOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
     const easyDataService = require('./easydata.service');
     const settingsController = require('../controllers/settings.controller');
@@ -1020,6 +1039,30 @@ const orderGroupService = {
           externalReference: result.reference,
           failureReason: result.success ? null : result.error
         });
+
+        // CROSS-TABLE SYNC: If there's a linked legacy Order row (storefront orders),
+        // mark it too so datahub.retryPendingOrders() won't re-send it.
+        if (item.reference) {
+          // The legacy Order.reference matches the OrderItem's base reference (e.g., "ORD-000123")
+          const baseRef = item.reference.replace(/-\d{2}$/, ''); // "ORD-000123-01" → "ORD-000123"
+          try {
+            await prisma.order.updateMany({
+              where: {
+                reference: baseRef,
+                externalReference: null  // Only if not already set
+              },
+              data: {
+                status: result.success ? 'PROCESSING' : 'FAILED',
+                externalReference: result.reference || null,
+                apiSentAt: new Date(),
+                ...(result.success ? {} : { failureReason: result.error })
+              }
+            });
+          } catch (syncErr) {
+            // Non-fatal — legacy Order may not exist for non-storefront orders
+            console.log(`[OrderGroup] Legacy Order sync skipped: ${syncErr.message}`);
+          }
+        }
 
         results.push({
           itemId: item.id,
@@ -1389,15 +1432,24 @@ const orderGroupService = {
       try {
         console.log(`[AutoRetry] Retrying ${orderGroup.displayId}...`);
         
-        // Clear apiSentAt for stuck items to allow retry
+        // SAFETY: Do NOT reset apiSentAt — that defeats the atomic lock.
+        // Only items with apiSentAt=null AND externalReference=null are eligible.
+        // If apiSentAt is set but externalReference is null, the API call may still
+        // be in flight or it failed but didn't record. We skip those to avoid duplicates.
+        // Items truly stuck (apiSentAt set >5 min ago, no externalRef) get reset.
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         await prisma.orderItem.updateMany({
           where: {
             orderGroupId: orderGroup.id,
             status: 'PENDING',
-            externalReference: null
+            externalReference: null,
+            apiSentAt: {
+              not: null,
+              lt: fiveMinutesAgo  // Only reset if claimed >5 min ago (truly stuck)
+            }
           },
           data: {
-            apiSentAt: null  // Reset so processOrderItems can claim them
+            apiSentAt: null  // Reset only truly stuck claims
           }
         });
         

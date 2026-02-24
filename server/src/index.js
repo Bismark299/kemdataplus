@@ -362,6 +362,7 @@ const orderGroupService = require('./services/order-group.service');
 const profitScheduler = require('./services/profit-scheduler');
 
 let autoSyncInterval = null;
+let autoSyncRunning = false; // Prevent overlapping auto-sync runs
 const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
 
 // Start profit payout scheduler
@@ -381,6 +382,12 @@ function startAutoSync() {
   
   // Check settings and start if enabled
   const checkAndSync = async () => {
+    // Prevent overlapping auto-sync runs (if previous run takes >30s)
+    if (autoSyncRunning) {
+      console.log('[AutoSync] Previous run still active, skipping this cycle');
+      return;
+    }
+    autoSyncRunning = true;
     try {
       const siteSettings = settingsController.getSiteSettings();
       
@@ -457,7 +464,9 @@ function startAutoSync() {
         console.log(`[AutoSync] ✅ Summary: ${totalCompleted} completed, ${totalFailed} failed, ${totalRetried} retried`);
       }
       
+      autoSyncRunning = false;
     } catch (error) {
+      autoSyncRunning = false;
       console.error(`[AutoSync] Error:`, error.message);
     }
   };

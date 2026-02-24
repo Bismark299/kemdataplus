@@ -452,6 +452,33 @@ const datahubService = {
     });
     // ============ END DUPLICATE PREVENTION ============
 
+    // ============ ATOMIC LOCK: Claim this order BEFORE calling API ============
+    // Sets apiSentAt so no other process can claim the same order.
+    // Uses updateMany with WHERE conditions (atomic check-and-set).
+    const claimResult = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        apiSentAt: null,   // Only claim if not already claimed
+        status: 'PENDING'
+      },
+      data: {
+        apiSentAt: new Date()
+      }
+    });
+
+    if (claimResult.count === 0) {
+      console.log(`[DataHub] ATOMIC LOCK: Order ${orderId} already claimed by another process`);
+      return {
+        orderId,
+        success: false,
+        status: order.status,
+        message: 'Order already being processed (atomic lock)',
+        alreadyProcessed: true
+      };
+    }
+    console.log(`[DataHub] ATOMIC LOCK: Claimed order ${orderId} for processing`);
+    // ============ END ATOMIC LOCK ============
+
     // Extract data amount from bundle (e.g., "5GB" -> 5)
     let dataAmount = 1;
     if (order.bundle?.dataAmount) {
