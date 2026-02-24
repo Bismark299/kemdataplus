@@ -1059,8 +1059,24 @@ const orderGroupService = {
               }
             });
           } catch (syncErr) {
-            // Non-fatal — legacy Order may not exist for non-storefront orders
-            console.log(`[OrderGroup] Legacy Order sync skipped: ${syncErr.message}`);
+            // Trigger may block status update — save externalReference WITHOUT status change
+            // This at minimum prevents duplicate sends (retry checks externalReference=null)
+            console.log(`[OrderGroup] Legacy Order status sync failed (trigger?): ${syncErr.message}`);
+            try {
+              await prisma.order.updateMany({
+                where: {
+                  reference: baseRef,
+                  externalReference: null
+                },
+                data: {
+                  externalReference: result.reference || null,
+                  apiSentAt: new Date()
+                }
+              });
+              console.log(`[OrderGroup] ✅ Legacy Order externalReference saved (status skipped)`);
+            } catch (fallbackErr) {
+              console.log(`[OrderGroup] Legacy Order sync fully failed: ${fallbackErr.message}`);
+            }
           }
         }
 
@@ -1500,10 +1516,13 @@ const orderGroupService = {
     
     console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, EasyData: ${easyDataEnabled ? 'ON' : 'OFF'})`);
     
+    // Only sync items from the last 48 hours — older items are stale
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const items = await prisma.orderItem.findMany({
       where: {
         status: { in: ['PROCESSING', 'PENDING'] },
-        externalReference: { not: null }
+        externalReference: { not: null },
+        createdAt: { gte: fortyEightHoursAgo }
       },
       take: 100 // Limit to prevent API overload
     });

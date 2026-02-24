@@ -552,20 +552,40 @@ const datahubService = {
     console.log(`[DataHub] Updating order status to: ${newStatus}`);
     console.log(`[DataHub] Storing API reference: ${result.reference}`);
     
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: newStatus,
-        // CRITICAL: Store the MCBIS API reference for status checks
-        // This is the reference returned by McbisSolution, NOT our internal ORD-xxx reference
-        externalReference: result.reference,
-        apiSentAt: new Date(),
-        updatedAt: new Date(),
-        ...(result.success ? {} : { failureReason: result.error })
+    try {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: newStatus,
+          // CRITICAL: Store the MCBIS API reference for status checks
+          // This is the reference returned by McbisSolution, NOT our internal ORD-xxx reference
+          externalReference: result.reference,
+          apiSentAt: new Date(),
+          updatedAt: new Date(),
+          ...(result.success ? {} : { failureReason: result.error })
+        }
+      });
+      console.log(`[DataHub] Order updated in database`);
+    } catch (updateError) {
+      // If trigger blocks status update, at LEAST save externalReference separately
+      // This prevents the order from being retried (retry checks externalReference=null)
+      console.error(`[DataHub] Status update failed (trigger?): ${updateError.message}`);
+      console.log(`[DataHub] Saving externalReference separately to prevent duplicate sends...`);
+      try {
+        await prisma.order.updateMany({
+          where: { id: orderId },
+          data: {
+            externalReference: result.reference,
+            apiSentAt: new Date(),
+            updatedAt: new Date(),
+            ...(result.success ? {} : { failureReason: result.error })
+          }
+        });
+        console.log(`[DataHub] ✅ externalReference saved (status update skipped due to trigger)`);
+      } catch (fallbackError) {
+        console.error(`[DataHub] CRITICAL: Could not save externalReference: ${fallbackError.message}`);
       }
-    });
-
-    console.log(`[DataHub] Order updated in database`);
+    }
 
     // SYNC: Also update the linked OrderItem with externalReference
     // This allows the OrderItem sync to track status
@@ -655,15 +675,32 @@ const datahubService = {
 
       if (newStatus !== order.status) {
         console.log(`[DataHub] ✅ Status change: ${order.status} → ${newStatus}`);
-        await prisma.order.update({
-          where: { id: orderId },
-          data: { 
-            status: newStatus,
-            externalStatus: statusResult.status,
-            ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+        try {
+          await prisma.order.update({
+            where: { id: orderId },
+            data: { 
+              status: newStatus,
+              externalStatus: statusResult.status,
+              ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+            }
+          });
+          console.log(`[DataHub] ✅ Order table updated!`);
+        } catch (updateError) {
+          // If trigger blocks status update, save externalStatus at least
+          console.error(`[DataHub] Status update failed (trigger?): ${updateError.message}`);
+          try {
+            await prisma.order.updateMany({
+              where: { id: orderId },
+              data: {
+                externalStatus: statusResult.status,
+                ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+              }
+            });
+            console.log(`[DataHub] Saved externalStatus without status change`);
+          } catch (e) {
+            console.error(`[DataHub] Fallback update also failed: ${e.message}`);
           }
-        });
-        console.log(`[DataHub] ✅ Order table updated!`);
+        }
       } else {
         console.log(`[DataHub] Order status unchanged (${order.status})`);
       }
@@ -754,11 +791,15 @@ const datahubService = {
     // (likely due to insufficient MCBIS balance earlier)
     await this.retryPendingOrders();
     
+    // Only sync orders from the last 48 hours — older orders are stale
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const pendingOrders = await prisma.order.findMany({
       where: {
         status: { in: ['PROCESSING', 'PENDING'] },
         // Only sync orders that were actually pushed to API (have externalReference)
-        externalReference: { not: null }
+        externalReference: { not: null },
+        // Don't sync orders older than 48 hours (prevents infinite polling of stale orders)
+        createdAt: { gte: fortyEightHoursAgo }
       },
       take: 50 // Limit to prevent API overload
     });
@@ -795,13 +836,19 @@ const datahubService = {
   async retryPendingOrders() {
     // Find PENDING orders that were NEVER sent to API
     // Triple check: status=PENDING, no externalReference, no apiSentAt
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const thirtySecondsAgo = new Date(Date.now() - 30000);
     const pendingOrders = await prisma.order.findMany({
       where: {
         status: 'PENDING',
         externalReference: null,  // Never got MCBIS reference
         apiSentAt: null,          // Never attempted to send
         // Only orders created more than 30 seconds ago (to avoid race conditions with new orders)
-        createdAt: { lt: new Date(Date.now() - 30000) }
+        // AND not older than 24 hours (old stuck orders need manual review, not auto-retry)
+        createdAt: {
+          gte: twentyFourHoursAgo,
+          lt: thirtySecondsAgo
+        }
       },
       include: { bundle: true },
       take: 20,
