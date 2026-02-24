@@ -8,6 +8,9 @@
  * All statements are idempotent (safe to run on every startup).
  * This ensures financial safety rules are always in place
  * regardless of how the schema was deployed (db push or migrate).
+ * 
+ * NOTE: Uses $func$ dollar-quoting instead of $$ because Prisma's
+ * $executeRawUnsafe may misinterpret $$ as parameter placeholders.
  * ============================================================
  */
 
@@ -39,40 +42,70 @@ async function applyFinancialSafety() {
     // Prevent negative balances at DB level
     // ========================================
     await safeExec(
-      `DO $$ BEGIN
+      `DO $chk$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallet_balance_non_negative') THEN
           ALTER TABLE "wallets" ADD CONSTRAINT "wallet_balance_non_negative" CHECK ("balance" >= 0);
         END IF;
-      END $$`,
+      END $chk$`,
       'wallet_balance_non_negative'
     );
 
     await safeExec(
-      `DO $$ BEGIN
+      `DO $chk$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallet_locked_balance_non_negative') THEN
           ALTER TABLE "wallets" ADD CONSTRAINT "wallet_locked_balance_non_negative" CHECK ("lockedBalance" >= 0);
         END IF;
-      END $$`,
+      END $chk$`,
       'wallet_locked_balance_non_negative'
     );
 
     await safeExec(
-      `DO $$ BEGIN
+      `DO $chk$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallet_pending_balance_non_negative') THEN
           ALTER TABLE "wallets" ADD CONSTRAINT "wallet_pending_balance_non_negative" CHECK ("pendingBalance" >= 0);
         END IF;
-      END $$`,
+      END $chk$`,
       'wallet_pending_balance_non_negative'
     );
 
     // ========================================
     // 2. ORDER STATE MACHINE TRIGGER
-    // Enforces valid status transitions
+    // STEP A: Drop old triggers first (they may have broken function refs)
     // ========================================
     await safeExec(
-      `CREATE OR REPLACE FUNCTION validate_order_state_transition()
-      RETURNS TRIGGER AS $$
+      `DROP TRIGGER IF EXISTS enforce_order_state_machine ON orders`,
+      'drop old enforce_order_state_machine trigger'
+    );
+    await safeExec(
+      `DROP TRIGGER IF EXISTS log_order_state_change ON orders`,
+      'drop old log_order_state_change trigger'
+    );
+    await safeExec(
+      `DROP TRIGGER IF EXISTS prevent_wallet_double_deduction ON orders`,
+      'drop old prevent_wallet_double_deduction trigger'
+    );
+
+    // STEP B: Drop old functions
+    await safeExec(
+      `DROP FUNCTION IF EXISTS validate_order_state_transition() CASCADE`,
+      'drop old validate_order_state_transition function'
+    );
+    await safeExec(
+      `DROP FUNCTION IF EXISTS log_order_state_transition() CASCADE`,
+      'drop old log_order_state_transition function'
+    );
+    await safeExec(
+      `DROP FUNCTION IF EXISTS prevent_double_wallet_deduction() CASCADE`,
+      'drop old prevent_double_wallet_deduction function'
+    );
+
+    // STEP C: Create functions with $func$ quoting (avoids Prisma $$ issues)
+    await safeExec(
+      `CREATE FUNCTION validate_order_state_transition()
+      RETURNS TRIGGER AS $func$
       DECLARE
+          old_status TEXT;
+          new_status TEXT;
           valid_transitions TEXT[][] := ARRAY[
               ARRAY['CREATED', 'QUEUED'],
               ARRAY['CREATED', 'CANCELLED'],
@@ -96,75 +129,48 @@ async function applyFinancialSafety() {
           i INTEGER;
           is_valid BOOLEAN := FALSE;
       BEGIN
-          -- Cast enum to text for comparison (OrderStatus enum vs TEXT array)
-          IF OLD.status::text = NEW.status::text THEN
+          old_status := OLD.status::text;
+          new_status := NEW.status::text;
+          IF old_status = new_status THEN
               RETURN NEW;
           END IF;
           FOR i IN 1..array_length(valid_transitions, 1) LOOP
-              IF valid_transitions[i][1] = OLD.status::text AND valid_transitions[i][2] = NEW.status::text THEN
+              IF valid_transitions[i][1] = old_status AND valid_transitions[i][2] = new_status THEN
                   is_valid := TRUE;
                   EXIT;
               END IF;
           END LOOP;
           IF NOT is_valid THEN
-              RAISE EXCEPTION 'Invalid state transition from % to %', OLD.status::text, NEW.status::text;
+              RAISE EXCEPTION 'Invalid order state transition: % -> %', old_status, new_status;
           END IF;
           RETURN NEW;
       END;
-      $$ LANGUAGE plpgsql`,
-      'validate_order_state_transition function'
+      $func$ LANGUAGE plpgsql`,
+      'create validate_order_state_transition function'
     );
 
     await safeExec(
-      `DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'enforce_order_state_machine') THEN
-          CREATE TRIGGER enforce_order_state_machine
-          BEFORE UPDATE OF status ON orders
-          FOR EACH ROW
-          EXECUTE FUNCTION validate_order_state_transition();
-        END IF;
-      END $$`,
-      'enforce_order_state_machine trigger'
-    );
-
-    // ========================================
-    // 3. ORDER STATE TRANSITION AUDIT LOG
-    // Auto-logs every status change
-    // ========================================
-    await safeExec(
-      `CREATE OR REPLACE FUNCTION log_order_state_transition()
-      RETURNS TRIGGER AS $$
+      `CREATE FUNCTION log_order_state_transition()
+      RETURNS TRIGGER AS $func$
+      DECLARE
+          old_status TEXT;
+          new_status TEXT;
       BEGIN
-          -- Cast enum to text for comparison and insertion
-          IF OLD.status::text IS DISTINCT FROM NEW.status::text THEN
+          old_status := OLD.status::text;
+          new_status := NEW.status::text;
+          IF old_status IS DISTINCT FROM new_status THEN
               INSERT INTO order_state_transitions ("orderId", "fromState", "toState", "triggeredBy", "triggerSource")
-              VALUES (NEW.id, OLD.status::text, NEW.status::text, COALESCE(NEW."lockedBy", 'system'), 'database_trigger');
+              VALUES (NEW.id, old_status, new_status, COALESCE(NEW."lockedBy", 'system'), 'database_trigger');
           END IF;
           RETURN NEW;
       END;
-      $$ LANGUAGE plpgsql`,
-      'log_order_state_transition function'
+      $func$ LANGUAGE plpgsql`,
+      'create log_order_state_transition function'
     );
 
     await safeExec(
-      `DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'log_order_state_change') THEN
-          CREATE TRIGGER log_order_state_change
-          AFTER UPDATE OF status ON orders
-          FOR EACH ROW
-          EXECUTE FUNCTION log_order_state_transition();
-        END IF;
-      END $$`,
-      'log_order_state_change trigger'
-    );
-
-    // ========================================
-    // 4. PREVENT DOUBLE WALLET DEDUCTION
-    // Blocks re-charging an already-charged order
-    // ========================================
-    await safeExec(
-      `CREATE OR REPLACE FUNCTION prevent_double_wallet_deduction()
-      RETURNS TRIGGER AS $$
+      `CREATE FUNCTION prevent_double_wallet_deduction()
+      RETURNS TRIGGER AS $func$
       BEGIN
           IF OLD."walletDeducted" = TRUE AND NEW."walletDeducted" = TRUE THEN
               IF OLD."walletDeductedAt" IS NOT NULL AND NEW."walletDeductedAt" IS DISTINCT FROM OLD."walletDeductedAt" THEN
@@ -173,20 +179,33 @@ async function applyFinancialSafety() {
           END IF;
           RETURN NEW;
       END;
-      $$ LANGUAGE plpgsql`,
-      'prevent_double_wallet_deduction function'
+      $func$ LANGUAGE plpgsql`,
+      'create prevent_double_wallet_deduction function'
+    );
+
+    // STEP D: Create triggers
+    await safeExec(
+      `CREATE TRIGGER enforce_order_state_machine
+       BEFORE UPDATE OF status ON orders
+       FOR EACH ROW
+       EXECUTE FUNCTION validate_order_state_transition()`,
+      'create enforce_order_state_machine trigger'
     );
 
     await safeExec(
-      `DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'prevent_wallet_double_deduction') THEN
-          CREATE TRIGGER prevent_wallet_double_deduction
-          BEFORE UPDATE ON orders
-          FOR EACH ROW
-          EXECUTE FUNCTION prevent_double_wallet_deduction();
-        END IF;
-      END $$`,
-      'prevent_wallet_double_deduction trigger'
+      `CREATE TRIGGER log_order_state_change
+       AFTER UPDATE OF status ON orders
+       FOR EACH ROW
+       EXECUTE FUNCTION log_order_state_transition()`,
+      'create log_order_state_change trigger'
+    );
+
+    await safeExec(
+      `CREATE TRIGGER prevent_wallet_double_deduction
+       BEFORE UPDATE ON orders
+       FOR EACH ROW
+       EXECUTE FUNCTION prevent_double_wallet_deduction()`,
+      'create prevent_wallet_double_deduction trigger'
     );
 
     console.log('✅ All financial safety rules applied successfully');
