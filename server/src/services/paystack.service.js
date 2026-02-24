@@ -10,6 +10,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { Prisma } = require('@prisma/client');
 
 const prisma = require('../lib/prisma');
 
@@ -273,9 +274,25 @@ const paystackService = {
       return { processed: false, reason: 'No userId in metadata' };
     }
     
-    // Credit wallet in a transaction
+    // HARDENED: Credit wallet in a SERIALIZABLE transaction
+    // Idempotency checks are INSIDE the transaction to close the TOCTOU window
+    // that allows double-credit from concurrent webhook + verify requests
     try {
       await prisma.$transaction(async (tx) => {
+        // Re-check idempotency INSIDE transaction (atomic - prevents double credit)
+        const existingTxRecord = await tx.transaction.findUnique({
+          where: { reference: `PS_${reference}` }
+        });
+        if (existingTxRecord) {
+          throw new Error('ALREADY_PROCESSED');
+        }
+
+        // Also check PendingPayment status inside transaction
+        const pendingPmt = await tx.pendingPayment.findUnique({ where: { reference } });
+        if (pendingPmt?.status === 'COMPLETED') {
+          throw new Error('ALREADY_PROCESSED');
+        }
+
         // Get or create wallet
         let wallet = await tx.wallet.findUnique({ where: { userId } });
         
@@ -305,7 +322,7 @@ const paystackService = {
         });
         
         // Update pending payment status
-        if (existingPayment) {
+        if (pendingPmt) {
           await tx.pendingPayment.update({
             where: { reference },
             data: {
@@ -314,6 +331,9 @@ const paystackService = {
             }
           });
         }
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 15000
       });
       
       console.log(`[Paystack] ✅ Wallet credited: ${amountGHS} GHS for user ${userId}`);
@@ -325,6 +345,10 @@ const paystackService = {
         reference
       };
     } catch (error) {
+      if (error.message === 'ALREADY_PROCESSED') {
+        console.log(`[Paystack] Payment ${reference} already processed (caught in transaction)`);
+        return { processed: false, reason: 'Already processed' };
+      }
       console.error(`[Paystack] Error crediting wallet:`, error);
       return { processed: false, reason: error.message };
     }

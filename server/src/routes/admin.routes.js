@@ -316,13 +316,24 @@ router.post('/wallets/:userId/adjust', async (req, res, next) => {
       return res.status(400).json({ error: 'amount, type, and reason are required' });
     }
 
-    const reference = `ADMIN-ADJ-${Date.now()}`;
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount > 100000) {
+      return res.status(400).json({ error: 'Amount must be between 0 and 100,000' });
+    }
+    if (!['credit', 'debit'].includes(type)) {
+      return res.status(400).json({ error: 'Type must be credit or debit' });
+    }
+    if (typeof reason !== 'string' || reason.trim().length < 5) {
+      return res.status(400).json({ error: 'Reason must be at least 5 characters' });
+    }
+
+    const reference = `ADMIN-ADJ-${req.user.id}-${req.params.userId}-${Date.now()}`;
 
     let result;
     if (type === 'credit') {
       result = await walletService.creditWallet(
         req.params.userId,
-        parseFloat(amount),
+        parsedAmount,
         `Admin adjustment: ${reason}`,
         reference,
         { entryType: 'DEPOSIT', adjustedBy: req.user.id }
@@ -330,7 +341,7 @@ router.post('/wallets/:userId/adjust', async (req, res, next) => {
     } else {
       result = await walletService.debitWallet(
         req.params.userId,
-        parseFloat(amount),
+        parsedAmount,
         `Admin adjustment: ${reason}`,
         reference,
         { entryType: 'WITHDRAWAL', adjustedBy: req.user.id }

@@ -45,6 +45,7 @@ const profitPayoutRoutes = require('./routes/profit-payout.routes');
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const { resolveTenant, buildTenantFilter } = require('./middleware/tenant.middleware');
+const { applyFinancialSafety } = require('./db-safety');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -341,6 +342,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 KemDataplus Server running on port ${PORT}`);
   console.log(`📚 API available at /api`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Apply database financial safety rules (CHECK constraints, triggers)
+  applyFinancialSafety().catch(err => console.error('DB safety setup error:', err.message));
   
   // Start auto-sync background job
   startAutoSync();

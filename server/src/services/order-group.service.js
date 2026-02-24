@@ -19,6 +19,7 @@
  * ID Generation: PostgreSQL SERIAL sequence (atomic, never resets)
  */
 
+const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 
 // ============================================================
@@ -218,6 +219,7 @@ const orderGroupService = {
     // ============================================================
     // STEP 3: ATOMIC TRANSACTION - CHECK BALANCE & CREATE ORDER
     // Balance check MUST be inside transaction to prevent race conditions
+    // CRITICAL: Uses Serializable isolation to prevent concurrent double-spend
     // ============================================================
     const result = await prisma.$transaction(async (tx) => {
       // 3a. Check wallet balance INSIDE transaction (prevents race condition)
@@ -232,6 +234,11 @@ const orderGroupService = {
       
       if (!wallet || availableBalance < requiredAmount) {
         throw new Error(`INSUFFICIENT_BALANCE:${requiredAmount}:${availableBalance}`);
+      }
+
+      // Check if wallet is frozen
+      if (wallet.isFrozen) {
+        throw new Error('WALLET_FROZEN');
       }
       // 4a. Create OrderGroup (this auto-generates sequenceNum via database)
       const orderGroup = await tx.orderGroup.create({
@@ -286,13 +293,21 @@ const orderGroupService = {
         });
       }
 
-      // 4e. Deduct wallet
-      await tx.wallet.update({
-        where: { userId },
+      // 4e. Deduct wallet with OPTIMISTIC LOCK (prevents negative balance)
+      // balance: { gte: grandTotal } ensures another concurrent tx hasn't already deducted
+      const updatedWallet = await tx.wallet.update({
+        where: { 
+          id: wallet.id,
+          balance: { gte: grandTotal }  // CRITICAL: Optimistic lock prevents double-spend
+        },
         data: {
           balance: { decrement: grandTotal }
         }
       });
+
+      if (!updatedWallet) {
+        throw new Error(`INSUFFICIENT_BALANCE:${requiredAmount}:${availableBalance}`);
+      }
 
       // 4f. Create wallet transaction
       await tx.transaction.create({
@@ -340,6 +355,11 @@ const orderGroupService = {
           items: createdItems
         }
       };
+    }, {
+      // CRITICAL: Serializable isolation prevents concurrent transactions from
+      // both reading the same balance and double-deducting the wallet
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 15000
     });
 
     console.log(`[OrderGroup] Order created successfully: ${result.orderGroup.displayId}`);
@@ -1066,34 +1086,43 @@ const orderGroupService = {
 
   /**
    * ============================================================
-   * CANCEL ORDER
+   * CANCEL ORDER - HARDENED: Serializable + atomic status re-check
    * ============================================================
    * Cancels an order and refunds the wallet.
+   * Uses Serializable isolation to prevent double-refund race condition.
    */
   async cancelOrder(orderGroupId, userId) {
-    const orderGroup = await prisma.orderGroup.findFirst({
-      where: {
-        OR: [
-          { id: orderGroupId },
-          { displayId: orderGroupId }
-        ],
-        userId
-      },
-      include: { items: true }
-    });
+    // HARDENED: All checks happen INSIDE the Serializable transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Find order INSIDE transaction for atomic check
+      const orderGroup = await tx.orderGroup.findFirst({
+        where: {
+          OR: [
+            { id: orderGroupId },
+            { displayId: orderGroupId }
+          ],
+          userId
+        },
+        include: { items: true }
+      });
 
-    if (!orderGroup) {
-      throw new Error('Order not found');
-    }
+      if (!orderGroup) {
+        throw new Error('Order not found');
+      }
 
-    // Can only cancel if all items are PENDING
-    const allPending = orderGroup.items.every(i => i.status === 'PENDING');
-    if (!allPending) {
-      throw new Error('Cannot cancel order - some items have already been processed');
-    }
+      // ATOMIC CHECK: Already cancelled? Don't refund again
+      if (orderGroup.status === 'CANCELLED') {
+        throw new Error('ORDER_ALREADY_CANCELLED');
+      }
 
-    // Refund and cancel in transaction
-    await prisma.$transaction(async (tx) => {
+      // Can only cancel if all items are PENDING or DUPLICATE_HOLD
+      const allCancellable = orderGroup.items.every(i => 
+        i.status === 'PENDING' || i.status === 'DUPLICATE_HOLD'
+      );
+      if (!allCancellable) {
+        throw new Error('Cannot cancel order - some items have already been processed');
+      }
+
       // Cancel all items
       await tx.orderItem.updateMany({
         where: { orderGroupId: orderGroup.id },
@@ -1115,23 +1144,31 @@ const orderGroupService = {
           where: { userId }
         });
 
-        await tx.wallet.update({
-          where: { userId },
-          data: {
-            balance: { increment: orderGroup.totalAmount }
-          }
-        });
+        if (wallet) {
+          await tx.wallet.update({
+            where: { id: wallet.id },
+            data: {
+              balance: { increment: orderGroup.totalAmount }
+            }
+          });
 
-        // Create refund transaction
-        await tx.transaction.create({
-          data: {
-            walletId: wallet.id,
-            type: 'REFUND',
-            amount: orderGroup.totalAmount,
-            reference: `REFUND-${orderGroup.displayId}`,
-            description: `Refund for cancelled order ${orderGroup.displayId}`,
-            status: 'COMPLETED'
-          }
+          // Create refund transaction
+          await tx.transaction.create({
+            data: {
+              walletId: wallet.id,
+              type: 'REFUND',
+              amount: orderGroup.totalAmount,
+              reference: `REFUND-${orderGroup.displayId}`,
+              description: `Refund for cancelled order ${orderGroup.displayId}`,
+              status: 'COMPLETED'
+            }
+          });
+        }
+
+        // Mark as wallet NOT deducted (refunded)
+        await tx.orderGroup.update({
+          where: { id: orderGroup.id },
+          data: { walletDeducted: false }
         });
       }
 
@@ -1148,11 +1185,16 @@ const orderGroupService = {
           }
         }
       });
+
+      return orderGroup;
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 15000
     });
 
     return {
       success: true,
-      message: `Order ${orderGroup.displayId} cancelled and refunded`
+      message: `Order ${result.displayId} cancelled and refunded`
     };
   },
 

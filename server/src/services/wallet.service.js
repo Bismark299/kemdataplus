@@ -15,6 +15,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
+const { Prisma } = require('@prisma/client');
 const tenantService = require('./tenant.service');
 
 const prisma = require('../lib/prisma');
@@ -148,11 +149,11 @@ const walletService = {
         }
       });
 
-      // Update wallet balance and daily tracking
+      // HARDENED: Use atomic increment instead of absolute SET (prevents lost updates)
       await tx.wallet.update({
         where: { id: wallet.id },
         data: {
-          balance: newBalance,
+          balance: { increment: amount },
           dailyCredits: wallet.dailyCredits + amount
         }
       });
@@ -173,6 +174,9 @@ const walletService = {
         newBalance,
         availableBalance: newBalance - wallet.lockedBalance
       };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 15000
     });
   },
 
@@ -242,14 +246,21 @@ const walletService = {
         }
       });
 
-      // Update wallet balance
-      await tx.wallet.update({
-        where: { id: wallet.id },
+      // HARDENED: Atomic decrement with optimistic lock (prevents negative balance & lost updates)
+      const updatedWallet = await tx.wallet.update({
+        where: { 
+          id: wallet.id,
+          balance: { gte: amount } // CRITICAL: Optimistic lock prevents negative balance
+        },
         data: {
-          balance: newBalance,
+          balance: { decrement: amount },
           dailyDebits: wallet.dailyDebits + amount
         }
       });
+
+      if (!updatedWallet) {
+        throw new Error(`Insufficient balance (concurrent modification). Available: ${wallet.balance.toFixed(2)}, Required: ${amount.toFixed(2)}`);
+      }
 
       // Log audit
       await tenantService.logAudit({
@@ -267,6 +278,9 @@ const walletService = {
         newBalance,
         availableBalance: newBalance - wallet.lockedBalance
       };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 15000
     });
   },
 

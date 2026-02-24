@@ -874,13 +874,22 @@
     if (confirmModalResolve) { confirmModalResolve(result); confirmModalResolve = null; }
   }
 
+  let checkoutInProgress = false; // Prevent double-click / double-submit
   async function checkoutHandler() {
     if (!cart.length) return showInlineNotice('Cart is empty', 'error');
+    
+    // CRITICAL: Prevent double-click causing double charge
+    if (checkoutInProgress) {
+      showInlineNotice('Order is being processed, please wait...', 'warning');
+      return;
+    }
+    checkoutInProgress = true;
 
     const total = cart.reduce((s,i) => s + (i.price || 0), 0);
 
     // Check if DashboardAPI is available (API mode - required)
     if (typeof DashboardAPI === 'undefined') {
+      checkoutInProgress = false;
       showInlineNotice('API not available. Please refresh the page.', 'error');
       return;
     }
@@ -906,6 +915,8 @@
     } catch (error) {
       console.error('Checkout error:', error);
       showInlineNotice('Checkout failed: ' + error.message, 'error');
+    } finally {
+      checkoutInProgress = false;
     }
   }
 

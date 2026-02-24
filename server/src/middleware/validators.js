@@ -60,15 +60,22 @@ const loginValidation = [
 const createOrderValidation = [
   body('bundleId').notEmpty().escape().withMessage('Bundle ID is required'),
   body('recipientPhone').isMobilePhone().withMessage('Valid phone number required'),
-  body('quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+  body('quantity').optional().isInt({ min: 1, max: 100 }).withMessage('Quantity must be between 1 and 100'),
   validate
 ];
 
 // Wallet validators
 const depositValidation = [
-  body('amount').isFloat({ min: 1 }).withMessage('Amount must be at least 1'),
+  body('amount').isFloat({ min: 1, max: 50000 }).withMessage('Amount must be between 1 and 50,000'),
   body('paymentMethod').isIn(['momo', 'bank', 'card']).withMessage('Invalid payment method'),
   body('reference').optional().isString().escape(),
+  validate
+];
+
+// Transfer validators
+const transferValidation = [
+  body('amount').isFloat({ min: 0.01, max: 50000 }).withMessage('Amount must be between 0.01 and 50,000'),
+  body('recipientEmail').optional().isEmail().withMessage('Valid recipient email required'),
   validate
 ];
 
@@ -83,8 +90,8 @@ const settingsValidation = [
 
 // Pagination validator
 const paginationValidation = [
-  query('page').optional().isInt({ min: 1 }).toInt(),
-  query('limit').optional().isInt({ min: 1, max: 10000 }).toInt(),
+  query('page').optional().isInt({ min: 1, max: 10000 }).toInt(),
+  query('limit').optional().isInt({ min: 1, max: 200 }).toInt(),
   validate
 ];
 
@@ -94,6 +101,7 @@ module.exports = {
   loginValidation,
   createOrderValidation,
   depositValidation,
+  transferValidation,
   settingsValidation,
   paginationValidation,
   sanitizeInput

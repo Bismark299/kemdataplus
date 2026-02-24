@@ -55,6 +55,14 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
+    // Limit batch size to prevent abuse
+    if (items.length > 50) {
+      return res.status(400).json({
+        error: 'Maximum 50 items per order batch',
+        code: 'BATCH_TOO_LARGE'
+      });
+    }
+
     // Validate each item
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -77,7 +85,7 @@ router.post('/', authenticate, async (req, res, next) => {
       userId,
       tenantId,
       items,
-      idempotencyKey: idempotencyKey || `${userId}-${Date.now()}`
+      idempotencyKey: idempotencyKey || `fallback-${userId}-${JSON.stringify(items.map(i => `${i.bundleId}-${i.recipientPhone}-${i.quantity || 1}`).sort())}-${Math.floor(Date.now() / 60000)}`
     });
 
     if (result.duplicate) {
