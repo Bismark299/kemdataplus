@@ -91,7 +91,7 @@ const settingsValidation = [
 // Pagination validator
 const paginationValidation = [
   query('page').optional().isInt({ min: 1, max: 10000 }).toInt(),
-  query('limit').optional().isInt({ min: 1, max: 200 }).toInt(),
+  query('limit').optional().isInt({ min: 1, max: 5000 }).toInt(),
   validate
 ];
 
