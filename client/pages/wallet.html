@@ -1454,7 +1454,7 @@
                                         </div>
                                         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: #dc2626;">
                                             <span>Processing Fee:</span>
-                                            <span id="feeBreakdownFee">- GH₵ 1.00</span>
+                                            <span id="feeBreakdownFee">- GH₵ 0.50</span>
                                         </div>
                                         <hr style="border: none; border-top: 1px dashed #d1d5db; margin: 8px 0;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; color: #059669;">
@@ -2100,16 +2100,10 @@
         }
         
         // Send Funds Form - Note: This would need a backend endpoint for user-to-user transfers
-        let transferInProgress = false; // Prevent double-submit
         const sendFundsForm = document.getElementById('sendFundsForm');
         if (sendFundsForm) {
             sendFundsForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
-                if (transferInProgress) {
-                    showError('Transfer already in progress, please wait...');
-                    return;
-                }
                 
                 const recipientPhone = document.getElementById('recipientPhone').value.trim();
                 const amount = parseFloat(document.getElementById('sendAmount').value);
@@ -2130,10 +2124,6 @@
                     return;
                 }
                 
-                const submitBtn = this.querySelector('button[type="submit"]');
-                transferInProgress = true;
-                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending...'; }
-                
                 try {
                     // Call transfer API endpoint
                     const result = await apiRequest('/wallet/transfer', 'POST', {
@@ -2148,9 +2138,6 @@
                     loadWalletData(); // Refresh data
                 } catch (error) {
                     showError(error.message || 'Transfer failed');
-                } finally {
-                    transferInProgress = false;
-                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Funds'; }
                 }
             });
         }
@@ -2242,14 +2229,8 @@
         }
         
         // Claim MoMo form submission
-        let claimInProgress = false; // Prevent double-submit
         document.getElementById('claimMomoForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            if (claimInProgress) {
-                showError('Claim already being submitted, please wait...');
-                return;
-            }
             
             const amount = parseFloat(document.getElementById('claimAmount').value);
             const transactionId = document.getElementById('transactionId').value.trim();
@@ -2270,10 +2251,6 @@
                 return;
             }
             
-            const submitBtn = this.querySelector('button[type="submit"]');
-            claimInProgress = true;
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
-            
             try {
                 const result = await apiRequest('/wallet/deposit', 'POST', {
                     amount,
@@ -2287,9 +2264,6 @@
                 loadPendingClaims();
             } catch (error) {
                 showError(error.message || 'Failed to submit claim');
-            } finally {
-                claimInProgress = false;
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Claim'; }
             }
         });
         
@@ -2370,7 +2344,7 @@
             }
             
             const subtotal = parseFloat(amount);
-            const fee = Math.round(subtotal * 0.02 * 100) / 100; // 2%
+            const fee = Math.round(subtotal * 0.015 * 100) / 100; // 1.5%
             const total = subtotal + fee;
             
             return { subtotal, fee, total };
@@ -2983,7 +2957,7 @@
         let profitAccountVerified = false;
         let profitAvailableAmount = 0;
         let savedMomoDetails = null; // Store saved MoMo details
-        const MOMO_TRANSFER_FEE = 1.00; // GH₵1.00 per transfer
+        const MOMO_TRANSFER_FEE = 0.50; // GH₵0.50 per transfer
         
         // Load saved MoMo details for quick withdrawals
         async function loadSavedMomoDetails() {

@@ -45,7 +45,6 @@ const profitPayoutRoutes = require('./routes/profit-payout.routes');
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const { resolveTenant, buildTenantFilter } = require('./middleware/tenant.middleware');
-const { applyFinancialSafety } = require('./db-safety');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -97,7 +96,7 @@ app.use('/api/', limiter);
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProduction ? 15 : 100, // 15 failed login attempts per 15 min in production
+  max: isProduction ? 5 : 100, // Only 5 login attempts per 15 min in production
   message: { error: 'Too many login attempts, please try again in 15 minutes.' },
   skipSuccessfulRequests: true // Don't count successful logins
 });
@@ -343,13 +342,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`📚 API available at /api`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Apply database financial safety rules (CHECK constraints, triggers)
-  applyFinancialSafety().catch(err => console.error('DB safety setup error:', err.message));
-  
-  // Startup cleanup: Mark orphaned orders that were sent to MCBIS but status never saved
-  // These have apiSentAt set (= API was called, money charged) but no externalReference
-  // They're stuck forever. Mark them so they stop appearing as "retryable".
-  cleanupOrphanedOrders().catch(err => console.error('Orphan cleanup error:', err.message));
+  // ONE-TIME CLEANUP: Remove database triggers that were causing order processing failures
+  // These triggers blocked all order.update({status}) calls in production
+  cleanupDatabaseTriggers().catch(err => console.error('Trigger cleanup error:', err.message));
   
   // Start auto-sync background job
   startAutoSync();
@@ -359,71 +354,81 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ============================================
+// ONE-TIME: Clean up database triggers from financial hardening
+// These triggers had a bug that blocked ALL order status updates
+// ============================================
+async function cleanupDatabaseTriggers() {
+  const prismaCleanup = require('./lib/prisma');
+  const drops = [
+    'DROP TRIGGER IF EXISTS enforce_order_state_machine ON orders',
+    'DROP TRIGGER IF EXISTS log_order_state_change ON orders',
+    'DROP TRIGGER IF EXISTS prevent_wallet_double_deduction ON orders',
+    'DROP FUNCTION IF EXISTS validate_order_state_transition() CASCADE',
+    'DROP FUNCTION IF EXISTS log_order_state_transition() CASCADE',
+    'DROP FUNCTION IF EXISTS prevent_double_wallet_deduction() CASCADE',
+  ];
+  
+  for (const sql of drops) {
+    try {
+      await prismaCleanup.$executeRawUnsafe(sql);
+    } catch (e) {
+      // Ignore errors - trigger may not exist
+    }
+  }
+  
+  // Also clear orphaned orders: reset apiSentAt for PENDING orders with no externalReference
+  // These got stuck because the trigger blocked saving externalReference after MCBIS call
+  try {
+    const result = await prismaCleanup.order.updateMany({
+      where: {
+        status: 'PENDING',
+        apiSentAt: { not: null },
+        externalReference: null
+      },
+      data: {
+        apiSentAt: null,
+        failureReason: null
+      }
+    });
+    if (result.count > 0) {
+      console.log(`[Cleanup] Reset ${result.count} orphaned PENDING orders for retry`);
+    }
+  } catch (e) {
+    console.warn(`[Cleanup] Order cleanup error: ${e.message}`);
+  }
+  
+  // Same for OrderItems
+  try {
+    const result = await prismaCleanup.orderItem.updateMany({
+      where: {
+        status: 'PENDING',
+        apiSentAt: { not: null },
+        externalReference: null
+      },
+      data: {
+        apiSentAt: null,
+        failureReason: null
+      }
+    });
+    if (result.count > 0) {
+      console.log(`[Cleanup] Reset ${result.count} orphaned PENDING OrderItems for retry`);
+    }
+  } catch (e) {
+    console.warn(`[Cleanup] OrderItem cleanup error: ${e.message}`);
+  }
+  
+  console.log('✅ Database trigger cleanup complete');
+}
+
+// ============================================
 // AUTO-SYNC: Background job for order status
 // ============================================
 const settingsController = require('./controllers/settings.controller');
 const datahubService = require('./services/datahub.service');
 const orderGroupService = require('./services/order-group.service');
 const profitScheduler = require('./services/profit-scheduler');
-const prismaForCleanup = require('./lib/prisma');
-
-/**
- * Startup cleanup for orphaned orders.
- * Finds orders/items where MCBIS API was called (apiSentAt set) but the
- * DB status update failed (due to trigger bug). These are stuck permanently
- * and would otherwise be retried, causing duplicate MCBIS charges.
- * 
- * Fix: If apiSentAt is set but no externalReference, mark as FAILED with
- * a clear reason so they don't get retried. The user/admin can manually review.
- */
-async function cleanupOrphanedOrders() {
-  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-  
-  // 1. Fix orphaned legacy Orders (apiSentAt set, no externalReference, still PENDING)
-  try {
-    const orphanedOrders = await prismaForCleanup.order.updateMany({
-      where: {
-        status: 'PENDING',
-        apiSentAt: { not: null, lt: thirtyMinutesAgo },
-        externalReference: null
-      },
-      data: {
-        failureReason: 'Orphaned: API was called but reference not saved (trigger bug). Needs manual review.',
-        apiSentAt: null  // Clear so admin can manually retry if needed
-      }
-    });
-    if (orphanedOrders.count > 0) {
-      console.log(`[Cleanup] Reset ${orphanedOrders.count} orphaned legacy Orders (apiSentAt cleared for retry)`);
-    }
-  } catch (err) {
-    console.warn(`[Cleanup] Legacy order cleanup error: ${err.message}`);
-  }
-
-  // 2. Fix orphaned OrderItems (apiSentAt set, no externalReference, still PENDING)
-  try {
-    const orphanedItems = await prismaForCleanup.orderItem.updateMany({
-      where: {
-        status: 'PENDING',
-        apiSentAt: { not: null, lt: thirtyMinutesAgo },
-        externalReference: null
-      },
-      data: {
-        failureReason: 'Orphaned: API was called but reference not saved (trigger bug). Needs manual review.',
-        apiSentAt: null  // Clear so they can be retried
-      }
-    });
-    if (orphanedItems.count > 0) {
-      console.log(`[Cleanup] Reset ${orphanedItems.count} orphaned OrderItems (apiSentAt cleared for retry)`);
-    }
-  } catch (err) {
-    console.warn(`[Cleanup] OrderItem cleanup error: ${err.message}`);
-  }
-
-  console.log(`[Cleanup] Orphaned order cleanup complete`);
-}
 
 let autoSyncInterval = null;
-let autoSyncRunning = false; // Prevent overlapping auto-sync runs
 const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
 
 // Start profit payout scheduler
@@ -443,12 +448,6 @@ function startAutoSync() {
   
   // Check settings and start if enabled
   const checkAndSync = async () => {
-    // Prevent overlapping auto-sync runs (if previous run takes >30s)
-    if (autoSyncRunning) {
-      console.log('[AutoSync] Previous run still active, skipping this cycle');
-      return;
-    }
-    autoSyncRunning = true;
     try {
       const siteSettings = settingsController.getSiteSettings();
       
@@ -525,9 +524,7 @@ function startAutoSync() {
         console.log(`[AutoSync] ✅ Summary: ${totalCompleted} completed, ${totalFailed} failed, ${totalRetried} retried`);
       }
       
-      autoSyncRunning = false;
     } catch (error) {
-      autoSyncRunning = false;
       console.error(`[AutoSync] Error:`, error.message);
     }
   };

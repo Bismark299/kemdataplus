@@ -1,5 +1,4 @@
 const { v4: uuidv4 } = require('uuid');
-const { Prisma } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
 
@@ -469,50 +468,41 @@ const orderController = {
     }
   },
 
-  // Cancel order - HARDENED: Serializable transaction with atomic status re-check
+  // Cancel order
   async cancelOrder(req, res, next) {
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        // Re-check order status INSIDE transaction to prevent double-refund
-        const order = await tx.order.findFirst({
-          where: {
-            id: req.params.id,
-            userId: req.user.id,
-            status: 'PENDING' // Only cancel PENDING orders
-          }
-        });
-
-        if (!order) {
-          throw new Error('ORDER_NOT_FOUND_OR_NOT_CANCELLABLE');
+      const order = await prisma.order.findFirst({
+        where: {
+          id: req.params.id,
+          userId: req.user.id,
+          status: 'PENDING'
         }
+      });
 
-        const wallet = await tx.wallet.findUnique({
-          where: { userId: req.user.id }
-        });
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found or cannot be cancelled' });
+      }
 
-        if (!wallet) {
-          throw new Error('WALLET_NOT_FOUND');
-        }
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId: req.user.id }
+      });
 
-        // Atomic status transition
-        await tx.order.update({
+      // Refund and cancel order - updates both status and paymentStatus
+      await prisma.$transaction([
+        prisma.order.update({
           where: { id: order.id },
           data: { 
             status: 'CANCELLED',
             paymentStatus: 'REFUNDED'
           }
-        });
-
-        // Refund wallet
-        await tx.wallet.update({
+        }),
+        prisma.wallet.update({
           where: { id: wallet.id },
           data: {
             balance: { increment: order.totalPrice }
           }
-        });
-
-        // Create refund transaction
-        await tx.transaction.create({
+        }),
+        prisma.transaction.create({
           data: {
             walletId: wallet.id,
             type: 'REFUND',
@@ -521,36 +511,11 @@ const orderController = {
             reference: `REF-${order.reference}`,
             description: `Refund for cancelled order ${order.reference}`
           }
-        });
-
-        // Audit log
-        await tx.auditLog.create({
-          data: {
-            userId: req.user.id,
-            action: 'ORDER_CANCEL_REFUND',
-            entityType: 'Order',
-            entityId: order.id,
-            newValues: {
-              refundAmount: order.totalPrice,
-              reference: order.reference
-            }
-          }
-        });
-
-        return order;
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10000
-      });
+        })
+      ]);
 
       res.json({ message: 'Order cancelled and refunded' });
     } catch (error) {
-      if (error.message === 'ORDER_NOT_FOUND_OR_NOT_CANCELLABLE') {
-        return res.status(404).json({ error: 'Order not found or cannot be cancelled' });
-      }
-      if (error.message === 'WALLET_NOT_FOUND') {
-        return res.status(400).json({ error: 'Wallet not found' });
-      }
       next(error);
     }
   },
@@ -617,7 +582,6 @@ const orderController = {
 
   // Update order status (admin) - ONLY updates order_status, NOT payment_status
   // MULTI-TENANT: Triggers profit distribution on COMPLETED
-  // HARDENED: State machine enforcement prevents invalid transitions
   async updateOrderStatus(req, res, next) {
     try {
       const { status } = req.body;
@@ -634,25 +598,6 @@ const orderController = {
 
       if (!existingOrder) {
         return res.status(404).json({ error: 'Order not found' });
-      }
-
-      // STRICT STATE MACHINE: Only allow valid forward transitions
-      const ALLOWED_TRANSITIONS = {
-        'PENDING':    ['PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'],
-        'PROCESSING': ['COMPLETED', 'FAILED'],
-        'COMPLETED':  [],           // Terminal state - NO going back
-        'FAILED':     ['PENDING'],  // Allow retry only back to PENDING
-        'CANCELLED':  [],           // Terminal state - NO going back
-      };
-
-      const allowed = ALLOWED_TRANSITIONS[existingOrder.status] || [];
-      if (!allowed.includes(status)) {
-        return res.status(400).json({ 
-          error: `Cannot transition from ${existingOrder.status} to ${status}`,
-          code: 'INVALID_STATE_TRANSITION',
-          currentStatus: existingOrder.status,
-          allowedTransitions: allowed
-        });
       }
 
       // IMPORTANT: Only update order status, payment status remains unchanged
@@ -728,51 +673,48 @@ const orderController = {
     }
   },
 
-  // Admin refund order - HARDENED: Serializable transaction with atomic status re-check
+  // Admin refund order - updates both paymentStatus to REFUNDED and status to CANCELLED
   async adminRefundOrder(req, res, next) {
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        // Re-check paymentStatus INSIDE transaction to prevent double-refund
-        const order = await tx.order.findUnique({
-          where: { id: req.params.id },
-          include: { user: true }
-        });
+      const order = await prisma.order.findUnique({
+        where: { id: req.params.id },
+        include: { user: true }
+      });
 
-        if (!order) {
-          throw new Error('ORDER_NOT_FOUND');
-        }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
 
-        // Atomic check: if already refunded, abort
-        if (order.paymentStatus === 'REFUNDED') {
-          throw new Error('ALREADY_REFUNDED');
-        }
+      // Check if already refunded
+      if (order.paymentStatus === 'REFUNDED') {
+        return res.status(400).json({ error: 'Order has already been refunded' });
+      }
 
-        // Get user's wallet
-        const wallet = await tx.wallet.findUnique({
-          where: { userId: order.userId }
-        });
+      // Get user's wallet
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId: order.userId }
+      });
 
-        if (!wallet) {
-          throw new Error('WALLET_NOT_FOUND');
-        }
+      if (!wallet) {
+        return res.status(404).json({ error: 'User wallet not found' });
+      }
 
-        // Atomic status transition + refund
-        await tx.order.update({
+      // Refund the order - update both statuses and credit wallet
+      await prisma.$transaction([
+        prisma.order.update({
           where: { id: order.id },
           data: { 
             status: 'CANCELLED',
             paymentStatus: 'REFUNDED'
           }
-        });
-
-        await tx.wallet.update({
+        }),
+        prisma.wallet.update({
           where: { id: wallet.id },
           data: {
             balance: { increment: order.totalPrice }
           }
-        });
-
-        await tx.transaction.create({
+        }),
+        prisma.transaction.create({
           data: {
             walletId: wallet.id,
             type: 'REFUND',
@@ -781,43 +723,14 @@ const orderController = {
             reference: `REF-${order.reference}`,
             description: `Admin refund for order ${order.reference}`
           }
-        });
-
-        // Audit log - track WHO performed the refund
-        await tx.auditLog.create({
-          data: {
-            userId: req.user.id,
-            action: 'ADMIN_REFUND',
-            entityType: 'Order',
-            entityId: order.id,
-            newValues: {
-              refundAmount: order.totalPrice,
-              reference: order.reference,
-              refundedUserId: order.userId
-            }
-          }
-        });
-
-        return order;
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10000
-      });
+        })
+      ]);
 
       res.json({ 
         message: 'Order refunded successfully',
-        refundedAmount: result.totalPrice
+        refundedAmount: order.totalPrice
       });
     } catch (error) {
-      if (error.message === 'ORDER_NOT_FOUND') {
-        return res.status(404).json({ error: 'Order not found' });
-      }
-      if (error.message === 'ALREADY_REFUNDED') {
-        return res.status(400).json({ error: 'Order has already been refunded' });
-      }
-      if (error.message === 'WALLET_NOT_FOUND') {
-        return res.status(404).json({ error: 'User wallet not found' });
-      }
       next(error);
     }
   }

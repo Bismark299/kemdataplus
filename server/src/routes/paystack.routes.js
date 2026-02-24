@@ -64,8 +64,8 @@ router.post('/initialize', authenticate, async (req, res, next) => {
       return res.status(400).json({ error: 'Maximum deposit is 10,000 GHS' });
     }
     
-    // Calculate processing fee (2%) - charged to customer
-    const PROCESSING_FEE_RATE = 0.02; // 2%
+    // Calculate processing fee (1.5%) - charged to customer
+    const PROCESSING_FEE_RATE = 0.015; // 1.5%
     const subtotal = parseFloat(amount);
     const processingFee = Math.round(subtotal * PROCESSING_FEE_RATE * 100) / 100;
     const totalAmount = subtotal + processingFee;

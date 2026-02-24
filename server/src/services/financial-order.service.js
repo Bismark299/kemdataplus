@@ -988,19 +988,7 @@ const financialOrderService = {
     }
 
     // INSTANT MODE (or fallback): Credit to wallet immediately
-    // HARDENED: Atomic profitCredited check inside transaction + deterministic reference
-    let result;
-    try {
-      result = await prisma.$transaction(async (tx) => {
-      // Re-check profitCredited INSIDE transaction to prevent double-credit
-      const freshOrder = await tx.storefrontOrder.findUnique({
-        where: { id: storefrontOrderId },
-        select: { profitCredited: true }
-      });
-      if (freshOrder?.profitCredited) {
-        throw new Error('ALREADY_CREDITED');
-      }
-
+    const result = await prisma.$transaction(async (tx) => {
       // Get or create wallet
       let wallet = owner.wallet;
       if (!wallet) {
@@ -1015,8 +1003,8 @@ const financialOrderService = {
         data: { balance: { increment: agentProfit } }
       });
 
-      // HARDENED: Deterministic reference (no Date.now()) prevents duplicate entries
-      const transactionRef = `PROFIT-${storefrontOrderId.slice(0, 8)}`;
+      // Create transaction record
+      const transactionRef = `PROFIT-${storefrontOrderId.slice(0, 8)}-${Date.now()}`;
       await tx.transaction.create({
         data: {
           walletId: wallet.id,
@@ -1059,16 +1047,7 @@ const financialOrderService = {
         newBalance: runningBalance,
         transactionRef
       };
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      timeout: 15000
     });
-    } catch (txError) {
-      if (txError.message === 'ALREADY_CREDITED') {
-        return { credited: false, reason: 'Profit already credited (concurrent request blocked)' };
-      }
-      throw txError;
-    }
 
     console.log(`[Financial] ✅ Agent profit credited: GHS ${agentProfit.toFixed(2)} to ${owner.name}`);
     return result;

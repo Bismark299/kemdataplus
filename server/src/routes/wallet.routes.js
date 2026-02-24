@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const walletController = require('../controllers/wallet.controller');
 const { authenticate, authorize } = require('../middleware/auth');
-const { depositValidation, transferValidation, paginationValidation } = require('../middleware/validators');
+const { depositValidation, paginationValidation } = require('../middleware/validators');
 
 // Helper to check if MoMo Claim is enabled
 function isMomoClaimEnabled() {
@@ -71,6 +71,6 @@ router.post('/fund', authenticate, authorize('ADMIN'), walletOperationLimiter, w
 router.post('/deduct', authenticate, authorize('ADMIN'), walletOperationLimiter, walletController.deductUserWallet);
 
 // POST /api/wallet/transfer - Transfer to another user
-router.post('/transfer', authenticate, walletOperationLimiter, transferValidation, walletController.transfer);
+router.post('/transfer', authenticate, walletOperationLimiter, walletController.transfer);
 
 module.exports = router;

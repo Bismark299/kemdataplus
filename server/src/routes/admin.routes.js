@@ -316,24 +316,13 @@ router.post('/wallets/:userId/adjust', async (req, res, next) => {
       return res.status(400).json({ error: 'amount, type, and reason are required' });
     }
 
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount > 100000) {
-      return res.status(400).json({ error: 'Amount must be between 0 and 100,000' });
-    }
-    if (!['credit', 'debit'].includes(type)) {
-      return res.status(400).json({ error: 'Type must be credit or debit' });
-    }
-    if (typeof reason !== 'string' || reason.trim().length < 5) {
-      return res.status(400).json({ error: 'Reason must be at least 5 characters' });
-    }
-
-    const reference = `ADMIN-ADJ-${req.user.id}-${req.params.userId}-${Date.now()}`;
+    const reference = `ADMIN-ADJ-${Date.now()}`;
 
     let result;
     if (type === 'credit') {
       result = await walletService.creditWallet(
         req.params.userId,
-        parsedAmount,
+        parseFloat(amount),
         `Admin adjustment: ${reason}`,
         reference,
         { entryType: 'DEPOSIT', adjustedBy: req.user.id }
@@ -341,7 +330,7 @@ router.post('/wallets/:userId/adjust', async (req, res, next) => {
     } else {
       result = await walletService.debitWallet(
         req.params.userId,
-        parsedAmount,
+        parseFloat(amount),
         `Admin adjustment: ${reason}`,
         reference,
         { entryType: 'WITHDRAWAL', adjustedBy: req.user.id }
@@ -1158,8 +1147,8 @@ router.get('/audit-report', async (req, res, next) => {
       if (isPaystack) {
         paystackDeposits.count++;
         paystackDeposits.amount += d.amount;
-        // Platform absorbs ~0% (customer paid 2%, Paystack takes ~1.95%)
-        paystackDeposits.fees += d.amount * 0.001;
+        // Platform absorbs 0.5% of total (customer paid 1.5%, Paystack takes ~1.95%)
+        paystackDeposits.fees += d.amount * 0.005;
       } else {
         momoDeposits.count++;
         momoDeposits.amount += d.amount;
@@ -1304,7 +1293,7 @@ router.get('/audit-report', async (req, res, next) => {
     // 7. FINAL PROFIT SUMMARY
     // System gross profit = revenue - cost from direct orders
     const systemGrossProfit = systemOrders.profit;
-    // System net profit = gross - Paystack fees (~0.1% absorbed)
+    // System net profit = gross - Paystack fees (0.5%)
     const systemNetProfit = systemGrossProfit - paystackDeposits.fees;
     
     // Store profit breakdown

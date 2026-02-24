@@ -1,5 +1,4 @@
 const { v4: uuidv4 } = require('uuid');
-const { Prisma } = require('@prisma/client');
 
 const prisma = require('../lib/prisma');
 
@@ -138,18 +137,6 @@ const walletController = {
         return res.status(400).json({ error: 'Valid amount is required' });
       }
 
-      // FINANCIAL SAFETY: Cap maximum deposit claim amount
-      const MAX_DEPOSIT_CLAIM = 50000; // GHS 50,000 max
-      if (amount > MAX_DEPOSIT_CLAIM) {
-        return res.status(400).json({ error: `Maximum deposit claim is GHS ${MAX_DEPOSIT_CLAIM}` });
-      }
-
-      // Sanitize amount to 2 decimal places
-      const sanitizedAmount = Math.round(parseFloat(amount) * 100) / 100;
-      if (isNaN(sanitizedAmount) || sanitizedAmount <= 0) {
-        return res.status(400).json({ error: 'Invalid amount format' });
-      }
-
       const wallet = await prisma.wallet.findUnique({
         where: { userId: req.user.id }
       });
@@ -174,7 +161,7 @@ const walletController = {
         data: {
           walletId: wallet.id,
           type: 'DEPOSIT',
-          amount: sanitizedAmount,
+          amount: parseFloat(amount),
           status: 'PENDING',
           reference: reference.trim(),
           description: `Deposit via ${paymentMethod}${senderPhone ? ` (${senderPhone})` : ''}`
@@ -241,55 +228,26 @@ const walletController = {
       }
 
       // Both match - approve the claim
-      // HARDENED: Serializable transaction with status re-check to prevent double-credit
-      const updatedTransaction = await prisma.$transaction(async (tx) => {
-        // Re-check status INSIDE transaction atomically
-        const freshTx = await tx.transaction.findUnique({ where: { id } });
-        if (!freshTx || freshTx.status !== 'PENDING') {
-          throw new Error('ALREADY_PROCESSED');
-        }
-
-        await tx.transaction.update({
+      const [updatedTransaction] = await prisma.$transaction([
+        prisma.transaction.update({
           where: { id },
           data: { status: 'COMPLETED' }
-        });
-
-        await tx.wallet.update({
+        }),
+        prisma.wallet.update({
           where: { id: transaction.walletId },
           data: {
-            balance: { increment: transaction.amount }
-          }
-        });
-
-        // Audit log
-        await tx.auditLog.create({
-          data: {
-            userId: req.user.id,
-            action: 'CONFIRM_DEPOSIT',
-            entityType: 'Transaction',
-            entityId: id,
-            newValues: {
-              amount: transaction.amount,
-              reference: transaction.reference,
-              walletId: transaction.walletId
+            balance: {
+              increment: transaction.amount
             }
           }
-        });
-
-        return freshTx;
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10000
-      });
+        })
+      ]);
 
       res.json({
         message: 'Claim verified and approved! Funds have been credited.',
         transaction: updatedTransaction
       });
     } catch (error) {
-      if (error.message === 'ALREADY_PROCESSED') {
-        return res.status(400).json({ error: 'This claim has already been processed' });
-      }
       next(error);
     }
   },
@@ -330,7 +288,6 @@ const walletController = {
   },
 
   // Transfer to another user OR admin fund/debit
-  // HARDENED: Serializable isolation + optimistic locks on all balance changes
   async transfer(req, res, next) {
     try {
       const { recipientEmail, userId, amount, description, type, note } = req.body;
@@ -346,45 +303,37 @@ const walletController = {
           return res.status(400).json({ error: 'Valid amount is required' });
         }
 
-        // FINANCIAL SAFETY: Cap admin operations
-        const MAX_ADMIN_OP = 100000;
-        if (amount > MAX_ADMIN_OP) {
-          return res.status(400).json({ error: `Maximum admin ${type} is GHS ${MAX_ADMIN_OP}` });
+        const targetWallet = await prisma.wallet.findUnique({
+          where: { userId },
+          include: { user: { select: { name: true, email: true } } }
+        });
+
+        if (!targetWallet) {
+          return res.status(404).json({ error: 'User wallet not found' });
+        }
+
+        if (type === 'debit' && targetWallet.balance < amount) {
+          return res.status(400).json({ 
+            error: 'Insufficient balance for debit',
+            available: targetWallet.balance,
+            requested: amount
+          });
         }
 
         const reference = type === 'credit' 
           ? `ADMIN-CREDIT-${uuidv4().slice(0, 8).toUpperCase()}`
           : `ADMIN-DEBIT-${uuidv4().slice(0, 8).toUpperCase()}`;
 
-        // HARDENED: Use interactive Serializable transaction
-        const updatedWallet = await prisma.$transaction(async (tx) => {
-          const targetWallet = await tx.wallet.findUnique({
-            where: { userId },
-            include: { user: { select: { name: true, email: true } } }
-          });
-
-          if (!targetWallet) {
-            throw new Error('WALLET_NOT_FOUND');
-          }
-
-          if (type === 'debit') {
-            // Optimistic lock for debits: ensure balance is sufficient
-            const result = await tx.wallet.update({
-              where: { 
-                id: targetWallet.id,
-                balance: { gte: amount } // CRITICAL: Optimistic lock
-              },
-              data: { balance: { decrement: amount } }
-            });
-            if (!result) throw new Error('INSUFFICIENT_BALANCE');
-          } else {
-            await tx.wallet.update({
-              where: { id: targetWallet.id },
-              data: { balance: { increment: amount } }
-            });
-          }
-
-          await tx.transaction.create({
+        const [updatedWallet] = await prisma.$transaction([
+          prisma.wallet.update({
+            where: { id: targetWallet.id },
+            data: { 
+              balance: type === 'credit' 
+                ? { increment: amount } 
+                : { decrement: amount } 
+            }
+          }),
+          prisma.transaction.create({
             data: {
               walletId: targetWallet.id,
               type: type === 'credit' ? 'DEPOSIT' : 'WITHDRAWAL',
@@ -393,28 +342,8 @@ const walletController = {
               reference,
               description: note || description || (type === 'credit' ? 'Admin credit' : 'Admin debit')
             }
-          });
-
-          // Audit log
-          await tx.auditLog.create({
-            data: {
-              userId: req.user.id,
-              action: type === 'credit' ? 'ADMIN_WALLET_CREDIT' : 'ADMIN_WALLET_DEBIT',
-              entityType: 'Wallet',
-              entityId: targetWallet.id,
-              newValues: { amount, type, reference, targetUserId: userId }
-            }
-          });
-
-          // Re-fetch for accurate balance
-          return await tx.wallet.findUnique({
-            where: { id: targetWallet.id },
-            include: { user: { select: { name: true } } }
-          });
-        }, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-          timeout: 10000
-        });
+          })
+        ]);
 
         return res.json({
           message: `Wallet ${type === 'credit' ? 'credited' : 'debited'} successfully`,
@@ -422,19 +351,13 @@ const walletController = {
           amount,
           type,
           newBalance: updatedWallet.balance,
-          user: updatedWallet.user.name
+          user: targetWallet.user.name
         });
       }
 
       // Regular user-to-user transfer flow
       if (amount <= 0) {
         return res.status(400).json({ error: 'Invalid amount' });
-      }
-
-      // FINANCIAL SAFETY: Cap transfer amount
-      const MAX_TRANSFER = 50000;
-      if (amount > MAX_TRANSFER) {
-        return res.status(400).json({ error: `Maximum transfer is GHS ${MAX_TRANSFER}` });
       }
 
       const recipient = await prisma.user.findUnique({
@@ -446,16 +369,11 @@ const walletController = {
         return res.status(404).json({ error: 'Recipient not found' });
       }
 
-      // Cannot transfer to yourself
-      if (recipient.id === req.user.id) {
-        return res.status(400).json({ error: 'Cannot transfer to yourself' });
-      }
-
       const reference = `TRF-${uuidv4().slice(0, 8).toUpperCase()}`;
 
-      // HARDENED: Serializable transaction with optimistic lock on sender balance
+      // Execute transfer with balance check INSIDE transaction to prevent race condition
       await prisma.$transaction(async (tx) => {
-        // Check sender balance INSIDE transaction
+        // Check sender balance INSIDE transaction (prevents race condition)
         const senderWallet = await tx.wallet.findUnique({
           where: { userId: req.user.id }
         });
@@ -464,21 +382,12 @@ const walletController = {
           throw new Error('INSUFFICIENT_BALANCE');
         }
 
-        // Check frozen
-        if (senderWallet.isFrozen) {
-          throw new Error('WALLET_FROZEN');
-        }
-
-        // Deduct from sender with OPTIMISTIC LOCK
-        const deductResult = await tx.wallet.update({
-          where: { 
-            id: senderWallet.id,
-            balance: { gte: amount } // CRITICAL: Optimistic lock
-          },
+        //
+        // Deduct from sender
+        await tx.wallet.update({
+          where: { id: senderWallet.id },
           data: { balance: { decrement: amount } }
         });
-        if (!deductResult) throw new Error('INSUFFICIENT_BALANCE');
-
         // Add to recipient
         await tx.wallet.update({
           where: { id: recipient.wallet.id },
@@ -506,9 +415,6 @@ const walletController = {
             description: `Transfer from ${req.user.email}`
           }
         });
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10000
       });
 
       res.json({
@@ -651,7 +557,7 @@ const walletController = {
     }
   },
 
-  // Fund user wallet (admin) - HARDENED with Serializable isolation + audit
+  // Fund user wallet (admin)
   async fundUserWallet(req, res, next) {
     try {
       const { userId, amount, description } = req.body;
@@ -660,30 +566,22 @@ const walletController = {
         return res.status(400).json({ error: 'Valid userId and amount are required' });
       }
 
-      // FINANCIAL SAFETY: Cap admin funding
-      const MAX_FUND = 100000;
-      if (amount > MAX_FUND) {
-        return res.status(400).json({ error: `Maximum admin funding is GHS ${MAX_FUND}` });
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId }
+      });
+
+      if (!wallet) {
+        return res.status(404).json({ error: 'User wallet not found' });
       }
 
       const reference = 'ADMIN-FUND-' + uuidv4().slice(0, 8).toUpperCase();
 
-      // HARDENED: Serializable transaction with audit
-      const updatedWallet = await prisma.$transaction(async (tx) => {
-        const wallet = await tx.wallet.findUnique({
-          where: { userId }
-        });
-
-        if (!wallet) {
-          throw new Error('WALLET_NOT_FOUND');
-        }
-
-        const updated = await tx.wallet.update({
+      const [updatedWallet] = await prisma.$transaction([
+        prisma.wallet.update({
           where: { id: wallet.id },
           data: { balance: { increment: amount } }
-        });
-
-        await tx.transaction.create({
+        }),
+        prisma.transaction.create({
           data: {
             walletId: wallet.id,
             type: 'DEPOSIT',
@@ -692,24 +590,8 @@ const walletController = {
             reference,
             description: description || 'Admin wallet funding'
           }
-        });
-
-        // Audit trail
-        await tx.auditLog.create({
-          data: {
-            userId: req.user.id,
-            action: 'ADMIN_FUND_WALLET',
-            entityType: 'Wallet',
-            entityId: wallet.id,
-            newValues: { amount, reference, targetUserId: userId, description }
-          }
-        });
-
-        return updated;
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10000
-      });
+        })
+      ]);
 
       res.json({
         message: 'Wallet funded successfully',
@@ -718,14 +600,11 @@ const walletController = {
         newBalance: updatedWallet.balance
       });
     } catch (error) {
-      if (error.message === 'WALLET_NOT_FOUND') {
-        return res.status(404).json({ error: 'User wallet not found' });
-      }
       next(error);
     }
   },
 
-  // Deduct from user wallet (admin) - HARDENED with Serializable + optimistic lock
+  // Deduct from user wallet (admin)
   async deductUserWallet(req, res, next) {
     try {
       const { userId, amount, reason } = req.body;
@@ -740,7 +619,7 @@ const walletController = {
 
       const reference = 'ADMIN-DEDUCT-' + uuidv4().slice(0, 8).toUpperCase();
 
-      // HARDENED: Serializable + optimistic lock
+      // Balance check INSIDE transaction to prevent race condition
       const updatedWallet = await prisma.$transaction(async (tx) => {
         const wallet = await tx.wallet.findUnique({
           where: { userId }
@@ -754,18 +633,10 @@ const walletController = {
           throw new Error('INSUFFICIENT_BALANCE');
         }
 
-        // Optimistic lock: ensure balance didn't change between check and update
         const updated = await tx.wallet.update({
-          where: { 
-            id: wallet.id,
-            balance: { gte: amount } // CRITICAL: Prevents negative balance
-          },
+          where: { id: wallet.id },
           data: { balance: { decrement: amount } }
         });
-
-        if (!updated) {
-          throw new Error('INSUFFICIENT_BALANCE');
-        }
 
         await tx.transaction.create({
           data: {
@@ -778,21 +649,7 @@ const walletController = {
           }
         });
 
-        // Audit trail
-        await tx.auditLog.create({
-          data: {
-            userId: req.user.id,
-            action: 'ADMIN_DEDUCT_WALLET',
-            entityType: 'Wallet',
-            entityId: wallet.id,
-            newValues: { amount, reason, reference, targetUserId: userId }
-          }
-        });
-
         return updated;
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10000
       }).catch(err => {
         if (err.message === 'WALLET_NOT_FOUND') {
           throw { status: 404, message: 'User wallet not found' };

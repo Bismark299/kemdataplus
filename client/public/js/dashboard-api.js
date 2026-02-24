@@ -144,8 +144,6 @@
    * @returns {Object} - Order group with all items
    */
   async function createOrderGroup(items, idempotencyKey = null) {
-    // CRITICAL: Idempotency key must be DETERMINISTIC based on order content
-    // Using timestamp+random made every click unique, defeating duplicate prevention
     const key = idempotencyKey || `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     return await apiRequest('/order-groups', 'POST', {
       items,
@@ -318,10 +316,7 @@
 
     try {
       // Create OrderGroup (batch order) with all items
-      // CRITICAL FIX: Use DETERMINISTIC idempotency key based on order content
-      // This prevents double-charges from double-clicks or retries
-      const itemsHash = orderItems.map(i => `${i.bundleId}:${i.recipientPhone}:${i.quantity}`).sort().join('|');
-      const idempotencyKey = `checkout-${itemsHash}-${Math.floor(Date.now() / 60000)}`; // Same key within 1-minute window
+      const idempotencyKey = `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const result = await createOrderGroup(orderItems, idempotencyKey);
       
       if (result.duplicate) {

@@ -36,7 +36,7 @@ const MOBILE_MONEY_CODES = {
 };
 
 // Paystack MoMo transfer fee (flat fee per transfer in GHS)
-const PAYSTACK_MOMO_FEE = 1.00; // GH₵1.00 per MoMo transfer
+const PAYSTACK_MOMO_FEE = 0.50; // GH₵0.50 per MoMo transfer
 
 // Get Paystack config
 function getPaystackConfig() {

@@ -19,7 +19,6 @@
  * ID Generation: PostgreSQL SERIAL sequence (atomic, never resets)
  */
 
-const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 
 // ============================================================
@@ -219,7 +218,6 @@ const orderGroupService = {
     // ============================================================
     // STEP 3: ATOMIC TRANSACTION - CHECK BALANCE & CREATE ORDER
     // Balance check MUST be inside transaction to prevent race conditions
-    // CRITICAL: Uses Serializable isolation to prevent concurrent double-spend
     // ============================================================
     const result = await prisma.$transaction(async (tx) => {
       // 3a. Check wallet balance INSIDE transaction (prevents race condition)
@@ -234,11 +232,6 @@ const orderGroupService = {
       
       if (!wallet || availableBalance < requiredAmount) {
         throw new Error(`INSUFFICIENT_BALANCE:${requiredAmount}:${availableBalance}`);
-      }
-
-      // Check if wallet is frozen
-      if (wallet.isFrozen) {
-        throw new Error('WALLET_FROZEN');
       }
       // 4a. Create OrderGroup (this auto-generates sequenceNum via database)
       const orderGroup = await tx.orderGroup.create({
@@ -293,21 +286,13 @@ const orderGroupService = {
         });
       }
 
-      // 4e. Deduct wallet with OPTIMISTIC LOCK (prevents negative balance)
-      // balance: { gte: grandTotal } ensures another concurrent tx hasn't already deducted
-      const updatedWallet = await tx.wallet.update({
-        where: { 
-          id: wallet.id,
-          balance: { gte: grandTotal }  // CRITICAL: Optimistic lock prevents double-spend
-        },
+      // 4e. Deduct wallet
+      await tx.wallet.update({
+        where: { userId },
         data: {
           balance: { decrement: grandTotal }
         }
       });
-
-      if (!updatedWallet) {
-        throw new Error(`INSUFFICIENT_BALANCE:${requiredAmount}:${availableBalance}`);
-      }
 
       // 4f. Create wallet transaction
       await tx.transaction.create({
@@ -355,11 +340,6 @@ const orderGroupService = {
           items: createdItems
         }
       };
-    }, {
-      // CRITICAL: Serializable isolation prevents concurrent transactions from
-      // both reading the same balance and double-deducting the wallet
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      timeout: 15000
     });
 
     console.log(`[OrderGroup] Order created successfully: ${result.orderGroup.displayId}`);
@@ -773,26 +753,7 @@ const orderGroupService = {
    * - Checks API wallet balance BEFORE each item
    * - Items stay PENDING if API disabled or insufficient balance
    */
-  // Track which orderGroups are currently being processed to prevent concurrent runs
-  _processingLocks: new Set(),
-
   async processOrderItems(orderGroupId) {
-    // ============ CONCURRENCY GUARD ============
-    // Prevent multiple concurrent processOrderItems for the same orderGroup
-    if (this._processingLocks.has(orderGroupId)) {
-      console.log(`[OrderGroup] SKIP: ${orderGroupId} is already being processed (concurrency guard)`);
-      return { processed: 0, skipped: 0, results: [], reason: 'Already processing' };
-    }
-    this._processingLocks.add(orderGroupId);
-
-    try {
-      return await this._doProcessOrderItems(orderGroupId);
-    } finally {
-      this._processingLocks.delete(orderGroupId);
-    }
-  },
-
-  async _doProcessOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
     const easyDataService = require('./easydata.service');
     const settingsController = require('../controllers/settings.controller');
@@ -1040,46 +1001,6 @@ const orderGroupService = {
           failureReason: result.success ? null : result.error
         });
 
-        // CROSS-TABLE SYNC: If there's a linked legacy Order row (storefront orders),
-        // mark it too so datahub.retryPendingOrders() won't re-send it.
-        if (item.reference) {
-          // The legacy Order.reference matches the OrderItem's base reference (e.g., "ORD-000123")
-          const baseRef = item.reference.replace(/-\d{2}$/, ''); // "ORD-000123-01" → "ORD-000123"
-          try {
-            await prisma.order.updateMany({
-              where: {
-                reference: baseRef,
-                externalReference: null  // Only if not already set
-              },
-              data: {
-                status: result.success ? 'PROCESSING' : 'FAILED',
-                externalReference: result.reference || null,
-                apiSentAt: new Date(),
-                ...(result.success ? {} : { failureReason: result.error })
-              }
-            });
-          } catch (syncErr) {
-            // Trigger may block status update — save externalReference WITHOUT status change
-            // This at minimum prevents duplicate sends (retry checks externalReference=null)
-            console.log(`[OrderGroup] Legacy Order status sync failed (trigger?): ${syncErr.message}`);
-            try {
-              await prisma.order.updateMany({
-                where: {
-                  reference: baseRef,
-                  externalReference: null
-                },
-                data: {
-                  externalReference: result.reference || null,
-                  apiSentAt: new Date()
-                }
-              });
-              console.log(`[OrderGroup] ✅ Legacy Order externalReference saved (status skipped)`);
-            } catch (fallbackErr) {
-              console.log(`[OrderGroup] Legacy Order sync fully failed: ${fallbackErr.message}`);
-            }
-          }
-        }
-
         results.push({
           itemId: item.id,
           reference: item.reference,
@@ -1145,43 +1066,34 @@ const orderGroupService = {
 
   /**
    * ============================================================
-   * CANCEL ORDER - HARDENED: Serializable + atomic status re-check
+   * CANCEL ORDER
    * ============================================================
    * Cancels an order and refunds the wallet.
-   * Uses Serializable isolation to prevent double-refund race condition.
    */
   async cancelOrder(orderGroupId, userId) {
-    // HARDENED: All checks happen INSIDE the Serializable transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Find order INSIDE transaction for atomic check
-      const orderGroup = await tx.orderGroup.findFirst({
-        where: {
-          OR: [
-            { id: orderGroupId },
-            { displayId: orderGroupId }
-          ],
-          userId
-        },
-        include: { items: true }
-      });
+    const orderGroup = await prisma.orderGroup.findFirst({
+      where: {
+        OR: [
+          { id: orderGroupId },
+          { displayId: orderGroupId }
+        ],
+        userId
+      },
+      include: { items: true }
+    });
 
-      if (!orderGroup) {
-        throw new Error('Order not found');
-      }
+    if (!orderGroup) {
+      throw new Error('Order not found');
+    }
 
-      // ATOMIC CHECK: Already cancelled? Don't refund again
-      if (orderGroup.status === 'CANCELLED') {
-        throw new Error('ORDER_ALREADY_CANCELLED');
-      }
+    // Can only cancel if all items are PENDING
+    const allPending = orderGroup.items.every(i => i.status === 'PENDING');
+    if (!allPending) {
+      throw new Error('Cannot cancel order - some items have already been processed');
+    }
 
-      // Can only cancel if all items are PENDING or DUPLICATE_HOLD
-      const allCancellable = orderGroup.items.every(i => 
-        i.status === 'PENDING' || i.status === 'DUPLICATE_HOLD'
-      );
-      if (!allCancellable) {
-        throw new Error('Cannot cancel order - some items have already been processed');
-      }
-
+    // Refund and cancel in transaction
+    await prisma.$transaction(async (tx) => {
       // Cancel all items
       await tx.orderItem.updateMany({
         where: { orderGroupId: orderGroup.id },
@@ -1203,31 +1115,23 @@ const orderGroupService = {
           where: { userId }
         });
 
-        if (wallet) {
-          await tx.wallet.update({
-            where: { id: wallet.id },
-            data: {
-              balance: { increment: orderGroup.totalAmount }
-            }
-          });
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            balance: { increment: orderGroup.totalAmount }
+          }
+        });
 
-          // Create refund transaction
-          await tx.transaction.create({
-            data: {
-              walletId: wallet.id,
-              type: 'REFUND',
-              amount: orderGroup.totalAmount,
-              reference: `REFUND-${orderGroup.displayId}`,
-              description: `Refund for cancelled order ${orderGroup.displayId}`,
-              status: 'COMPLETED'
-            }
-          });
-        }
-
-        // Mark as wallet NOT deducted (refunded)
-        await tx.orderGroup.update({
-          where: { id: orderGroup.id },
-          data: { walletDeducted: false }
+        // Create refund transaction
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            type: 'REFUND',
+            amount: orderGroup.totalAmount,
+            reference: `REFUND-${orderGroup.displayId}`,
+            description: `Refund for cancelled order ${orderGroup.displayId}`,
+            status: 'COMPLETED'
+          }
         });
       }
 
@@ -1244,16 +1148,11 @@ const orderGroupService = {
           }
         }
       });
-
-      return orderGroup;
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      timeout: 15000
     });
 
     return {
       success: true,
-      message: `Order ${result.displayId} cancelled and refunded`
+      message: `Order ${orderGroup.displayId} cancelled and refunded`
     };
   },
 
@@ -1415,9 +1314,7 @@ const orderGroupService = {
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    // Find stuck PENDING OrderGroups that have truly unsent items
-    // CRITICAL: Only pick groups with items that have NEVER been attempted (apiSentAt IS null)
-    // Items with apiSentAt set = were sent to MCBIS (may have charged). NEVER reset these.
+    // Find stuck PENDING OrderGroups
     const stuckOrderGroups = await prisma.orderGroup.findMany({
       where: {
         status: 'PENDING',
@@ -1428,8 +1325,7 @@ const orderGroupService = {
         items: {
           some: {
             status: 'PENDING',
-            externalReference: null,  // Never got API reference 
-            apiSentAt: null           // Never sent to API at all
+            externalReference: null  // Never sent to API
           }
         }
       },
@@ -1451,12 +1347,17 @@ const orderGroupService = {
       try {
         console.log(`[AutoRetry] Retrying ${orderGroup.displayId}...`);
         
-        // SAFETY: NEVER reset apiSentAt!
-        // If apiSentAt is set, the MCBIS API was CALLED and may have charged money.
-        // Resetting apiSentAt would cause processOrderItems to claim and re-send,
-        // resulting in DUPLICATE MCBIS charges (money drain).
-        // processOrderItems already skips items with apiSentAt set.
-        // Only truly unsent items (apiSentAt=null, externalReference=null) will be processed.
+        // Clear apiSentAt for stuck items to allow retry
+        await prisma.orderItem.updateMany({
+          where: {
+            orderGroupId: orderGroup.id,
+            status: 'PENDING',
+            externalReference: null
+          },
+          data: {
+            apiSentAt: null  // Reset so processOrderItems can claim them
+          }
+        });
         
         // Process the order items
         const result = await this.processOrderItems(orderGroup.id);
@@ -1505,13 +1406,10 @@ const orderGroupService = {
     
     console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, EasyData: ${easyDataEnabled ? 'ON' : 'OFF'})`);
     
-    // Only sync items from the last 48 hours — older items are stale
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const items = await prisma.orderItem.findMany({
       where: {
         status: { in: ['PROCESSING', 'PENDING'] },
-        externalReference: { not: null },
-        createdAt: { gte: fortyEightHoursAgo }
+        externalReference: { not: null }
       },
       take: 100 // Limit to prevent API overload
     });
