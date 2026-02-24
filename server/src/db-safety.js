@@ -18,6 +18,23 @@ async function applyFinancialSafety() {
 
   try {
     // ========================================
+    // 0. FIX NEGATIVE BALANCES (from prior bugs)
+    // Must run BEFORE adding CHECK constraints
+    // ========================================
+    await safeExec(
+      `UPDATE "wallets" SET "balance" = 0 WHERE "balance" < 0`,
+      'fix negative balances'
+    );
+    await safeExec(
+      `UPDATE "wallets" SET "lockedBalance" = 0 WHERE "lockedBalance" < 0`,
+      'fix negative locked balances'
+    );
+    await safeExec(
+      `UPDATE "wallets" SET "pendingBalance" = 0 WHERE "pendingBalance" < 0`,
+      'fix negative pending balances'
+    );
+
+    // ========================================
     // 1. WALLET CHECK CONSTRAINTS
     // Prevent negative balances at DB level
     // ========================================
