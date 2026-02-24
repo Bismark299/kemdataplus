@@ -1415,7 +1415,9 @@ const orderGroupService = {
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    // Find stuck PENDING OrderGroups
+    // Find stuck PENDING OrderGroups that have truly unsent items
+    // CRITICAL: Only pick groups with items that have NEVER been attempted (apiSentAt IS null)
+    // Items with apiSentAt set = were sent to MCBIS (may have charged). NEVER reset these.
     const stuckOrderGroups = await prisma.orderGroup.findMany({
       where: {
         status: 'PENDING',
@@ -1426,7 +1428,8 @@ const orderGroupService = {
         items: {
           some: {
             status: 'PENDING',
-            externalReference: null  // Never sent to API
+            externalReference: null,  // Never got API reference 
+            apiSentAt: null           // Never sent to API at all
           }
         }
       },
@@ -1448,26 +1451,12 @@ const orderGroupService = {
       try {
         console.log(`[AutoRetry] Retrying ${orderGroup.displayId}...`);
         
-        // SAFETY: Do NOT reset apiSentAt — that defeats the atomic lock.
-        // Only items with apiSentAt=null AND externalReference=null are eligible.
-        // If apiSentAt is set but externalReference is null, the API call may still
-        // be in flight or it failed but didn't record. We skip those to avoid duplicates.
-        // Items truly stuck (apiSentAt set >5 min ago, no externalRef) get reset.
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-        await prisma.orderItem.updateMany({
-          where: {
-            orderGroupId: orderGroup.id,
-            status: 'PENDING',
-            externalReference: null,
-            apiSentAt: {
-              not: null,
-              lt: fiveMinutesAgo  // Only reset if claimed >5 min ago (truly stuck)
-            }
-          },
-          data: {
-            apiSentAt: null  // Reset only truly stuck claims
-          }
-        });
+        // SAFETY: NEVER reset apiSentAt!
+        // If apiSentAt is set, the MCBIS API was CALLED and may have charged money.
+        // Resetting apiSentAt would cause processOrderItems to claim and re-send,
+        // resulting in DUPLICATE MCBIS charges (money drain).
+        // processOrderItems already skips items with apiSentAt set.
+        // Only truly unsent items (apiSentAt=null, externalReference=null) will be processed.
         
         // Process the order items
         const result = await this.processOrderItems(orderGroup.id);

@@ -346,6 +346,11 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   // Apply database financial safety rules (CHECK constraints, triggers)
   applyFinancialSafety().catch(err => console.error('DB safety setup error:', err.message));
   
+  // Startup cleanup: Mark orphaned orders that were sent to MCBIS but status never saved
+  // These have apiSentAt set (= API was called, money charged) but no externalReference
+  // They're stuck forever. Mark them so they stop appearing as "retryable".
+  cleanupOrphanedOrders().catch(err => console.error('Orphan cleanup error:', err.message));
+  
   // Start auto-sync background job
   startAutoSync();
   
@@ -360,6 +365,62 @@ const settingsController = require('./controllers/settings.controller');
 const datahubService = require('./services/datahub.service');
 const orderGroupService = require('./services/order-group.service');
 const profitScheduler = require('./services/profit-scheduler');
+const prismaForCleanup = require('./lib/prisma');
+
+/**
+ * Startup cleanup for orphaned orders.
+ * Finds orders/items where MCBIS API was called (apiSentAt set) but the
+ * DB status update failed (due to trigger bug). These are stuck permanently
+ * and would otherwise be retried, causing duplicate MCBIS charges.
+ * 
+ * Fix: If apiSentAt is set but no externalReference, mark as FAILED with
+ * a clear reason so they don't get retried. The user/admin can manually review.
+ */
+async function cleanupOrphanedOrders() {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+  
+  // 1. Fix orphaned legacy Orders (apiSentAt set, no externalReference, still PENDING)
+  try {
+    const orphanedOrders = await prismaForCleanup.order.updateMany({
+      where: {
+        status: 'PENDING',
+        apiSentAt: { not: null, lt: thirtyMinutesAgo },
+        externalReference: null
+      },
+      data: {
+        failureReason: 'Orphaned: API was called but reference not saved (trigger bug). Needs manual review.',
+        apiSentAt: null  // Clear so admin can manually retry if needed
+      }
+    });
+    if (orphanedOrders.count > 0) {
+      console.log(`[Cleanup] Reset ${orphanedOrders.count} orphaned legacy Orders (apiSentAt cleared for retry)`);
+    }
+  } catch (err) {
+    console.warn(`[Cleanup] Legacy order cleanup error: ${err.message}`);
+  }
+
+  // 2. Fix orphaned OrderItems (apiSentAt set, no externalReference, still PENDING)
+  try {
+    const orphanedItems = await prismaForCleanup.orderItem.updateMany({
+      where: {
+        status: 'PENDING',
+        apiSentAt: { not: null, lt: thirtyMinutesAgo },
+        externalReference: null
+      },
+      data: {
+        failureReason: 'Orphaned: API was called but reference not saved (trigger bug). Needs manual review.',
+        apiSentAt: null  // Clear so they can be retried
+      }
+    });
+    if (orphanedItems.count > 0) {
+      console.log(`[Cleanup] Reset ${orphanedItems.count} orphaned OrderItems (apiSentAt cleared for retry)`);
+    }
+  } catch (err) {
+    console.warn(`[Cleanup] OrderItem cleanup error: ${err.message}`);
+  }
+
+  console.log(`[Cleanup] Orphaned order cleanup complete`);
+}
 
 let autoSyncInterval = null;
 let autoSyncRunning = false; // Prevent overlapping auto-sync runs
