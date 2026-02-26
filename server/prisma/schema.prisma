@@ -799,7 +799,7 @@ model Storefront {
   // Payment Settings
   momoNumber      String?          // MoMo number for customer payments
   momoName        String?          // Name on MoMo account
-  paystackEnabled Boolean          @default(false)  // Enable Paystack for this store
+  paystackEnabled Boolean          @default(true)   // Enable Paystack for this store
   
   // Settings
   isPublic        Boolean          @default(true)
