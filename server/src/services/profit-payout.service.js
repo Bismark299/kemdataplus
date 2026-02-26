@@ -36,7 +36,7 @@ const MOBILE_MONEY_CODES = {
 };
 
 // Paystack MoMo transfer fee (flat fee per transfer in GHS)
-const PAYSTACK_MOMO_FEE = 0.50; // GH₵0.50 per MoMo transfer
+const PAYSTACK_MOMO_FEE = 1.00; // GH₵1.00 per MoMo transfer
 
 // Get Paystack config
 function getPaystackConfig() {
@@ -56,6 +56,20 @@ function getPaystackConfig() {
     };
   } catch (e) {
     return { secretKey: '', publicKey: '' };
+  }
+}
+
+// Check Paystack balance
+async function checkPaystackBalance() {
+  try {
+    const data = await paystackRequest('/balance');
+    // Paystack returns balance in kobo/pesewas — convert to GHS
+    const ghsBalance = (data.data?.[0]?.balance || 0) / 100;
+    console.log(`[Paystack] Balance: GH₵${ghsBalance.toFixed(2)}`);
+    return ghsBalance;
+  } catch (err) {
+    console.error('[Paystack] Balance check failed:', err.message);
+    return 0; // Fail safe — treat as no balance so it goes to admin
   }
 }
 
@@ -100,12 +114,12 @@ function getPayoutSettings() {
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     return {
       mode: settings.profitPayoutSettings?.mode || 'weekly_momo',
-      minPayout: settings.profitPayoutSettings?.minPayout || 5,
+      minPayout: settings.profitPayoutSettings?.minPayout || 10,
       payoutDay: settings.profitPayoutSettings?.payoutDay || 'friday',
       payoutTime: settings.profitPayoutSettings?.payoutTime || '19:30'
     };
   } catch (e) {
-    return { mode: 'weekly_momo', minPayout: 5, payoutDay: 'friday', payoutTime: '19:30' };
+    return { mode: 'weekly_momo', minPayout: 10, payoutDay: 'friday', payoutTime: '19:30' };
   }
 }
 
@@ -505,10 +519,45 @@ const profitPayoutService = {
       network: MOBILE_MONEY_CODES[network] || 'MTN'
     });
 
+    // AUTO-PROCESS: Check Paystack balance and auto-send if sufficient
+    try {
+      const paystackBalance = await checkPaystackBalance();
+      if (paystackBalance >= netAmount) {
+        console.log(`[Payout] Auto-processing ${reference}: Paystack balance GH₵${paystackBalance.toFixed(2)} >= net GH₵${netAmount.toFixed(2)}`);
+        
+        // Auto-process the payout (use system as admin)
+        const result = await this.processSinglePayout(payout, 'SYSTEM_AUTO');
+        
+        if (result.requiresOtp) {
+          // OTP required — can't auto-process, leave as PENDING for admin
+          console.log(`[Payout] OTP required for ${reference}, leaving as PENDING for admin`);
+          return {
+            success: true,
+            payout,
+            autoProcessed: false,
+            message: `Withdrawal request of GH₵${amount.toFixed(2)} submitted. Awaiting admin approval (OTP required).`
+          };
+        }
+        
+        return {
+          success: true,
+          payout: { ...payout, status: 'PROCESSING' },
+          autoProcessed: true,
+          message: `Withdrawal of GH₵${amount.toFixed(2)} is being processed automatically! You'll receive GH₵${netAmount.toFixed(2)} shortly.`
+        };
+      } else {
+        console.log(`[Payout] Insufficient Paystack balance for auto-process: GH₵${paystackBalance.toFixed(2)} < GH₵${netAmount.toFixed(2)}. Queued for admin.`);
+      }
+    } catch (autoErr) {
+      console.error(`[Payout] Auto-process failed for ${reference}, queued for admin:`, autoErr.message);
+      // Fall through — leave as PENDING for admin
+    }
+
     return {
       success: true,
       payout,
-      message: `Withdrawal request of GH₵${amount.toFixed(2)} submitted. Will be processed on Friday.`
+      autoProcessed: false,
+      message: `Withdrawal request of GH₵${amount.toFixed(2)} submitted. Awaiting admin approval.`
     };
   },
 
@@ -981,10 +1030,20 @@ const profitPayoutService = {
 
       let remaining = payout.amount;
       const profitIdsToMark = [];
+      let partialProfitId = null;
+      let partialDeduction = 0;
       for (const profit of profits) {
         if (remaining <= 0) break;
-        profitIdsToMark.push(profit.id);
-        remaining -= profit.amount;
+        if (profit.amount <= remaining) {
+          // Fully consumed — mark as PAID
+          profitIdsToMark.push(profit.id);
+          remaining -= profit.amount;
+        } else {
+          // Partially consumed — reduce amount, keep PENDING
+          partialProfitId = profit.id;
+          partialDeduction = remaining;
+          remaining = 0;
+        }
       }
 
       // Update payout to PROCESSING (wait for webhook to finalize)
@@ -1000,11 +1059,16 @@ const profitPayoutService = {
             recipientCode
           }
         }),
-        // Mark profits as PAID immediately (for single approvals)
-        prisma.pendingProfit.updateMany({
+        // Mark fully consumed profits as PAID
+        ...(profitIdsToMark.length > 0 ? [prisma.pendingProfit.updateMany({
           where: { id: { in: profitIdsToMark } },
           data: { status: 'PAID', paidAt: new Date() }
-        })
+        })] : []),
+        // Reduce partially consumed profit's amount (stays PENDING)
+        ...(partialProfitId ? [prisma.pendingProfit.update({
+          where: { id: partialProfitId },
+          data: { amount: { decrement: partialDeduction } }
+        })] : [])
       ]);
 
       console.log(`[Payout] Processed ${payout.reference}: GH₵${payout.netAmount} to ${payout.accountNumber}`);
@@ -1083,10 +1147,18 @@ const profitPayoutService = {
 
     let remaining = payout.amount;
     const profitIdsToMark = [];
+    let partialProfitId = null;
+    let partialDeduction = 0;
     for (const profit of profits) {
       if (remaining <= 0) break;
-      profitIdsToMark.push(profit.id);
-      remaining -= profit.amount;
+      if (profit.amount <= remaining) {
+        profitIdsToMark.push(profit.id);
+        remaining -= profit.amount;
+      } else {
+        partialProfitId = profit.id;
+        partialDeduction = remaining;
+        remaining = 0;
+      }
     }
 
     await prisma.$transaction([
@@ -1099,10 +1171,14 @@ const profitPayoutService = {
           reviewNotes: 'Force completed by admin - webhook may not have arrived'
         }
       }),
-      prisma.pendingProfit.updateMany({
+      ...(profitIdsToMark.length > 0 ? [prisma.pendingProfit.updateMany({
         where: { id: { in: profitIdsToMark } },
         data: { status: 'PAID', paidAt: new Date() }
-      })
+      })] : []),
+      ...(partialProfitId ? [prisma.pendingProfit.update({
+        where: { id: partialProfitId },
+        data: { amount: { decrement: partialDeduction } }
+      })] : [])
     ]);
 
     console.log(`[Admin] Force completed withdrawal ${payoutId}: GH₵${payout.netAmount}`);
@@ -1363,10 +1439,18 @@ const profitPayoutService = {
 
     let remaining = payout.amount;
     const profitIdsToMark = [];
+    let partialProfitId = null;
+    let partialDeduction = 0;
     for (const profit of profits) {
       if (remaining <= 0) break;
-      profitIdsToMark.push(profit.id);
-      remaining -= profit.amount;
+      if (profit.amount <= remaining) {
+        profitIdsToMark.push(profit.id);
+        remaining -= profit.amount;
+      } else {
+        partialProfitId = profit.id;
+        partialDeduction = remaining;
+        remaining = 0;
+      }
     }
 
     // Finalize payout with manual completion data
@@ -1383,10 +1467,14 @@ const profitPayoutService = {
           manualNote: note
         }
       }),
-      prisma.pendingProfit.updateMany({
+      ...(profitIdsToMark.length > 0 ? [prisma.pendingProfit.updateMany({
         where: { id: { in: profitIdsToMark } },
         data: { status: 'PAID', paidAt: new Date() }
-      })
+      })] : []),
+      ...(partialProfitId ? [prisma.pendingProfit.update({
+        where: { id: partialProfitId },
+        data: { amount: { decrement: partialDeduction } }
+      })] : [])
     ]);
 
     console.log(`[Payout] ✅ Manually completed payout ${payout.reference}: GH₵${payout.netAmount} via ${paymentMethod}`);
@@ -1474,10 +1562,18 @@ const profitPayoutService = {
 
     let remaining = payout.amount;
     const profitIdsToMark = [];
+    let partialProfitId = null;
+    let partialDeduction = 0;
     for (const profit of profits) {
       if (remaining <= 0) break;
-      profitIdsToMark.push(profit.id);
-      remaining -= profit.amount;
+      if (profit.amount <= remaining) {
+        profitIdsToMark.push(profit.id);
+        remaining -= profit.amount;
+      } else {
+        partialProfitId = profit.id;
+        partialDeduction = remaining;
+        remaining = 0;
+      }
     }
 
     // Finalize payout
@@ -1490,10 +1586,14 @@ const profitPayoutService = {
           webhookData: JSON.stringify(transferData)
         }
       }),
-      prisma.pendingProfit.updateMany({
+      ...(profitIdsToMark.length > 0 ? [prisma.pendingProfit.updateMany({
         where: { id: { in: profitIdsToMark } },
         data: { status: 'PAID', paidAt: new Date() }
-      })
+      })] : []),
+      ...(partialProfitId ? [prisma.pendingProfit.update({
+        where: { id: partialProfitId },
+        data: { amount: { decrement: partialDeduction } }
+      })] : [])
     ]);
 
     console.log(`[Webhook] Finalized payout ${payout.reference}: GH₵${payout.netAmount}`);

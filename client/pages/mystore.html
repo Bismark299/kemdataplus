@@ -1043,7 +1043,7 @@
                                 <span id="paystackStatus">Disabled</span>
                             </div>
                             <p style="color:#10b981;font-size:0.85rem;margin-top:10px;"><i class="fas fa-check-circle"></i> Paystack is the only supported payment method for storefronts. Payments are instant and secure.</p>
-                            <p style="color:#f59e0b;font-size:0.85rem;margin-top:10px;"><i class="fas fa-info-circle"></i> Note: Paystack charges ~1.5% per transaction. Profits are automatically credited to your wallet after successful orders.</p>
+                            <p style="color:#f59e0b;font-size:0.85rem;margin-top:10px;"><i class="fas fa-info-circle"></i> Note: Paystack charges ~2% per transaction. Profits are automatically credited to your wallet after successful orders.</p>
                         </div>
                     </div>
                 </div>
@@ -1147,6 +1147,34 @@
         </div>
     </div>
     
+    <!-- Store Created Success Modal -->
+    <div id="storeSuccessModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10002;align-items:center;justify-content:center;">
+        <div style="background:white;border-radius:16px;padding:30px;max-width:420px;width:90%;text-align:center;animation:slideIn 0.3s ease;">
+            <div style="width:70px;height:70px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-store" style="font-size:28px;color:white;"></i>
+            </div>
+            <h2 style="margin:0 0 10px;color:#1f2937;font-size:1.5rem;">Store Created!</h2>
+            <p style="color:#6b7280;margin:0 0 20px;font-size:0.95rem;">Your store is ready. Share the link with customers to start selling.</p>
+            <div style="background:#f3f4f6;border-radius:10px;padding:15px;margin-bottom:20px;">
+                <label style="display:block;font-size:0.8rem;color:#6b7280;margin-bottom:8px;text-align:left;"><i class="fas fa-link"></i> Your Store Link</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="successStoreLink" readonly style="flex:1;padding:12px;border:2px solid #e5e7eb;border-radius:8px;font-size:0.9rem;background:white;">
+                    <button onclick="copySuccessLink()" style="padding:12px 16px;background:#024959;color:white;border:none;border-radius:8px;cursor:pointer;" title="Copy">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button onclick="shareStoreWhatsApp()" style="flex:1;padding:12px;background:#25d366;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;">
+                    <i class="fab fa-whatsapp"></i> Share on WhatsApp
+                </button>
+                <button onclick="closeSuccessModal()" style="flex:1;padding:12px;background:#024959;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;">
+                    <i class="fas fa-check"></i> Got it
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Toast Notification Container -->
     <div id="toastContainer" style="position:fixed;top:20px;right:20px;z-index:10001;display:flex;flex-direction:column;gap:10px;"></div>
     
@@ -1188,6 +1216,24 @@
                 toast.style.animation = 'slideOut 0.3s ease';
                 setTimeout(() => toast.remove(), 300);
             }, duration);
+        }
+        
+        // Store creation success modal functions
+        function showStoreSuccessModal(storeLink) {
+            document.getElementById('successStoreLink').value = storeLink;
+            document.getElementById('storeSuccessModal').style.display = 'flex';
+        }
+        function closeSuccessModal() {
+            document.getElementById('storeSuccessModal').style.display = 'none';
+        }
+        function copySuccessLink() {
+            const link = document.getElementById('successStoreLink').value;
+            navigator.clipboard.writeText(link);
+            showToast('Link copied to clipboard!', 'success', 2000);
+        }
+        function shareStoreWhatsApp() {
+            const link = document.getElementById('successStoreLink').value;
+            window.open('https://wa.me/?text=' + encodeURIComponent('Check out my data store! ' + link), '_blank');
         }
         
         // PIN result modal data
@@ -1524,7 +1570,7 @@
         function openCreateModal(){document.getElementById('modalTitle').textContent='Create Store',document.getElementById('saveStoreBtn').textContent='Create Store',document.getElementById('inputName').value='',document.getElementById('inputDesc').value='',document.getElementById('inputPhone').value='',document.getElementById('inputWhatsapp').value='',document.getElementById('storeModal').classList.add('active')}
         function openEditModal(){document.getElementById('modalTitle').textContent='Edit Store',document.getElementById('saveStoreBtn').textContent='Save Changes',document.getElementById('inputName').value=store.name||'',document.getElementById('inputDesc').value=store.description||'',document.getElementById('inputPhone').value=store.contactPhone||'',document.getElementById('inputWhatsapp').value=store.contactWhatsapp||'',document.getElementById('storeModal').classList.add('active')}
         function closeModal(){document.getElementById('storeModal').classList.remove('active')}
-        async function saveStore(){const e={name:document.getElementById('inputName').value.trim(),description:document.getElementById('inputDesc').value.trim(),contactPhone:document.getElementById('inputPhone').value.trim(),contactWhatsapp:document.getElementById('inputWhatsapp').value.trim()};if(!e.name)return alert('Store name required');const o=document.getElementById('saveStoreBtn');o.disabled=!0,o.textContent='Saving...';const t=null!==store,r=await api(t?'/storefronts/'+store.id:'/storefronts',{method:t?'PUT':'POST',body:JSON.stringify(e)}),n=await r.json();r.ok?(closeModal(),t||alert('Store created!\\n\\nYour link:\\n'+window.location.origin+'/store/'+n.slug),loadStore()):alert(n.error),o.disabled=!1,o.textContent=t?'Save Changes':'Create Store'}
+        async function saveStore(){const e={name:document.getElementById('inputName').value.trim(),description:document.getElementById('inputDesc').value.trim(),contactPhone:document.getElementById('inputPhone').value.trim(),contactWhatsapp:document.getElementById('inputWhatsapp').value.trim()};if(!e.name)return alert('Store name required');const o=document.getElementById('saveStoreBtn');o.disabled=!0,o.textContent='Saving...';const t=null!==store,r=await api(t?'/storefronts/'+store.id:'/storefronts',{method:t?'PUT':'POST',body:JSON.stringify(e)}),n=await r.json();r.ok?(closeModal(),t?showToast('Store updated successfully!','success'):showStoreSuccessModal(window.location.origin+'/store/'+(n.storefront?.slug||n.slug)),loadStore()):alert(n.error),o.disabled=!1,o.textContent=t?'Save Changes':'Create Store'}
         function copyLink(){navigator.clipboard.writeText(document.getElementById('storeLink').value),alert('Link copied!')}
         function shareWhatsApp(){window.open('https://wa.me/?text='+encodeURIComponent('Check out my data store! '+document.getElementById('storeLink').value),'_blank')}
         document.querySelectorAll('.tab').forEach(e=>e.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active')),document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')),e.classList.add('active'),document.getElementById(e.dataset.tab+'-tab').classList.add('active');if(e.dataset.tab==='customers'){loadCustomers();}}));

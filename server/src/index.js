@@ -249,9 +249,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/css', express.static(path.join(__dirname, '../../client/public/css')));
 app.use('/js', express.static(path.join(__dirname, '../../client/public/js')));
 app.use('/img', express.static(path.join(__dirname, '../../client/public/img')));
-app.use('/public', express.static(path.join(__dirname, '../../client/public')));
-app.use('/pages', express.static(path.join(__dirname, '../../client/pages')));
-app.use('/admin', express.static(path.join(__dirname, '../../client/admin')));
+app.use('/public', express.static(path.join(__dirname, '../../client/public'), { extensions: ['html'] }));
+app.use('/pages', express.static(path.join(__dirname, '../../client/pages'), { extensions: ['html'] }));
+app.use('/admin', express.static(path.join(__dirname, '../../client/admin'), { extensions: ['html'] }));
 // Serve static files for storefront (e.g., /store/img/favicon.ico)
 app.use('/store/img', express.static(path.join(__dirname, '../../client/public/img')));
 

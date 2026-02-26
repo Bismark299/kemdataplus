@@ -1405,7 +1405,7 @@
                                 
                                 <div style="background: #f0fdf4; padding: 10px 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; border: 1px solid #bbf7d0;">
                                     <i class="fas fa-info-circle" style="color: #059669;"></i>
-                                    Minimum withdrawal: <strong>GH₵ 5</strong> • Processed within 24 hours
+                                    Minimum withdrawal: <strong>GH₵ 10</strong> • Auto-processed instantly when funds available
                                 </div>
                                 
                                 <form id="profitWithdrawForm">
@@ -2344,7 +2344,7 @@
             }
             
             const subtotal = parseFloat(amount);
-            const fee = Math.round(subtotal * 0.015 * 100) / 100; // 1.5%
+            const fee = Math.round(subtotal * 0.02 * 100) / 100; // 2%
             const total = subtotal + fee;
             
             return { subtotal, fee, total };
@@ -2855,7 +2855,7 @@
         
         // ========== PENDING EARNINGS FUNCTIONALITY ==========
         let pendingEarningsData = { profits: [], total: 0, count: 0 };
-        let profitPayoutSettings = { payoutTime: '23:30', minPayout: 5 };
+        let profitPayoutSettings = { payoutTime: '23:30', minPayout: 10 };
         
         async function loadPendingEarnings() {
             try {
@@ -3203,8 +3203,8 @@
                 return;
             }
             
-            if (amount < 5) {
-                showError('Minimum withdrawal is GH₵ 5');
+            if (amount < 10) {
+                showError('Minimum withdrawal is GH₵ 10');
                 return;
             }
             

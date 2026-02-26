@@ -147,8 +147,8 @@ router.post('/store/:slug/paystack/initialize', async (req, res, next) => {
     // Use customer email or generate from phone
     const customerEmail = email || `${phone}@customer.store`;
 
-    // Calculate processing fee (1.5%) - charged to customer
-    const PROCESSING_FEE_RATE = 0.015; // 1.5%
+    // Calculate processing fee (2%) - charged to customer
+    const PROCESSING_FEE_RATE = 0.02; // 2%
     const subtotal = result.amount;
     const processingFee = Math.round(subtotal * PROCESSING_FEE_RATE * 100) / 100;
     const totalAmount = subtotal + processingFee;

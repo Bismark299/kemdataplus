@@ -1093,9 +1093,9 @@
                 paystackInfo.style.display = 'block';
                 emailGroup.style.display = 'block';
                 
-                // Calculate processing fee (1.5%)
+                // Calculate processing fee (2%)
                 const subtotal = selectedProduct.price;
-                const processingFee = Math.round(subtotal * 0.015 * 100) / 100; // Round to 2 decimals
+                const processingFee = Math.round(subtotal * 0.02 * 100) / 100; // Round to 2 decimals
                 const total = subtotal + processingFee;
                 
                 document.getElementById('paystackSubtotal').textContent = `GHS ${subtotal.toFixed(2)}`;
@@ -1127,9 +1127,9 @@
                 paystackInfo.style.display = 'block';
                 emailGroup.style.display = 'block';
                 
-                // Calculate processing fee (1.5%)
+                // Calculate processing fee (2%)
                 const subtotal = selectedProduct.price;
-                const processingFee = Math.round(subtotal * 0.015 * 100) / 100;
+                const processingFee = Math.round(subtotal * 0.02 * 100) / 100;
                 const total = subtotal + processingFee;
                 
                 document.getElementById('paystackSubtotal').textContent = `GHS ${subtotal.toFixed(2)}`;
