@@ -10942,10 +10942,6 @@
             });
             if (!confirmed) return;
             
-            // Prompt for OTP
-            const otp = prompt('Enter Paystack OTP (sent to your registered email/phone).\n\nLeave blank if OTP is disabled on your Paystack account:');
-            if (otp === null) return; // User cancelled
-            
             // Show loading state on button
             const btn = event?.target?.closest('button');
             const originalText = btn?.innerHTML;
@@ -10959,7 +10955,7 @@
                 const res = await adminFetch(`/api/profit-payouts/admin/process-withdrawal/${payoutId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ otp: otp || undefined })
+                    body: JSON.stringify({})
                 });
                 
                 if (!res.ok) {
@@ -10968,13 +10964,6 @@
                 }
                 
                 const result = await res.json();
-                
-                // Check if OTP is required
-                if (result.requiresOtp) {
-                    showToast('OTP required! Check your email/phone and try again.', 'warning');
-                    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-                    return;
-                }
                 
                 // Show enhanced success message with transfer details
                 const successMsg = result.transfer?.reference 
