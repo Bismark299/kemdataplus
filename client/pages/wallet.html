@@ -1256,7 +1256,7 @@
                                 
                                 <div class="form-group">
                                     <label>Or Enter Custom Amount</label>
-                                    <input type="number" id="paystackAmount" placeholder="Enter amount (min GHS 10)" min="10" max="10000" step="0.01">
+                                    <input type="number" id="paystackAmount" placeholder="Enter amount (min GHS 5)" min="5" max="10000" step="0.01">
                                 </div>
                                 
                                 <!-- Fee Breakdown Display -->
@@ -1454,7 +1454,7 @@
                                         </div>
                                         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: #dc2626;">
                                             <span>Processing Fee:</span>
-                                            <span id="feeBreakdownFee">- GH₵ 0.50</span>
+                                            <span id="feeBreakdownFee">- GH₵ 1.00</span>
                                         </div>
                                         <hr style="border: none; border-top: 1px dashed #d1d5db; margin: 8px 0;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; color: #059669;">
@@ -2401,7 +2401,7 @@
             const amount = selectedAmount || parseFloat(document.getElementById('paystackAmount').value);
             
             if (!amount || amount < 5) {
-                showError('Please enter a valid amount (min GHS 10)');
+                showError('Please enter a valid amount (min GHS 5)');
                 return;
             }
             
@@ -2957,7 +2957,7 @@
         let profitAccountVerified = false;
         let profitAvailableAmount = 0;
         let savedMomoDetails = null; // Store saved MoMo details
-        const MOMO_TRANSFER_FEE = 0.50; // GH₵0.50 per transfer
+        const MOMO_TRANSFER_FEE = 1.00; // GH₵1.00 per transfer
         
         // Load saved MoMo details for quick withdrawals
         async function loadSavedMomoDetails() {
