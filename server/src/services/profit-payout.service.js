@@ -539,11 +539,17 @@ const profitPayoutService = {
           };
         }
         
+        // Use actual status from processing result (COMPLETED for instant, PROCESSING otherwise)
+        const finalStatus = result.status || 'PROCESSING';
+        const statusMessage = finalStatus === 'COMPLETED' 
+          ? `Withdrawal of GH₵${netAmount.toFixed(2)} sent successfully!`
+          : `Withdrawal of GH₵${amount.toFixed(2)} is being processed. You'll receive GH₵${netAmount.toFixed(2)} shortly.`;
+        
         return {
           success: true,
-          payout: { ...payout, status: 'PROCESSING' },
+          payout: { ...payout, status: finalStatus },
           autoProcessed: true,
-          message: `Withdrawal of GH₵${amount.toFixed(2)} is being processed automatically! You'll receive GH₵${netAmount.toFixed(2)} shortly.`
+          message: statusMessage
         };
       } else {
         console.log(`[Payout] Insufficient Paystack balance for auto-process: GH₵${paystackBalance.toFixed(2)} < GH₵${netAmount.toFixed(2)}. Queued for admin.`);
@@ -1046,12 +1052,18 @@ const profitPayoutService = {
         }
       }
 
-      // Update payout to PROCESSING (wait for webhook to finalize)
+      // Check if transfer was instant (MoMo transfers usually are)
+      // Paystack returns status: 'success' for completed, 'pending' for async
+      const transferStatus = transferResponse.data?.status?.toLowerCase();
+      const isInstantSuccess = transferStatus === 'success';
+      const finalStatus = isInstantSuccess ? 'COMPLETED' : 'PROCESSING';
+
+      // Update payout status
       await prisma.$transaction([
         prisma.agentPayout.update({
           where: { id: payout.id },
           data: {
-            status: 'PROCESSING',
+            status: finalStatus,
             processedAt: new Date(),
             reviewedBy: adminId,
             transferCode: transferResponse.data?.transfer_code,
@@ -1071,9 +1083,9 @@ const profitPayoutService = {
         })] : [])
       ]);
 
-      console.log(`[Payout] Processed ${payout.reference}: GH₵${payout.netAmount} to ${payout.accountNumber}`);
+      console.log(`[Payout] Processed ${payout.reference}: GH₵${payout.netAmount} to ${payout.accountNumber} (${finalStatus})`);
 
-      return { payoutId: payout.id, success: true, transferCode: transferResponse.data?.transfer_code };
+      return { payoutId: payout.id, success: true, transferCode: transferResponse.data?.transfer_code, status: finalStatus };
 
     } catch (err) {
       // Mark as failed
@@ -1530,20 +1542,27 @@ const profitPayoutService = {
     console.log(`[Webhook] Transfer success: ${reference} (${transfer_code})`);
 
     // Find the payout by reference or transfer code
+    // Include COMPLETED in case instant transfer already marked it
     const payout = await prisma.agentPayout.findFirst({
       where: {
         OR: [
           { reference },
           { transferCode: transfer_code }
         ],
-        status: { in: ['PROCESSING', 'RESERVED'] }
+        status: { in: ['PROCESSING', 'RESERVED', 'COMPLETED'] }
       },
       include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
     });
 
     if (!payout) {
-      console.log(`[Webhook] No pending payout found for reference: ${reference}`);
+      console.log(`[Webhook] No payout found for reference: ${reference}`);
       return { success: false, message: 'Payout not found' };
+    }
+    
+    // If already completed (instant transfer), just acknowledge
+    if (payout.status === 'COMPLETED') {
+      console.log(`[Webhook] Payout ${reference} already COMPLETED (instant transfer)`);
+      return { success: true, message: 'Already completed' };
     }
 
     // Prevent duplicate processing

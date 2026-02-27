@@ -2581,11 +2581,7 @@
                             <div><strong>Account:</strong> ${w.accountNumber} (${w.accountType === 'mobile_money' ? w.bankName || 'MoMo' : w.bankName || 'Bank'})</div>
                             <div><strong>Date:</strong> ${date}</div>
                         </div>
-                        ${w.status === 'PENDING' ? `
-                            <button onclick="cancelWithdrawal('${w.id}')" style="margin-top:10px;padding:6px 12px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;font-size:0.8rem;">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                        ` : ''}
+
                     </div>
                 `;
             }).join('');
@@ -3163,11 +3159,7 @@
                                     ${p.status}
                                 </div>
                             </div>
-                            ${p.status === 'PENDING' ? `
-                                <button onclick="cancelProfitWithdrawal('${p.id}')" style="margin-top: 8px; font-size: 0.75rem; padding: 4px 10px; background: #fee2e2; color: #dc2626; border: none; border-radius: 4px; cursor: pointer;">
-                                    <i class="fas fa-times"></i> Cancel
-                                </button>
-                            ` : ''}
+
                         </div>
                     `;
                 }).join('');
