@@ -1016,6 +1016,9 @@ const profitPayoutService = {
       };
 
       const transferResponse = await paystackRequest('/transfer', 'POST', transferData);
+      
+      // Log the full transfer response for debugging
+      console.log(`[Payout] Transfer response:`, JSON.stringify(transferResponse.data, null, 2));
 
       // If OTP is required and provided, finalize the transfer
       if (transferResponse.data?.status === 'otp' && otp) {
@@ -1541,27 +1544,29 @@ const profitPayoutService = {
     
     console.log(`[Webhook] Transfer success: ${reference} (${transfer_code})`);
 
-    // Find the payout by reference or transfer code
-    // Include COMPLETED in case instant transfer already marked it
+    // Find the payout by reference, paystackReference, or transfer code
+    // Include all statuses in case instant transfer already marked it or status update failed
     const payout = await prisma.agentPayout.findFirst({
       where: {
         OR: [
           { reference },
+          { paystackReference: reference },
           { transferCode: transfer_code }
-        ],
-        status: { in: ['PROCESSING', 'RESERVED', 'COMPLETED'] }
+        ]
       },
       include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
     });
 
     if (!payout) {
-      console.log(`[Webhook] No payout found for reference: ${reference}`);
+      console.log(`[Webhook] No payout found for reference: ${reference} / transfer_code: ${transfer_code}`);
       return { success: false, message: 'Payout not found' };
     }
     
-    // If already completed (instant transfer), just acknowledge
+    console.log(`[Webhook] Found payout: ${payout.reference} (status: ${payout.status}, transferCode: ${payout.transferCode})`);
+    
+    // If already completed, just acknowledge
     if (payout.status === 'COMPLETED') {
-      console.log(`[Webhook] Payout ${reference} already COMPLETED (instant transfer)`);
+      console.log(`[Webhook] Payout ${reference} already COMPLETED`);
       return { success: true, message: 'Already completed' };
     }
 
@@ -1660,6 +1665,7 @@ const profitPayoutService = {
       where: {
         OR: [
           { reference },
+          { paystackReference: reference },
           { transferCode: transfer_code }
         ],
         status: { in: ['PROCESSING', 'RESERVED'] }
@@ -1668,7 +1674,7 @@ const profitPayoutService = {
     });
 
     if (!payout) {
-      console.log(`[Webhook] No pending payout found for reference: ${reference}`);
+      console.log(`[Webhook] No pending payout found for reference: ${reference} / transfer_code: ${transfer_code}`);
       return { success: false, message: 'Payout not found' };
     }
 
@@ -1744,6 +1750,7 @@ const profitPayoutService = {
       where: {
         OR: [
           { reference },
+          { paystackReference: reference },
           { transferCode: transfer_code }
         ]
       },
@@ -1751,7 +1758,7 @@ const profitPayoutService = {
     });
 
     if (!payout) {
-      console.log(`[Webhook] No payout found for reference: ${reference}`);
+      console.log(`[Webhook] No payout found for reference: ${reference} / transfer_code: ${transfer_code}`);
       return { success: false, message: 'Payout not found' };
     }
 
