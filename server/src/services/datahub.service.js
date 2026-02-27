@@ -621,6 +621,17 @@ const datahubService = {
       }
       
       console.log(`[DataHub] Computed newStatus: '${newStatus}'`);
+      
+      // PREVENT STATUS DOWNGRADES - never revert manually completed/failed orders
+      // Only allow: PENDING → PROCESSING → COMPLETED, or any → FAILED
+      const statusPriority = { 'PENDING': 1, 'PROCESSING': 2, 'COMPLETED': 3, 'FAILED': 3, 'CANCELLED': 3 };
+      const currentPriority = statusPriority[order.status] || 0;
+      const newPriority = statusPriority[newStatus] || 0;
+      
+      if (newPriority < currentPriority) {
+        console.log(`[DataHub] ⚠️ Skipping downgrade: ${order.status} → ${newStatus} (manual override preserved)`);
+        return { success: true, status: order.status, message: 'Status preserved (manual override)' };
+      }
 
       // ALWAYS sync related tables (OrderItem, StorefrontOrder) even if Order status unchanged
       // This fixes cases where Order was updated but related tables weren't

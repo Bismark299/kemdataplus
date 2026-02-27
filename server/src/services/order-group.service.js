@@ -1226,6 +1226,16 @@ const orderGroupService = {
       newStatus = 'PROCESSING';
     }
 
+    // PREVENT STATUS DOWNGRADES - never revert manually completed/failed orders
+    const statusPriority = { 'PENDING': 1, 'PROCESSING': 2, 'COMPLETED': 3, 'FAILED': 3, 'CANCELLED': 3 };
+    const currentPriority = statusPriority[item.status] || 0;
+    const newPriority = statusPriority[newStatus] || 0;
+    
+    if (newPriority < currentPriority) {
+      console.log(`[Sync] ⚠️ Skipping downgrade: ${item.status} → ${newStatus} (manual override preserved)`);
+      return { success: true, itemId, previousStatus: item.status, newStatus: item.status, statusChanged: false, message: 'Manual override preserved' };
+    }
+
     const statusChanged = newStatus !== item.status;
     
     if (statusChanged) {
