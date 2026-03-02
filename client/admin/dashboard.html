@@ -4629,6 +4629,8 @@
                             <option value="100">100</option>
                             <option value="200">200</option>
                             <option value="500">500</option>
+                            <option value="1000">1000</option>
+                            <option value="2000">2000</option>
                         </select>
                         <span style="font-size: 0.9rem; color: #6b7280;">orders per page</span>
                     </div>
@@ -4659,6 +4661,7 @@
                         </tr>
                     </tbody>
                 </table>
+                <div id="ordersPaginationControls" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 15px 20px; border-top: 1px solid #f3f4f6; background: #f9fafb; flex-wrap: wrap;"></div>
             </div>
         </div>
 
@@ -4900,6 +4903,10 @@
                             <select id="tablePerPage">
                                 <option value="50">50</option>
                                 <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                                <option value="2000">2000</option>
                             </select>
                         </div>
                     </div>
@@ -4979,6 +4986,9 @@
                             <option value="50">50</option>
                             <option value="100" selected>100</option>
                             <option value="200">200</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                            <option value="2000">2000</option>
                         </select>
                     </div>
                 </div>
@@ -5557,18 +5567,30 @@
             </div>
 
             <!-- Totals Cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 5px;">Total Profit Earned</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" id="agentProfitsTotalEarned">GH₵ 0.00</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #10b981;">
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 5px;"><i class="fas fa-coins" style="margin-right: 4px;"></i> Total Profit Earned</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #10b981;" id="agentProfitsTotalEarned">GH₵ 0.00</div>
                 </div>
-                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 5px;">This Month</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;" id="agentProfitsThisMonth">GH₵ 0.00</div>
+                <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #3b82f6;">
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 5px;"><i class="fas fa-calendar" style="margin-right: 4px;"></i> This Month</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #3b82f6;" id="agentProfitsThisMonth">GH₵ 0.00</div>
                 </div>
-                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 5px;">Available for Withdrawal</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;" id="agentProfitsAvailable">GH₵ 0.00</div>
+                <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #ef4444;">
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 5px;"><i class="fas fa-money-bill-wave" style="margin-right: 4px;"></i> Total Withdrawn</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #ef4444;" id="agentProfitsTotalWithdrawn">GH₵ 0.00</div>
+                </div>
+                <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #8b5cf6;">
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 5px;"><i class="fas fa-clock" style="margin-right: 4px;"></i> Pending Withdrawal</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #8b5cf6;" id="agentProfitsPendingWithdrawal">GH₵ 0.00</div>
+                </div>
+                <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #f59e0b;">
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 5px;"><i class="fas fa-wallet" style="margin-right: 4px;"></i> Available for Withdrawal</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #f59e0b;" id="agentProfitsAvailable">GH₵ 0.00</div>
+                </div>
+                <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #06b6d4;">
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 5px;"><i class="fas fa-shopping-cart" style="margin-right: 4px;"></i> Total Orders</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #06b6d4;" id="agentProfitsTotalOrders">0</div>
                 </div>
             </div>
 
@@ -5578,15 +5600,19 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                                <th style="padding: 14px 16px; text-align: left; font-weight: 600; color: #475569;">Agent</th>
-                                <th style="padding: 14px 16px; text-align: right; font-weight: 600; color: #475569;">Total Profit</th>
-                                <th style="padding: 14px 16px; text-align: right; font-weight: 600; color: #475569;">This Month</th>
-                                <th style="padding: 14px 16px; text-align: right; font-weight: 600; color: #475569;">Available</th>
+                                <th style="padding: 12px 14px; text-align: left; font-weight: 600; color: #475569; font-size: 0.82rem;">Agent</th>
+                                <th style="padding: 12px 14px; text-align: center; font-weight: 600; color: #475569; font-size: 0.82rem;">Orders</th>
+                                <th style="padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; font-size: 0.82rem;">Total Profit</th>
+                                <th style="padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; font-size: 0.82rem;">This Month</th>
+                                <th style="padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; font-size: 0.82rem;">Withdrawn</th>
+                                <th style="padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; font-size: 0.82rem;">Pending W/D</th>
+                                <th style="padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; font-size: 0.82rem;">Available</th>
+                                <th style="padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; font-size: 0.82rem;">Wallet Bal.</th>
                             </tr>
                         </thead>
                         <tbody id="agentProfitsTableBody">
                             <tr>
-                                <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                                <td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8;">
                                     <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
                                     <p>Loading agent profits...</p>
                                 </td>
@@ -5770,9 +5796,13 @@
                             <option value="50">50</option>
                             <option value="100" selected>100</option>
                             <option value="200">200</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                            <option value="2000">2000</option>
                         </select>
                     </div>
                     <div class="page-info" id="historyPageInfo"></div>
+                    <div id="historyPaginationControls" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"></div>
                 </div>
             </div>
         </div>
@@ -7696,7 +7726,64 @@
             }
         }
         
+        // ========== SHARED PAGINATION CONTROLS ==========
+        function renderPaginationControls(containerId, currentPage, totalPages, onPageChange) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const btnStyle = (active) => `padding: 6px 12px; border: 1px solid ${active ? '#3b82f6' : '#e5e7eb'}; border-radius: 6px; background: ${active ? '#3b82f6' : 'white'}; color: ${active ? 'white' : '#374151'}; cursor: pointer; font-size: 0.85rem; font-weight: ${active ? '600' : '400'};`;
+            const disabledStyle = 'padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb; color: #d1d5db; cursor: not-allowed; font-size: 0.85rem;';
+            
+            let html = '';
+            
+            // First button
+            html += `<button onclick="window._paginationCb_${containerId}(1)" style="${currentPage === 1 ? disabledStyle : btnStyle(false)}" ${currentPage === 1 ? 'disabled' : ''} title="First page"><i class="fas fa-angle-double-left"></i></button>`;
+            
+            // Previous button
+            html += `<button onclick="window._paginationCb_${containerId}(${currentPage - 1})" style="${currentPage === 1 ? disabledStyle : btnStyle(false)}" ${currentPage === 1 ? 'disabled' : ''} title="Previous page"><i class="fas fa-angle-left"></i></button>`;
+            
+            // Page number buttons - show up to 7 pages with ellipsis
+            const maxVisible = 7;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+            
+            if (startPage > 1) {
+                html += `<button onclick="window._paginationCb_${containerId}(1)" style="${btnStyle(false)}">1</button>`;
+                if (startPage > 2) html += `<span style="padding: 6px 4px; color: #9ca3af;">...</span>`;
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button onclick="window._paginationCb_${containerId}(${i})" style="${btnStyle(i === currentPage)}">${i}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<span style="padding: 6px 4px; color: #9ca3af;">...</span>`;
+                html += `<button onclick="window._paginationCb_${containerId}(${totalPages})" style="${btnStyle(false)}">${totalPages}</button>`;
+            }
+            
+            // Next button
+            html += `<button onclick="window._paginationCb_${containerId}(${currentPage + 1})" style="${currentPage === totalPages ? disabledStyle : btnStyle(false)}" ${currentPage === totalPages ? 'disabled' : ''} title="Next page"><i class="fas fa-angle-right"></i></button>`;
+            
+            // Last button
+            html += `<button onclick="window._paginationCb_${containerId}(${totalPages})" style="${currentPage === totalPages ? disabledStyle : btnStyle(false)}" ${currentPage === totalPages ? 'disabled' : ''} title="Last page"><i class="fas fa-angle-double-right"></i></button>`;
+            
+            container.innerHTML = html;
+            
+            // Store callback on window for onclick access
+            window[`_paginationCb_${containerId}`] = onPageChange;
+        }
+        
         // Generate agent code from user ID
+        let ordersCurrentPage = 1;
+        
         function generateAgentCode(userId) {
             if (!userId) return 'KDP-0000';
             // Create a 4-digit code from the last characters of the user ID
@@ -7717,6 +7804,7 @@
             const tbody = document.getElementById('ordersTableBody');
             const perPage = parseInt(document.getElementById('ordersPerPage')?.value || 50);
             const pageInfo = document.getElementById('ordersPageInfo');
+            const paginationContainer = document.getElementById('ordersPaginationControls');
             
             if (!orders || orders.length === 0) {
                 tbody.innerHTML = `
@@ -7733,27 +7821,48 @@
                     </tr>
                 `;
                 if (pageInfo) pageInfo.textContent = 'Showing 0 orders';
+                if (paginationContainer) paginationContainer.innerHTML = '';
                 return;
             }
             
             // Sort orders by date descending (newest first)
             const sortedOrders = [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             const totalDisplayed = sortedOrders.length;
+            const totalPages = Math.max(1, Math.ceil(totalDisplayed / perPage));
+            
+            // Clamp current page
+            if (ordersCurrentPage > totalPages) ordersCurrentPage = totalPages;
+            if (ordersCurrentPage < 1) ordersCurrentPage = 1;
+            
+            const startIdx = (ordersCurrentPage - 1) * perPage;
+            const endIdx = startIdx + perPage;
+            const pageItems = sortedOrders.slice(startIdx, endIdx);
             
             // Use total orders from cache for continuous numbering across all days
             const allOrdersSorted = [...ordersCache].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             const totalAllOrders = ordersCache.length;
             
             // Update page info
-            const showCount = Math.min(totalDisplayed, perPage);
-            if (pageInfo) pageInfo.textContent = `Showing ${showCount} of ${totalDisplayed} orders`;
+            if (pageInfo) {
+                if (totalDisplayed === 0) {
+                    pageInfo.textContent = 'Showing 0 orders';
+                } else {
+                    pageInfo.textContent = `Showing ${startIdx + 1} - ${Math.min(endIdx, totalDisplayed)} of ${totalDisplayed} orders`;
+                }
+            }
             
-            const html = sortedOrders.slice(0, perPage).map((o, idx) => {
+            // Render pagination controls
+            renderPaginationControls('ordersPaginationControls', ordersCurrentPage, totalPages, function(page) {
+                ordersCurrentPage = page;
+                loadOrdersTable(orders);
+            });
+            
+            const html = pageItems.map((o, idx) => {
                 const bundle = o.bundle || {};
                 const agentName = o.user?.name || o.customerName || 'Unknown';
                 const agentCode = generateAgentCode(o.userId || o.user?.id);
                 // Use displayId (group order ID) for tracking - all items in a batch share the same ID
-                const orderId = o.displayId || o.orderGroupId || formatOrderNumber(idx, totalAllOrders);
+                const orderId = o.displayId || o.orderGroupId || formatOrderNumber(startIdx + idx, totalAllOrders);
                 return `
                 <tr data-order-id="${o.id}" data-display-id="${o.displayId || ''}">
                     <td><input type="checkbox" class="order-checkbox" value="${o.id}"></td>
@@ -11136,6 +11245,7 @@
         // ========== HISTORY SECTION ==========
         let historyData = [];
         let historyPerPage = 100;
+        let historyCurrentPage = 1;
         
         async function loadHistorySection() {
             // Set today's date as default filter
@@ -11314,6 +11424,7 @@
         }
         
         function filterHistory() {
+            historyCurrentPage = 1; // Reset to first page on filter change
             updateHistoryStats();
             renderHistoryTable();
         }
@@ -11364,12 +11475,31 @@
             const tbody = document.getElementById('historyTableBody');
             const filtered = getFilteredHistoryData();
             const perPage = parseInt(document.getElementById('historyPerPage')?.value || 100);
+            const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+            
+            // Clamp current page
+            if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+            if (historyCurrentPage < 1) historyCurrentPage = 1;
+            
+            const startIdx = (historyCurrentPage - 1) * perPage;
+            const endIdx = startIdx + perPage;
+            const pageItems = filtered.slice(startIdx, endIdx);
             
             // Update page info
             const pageInfo = document.getElementById('historyPageInfo');
             if (pageInfo) {
-                pageInfo.textContent = `Showing ${Math.min(filtered.length, perPage)} of ${filtered.length} orders`;
+                if (filtered.length === 0) {
+                    pageInfo.textContent = 'Showing 0 orders';
+                } else {
+                    pageInfo.textContent = `Showing ${startIdx + 1} - ${Math.min(endIdx, filtered.length)} of ${filtered.length} orders`;
+                }
             }
+            
+            // Render pagination controls
+            renderPaginationControls('historyPaginationControls', historyCurrentPage, totalPages, function(page) {
+                historyCurrentPage = page;
+                renderHistoryTable();
+            });
             
             if (filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10">
@@ -11384,7 +11514,7 @@
                 return;
             }
             
-            tbody.innerHTML = filtered.slice(0, perPage).map(h => `
+            tbody.innerHTML = pageItems.map(h => `
                 <tr>
                     <td>${formatHistoryDate(h.date)}</td>
                     <td><strong>${h.userName}</strong> ${h.agentCode}</td>
@@ -12219,7 +12349,7 @@
             
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                    <td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8;">
                         <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
                         <p>Loading agent profits...</p>
                     </td>
@@ -12241,6 +12371,9 @@
                 document.getElementById('agentProfitsTotalEarned').textContent = 'GH₵ ' + (data.totals?.totalProfit || 0).toFixed(2);
                 document.getElementById('agentProfitsThisMonth').textContent = 'GH₵ ' + (data.totals?.thisMonthProfit || 0).toFixed(2);
                 document.getElementById('agentProfitsAvailable').textContent = 'GH₵ ' + (data.totals?.availableForWithdrawal || 0).toFixed(2);
+                document.getElementById('agentProfitsTotalWithdrawn').textContent = 'GH₵ ' + (data.totals?.totalWithdrawn || 0).toFixed(2);
+                document.getElementById('agentProfitsPendingWithdrawal').textContent = 'GH₵ ' + (data.totals?.reservedForWithdrawal || 0).toFixed(2);
+                document.getElementById('agentProfitsTotalOrders').textContent = (data.totals?.totalOrders || 0).toLocaleString();
                 
                 // Filter by name (client-side)
                 agentProfitsData = data.agents || [];
@@ -12260,7 +12393,7 @@
                 console.error('Error loading agent profits:', err);
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="4" style="padding: 40px; text-align: center; color: #ef4444;">
+                        <td colspan="8" style="padding: 40px; text-align: center; color: #ef4444;">
                             <i class="fas fa-exclamation-circle" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
                             <p>Error loading agent profits: ${err.message}</p>
                         </td>
@@ -12286,7 +12419,7 @@
             if (pageData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                        <td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8;">
                             <i class="fas fa-coins" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
                             <p>No agent profits found</p>
                         </td>
@@ -12296,23 +12429,42 @@
                 return;
             }
             
-            tbody.innerHTML = pageData.map(agent => `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 14px 16px;">
-                        <div style="font-weight: 600; color: #1e293b;">${agent.name || 'Unknown'}</div>
-                        <div style="font-size: 0.8rem; color: #94a3b8;">${agent.phone || agent.email || '-'}</div>
+            tbody.innerHTML = pageData.map(agent => {
+                // Flag suspicious: withdrawn more than profit, or wallet balance negative
+                const isSuspicious = (agent.totalWithdrawn || 0) > (agent.allTimeProfit || agent.totalProfit || 0) * 1.1;
+                const rowBg = isSuspicious ? 'background: #fef2f2;' : '';
+                
+                return `
+                <tr style="border-bottom: 1px solid #f1f5f9; ${rowBg}">
+                    <td style="padding: 12px 14px;">
+                        <div style="font-weight: 600; color: #1e293b; font-size: 0.88rem;">${agent.name || 'Unknown'}${isSuspicious ? ' <i class=\"fas fa-exclamation-triangle\" style=\"color: #ef4444; font-size: 0.75rem;\" title=\"Withdrawn exceeds profit!\"></i>' : ''}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">${agent.phone || agent.email || '-'}</div>
+                        <div style="font-size: 0.7rem; color: #cbd5e1;">${agent.role || 'USER'}</div>
                     </td>
-                    <td style="padding: 14px 16px; text-align: right; font-weight: 600; color: #10b981;">
-                        GH₵ ${agent.totalProfit.toFixed(2)}
+                    <td style="padding: 12px 14px; text-align: center; color: #06b6d4; font-weight: 600; font-size: 0.88rem;">
+                        ${(agent.totalOrders || 0).toLocaleString()}
                     </td>
-                    <td style="padding: 14px 16px; text-align: right; color: #3b82f6;">
-                        GH₵ ${agent.thisMonthProfit.toFixed(2)}
+                    <td style="padding: 12px 14px; text-align: right; font-weight: 600; color: #10b981; font-size: 0.88rem;">
+                        GH₵ ${(agent.totalProfit || 0).toFixed(2)}
                     </td>
-                    <td style="padding: 14px 16px; text-align: right; color: #f59e0b; font-weight: 600;">
-                        GH₵ ${agent.availableForWithdrawal.toFixed(2)}
+                    <td style="padding: 12px 14px; text-align: right; color: #3b82f6; font-size: 0.88rem;">
+                        GH₵ ${(agent.thisMonthProfit || 0).toFixed(2)}
+                    </td>
+                    <td style="padding: 12px 14px; text-align: right; color: #ef4444; font-weight: 600; font-size: 0.88rem;">
+                        GH₵ ${(agent.totalWithdrawn || 0).toFixed(2)}
+                    </td>
+                    <td style="padding: 12px 14px; text-align: right; color: #8b5cf6; font-size: 0.88rem;">
+                        ${(agent.reservedForWithdrawal || 0) > 0 ? 'GH₵ ' + (agent.reservedForWithdrawal || 0).toFixed(2) : '<span style=\"color:#d1d5db;\">-</span>'}
+                    </td>
+                    <td style="padding: 12px 14px; text-align: right; color: #f59e0b; font-weight: 600; font-size: 0.88rem;">
+                        GH₵ ${(agent.availableForWithdrawal || 0).toFixed(2)}
+                    </td>
+                    <td style="padding: 12px 14px; text-align: right; font-weight: 600; font-size: 0.88rem; color: ${(agent.walletBalance || 0) < 0 ? '#ef4444' : '#1e293b'};">
+                        GH₵ ${(agent.walletBalance || 0).toFixed(2)}
                     </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
             
             updateAgentProfitsPagination(startIdx + 1, endIdx, totalAgents);
         }
@@ -14120,9 +14272,13 @@
         document.querySelector('.btn-export-history')?.addEventListener('click', exportHistory);
         
         // Per-page selectors
-        document.getElementById('historyPerPage')?.addEventListener('change', renderHistoryTable);
+        document.getElementById('historyPerPage')?.addEventListener('change', function() {
+            historyCurrentPage = 1; // Reset to first page
+            renderHistoryTable();
+        });
         document.getElementById('tablePerPage')?.addEventListener('change', renderIncomingPayments);
         document.getElementById('ordersPerPage')?.addEventListener('change', function() {
+            ordersCurrentPage = 1; // Reset to first page
             // Re-render orders table with new per page value
             loadOrdersTable(getFilteredOrders());
         });

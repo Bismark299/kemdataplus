@@ -1910,7 +1910,7 @@ const profitPayoutService = {
       });
 
       // Available for withdrawal (PENDING profits minus pending withdrawal requests)
-      const [availableProfits, pendingWithdrawals] = await Promise.all([
+      const [availableProfits, pendingWithdrawals, completedWithdrawals, walletData, orderCount] = await Promise.all([
         prisma.pendingProfit.aggregate({
           where: {
             userId: agent.id,
@@ -1924,12 +1924,34 @@ const profitPayoutService = {
             status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
           },
           _sum: { amount: true }
+        }),
+        // Total successfully withdrawn (completed payouts)
+        prisma.agentPayout.aggregate({
+          where: {
+            userId: agent.id,
+            status: 'COMPLETED'
+          },
+          _sum: { amount: true }
+        }),
+        // Wallet balance
+        prisma.wallet.findUnique({
+          where: { userId: agent.id },
+          select: { balance: true }
+        }),
+        // Total completed orders count
+        prisma.storefrontOrder.count({
+          where: {
+            storefront: { ownerId: agent.id },
+            status: { in: ['COMPLETED', 'PROCESSING'] }
+          }
         })
       ]);
       
       const totalPendingProfits = availableProfits._sum.amount || 0;
       const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
       const availableForWithdrawal = Math.max(0, totalPendingProfits - reservedForWithdrawal);
+      const totalWithdrawn = completedWithdrawals._sum.amount || 0;
+      const walletBalance = walletData?.balance || 0;
 
       return {
         id: agent.id,
@@ -1945,7 +1967,10 @@ const profitPayoutService = {
         thisMonthProfit: monthProfitResult._sum.amount || 0,
         availableForWithdrawal,
         reservedForWithdrawal,
-        totalPendingProfits
+        totalPendingProfits,
+        totalWithdrawn,
+        walletBalance,
+        totalOrders: orderCount
       };
     }));
 
@@ -1965,8 +1990,12 @@ const profitPayoutService = {
     const totals = filtered.reduce((acc, a) => ({
       totalProfit: acc.totalProfit + a.totalProfit,
       thisMonthProfit: acc.thisMonthProfit + a.thisMonthProfit,
-      availableForWithdrawal: acc.availableForWithdrawal + a.availableForWithdrawal
-    }), { totalProfit: 0, thisMonthProfit: 0, availableForWithdrawal: 0 });
+      availableForWithdrawal: acc.availableForWithdrawal + a.availableForWithdrawal,
+      totalWithdrawn: acc.totalWithdrawn + a.totalWithdrawn,
+      reservedForWithdrawal: acc.reservedForWithdrawal + a.reservedForWithdrawal,
+      totalOrders: acc.totalOrders + a.totalOrders,
+      totalWalletBalance: acc.totalWalletBalance + a.walletBalance
+    }), { totalProfit: 0, thisMonthProfit: 0, availableForWithdrawal: 0, totalWithdrawn: 0, reservedForWithdrawal: 0, totalOrders: 0, totalWalletBalance: 0 });
 
     return {
       agents: filtered,
