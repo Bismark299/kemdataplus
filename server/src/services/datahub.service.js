@@ -521,13 +521,36 @@ const datahubService = {
 
     // Update order in database
     // PROCESSING = API accepted the order, waiting for delivery confirmation via auto-sync
-    const newStatus = result.success ? 'PROCESSING' : 'FAILED';
-    console.log(`[DataHub] Updating order status to: ${newStatus}`);
-    console.log(`[DataHub] Storing API reference: ${result.reference}`);
     
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
+    // ============ CRITICAL: INSUFFICIENT BALANCE ERROR HANDLING ============
+    // If placeOrder failed due to insufficient MCBIS balance (edge case after pre-check),
+    // keep order PENDING so it can be automatically retried when balance is topped up.
+    // This handles race conditions where balance changed between pre-check and placeOrder call.
+    
+    const isInsufficientBalanceError = result.error && 
+      (result.error.toLowerCase().includes('insufficient') || 
+       result.error.toLowerCase().includes('balance') || 
+       result.error.toLowerCase().includes('wallet'));
+    
+    let newStatus = result.success ? 'PROCESSING' : 'FAILED';
+    let updateData = {};
+    
+    if (isInsufficientBalanceError) {
+      console.log(`[DataHub] ⚠️ INSUFFICIENT BALANCE detected in placeOrder response`);
+      console.log(`[DataHub] Keeping order PENDING for automatic retry when balance topped up`);
+      newStatus = 'PENDING';
+      // CRITICAL: Do NOT set externalReference or apiSentAt if insufficient balance
+      // This allows retryPendingOrders to pick it up again
+      updateData = {
+        status: newStatus,
+        failureReason: `MCBIS insufficient balance (edge case after pre-check): ${result.error}. Will retry automatically.`,
+        updatedAt: new Date()
+      };
+    } else {
+      // For all other errors (or success), proceed normally
+      console.log(`[DataHub] Updating order status to: ${newStatus}`);
+      console.log(`[DataHub] Storing API reference: ${result.reference}`);
+      updateData = {
         status: newStatus,
         // CRITICAL: Store the MCBIS API reference for status checks
         // This is the reference returned by McbisSolution, NOT our internal ORD-xxx reference
@@ -535,14 +558,19 @@ const datahubService = {
         apiSentAt: new Date(),
         updatedAt: new Date(),
         ...(result.success ? {} : { failureReason: result.error })
-      }
+      };
+    }
+    
+    await prisma.order.update({
+      where: { id: orderId },
+      data: updateData
     });
 
     console.log(`[DataHub] Order updated in database`);
 
     // SYNC: Also update the linked OrderItem with externalReference
-    // This allows the OrderItem sync to track status
-    if (order.reference && result.reference) {
+    // CRITICAL: Only if order was actually sent to MCBIS (not if insufficient balance)
+    if (order.reference && result.reference && result.success) {
       const orderItem = await prisma.orderItem.findFirst({
         where: { reference: { startsWith: order.reference } }
       });
