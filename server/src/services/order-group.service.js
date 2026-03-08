@@ -595,7 +595,8 @@ const orderGroupService = {
             name: true,
             email: true,
             phone: true,
-            role: true
+            role: true,
+            agentCode: true
           }
         },
         items: {

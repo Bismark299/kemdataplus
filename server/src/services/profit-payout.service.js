@@ -364,32 +364,12 @@ const profitPayoutService = {
       throw new Error(`Minimum withdrawal is GH₵${settings.minPayout} (after GH₵${fee.toFixed(2)} fee)`);
     }
 
-    // Check available earnings (total pending minus already-requested withdrawals)
-    const [pendingProfits, pendingWithdrawals] = await Promise.all([
-      prisma.pendingProfit.aggregate({
-        where: { userId, status: 'PENDING' },
-        _sum: { amount: true }
-      }),
-      prisma.agentPayout.aggregate({
-        where: { 
-          userId, 
-          status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
-        },
-        _sum: { amount: true }
-      })
-    ]);
-
-    const totalPending = pendingProfits._sum.amount || 0;
-    const alreadyRequested = pendingWithdrawals._sum.amount || 0;
-    const available = Math.max(0, totalPending - alreadyRequested);
-    
-    console.log('[requestWithdrawal] Available earnings:', { totalPending, alreadyRequested, available });
-    
-    if (amount > available) {
-      throw new Error(`Insufficient earnings. Available: GH₵${available.toFixed(2)}`);
+    // Validate amount
+    if (!amount || typeof amount !== 'number' || amount <= 0 || !isFinite(amount) || amount > 999999) {
+      throw new Error('Invalid withdrawal amount');
     }
 
-    // Save MoMo details to user profile for future use
+    // Save MoMo details to user profile for future use (outside transaction — non-critical)
     if (saveMomoDetails) {
       const networkCode = MOBILE_MONEY_CODES[network] || network.toUpperCase();
       await prisma.user.update({
@@ -403,26 +383,6 @@ const profitPayoutService = {
       console.log('[requestWithdrawal] Saved MoMo details to user profile');
     }
 
-    // Check for existing requests
-    const existingPending = await prisma.agentPayout.findFirst({
-      where: { userId, status: 'PENDING' }
-    });
-    
-    const existingProcessing = await prisma.agentPayout.findFirst({
-      where: { 
-        userId, 
-        status: { in: ['RESERVED', 'PROCESSING'] }
-      }
-    });
-
-    console.log('[requestWithdrawal] Existing PENDING:', existingPending ? existingPending.id : 'none');
-    console.log('[requestWithdrawal] Existing PROCESSING:', existingProcessing ? existingProcessing.id : 'none');
-    
-    // Block if already being processed
-    if (existingProcessing) {
-      throw new Error('You have a withdrawal being processed. Please wait until it completes.');
-    }
-
     // Network display names
     const networkNames = {
       'mtn': 'MTN Mobile Money',
@@ -434,90 +394,167 @@ const profitPayoutService = {
       'ATL': 'AirtelTigo Money'
     };
 
-    // If existing PENDING request, accumulate to it
-    if (existingPending) {
-      const newTotal = existingPending.amount + amount;
-      const newFee = this.calculateFee(newTotal);
-      const newNetAmount = newTotal - newFee;
+    // === ATOMIC TRANSACTION: balance check + payout creation ===
+    // Serializable isolation prevents concurrent withdrawals from reading stale balances
+    const result = await prisma.$transaction(async (tx) => {
+      // Check available earnings INSIDE transaction
+      const [pendingProfits, pendingWithdrawals] = await Promise.all([
+        tx.pendingProfit.aggregate({
+          where: { userId, status: 'PENDING' },
+          _sum: { amount: true }
+        }),
+        tx.agentPayout.aggregate({
+          where: { 
+            userId, 
+            status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
+          },
+          _sum: { amount: true }
+        })
+      ]);
+
+      const totalPending = pendingProfits._sum.amount || 0;
+      const alreadyRequested = pendingWithdrawals._sum.amount || 0;
+      const available = Math.max(0, totalPending - alreadyRequested);
       
-      // Check minimum after fee for the new total
-      if (newNetAmount < settings.minPayout) {
-        throw new Error(`Minimum withdrawal is GH₵${settings.minPayout} (after GH₵${newFee.toFixed(2)} fee)`);
+      console.log('[requestWithdrawal] Available earnings:', { totalPending, alreadyRequested, available });
+      
+      if (amount > available) {
+        throw new Error(`Insufficient earnings. Available: GH₵${available.toFixed(2)}`);
       }
+
+      // Check for existing requests INSIDE transaction
+      const existingPending = await tx.agentPayout.findFirst({
+        where: { userId, status: 'PENDING' }
+      });
       
-      const updatedPayout = await prisma.agentPayout.update({
-        where: { id: existingPending.id },
+      const existingProcessing = await tx.agentPayout.findFirst({
+        where: { 
+          userId, 
+          status: { in: ['RESERVED', 'PROCESSING'] }
+        }
+      });
+
+      console.log('[requestWithdrawal] Existing PENDING:', existingPending ? existingPending.id : 'none');
+      console.log('[requestWithdrawal] Existing PROCESSING:', existingProcessing ? existingProcessing.id : 'none');
+      
+      // Block if already being processed
+      if (existingProcessing) {
+        throw new Error('You have a withdrawal being processed. Please wait until it completes.');
+      }
+
+      // If existing PENDING request, accumulate to it
+      if (existingPending) {
+        const newTotal = existingPending.amount + amount;
+        const newFee = this.calculateFee(newTotal);
+        const newNetAmount = newTotal - newFee;
+        
+        // Check minimum after fee for the new total
+        if (newNetAmount < settings.minPayout) {
+          throw new Error(`Minimum withdrawal is GH₵${settings.minPayout} (after GH₵${newFee.toFixed(2)} fee)`);
+        }
+        
+        const updatedPayout = await tx.agentPayout.update({
+          where: { id: existingPending.id },
+          data: {
+            amount: newTotal,
+            fee: newFee,
+            netAmount: newNetAmount,
+            accountName,
+            accountNumber,
+            bankCode: MOBILE_MONEY_CODES[network] || 'MTN',
+            bankName: networkNames[network] || network,
+            reason: `Profit withdrawal - ${networkNames[network] || network} (accumulated)`
+          }
+        });
+        
+        console.log(`[Payout] Withdrawal accumulated: ${existingPending.reference} - GH₵${existingPending.amount} + GH₵${amount} = GH₵${newTotal}`);
+        
+        return {
+          payout: updatedPayout,
+          accumulated: true,
+          previousAmount: existingPending.amount,
+          reference: existingPending.reference,
+          newTotal,
+          newFee,
+          newNetAmount
+        };
+      }
+
+      // Create new withdrawal request
+      const reference = `WD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      
+      const payout = await tx.agentPayout.create({
         data: {
-          amount: newTotal,
-          fee: newFee,
-          netAmount: newNetAmount,
-          // Update MoMo details to latest submission
+          userId,
+          amount,
+          fee,
+          netAmount,
+          status: 'PENDING',
+          accountType: 'mobile_money',
           accountName,
           accountNumber,
           bankCode: MOBILE_MONEY_CODES[network] || 'MTN',
           bankName: networkNames[network] || network,
-          reason: `Profit withdrawal - ${networkNames[network] || network} (accumulated)`
+          reference,
+          reason: `Profit withdrawal - ${networkNames[network] || network}`
         }
       });
-      
-      console.log(`[Payout] Withdrawal accumulated: ${existingPending.reference} - GH₵${existingPending.amount} + GH₵${amount} = GH₵${newTotal}`);
-      
-      // Audit log for accumulation
-      await auditService.logPayoutAccumulate({
-        userId,
-        payoutId: updatedPayout.id,
-        reference: existingPending.reference,
-        previousAmount: existingPending.amount,
-        previousFee: existingPending.fee,
-        addedAmount: amount,
-        newAmount: newTotal,
-        newFee: newFee
-      });
-      
+
+      console.log(`[Payout] Withdrawal request created: ${reference} - GH₵${amount}`);
+
+      return { payout, accumulated: false, reference };
+    }, {
+      isolationLevel: 'Serializable',
+      timeout: 10000
+    });
+    // === END ATOMIC TRANSACTION ===
+
+    // Audit logging (outside transaction — non-critical)
+    if (result.accumulated) {
+      try {
+        await auditService.logPayoutAccumulate({
+          userId,
+          payoutId: result.payout.id,
+          reference: result.reference,
+          previousAmount: result.previousAmount,
+          previousFee: result.payout.fee,
+          addedAmount: amount,
+          newAmount: result.newTotal,
+          newFee: result.newFee
+        });
+      } catch (auditErr) {
+        console.error('[requestWithdrawal] Audit log failed (non-critical):', auditErr.message);
+      }
+
       return {
         success: true,
-        payout: updatedPayout,
+        payout: result.payout,
         accumulated: true,
-        previousAmount: existingPending.amount,
+        previousAmount: result.previousAmount,
         addedAmount: amount,
-        message: `Added GH₵${amount.toFixed(2)} to your pending request. New total: GH₵${newTotal.toFixed(2)} (receive GH₵${newNetAmount.toFixed(2)} after fee)`
+        message: `Added GH₵${amount.toFixed(2)} to your pending request. New total: GH₵${result.newTotal.toFixed(2)} (receive GH₵${result.newNetAmount.toFixed(2)} after fee)`
       };
     }
 
-    // Create new withdrawal request
-    const reference = `WD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    
-    const payout = await prisma.agentPayout.create({
-      data: {
+    const payout = result.payout;
+    const reference = result.reference;
+
+    // Audit log for new payout (non-critical)
+    try {
+      await auditService.logPayoutRequest({
         userId,
+        payoutId: payout.id,
+        reference,
         amount,
         fee,
         netAmount,
-        status: 'PENDING',
-        accountType: 'mobile_money',
         accountName,
         accountNumber,
-        bankCode: MOBILE_MONEY_CODES[network] || 'MTN',
-        bankName: networkNames[network] || network,
-        reference,
-        reason: `Profit withdrawal - ${networkNames[network] || network}`
-      }
-    });
-
-    console.log(`[Payout] Withdrawal request created: ${reference} - GH₵${amount}`);
-
-    // Audit log for new request
-    await auditService.logPayoutRequest({
-      userId,
-      payoutId: payout.id,
-      reference,
-      amount,
-      fee,
-      netAmount,
-      accountName,
-      accountNumber,
-      network: MOBILE_MONEY_CODES[network] || 'MTN'
-    });
+        network: MOBILE_MONEY_CODES[network] || 'MTN'
+      });
+    } catch (auditErr) {
+      console.error('[requestWithdrawal] Audit log failed (non-critical):', auditErr.message);
+    }
 
     // AUTO-PROCESS: Check Paystack balance and auto-send if sufficient
     try {
@@ -526,9 +563,9 @@ const profitPayoutService = {
         console.log(`[Payout] Auto-processing ${reference}: Paystack balance GH₵${paystackBalance.toFixed(2)} >= net GH₵${netAmount.toFixed(2)}`);
         
         // Auto-process the payout (use system as admin)
-        const result = await this.processSinglePayout(payout, 'SYSTEM_AUTO');
+        const autoResult = await this.processSinglePayout(payout, 'SYSTEM_AUTO');
         
-        if (result.requiresOtp) {
+        if (autoResult.requiresOtp) {
           // OTP required — can't auto-process, leave as PENDING for admin
           console.log(`[Payout] OTP required for ${reference}, leaving as PENDING for admin`);
           return {
@@ -540,7 +577,7 @@ const profitPayoutService = {
         }
         
         // Use actual status from processing result (COMPLETED for instant, PROCESSING otherwise)
-        const finalStatus = result.status || 'PROCESSING';
+        const finalStatus = autoResult.status || 'PROCESSING';
         const statusMessage = finalStatus === 'COMPLETED' 
           ? `Withdrawal of GH₵${netAmount.toFixed(2)} sent successfully!`
           : `Withdrawal of GH₵${amount.toFixed(2)} is being processed. You'll receive GH₵${netAmount.toFixed(2)} shortly.`;

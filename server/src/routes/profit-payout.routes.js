@@ -430,4 +430,181 @@ router.get('/admin/agent-profits', authenticate, authorize('ADMIN'), async (req,
   }
 });
 
+/**
+ * GET /api/profit-payouts/admin/agent-statement/:userId
+ * Bank-statement style view of an agent's storefront profit and withdrawal history.
+ * Each row is either a PROFIT (from completed storefront order) or WITHDRAWAL (agent payout).
+ * Query params: startDate, endDate, page (default 1), limit (default 50)
+ */
+router.get('/admin/agent-statement/:userId', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = Math.max(1, Math.min(parseInt(req.query.page) || 1, 10000));
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 50, 200));
+    const skip = (page - 1) * limit;
+
+    // Validate user exists
+    const agent = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, phone: true, email: true, role: true }
+    });
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    // Build date filter
+    let dateFilter = {};
+    if (req.query.startDate) {
+      dateFilter.gte = new Date(req.query.startDate + 'T00:00:00.000Z');
+    }
+    if (req.query.endDate) {
+      dateFilter.lte = new Date(req.query.endDate + 'T23:59:59.999Z');
+    }
+    const hasDateFilter = Object.keys(dateFilter).length > 0;
+
+    // Get agent's storefronts
+    const agentStorefronts = await prisma.storefront.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true }
+    });
+    const storefrontIds = agentStorefronts.map(s => s.id);
+    const storefrontMap = Object.fromEntries(agentStorefronts.map(s => [s.id, s.name]));
+
+    // 1. Fetch completed storefront orders (profit entries)
+    const profitWhere = {
+      storefrontId: { in: storefrontIds },
+      status: { in: ['COMPLETED', 'PROCESSING'] },
+      ...(hasDateFilter && { createdAt: dateFilter })
+    };
+
+    const storefrontOrders = storefrontIds.length > 0
+      ? await prisma.storefrontOrder.findMany({
+          where: profitWhere,
+          select: {
+            id: true,
+            storefrontId: true,
+            customerPhone: true,
+            customerName: true,
+            amount: true,
+            ownerCost: true,
+            ownerProfit: true,
+            status: true,
+            paymentMethod: true,
+            createdAt: true,
+            bundle: { select: { name: true, network: true, dataAmount: true } }
+          },
+          orderBy: { createdAt: 'asc' }
+        })
+      : [];
+
+    // 2. Fetch agent payouts (withdrawal entries)
+    const payoutWhere = {
+      userId,
+      status: { in: ['PENDING', 'RESERVED', 'PROCESSING', 'COMPLETED', 'FAILED', 'REJECTED'] },
+      ...(hasDateFilter && { createdAt: dateFilter })
+    };
+
+    const payouts = await prisma.agentPayout.findMany({
+      where: payoutWhere,
+      select: {
+        id: true,
+        amount: true,
+        fee: true,
+        netAmount: true,
+        status: true,
+        reference: true,
+        accountNumber: true,
+        accountName: true,
+        manualPayment: true,
+        manualPaymentMethod: true,
+        reason: true,
+        createdAt: true,
+        processedAt: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // 3. Merge into unified statement entries sorted by date
+    const entries = [];
+
+    for (const order of storefrontOrders) {
+      entries.push({
+        type: 'PROFIT',
+        date: order.createdAt,
+        description: `${order.bundle?.network || ''} ${order.bundle?.name || order.bundle?.dataAmount || 'Bundle'} → ${order.customerPhone}`,
+        storeName: storefrontMap[order.storefrontId] || 'Store',
+        customerName: order.customerName || null,
+        credit: order.ownerProfit,
+        debit: 0,
+        saleAmount: order.amount,
+        costPrice: order.ownerCost,
+        paymentMethod: order.paymentMethod || '-',
+        status: order.status,
+        refId: order.id
+      });
+    }
+
+    for (const payout of payouts) {
+      entries.push({
+        type: 'WITHDRAWAL',
+        date: payout.createdAt,
+        description: `Withdrawal → ${payout.accountNumber} (${payout.accountName})`,
+        storeName: null,
+        customerName: null,
+        credit: 0,
+        debit: payout.amount,
+        fee: payout.fee,
+        netAmount: payout.netAmount,
+        paymentMethod: payout.manualPayment ? (payout.manualPaymentMethod || 'Manual') : 'Paystack',
+        status: payout.status,
+        reference: payout.reference,
+        reason: payout.reason || null,
+        refId: payout.id
+      });
+    }
+
+    // Sort all entries by date ascending
+    entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Calculate running balance
+    let runningBalance = 0;
+    for (const entry of entries) {
+      runningBalance += entry.credit - entry.debit;
+      entry.balance = runningBalance;
+    }
+
+    // Totals
+    const totalProfit = entries.reduce((sum, e) => sum + e.credit, 0);
+    const totalWithdrawn = entries.filter(e => e.type === 'WITHDRAWAL' && e.status === 'COMPLETED').reduce((sum, e) => sum + e.debit, 0);
+    const totalPending = entries.filter(e => e.type === 'WITHDRAWAL' && ['PENDING', 'RESERVED', 'PROCESSING'].includes(e.status)).reduce((sum, e) => sum + e.debit, 0);
+    const totalEntries = entries.length;
+
+    // Paginate (after calculating running balance so balances stay correct)
+    // Reverse so newest is first for display
+    const reversed = [...entries].reverse();
+    const paginated = reversed.slice(skip, skip + limit);
+
+    res.json({
+      agent,
+      statement: paginated,
+      summary: {
+        totalProfit,
+        totalWithdrawn,
+        pendingWithdrawals: totalPending,
+        netBalance: runningBalance,
+        totalEntries
+      },
+      pagination: {
+        page,
+        limit,
+        total: totalEntries,
+        pages: Math.ceil(totalEntries / limit)
+      }
+    });
+  } catch (err) {
+    console.error('[AgentStatement] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -170,6 +170,7 @@ model User {
   phone     String?
   role      Role     @default(AGENT)
   isActive  Boolean  @default(true)
+  agentCode String?  @unique           // Unique agent identifier (KDP-XXXX)
   
   // Tenant & Hierarchy
   tenantId         String?

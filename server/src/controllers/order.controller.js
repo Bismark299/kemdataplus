@@ -547,12 +547,12 @@ const orderController = {
         paymentStatus: true,
         createdAt: true,
         bundle: { select: { name: true, network: true, dataAmount: true } },
-        user: { select: { name: true, id: true } }
+        user: { select: { name: true, id: true, agentCode: true } }
       } : undefined;
 
       const includeFields = isCompact ? undefined : {
         bundle: { select: { name: true, network: true, dataAmount: true } },
-        user: { select: { email: true, name: true, id: true, role: true } }
+        user: { select: { email: true, name: true, id: true, role: true, agentCode: true } }
       };
 
       const [orders, total] = await Promise.all([

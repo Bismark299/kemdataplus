@@ -697,7 +697,7 @@
         // Set agent ID badge
         const agentBadge = document.getElementById('agentBadge');
         if (agentBadge && user.id) {
-            agentBadge.textContent = generateAgentCode(user.id);
+            agentBadge.textContent = user.agentCode || generateAgentCode(user.id);
         }
         
         // Set phone number

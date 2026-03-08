@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');
+const { assignAgentCode } = require('../utils/agentCode');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -39,27 +40,47 @@ const authController = {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Create user with wallet
-      const user = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-          phone,
-          wallet: {
-            create: {
-              balance: 0
+      // Create user with wallet, then assign unique agent code
+      const user = await prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            email,
+            password: hashedPassword,
+            name,
+            phone,
+            wallet: {
+              create: {
+                balance: 0
+              }
             }
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            role: true,
+            createdAt: true
           }
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          role: true,
-          createdAt: true
-        }
+        });
+
+        // Generate and assign unique KDP code
+        const agentCode = await assignAgentCode(created.id, tx);
+        const updated = await tx.user.update({
+          where: { id: created.id },
+          data: { agentCode },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            role: true,
+            agentCode: true,
+            createdAt: true
+          }
+        });
+
+        return updated;
       });
 
       const token = generateToken(user.id);
@@ -160,6 +181,7 @@ const authController = {
           email: user.email,
           name: user.name,
           role: user.role,
+          agentCode: user.agentCode,
           balance: user.wallet?.balance || 0
         },
         token // Also return token for backward compatibility
@@ -210,6 +232,7 @@ const authController = {
           phone: true,
           role: true,
           isActive: true,
+          agentCode: true,
           createdAt: true
         }
       });

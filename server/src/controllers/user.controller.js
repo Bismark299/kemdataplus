@@ -14,6 +14,7 @@ const userController = {
           name: true,
           phone: true,
           role: true,
+          agentCode: true,
           createdAt: true,
           wallet: {
             select: { balance: true }
@@ -119,7 +120,8 @@ const userController = {
         where.OR = [
           { name: { contains: search, mode: 'insensitive' } },
           { email: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search } }
+          { phone: { contains: search } },
+          { agentCode: { contains: search, mode: 'insensitive' } }
         ];
       }
 
@@ -135,6 +137,7 @@ const userController = {
             phone: true,
             role: true,
             isActive: true,
+            agentCode: true,
             createdAt: true,
             wallet: {
               select: { 
@@ -208,6 +211,7 @@ const userController = {
           phone: true,
           role: true,
           isActive: true,
+          agentCode: true,
           createdAt: true,
           wallet: {
             select: { balance: true }
