@@ -1753,7 +1753,7 @@ router.get('/sms/status', async (req, res, next) => {
     res.json({
       enabled: isEnabled,
       configured: !!process.env.MNOTIFY_API_KEY,
-      senderId: process.env.MNOTIFY_SENDER_ID || 'KemDataplus',
+      senderId: process.env.MNOTIFY_SENDER_ID || 'KemPlusData',
       balance: balance.success ? {
         sms: balance.balance,
         bonus: balance.bonus

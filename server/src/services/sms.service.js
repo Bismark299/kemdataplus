@@ -7,7 +7,7 @@
  * 
  * Required ENV variables:
  * - MNOTIFY_API_KEY: Your mNotify API key
- * - MNOTIFY_SENDER_ID: Sender ID (max 11 chars, e.g., "KemDataplus")
+ * - MNOTIFY_SENDER_ID: Sender ID (max 11 chars, e.g., "KemPlusData")
  */
 
 const fs = require('fs');
@@ -27,11 +27,14 @@ function getSettings() {
 }
 
 // mNotify API v2.0 Configuration
-const MNOTIFY_CONFIG = {
-  baseUrl: 'https://api.mnotify.com/api',
-  apiKey: process.env.MNOTIFY_API_KEY || '',
-  senderId: process.env.MNOTIFY_SENDER_ID || 'KemDataplus'
-};
+// Read config at call time (not module load time) so dotenv is always loaded
+function getMnotifyConfig() {
+  return {
+    baseUrl: 'https://api.mnotify.com/api',
+    apiKey: process.env.MNOTIFY_API_KEY || '',
+    senderId: process.env.MNOTIFY_SENDER_ID || 'KemPlusData'
+  };
+}
 
 /**
  * Format phone number for mNotify (Ghana format)
@@ -70,8 +73,11 @@ async function sendSMS(phoneNumber, message) {
     return { success: false, reason: 'disabled' };
   }
 
+  // Read config at call time
+  const config = getMnotifyConfig();
+
   // Check API key
-  if (!MNOTIFY_CONFIG.apiKey) {
+  if (!config.apiKey) {
     console.log('[SMS] mNotify API key not configured');
     return { success: false, reason: 'no_api_key' };
   }
@@ -85,11 +91,11 @@ async function sendSMS(phoneNumber, message) {
 
   try {
     // mNotify API v2.0 - POST with JSON body
-    const url = `${MNOTIFY_CONFIG.baseUrl}/sms/quick?key=${MNOTIFY_CONFIG.apiKey}`;
+    const url = `${config.baseUrl}/sms/quick?key=${config.apiKey}`;
     
     const body = {
       recipient: [formattedPhone],
-      sender: MNOTIFY_CONFIG.senderId,
+      sender: config.senderId,
       message: message,
       is_schedule: false,
       schedule_date: ''
@@ -176,16 +182,17 @@ async function sendProfitCreditedSMS(agentPhone, agentName, amount, orderId) {
  * Get mNotify account balance (API v2.0)
  */
 async function getBalance() {
-  if (!MNOTIFY_CONFIG.apiKey) {
+  const config = getMnotifyConfig();
+  if (!config.apiKey) {
     return { success: false, reason: 'no_api_key' };
   }
 
   try {
     // mNotify API v2.0 balance endpoint
-    const url = `${MNOTIFY_CONFIG.baseUrl}/balance/sms?key=${MNOTIFY_CONFIG.apiKey}`;
+    const url = `${config.baseUrl}/balance/sms?key=${config.apiKey}`;
     
     console.log('[SMS] Fetching balance from mNotify v2...');
-    console.log('[SMS] URL:', url.replace(MNOTIFY_CONFIG.apiKey, 'API_KEY_HIDDEN'));
+    console.log('[SMS] URL:', url.replace(config.apiKey, 'API_KEY_HIDDEN'));
     
     const response = await fetch(url, {
       method: 'GET',
@@ -244,7 +251,7 @@ async function getBalance() {
  */
 function isEnabled() {
   const settings = getSettings();
-  return settings.adminSettings?.smsNotify && !!MNOTIFY_CONFIG.apiKey;
+  return settings.adminSettings?.smsNotify && !!getMnotifyConfig().apiKey;
 }
 
 module.exports = {
