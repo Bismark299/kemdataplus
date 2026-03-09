@@ -1945,7 +1945,7 @@ const profitPayoutService = {
       }) : { _sum: { ownerProfit: null } };
 
       // Withdrawal totals and wallet balance
-      const [pendingWithdrawals, completedWithdrawals, walletData, orderCount] = await Promise.all([
+      const [pendingWithdrawals, completedWithdrawals, walletData, orderCount, adjustmentSum] = await Promise.all([
         prisma.agentPayout.aggregate({
           where: {
             userId: agent.id,
@@ -1972,15 +1972,21 @@ const profitPayoutService = {
             storefront: { ownerId: agent.id },
             status: { in: ['COMPLETED', 'PROCESSING'] }
           }
+        }),
+        // Admin profit adjustments total
+        prisma.adminProfitAdjustment.aggregate({
+          where: { userId: agent.id },
+          _sum: { amount: true }
         })
       ]);
       
       const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
       const totalWithdrawn = completedWithdrawals._sum.amount || 0;
       const allTimeProfit = totalProfitResult._sum.ownerProfit || 0;
-      // Available is DERIVED: totalProfit - withdrawn - pendingWD
-      // This guarantees: totalProfit = withdrawn + pending + available (always)
-      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn - reservedForWithdrawal);
+      const adminAdjustment = adjustmentSum._sum.amount || 0;
+      // Available is DERIVED: totalProfit - withdrawn - pendingWD + adminAdjustment
+      // This guarantees: totalProfit + adjustment = withdrawn + pending + available (always)
+      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn - reservedForWithdrawal + adminAdjustment);
       const walletBalance = walletData?.balance || 0;
 
       return {
@@ -1998,6 +2004,7 @@ const profitPayoutService = {
         availableForWithdrawal,
         reservedForWithdrawal,
         totalWithdrawn,
+        adminAdjustment,
         walletBalance,
         totalOrders: orderCount
       };

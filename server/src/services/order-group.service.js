@@ -190,7 +190,7 @@ const orderGroupService = {
 
       const unitPrice = rolePrice?.price || bundle.basePrice;
       const quantity = item.quantity || 1;
-      const itemTotal = unitPrice * quantity;
+      const itemTotal = Number((unitPrice * quantity).toFixed(2));
 
       validatedItems.push({
         bundleId: bundle.id,
@@ -206,6 +206,9 @@ const orderGroupService = {
 
       grandTotal += itemTotal;
     }
+
+    // Round final grandTotal to avoid floating point accumulation
+    grandTotal = Number(grandTotal.toFixed(2));
 
     console.log(`[OrderGroup] Validated ${validatedItems.length} items, Total: ${grandTotal}`);
 
@@ -225,9 +228,17 @@ const orderGroupService = {
         where: { userId }
       });
 
+      if (!wallet) {
+        throw new Error('WALLET_NOT_FOUND');
+      }
+
+      if (wallet.isFrozen) {
+        throw new Error('WALLET_FROZEN');
+      }
+
       // Round both values to 2 decimal places to avoid floating point precision issues
       // e.g., 4.1999999999 should be treated as 4.20
-      const availableBalance = Math.round((wallet?.balance || 0) * 100) / 100;
+      const availableBalance = Math.round((wallet.balance || 0) * 100) / 100;
       const requiredAmount = Math.round(grandTotal * 100) / 100;
       
       if (!wallet || availableBalance < requiredAmount) {

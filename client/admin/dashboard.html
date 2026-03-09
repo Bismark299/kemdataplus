@@ -5936,6 +5936,41 @@
             </div>
         </div>
 
+        <!-- ========== ADJUST PROFIT MODAL ========== -->
+        <div class="statement-modal-overlay" id="adjustModalOverlay" style="display:none;">
+            <div class="statement-modal" style="max-width: 500px;">
+                <div class="statement-header">
+                    <div class="statement-header-info">
+                        <h3><i class="fas fa-sliders-h" style="color: #7c3aed; margin-right: 8px;"></i> Profit Adjustment</h3>
+                        <p id="adjustAgentInfo">Loading...</p>
+                    </div>
+                    <button class="statement-close-btn" onclick="closeAdjustModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div style="padding: 20px;">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Amount (GH₵)</label>
+                        <input type="number" step="0.01" id="adjustAmount" placeholder="e.g. 5.00 or -3.50" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem;">
+                        <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Positive = add to available, Negative = deduct from available</p>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Note (optional)</label>
+                        <input type="text" id="adjustNote" placeholder="Reason for adjustment" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem;">
+                    </div>
+                    <button onclick="submitProfitAdjustment()" style="width: 100%; padding: 12px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">
+                        <i class="fas fa-check"></i> Submit Adjustment
+                    </button>
+                    <div id="adjustHistorySection" style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                        <h4 style="font-size: 0.85rem; color: #64748b; margin-bottom: 10px;"><i class="fas fa-history"></i> Adjustment History</h4>
+                        <div id="adjustHistoryList" style="max-height: 200px; overflow-y: auto; font-size: 0.82rem;">
+                            <p style="color: #94a3b8; text-align: center;">No adjustments yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== HISTORY SECTION ========== -->
         <div class="history-section" id="historySection">
             <!-- History Section Header -->
@@ -12779,6 +12814,9 @@
                         <button onclick="openAgentStatement('${safeId}', '${safeName}')" style="padding: 5px 10px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; white-space: nowrap;" title="View bank statement">
                             <i class="fas fa-file-invoice-dollar"></i> Statement
                         </button>
+                        <button onclick="openAdjustModal('${safeId}', '${safeName}')" style="padding: 5px 10px; background: #7c3aed; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; white-space: nowrap; margin-top: 4px;" title="Adjust profit">
+                            <i class="fas fa-sliders-h"></i> Adjust
+                        </button>
                     </td>
                 </tr>
                 `;
@@ -12982,6 +13020,88 @@
             </body></html>`);
             w.document.close();
             setTimeout(() => { w.print(); }, 400);
+        }
+
+        // ========== PROFIT ADJUSTMENT MODAL ==========
+        let currentAdjustUserId = null;
+        let currentAdjustAgentName = '';
+
+        function openAdjustModal(userId, agentName) {
+            currentAdjustUserId = userId;
+            currentAdjustAgentName = agentName;
+            document.getElementById('adjustAgentInfo').textContent = agentName;
+            document.getElementById('adjustAmount').value = '';
+            document.getElementById('adjustNote').value = '';
+            const overlay = document.getElementById('adjustModalOverlay');
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('active'), 10);
+            loadAdjustmentHistory(userId);
+        }
+
+        function closeAdjustModal() {
+            const overlay = document.getElementById('adjustModalOverlay');
+            overlay.classList.remove('active');
+            setTimeout(() => { overlay.style.display = 'none'; }, 200);
+            currentAdjustUserId = null;
+        }
+
+        document.getElementById('adjustModalOverlay')?.addEventListener('click', function(e) {
+            if (e.target === this) closeAdjustModal();
+        });
+
+        async function loadAdjustmentHistory(userId) {
+            const list = document.getElementById('adjustHistoryList');
+            list.innerHTML = '<p style="color: #94a3b8; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+            try {
+                const res = await adminFetch(`/api/profit-payouts/admin/agent-adjustments/${userId}`);
+                if (!res.ok) throw new Error('Failed to load');
+                const data = await res.json();
+                if (!data.adjustments || data.adjustments.length === 0) {
+                    list.innerHTML = '<p style="color: #94a3b8; text-align: center;">No adjustments yet</p>';
+                    return;
+                }
+                list.innerHTML = data.adjustments.map(a => {
+                    const isPositive = a.amount > 0;
+                    const color = isPositive ? '#10b981' : '#ef4444';
+                    const sign = isPositive ? '+' : '';
+                    const dateStr = new Date(a.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+                        <div>
+                            <span style="color: ${color}; font-weight: 600;">${sign}GH₵ ${Math.abs(a.amount).toFixed(2)}</span>
+                            ${a.note ? `<span style="color: #94a3b8; margin-left: 8px;">— ${a.note}</span>` : ''}
+                        </div>
+                        <div style="color: #94a3b8; font-size: 0.75rem; white-space: nowrap;">${dateStr}<br>by ${a.createdBy || 'Admin'}</div>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                list.innerHTML = '<p style="color: #ef4444; text-align: center;">Failed to load history</p>';
+            }
+        }
+
+        async function submitProfitAdjustment() {
+            if (!currentAdjustUserId) return;
+            const amount = parseFloat(document.getElementById('adjustAmount').value);
+            const note = document.getElementById('adjustNote').value.trim();
+            if (isNaN(amount) || amount === 0) {
+                showAdminToast('Enter a non-zero amount', 'error');
+                return;
+            }
+            try {
+                const res = await adminFetch('/api/profit-payouts/admin/agent-adjustment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentAdjustUserId, amount, note })
+                });
+                if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+                showAdminToast(`Adjustment of GH₵ ${amount.toFixed(2)} applied to ${currentAdjustAgentName}`, 'success');
+                document.getElementById('adjustAmount').value = '';
+                document.getElementById('adjustNote').value = '';
+                loadAdjustmentHistory(currentAdjustUserId);
+                // Refresh the profits table to reflect the new available amount
+                loadAgentProfits();
+            } catch (err) {
+                showAdminToast(err.message, 'error');
+            }
         }
 
         // ========== REPORTS SECTION ==========

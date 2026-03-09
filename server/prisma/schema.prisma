@@ -228,6 +228,9 @@ model User {
   
   // Pending profit relations
   pendingProfits       PendingProfit[]
+  
+  // Admin profit adjustments
+  profitAdjustments    AdminProfitAdjustment[]
 
   @@index([tenantId])
   @@index([parentUserId])
@@ -1372,4 +1375,23 @@ model PayoutBatch {
   @@index([processedAt])
   @@index([bulkTransferCode])
   @@map("payout_batches")
+}
+
+// ============================================
+// ADMIN PROFIT ADJUSTMENT
+// ============================================
+
+model AdminProfitAdjustment {
+  id         String   @id @default(uuid())
+  userId     String
+  amount     Float
+  note       String?
+  createdBy  String?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("admin_profit_adjustments")
 }

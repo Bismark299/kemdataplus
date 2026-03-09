@@ -431,6 +431,54 @@ router.get('/admin/agent-profits', authenticate, authorize('ADMIN'), async (req,
 });
 
 /**
+ * POST /api/profit-payouts/admin/agent-adjustment
+ * Create an admin profit adjustment (positive or negative) for an agent
+ */
+router.post('/admin/agent-adjustment', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const { userId, amount, note } = req.body;
+    if (!userId || amount === undefined || amount === null) {
+      return res.status(400).json({ error: 'userId and amount are required' });
+    }
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount === 0) {
+      return res.status(400).json({ error: 'amount must be a non-zero number' });
+    }
+    // Verify user exists
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const adjustment = await prisma.adminProfitAdjustment.create({
+      data: {
+        userId,
+        amount: numAmount,
+        note: note || null,
+        createdBy: req.user.name || req.user.email || req.user.id
+      }
+    });
+    res.json({ success: true, adjustment });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/profit-payouts/admin/agent-adjustments/:userId
+ * Get all profit adjustments for a specific agent
+ */
+router.get('/admin/agent-adjustments/:userId', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const adjustments = await prisma.adminProfitAdjustment.findMany({
+      where: { userId: req.params.userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ adjustments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /api/profit-payouts/admin/agent-statement/:userId
  * Bank-statement style view of an agent's storefront profit and withdrawal history.
  * Each row is either a PROFIT (from completed storefront order) or WITHDRAWAL (agent payout).
@@ -584,13 +632,20 @@ router.get('/admin/agent-statement/:userId', authenticate, authorize('ADMIN'), a
     const totalPending = entries.filter(e => e.type === 'WITHDRAWAL' && ['PENDING', 'RESERVED', 'PROCESSING'].includes(e.status)).reduce((sum, e) => sum + e.debit, 0);
     const totalEntries = entries.length;
 
+    // Get admin adjustments total for this agent
+    const adjSum = await prisma.adminProfitAdjustment.aggregate({
+      where: { userId },
+      _sum: { amount: true }
+    });
+    const adminAdjustment = adjSum._sum.amount || 0;
+
     // Paginate (after calculating running balance so balances stay correct)
     // Reverse so newest is first for display
     const reversed = [...entries].reverse();
     const paginated = reversed.slice(skip, skip + limit);
 
-    // netBalance derived: totalProfit - withdrawn - pending = available for withdrawal
-    const netBalance = totalProfit - totalWithdrawn - totalPending;
+    // netBalance derived: totalProfit - withdrawn - pending + adjustment = available for withdrawal
+    const netBalance = totalProfit - totalWithdrawn - totalPending + adminAdjustment;
 
     res.json({
       agent,
@@ -599,6 +654,7 @@ router.get('/admin/agent-statement/:userId', authenticate, authorize('ADMIN'), a
         totalProfit,
         totalWithdrawn,
         pendingWithdrawals: totalPending,
+        adminAdjustment,
         netBalance: Math.max(0, netBalance),
         totalEntries
       },

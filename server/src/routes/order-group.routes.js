@@ -156,6 +156,20 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
+    if (error.message === 'WALLET_NOT_FOUND') {
+      return res.status(400).json({
+        error: 'Wallet not found. Please contact support.',
+        code: 'WALLET_NOT_FOUND'
+      });
+    }
+
+    if (error.message === 'WALLET_FROZEN') {
+      return res.status(403).json({
+        error: 'Your wallet is frozen. Please contact support.',
+        code: 'WALLET_FROZEN'
+      });
+    }
+
     if (error.message.includes('not found')) {
       return res.status(404).json({
         error: error.message,
