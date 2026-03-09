@@ -567,8 +567,13 @@ router.get('/admin/agent-statement/:userId', authenticate, authorize('ADMIN'), a
     entries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     // Calculate running balance
+    // FAILED/REJECTED withdrawals should NOT affect balance (money was never sent)
     let runningBalance = 0;
     for (const entry of entries) {
+      if (entry.type === 'WITHDRAWAL' && ['FAILED', 'REJECTED'].includes(entry.status)) {
+        // Show the entry but with zero impact on balance
+        entry.debit = 0;
+      }
       runningBalance += entry.credit - entry.debit;
       entry.balance = runningBalance;
     }
@@ -584,6 +589,9 @@ router.get('/admin/agent-statement/:userId', authenticate, authorize('ADMIN'), a
     const reversed = [...entries].reverse();
     const paginated = reversed.slice(skip, skip + limit);
 
+    // netBalance derived: totalProfit - withdrawn - pending = available for withdrawal
+    const netBalance = totalProfit - totalWithdrawn - totalPending;
+
     res.json({
       agent,
       statement: paginated,
@@ -591,7 +599,7 @@ router.get('/admin/agent-statement/:userId', authenticate, authorize('ADMIN'), a
         totalProfit,
         totalWithdrawn,
         pendingWithdrawals: totalPending,
-        netBalance: runningBalance,
+        netBalance: Math.max(0, netBalance),
         totalEntries
       },
       pagination: {

@@ -651,41 +651,48 @@ const profitPayoutService = {
    * Get admin stats
    */
   async getAdminStats() {
-    const [pendingProfits, pendingWithdrawals, completedWithdrawals] = await Promise.all([
+    // Today's date range (UTC)
+    const now = new Date();
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
+    const [pendingProfits, todayProfits, completedWithdrawals, usersWithProfits] = await Promise.all([
       prisma.pendingProfit.aggregate({
         where: { status: 'PENDING' },
         _sum: { amount: true },
         _count: true
       }),
-      prisma.agentPayout.aggregate({
-        where: { status: 'PENDING' },
-        _sum: { amount: true },
+      // Today's earned profits from storefront orders
+      prisma.storefrontOrder.aggregate({
+        where: {
+          status: { in: ['COMPLETED', 'PROCESSING'] },
+          createdAt: { gte: todayStart, lte: todayEnd }
+        },
+        _sum: { ownerProfit: true },
         _count: true
       }),
       prisma.agentPayout.aggregate({
         where: { status: 'COMPLETED' },
         _sum: { amount: true },
         _count: true
+      }),
+      prisma.pendingProfit.groupBy({
+        by: ['userId'],
+        where: { status: 'PENDING' }
       })
     ]);
 
-    // Count users with pending profits
-    const usersWithProfits = await prisma.pendingProfit.groupBy({
-      by: ['userId'],
-      where: { status: 'PENDING' }
-    });
-
     return {
-      uncreditedProfits: {
+      pending: {
         amount: pendingProfits._sum.amount || 0,
         count: pendingProfits._count || 0,
         userCount: usersWithProfits.length
       },
-      pendingWithdrawals: {
-        amount: pendingWithdrawals._sum.amount || 0,
-        count: pendingWithdrawals._count || 0
+      today: {
+        amount: todayProfits._sum.ownerProfit || 0,
+        count: todayProfits._count || 0
       },
-      completedWithdrawals: {
+      totalPaid: {
         amount: completedWithdrawals._sum.amount || 0,
         count: completedWithdrawals._count || 0
       }
@@ -1893,68 +1900,52 @@ const profitPayoutService = {
 
     // Get profit data for all agents
     const results = await Promise.all(agents.map(async (agent) => {
+      // Get agent's storefront IDs (needed for all profit queries)
+      const sfIds = (await prisma.storefront.findMany({
+        where: { ownerId: agent.id },
+        select: { id: true }
+      })).map(s => s.id);
+
       // When date filter is applied, filter by the associated order's createdAt date
-      // This shows profit earned on specific days based on order date
       let filteredProfitResult = { _sum: { amount: null } };
       
-      if (hasDateFilter) {
-        // First get the agent's storefront IDs
-        const agentStorefronts = await prisma.storefront.findMany({
-          where: { ownerId: agent.id },
-          select: { id: true }
+      if (hasDateFilter && sfIds.length > 0) {
+        const orderProfitResult = await prisma.storefrontOrder.aggregate({
+          where: {
+            storefrontId: { in: sfIds },
+            status: { in: ['COMPLETED', 'PROCESSING'] },
+            createdAt: {
+              ...(dateFilterStart && { gte: dateFilterStart }),
+              ...(dateFilterEnd && { lte: dateFilterEnd })
+            }
+          },
+          _sum: { ownerProfit: true }
         });
-        
-        const storefrontIds = agentStorefronts.map(s => s.id);
-        console.log(`[AgentProfits] Agent ${agent.name}: ${storefrontIds.length} storefronts`);
-        
-        if (storefrontIds.length > 0) {
-          // Sum ownerProfit directly from StorefrontOrder for the date range
-          // This is the actual profit earned on orders placed in that period
-          const orderProfitResult = await prisma.storefrontOrder.aggregate({
-            where: {
-              storefrontId: { in: storefrontIds },
-              status: { in: ['COMPLETED', 'PROCESSING'] }, // Successful orders only
-              createdAt: {
-                ...(dateFilterStart && { gte: dateFilterStart }),
-                ...(dateFilterEnd && { lte: dateFilterEnd })
-              }
-            },
-            _sum: { ownerProfit: true }
-          });
-          
-          console.log(`[AgentProfits] Agent ${agent.name}: Orders profit in range = ${orderProfitResult._sum.ownerProfit}`);
-          filteredProfitResult = { _sum: { amount: orderProfitResult._sum.ownerProfit } };
-        }
+        filteredProfitResult = { _sum: { amount: orderProfitResult._sum.ownerProfit } };
       }
-      
-      // Total profit (all-time PAID profits - no date filter)
-      const totalProfitResult = await prisma.pendingProfit.aggregate({
-        where: {
-          userId: agent.id,
-          status: 'PAID'
-        },
-        _sum: { amount: true }
-      });
 
-      // This month's profit (PAID, based on profit record's createdAt)
-      const monthProfitResult = await prisma.pendingProfit.aggregate({
+      // Total profit (all-time) from StorefrontOrder - the true source of truth
+      // PendingProfit amounts get mutated by partial withdrawals, so we use orders instead
+      const totalProfitResult = sfIds.length > 0 ? await prisma.storefrontOrder.aggregate({
         where: {
-          userId: agent.id,
-          status: 'PAID',
+          storefrontId: { in: sfIds },
+          status: { in: ['COMPLETED', 'PROCESSING'] }
+        },
+        _sum: { ownerProfit: true }
+      }) : { _sum: { ownerProfit: null } };
+
+      // This month's profit from StorefrontOrder
+      const monthProfitResult = sfIds.length > 0 ? await prisma.storefrontOrder.aggregate({
+        where: {
+          storefrontId: { in: sfIds },
+          status: { in: ['COMPLETED', 'PROCESSING'] },
           createdAt: { gte: monthStart, lte: monthEnd }
         },
-        _sum: { amount: true }
-      });
+        _sum: { ownerProfit: true }
+      }) : { _sum: { ownerProfit: null } };
 
-      // Available for withdrawal (PENDING profits minus pending withdrawal requests)
-      const [availableProfits, pendingWithdrawals, completedWithdrawals, walletData, orderCount] = await Promise.all([
-        prisma.pendingProfit.aggregate({
-          where: {
-            userId: agent.id,
-            status: 'PENDING'
-          },
-          _sum: { amount: true }
-        }),
+      // Withdrawal totals and wallet balance
+      const [pendingWithdrawals, completedWithdrawals, walletData, orderCount] = await Promise.all([
         prisma.agentPayout.aggregate({
           where: {
             userId: agent.id,
@@ -1984,10 +1975,12 @@ const profitPayoutService = {
         })
       ]);
       
-      const totalPendingProfits = availableProfits._sum.amount || 0;
       const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
-      const availableForWithdrawal = Math.max(0, totalPendingProfits - reservedForWithdrawal);
       const totalWithdrawn = completedWithdrawals._sum.amount || 0;
+      const allTimeProfit = totalProfitResult._sum.ownerProfit || 0;
+      // Available is DERIVED: totalProfit - withdrawn - pendingWD
+      // This guarantees: totalProfit = withdrawn + pending + available (always)
+      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn - reservedForWithdrawal);
       const walletBalance = walletData?.balance || 0;
 
       return {
@@ -1996,15 +1989,14 @@ const profitPayoutService = {
         phone: agent.phone,
         email: agent.email,
         role: agent.role,
-        // When filtering by date, show filtered profit; otherwise show all-time total
+        // When filtering by date, show filtered profit; otherwise show all-time total from orders
         totalProfit: hasDateFilter 
           ? (filteredProfitResult._sum.amount || 0)
-          : (totalProfitResult._sum.amount || 0),
-        allTimeProfit: totalProfitResult._sum.amount || 0,
-        thisMonthProfit: monthProfitResult._sum.amount || 0,
+          : (totalProfitResult._sum.ownerProfit || 0),
+        allTimeProfit: allTimeProfit,
+        thisMonthProfit: monthProfitResult._sum.ownerProfit || 0,
         availableForWithdrawal,
         reservedForWithdrawal,
-        totalPendingProfits,
         totalWithdrawn,
         walletBalance,
         totalOrders: orderCount
