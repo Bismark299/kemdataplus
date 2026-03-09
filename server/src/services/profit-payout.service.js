@@ -905,9 +905,10 @@ const profitPayoutService = {
       }
       
       // Build transfers array for Paystack bulk endpoint
+      // Use unique reference per attempt to avoid Paystack duplicate rejection
       const transfers = currentBatch.map(payout => ({
         amount: Math.round(payout.netAmount * 100), // Convert to pesewas
-        reference: payout.reference,
+        reference: `${payout.reference}-${Date.now()}`,
         reason: `Profit withdrawal - ${payout.reference}`,
         recipient: payout.recipientCode
       }));
@@ -1001,12 +1002,15 @@ const profitPayoutService = {
     // Amount to transfer is the net amount (after fee)
     const amountInPesewas = Math.round(payout.netAmount * 100);
     
+    // Generate unique transfer reference per attempt to avoid Paystack duplicate rejection
+    const transferRef = `${payout.reference}-${Date.now()}`;
+    
     const transferData = {
       source: 'balance',
       amount: amountInPesewas,
       recipient: payout.recipientCode,
       reason: `Profit withdrawal - ${payout.reference}`,
-      reference: payout.reference
+      reference: transferRef
     };
 
     const transferResponse = await paystackRequest('/transfer', 'POST', transferData);
@@ -1051,12 +1055,14 @@ const profitPayoutService = {
 
       // Initiate transfer (net amount - after fee)
       const amountInPesewas = Math.round(payout.netAmount * 100);
+      // Generate unique transfer reference per attempt to avoid Paystack duplicate rejection
+      const transferRef = `${payout.reference}-${Date.now()}`;
       const transferData = {
         source: 'balance',
         amount: amountInPesewas,
         recipient: recipientCode,
         reason: `Profit withdrawal - ${payout.reference}`,
-        reference: payout.reference
+        reference: transferRef
       };
 
       const transferResponse = await paystackRequest('/transfer', 'POST', transferData);
