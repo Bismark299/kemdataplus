@@ -906,9 +906,10 @@ const profitPayoutService = {
       
       // Build transfers array for Paystack bulk endpoint
       // Use unique reference per attempt to avoid Paystack duplicate rejection
-      const transfers = currentBatch.map(payout => ({
+      const batchTimestamp = Date.now();
+      const transfers = currentBatch.map((payout, idx) => ({
         amount: Math.round(payout.netAmount * 100), // Convert to pesewas
-        reference: `${payout.reference}-${Date.now()}`,
+        reference: `${payout.reference}-${batchTimestamp}-${idx}`,
         reason: `Profit withdrawal - ${payout.reference}`,
         recipient: payout.recipientCode
       }));
@@ -936,7 +937,7 @@ const profitPayoutService = {
               data: {
                 status: 'PROCESSING',
                 transferCode: transferResult.transfer_code,
-                paystackReference: transferResult.reference || payout.reference,
+                paystackReference: transferResult.reference || transfers[i]?.reference || payout.reference,
                 processedAt: new Date()
               }
             });
@@ -1016,7 +1017,7 @@ const profitPayoutService = {
     const transferResponse = await paystackRequest('/transfer', 'POST', transferData);
     
     const transferCode = transferResponse.data?.transfer_code;
-    const paystackReference = transferResponse.data?.reference;
+    const paystackReference = transferResponse.data?.reference || transferRef;
     const transferStatus = transferResponse.data?.status;
 
     // Update payout status to PROCESSING
@@ -1120,7 +1121,7 @@ const profitPayoutService = {
             processedAt: new Date(),
             reviewedBy: adminId,
             transferCode: transferResponse.data?.transfer_code,
-            paystackReference: transferResponse.data?.reference,
+            paystackReference: transferResponse.data?.reference || transferRef,
             recipientCode
           }
         }),

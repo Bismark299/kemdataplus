@@ -765,6 +765,17 @@ router.put('/admin/item/:itemId/status', authenticate, authorize('ADMIN'), async
               data: { status }
             });
             console.log(`[Admin] Synced StorefrontOrder ${order.storefrontOrderId} to ${status}`);
+            
+            // Credit profit when manually completing
+            if (status === 'COMPLETED') {
+              try {
+                const financialOrderService = require('../services/financial-order.service');
+                const profitResult = await financialOrderService.creditAgentProfit(order.storefrontOrderId);
+                console.log(`[Admin] Status update profit credit:`, profitResult);
+              } catch (profitErr) {
+                console.error(`[Admin] Status update profit credit failed:`, profitErr.message);
+              }
+            }
           }
         }
       }
@@ -864,6 +875,7 @@ router.post('/admin/item/:itemId/complete', authenticate, authorize('ADMIN'), as
     
     // Handle LEGACY ORDER completion
     if (isLegacyOrder) {
+      const prevStatus = legacyOrder.status;
       await prisma.order.update({
         where: { id: itemId },
         data: { 
@@ -871,6 +883,21 @@ router.post('/admin/item/:itemId/complete', authenticate, authorize('ADMIN'), as
           processedAt: new Date()
         }
       });
+      
+      // Credit storefront profit if completing for the first time
+      if (prevStatus !== 'COMPLETED') {
+        try {
+          const storefrontOrder = await prisma.storefrontOrder.findFirst({ where: { orderId: itemId } });
+          if (storefrontOrder) {
+            await prisma.storefrontOrder.update({ where: { id: storefrontOrder.id }, data: { status: 'COMPLETED' } });
+            const financialOrderService = require('../services/financial-order.service');
+            const profitResult = await financialOrderService.creditAgentProfit(storefrontOrder.id);
+            console.log(`[Admin] Legacy order profit credit:`, profitResult);
+          }
+        } catch (profitErr) {
+          console.error(`[Admin] Legacy order profit credit failed:`, profitErr.message);
+        }
+      }
       
       console.log(`[Admin] Completed legacy order ${itemId}`);
       
@@ -911,6 +938,22 @@ router.post('/admin/item/:itemId/complete', authenticate, authorize('ADMIN'), as
     });
     
     console.log(`[Admin] Completed item ${itemId}`);
+    
+    // Credit storefront profit for the completed item
+    try {
+      const orderRef = item.reference?.replace(/-\d+$/, '');
+      if (orderRef) {
+        const order = await prisma.order.findFirst({ where: { reference: orderRef } });
+        if (order?.storefrontOrderId) {
+          await prisma.storefrontOrder.update({ where: { id: order.storefrontOrderId }, data: { status: 'COMPLETED' } });
+          const financialOrderService = require('../services/financial-order.service');
+          const profitResult = await financialOrderService.creditAgentProfit(order.storefrontOrderId);
+          console.log(`[Admin] Item complete profit credit:`, profitResult);
+        }
+      }
+    } catch (profitErr) {
+      console.error(`[Admin] Item complete profit credit failed:`, profitErr.message);
+    }
     
     res.json({
       success: true,
@@ -1188,11 +1231,44 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
     
     const totalCompleted = orderItemsResult.count + legacyOrdersResult.count;
     
+    // Credit profits for all newly completed storefront orders
+    let profitsCredited = 0;
+    try {
+      const financialOrderService = require('../services/financial-order.service');
+      // Find storefront orders linked to the just-completed orders
+      const completedOrders = await prisma.order.findMany({
+        where: {
+          status: 'COMPLETED',
+          storefrontOrderId: { not: null },
+          ...dateCondition
+        },
+        select: { storefrontOrderId: true }
+      });
+      for (const order of completedOrders) {
+        try {
+          // Sync storefront order status
+          await prisma.storefrontOrder.update({
+            where: { id: order.storefrontOrderId },
+            data: { status: 'COMPLETED' }
+          });
+          const result = await financialOrderService.creditAgentProfit(order.storefrontOrderId);
+          if (result.credited) profitsCredited++;
+        } catch (e) {
+          // creditAgentProfit handles duplicates, just log
+          console.error(`[Admin] Bulk profit credit failed for ${order.storefrontOrderId}:`, e.message);
+        }
+      }
+      console.log(`[Admin] Credited profits for ${profitsCredited} orders`);
+    } catch (profitErr) {
+      console.error(`[Admin] Bulk profit credit error:`, profitErr.message);
+    }
+    
     console.log(`[Admin] Completed ${totalCompleted} processing orders (${orderItemsResult.count} items, ${legacyOrdersResult.count} legacy)${date ? ` for ${date}` : ''}`);
     
     res.json({
       success: true,
       message: `${totalCompleted} order(s) marked as completed${date ? ` for ${date}` : ''}`,
+      profitsCredited,
       count: totalCompleted,
       orderItems: orderItemsResult.count,
       legacyOrders: legacyOrdersResult.count,
