@@ -7316,11 +7316,12 @@
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Payment Ref</th>
                                     <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Status</th>
                                     <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; font-size: 0.85rem;">Profit</th>
+                                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; font-size: 0.85rem;">Profit Amt</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 0.85rem;">Date</th>
                                 </tr>
                             </thead>
                             <tbody id="storefrontOrdersTableBody">
-                                <tr><td colspan="10" style="padding: 40px; text-align: center; color: #6b7280;">Loading orders...</td></tr>
+                                <tr><td colspan="11" style="padding: 40px; text-align: center; color: #6b7280;">Loading orders...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -15070,7 +15071,7 @@
             } catch (err) {
                 console.error('Failed to load storefront orders:', err);
                 document.getElementById('storefrontOrdersTableBody').innerHTML = 
-                    `<tr><td colspan="9" style="padding: 40px; text-align: center; color: #ef4444;">Failed to load orders: ${err.message}</td></tr>`;
+                    `<tr><td colspan="11" style="padding: 40px; text-align: center; color: #ef4444;">Failed to load orders: ${err.message}</td></tr>`;
             }
         }
 
@@ -15078,7 +15079,7 @@
             const tbody = document.getElementById('storefrontOrdersTableBody');
             
             if (!storefrontsData.orders || storefrontsData.orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #6b7280;">No orders found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #6b7280;">No orders found</td></tr>';
                 return;
             }
             
@@ -15125,6 +15126,9 @@
                         ${order.profitCredited 
                             ? '<span style="background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;"><i class="fas fa-check"></i> Credited</span>'
                             : '<span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem;"><i class="fas fa-clock"></i> Pending</span>'}
+                    </td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; color: #10b981; font-size: 0.85rem;">
+                        GH₵ ${(order.ownerProfit || 0).toFixed(2)}
                     </td>
                     <td style="padding: 12px; font-size: 0.75rem; color: #6b7280;">
                         ${new Date(order.createdAt).toLocaleString()}
