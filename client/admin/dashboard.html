@@ -5881,6 +5881,10 @@
                         <div class="label">Pending W/D</div>
                         <div class="value" style="color: #f59e0b;" id="stmtPendingWD">GH₵ 0.00</div>
                     </div>
+                    <div class="statement-summary-card" id="stmtAdjustCard" style="display:none;">
+                        <div class="label">Admin Adjust.</div>
+                        <div class="value" style="color: #7c3aed;" id="stmtAdminAdjust">GH₵ 0.00</div>
+                    </div>
                     <div class="statement-summary-card">
                         <div class="label">Net Balance</div>
                         <div class="value" style="color: #3b82f6;" id="stmtNetBalance">GH₵ 0.00</div>
@@ -12923,6 +12927,9 @@
                 document.getElementById('stmtTotalProfit').textContent = 'GH₵ ' + (s.totalProfit || 0).toFixed(2);
                 document.getElementById('stmtTotalWithdrawn').textContent = 'GH₵ ' + (s.totalWithdrawn || 0).toFixed(2);
                 document.getElementById('stmtPendingWD').textContent = 'GH₵ ' + (s.pendingWithdrawals || 0).toFixed(2);
+                const adjVal = s.adminAdjustment || 0;
+                document.getElementById('stmtAdminAdjust').textContent = (adjVal >= 0 ? '+ ' : '- ') + 'GH₵ ' + Math.abs(adjVal).toFixed(2);
+                document.getElementById('stmtAdjustCard').style.display = adjVal !== 0 ? '' : 'none';
                 document.getElementById('stmtNetBalance').textContent = 'GH₵ ' + (s.netBalance || 0).toFixed(2);
                 document.getElementById('stmtNetBalance').style.color = (s.netBalance || 0) < 0 ? '#ef4444' : '#3b82f6';
 
@@ -13014,6 +13021,7 @@
                 <div><div class="label">Total Profit</div><div class="val" style="color:#10b981;">${document.getElementById('stmtTotalProfit').textContent}</div></div>
                 <div><div class="label">Total Withdrawn</div><div class="val" style="color:#ef4444;">${document.getElementById('stmtTotalWithdrawn').textContent}</div></div>
                 <div><div class="label">Pending W/D</div><div class="val" style="color:#f59e0b;">${document.getElementById('stmtPendingWD').textContent}</div></div>
+                ${document.getElementById('stmtAdjustCard').style.display !== 'none' ? '<div><div class="label">Admin Adjust.</div><div class="val" style="color:#7c3aed;">' + document.getElementById('stmtAdminAdjust').textContent + '</div></div>' : ''}
                 <div><div class="label">Net Balance</div><div class="val" style="color:#3b82f6;">${document.getElementById('stmtNetBalance').textContent}</div></div>
             </div>
             ${tableEl.outerHTML}

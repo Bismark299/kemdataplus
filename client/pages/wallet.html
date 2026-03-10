@@ -2867,8 +2867,8 @@
                 document.getElementById('pendingTotalAmount').textContent = `GH₵ ${(stats.pendingAmount || 0).toFixed(2)}`;
                 document.getElementById('pendingTotalCount').textContent = stats.pendingCount || 0;
                 
-                // Update available amount for withdrawal
-                profitAvailableAmount = stats.pendingAmount || 0;
+                // Update available amount for withdrawal (subtract already-requested withdrawals)
+                profitAvailableAmount = stats.availableForWithdrawal || 0;
                 updateProfitWithdrawUI();
                 
                 // Update badge on tab

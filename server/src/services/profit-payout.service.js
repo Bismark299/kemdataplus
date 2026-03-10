@@ -1106,48 +1106,8 @@ const profitPayoutService = {
 
       console.log(`[Payout] Payout ${payout.reference} updated to ${finalStatus} (transferCode: ${savedTransferCode}, paystackRef: ${savedPaystackRef})`);
 
-      // Now process profits (non-critical — webhook can also handle this)
-      try {
-        const profits = await prisma.pendingProfit.findMany({
-          where: { userId: payout.userId, status: 'PENDING' },
-          orderBy: { createdAt: 'asc' }
-        });
-
-        let remaining = payout.amount;
-        const profitIdsToMark = [];
-        let partialProfitId = null;
-        let partialDeduction = 0;
-        for (const profit of profits) {
-          if (remaining <= 0) break;
-          if (profit.amount <= remaining) {
-            profitIdsToMark.push(profit.id);
-            remaining -= profit.amount;
-          } else {
-            partialProfitId = profit.id;
-            partialDeduction = remaining;
-            remaining = 0;
-          }
-        }
-
-        const profitOps = [];
-        if (profitIdsToMark.length > 0) {
-          profitOps.push(prisma.pendingProfit.updateMany({
-            where: { id: { in: profitIdsToMark } },
-            data: { status: 'PAID', paidAt: new Date() }
-          }));
-        }
-        if (partialProfitId) {
-          profitOps.push(prisma.pendingProfit.update({
-            where: { id: partialProfitId },
-            data: { amount: { decrement: partialDeduction } }
-          }));
-        }
-        if (profitOps.length > 0) {
-          await prisma.$transaction(profitOps);
-        }
-      } catch (profitErr) {
-        console.error(`[Payout] Profit marking failed for ${payout.reference} (payout already ${finalStatus}):`, profitErr.message);
-      }
+      // NOTE: Profit marking is handled ONLY by the webhook (handleTransferSuccess)
+      // to prevent double-deduction when both this function and the webhook run.
 
       console.log(`[Payout] Processed ${payout.reference}: GH₵${payout.netAmount} to ${payout.accountNumber} (${finalStatus})`);
 
@@ -2055,9 +2015,8 @@ const profitPayoutService = {
       const totalWithdrawn = completedWithdrawals._sum.amount || 0;
       const allTimeProfit = totalProfitResult._sum.ownerProfit || 0;
       const adminAdjustment = adjustmentSum._sum.amount || 0;
-      // Available = totalProfit - withdrawn + adminAdjustment
-      // Pending withdrawals shown separately — not deducted from available
-      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn + adminAdjustment);
+      // Available = totalProfit - withdrawn - pendingWithdrawals + adminAdjustment
+      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn - reservedForWithdrawal + adminAdjustment);
       const walletBalance = walletData?.balance || 0;
 
       return {
