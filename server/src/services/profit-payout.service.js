@@ -1082,64 +1082,74 @@ const profitPayoutService = {
         return { payoutId: payout.id, requiresOtp: true, transferCode: transferResponse.data?.transfer_code };
       }
 
-      // Get profits to mark as paid (up to the withdrawal amount)
-      const profits = await prisma.pendingProfit.findMany({
-        where: { userId: payout.userId, status: 'PENDING' },
-        orderBy: { createdAt: 'asc' }
-      });
-
-      let remaining = payout.amount;
-      const profitIdsToMark = [];
-      let partialProfitId = null;
-      let partialDeduction = 0;
-      for (const profit of profits) {
-        if (remaining <= 0) break;
-        if (profit.amount <= remaining) {
-          // Fully consumed — mark as PAID
-          profitIdsToMark.push(profit.id);
-          remaining -= profit.amount;
-        } else {
-          // Partially consumed — reduce amount, keep PENDING
-          partialProfitId = profit.id;
-          partialDeduction = remaining;
-          remaining = 0;
-        }
-      }
-
-      // Check if transfer was instant (MoMo transfers usually are)
-      // Paystack returns status: 'success' for completed, 'pending' for async
+      // IMMEDIATELY save transferCode + paystackReference so webhook can find this payout
+      // This must happen BEFORE profit processing to prevent race conditions
       const transferStatus = transferResponse.data?.status?.toLowerCase();
       const isInstantSuccess = transferStatus === 'success';
       const finalStatus = isInstantSuccess ? 'COMPLETED' : 'PROCESSING';
+      const savedTransferCode = transferResponse.data?.transfer_code;
+      const savedPaystackRef = transferResponse.data?.reference || transferRef;
 
-      // Update payout status
-      await prisma.$transaction([
-        prisma.agentPayout.update({
-          where: { id: payout.id },
-          data: {
-            status: finalStatus,
-            processedAt: new Date(),
-            reviewedBy: adminId,
-            transferCode: transferResponse.data?.transfer_code,
-            paystackReference: transferResponse.data?.reference || transferRef,
-            recipientCode
+      await prisma.agentPayout.update({
+        where: { id: payout.id },
+        data: {
+          status: finalStatus,
+          processedAt: new Date(),
+          reviewedBy: adminId,
+          transferCode: savedTransferCode,
+          paystackReference: savedPaystackRef,
+          recipientCode
+        }
+      });
+
+      console.log(`[Payout] Payout ${payout.reference} updated to ${finalStatus} (transferCode: ${savedTransferCode}, paystackRef: ${savedPaystackRef})`);
+
+      // Now process profits (non-critical — webhook can also handle this)
+      try {
+        const profits = await prisma.pendingProfit.findMany({
+          where: { userId: payout.userId, status: 'PENDING' },
+          orderBy: { createdAt: 'asc' }
+        });
+
+        let remaining = payout.amount;
+        const profitIdsToMark = [];
+        let partialProfitId = null;
+        let partialDeduction = 0;
+        for (const profit of profits) {
+          if (remaining <= 0) break;
+          if (profit.amount <= remaining) {
+            profitIdsToMark.push(profit.id);
+            remaining -= profit.amount;
+          } else {
+            partialProfitId = profit.id;
+            partialDeduction = remaining;
+            remaining = 0;
           }
-        }),
-        // Mark fully consumed profits as PAID
-        ...(profitIdsToMark.length > 0 ? [prisma.pendingProfit.updateMany({
-          where: { id: { in: profitIdsToMark } },
-          data: { status: 'PAID', paidAt: new Date() }
-        })] : []),
-        // Reduce partially consumed profit's amount (stays PENDING)
-        ...(partialProfitId ? [prisma.pendingProfit.update({
-          where: { id: partialProfitId },
-          data: { amount: { decrement: partialDeduction } }
-        })] : [])
-      ]);
+        }
+
+        const profitOps = [];
+        if (profitIdsToMark.length > 0) {
+          profitOps.push(prisma.pendingProfit.updateMany({
+            where: { id: { in: profitIdsToMark } },
+            data: { status: 'PAID', paidAt: new Date() }
+          }));
+        }
+        if (partialProfitId) {
+          profitOps.push(prisma.pendingProfit.update({
+            where: { id: partialProfitId },
+            data: { amount: { decrement: partialDeduction } }
+          }));
+        }
+        if (profitOps.length > 0) {
+          await prisma.$transaction(profitOps);
+        }
+      } catch (profitErr) {
+        console.error(`[Payout] Profit marking failed for ${payout.reference} (payout already ${finalStatus}):`, profitErr.message);
+      }
 
       console.log(`[Payout] Processed ${payout.reference}: GH₵${payout.netAmount} to ${payout.accountNumber} (${finalStatus})`);
 
-      return { payoutId: payout.id, success: true, transferCode: transferResponse.data?.transfer_code, status: finalStatus };
+      return { payoutId: payout.id, success: true, transferCode: savedTransferCode, status: finalStatus };
 
     } catch (err) {
       // Mark as failed
@@ -1595,18 +1605,34 @@ const profitPayoutService = {
     
     console.log(`[Webhook] Transfer success: ${reference} (${transfer_code})`);
 
-    // Find the payout by reference, paystackReference, or transfer code
-    // Include all statuses in case instant transfer already marked it or status update failed
-    const payout = await prisma.agentPayout.findFirst({
-      where: {
-        OR: [
-          { reference },
-          { paystackReference: reference },
-          { transferCode: transfer_code }
-        ]
-      },
-      include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
-    });
+    // Build search conditions — skip null values to avoid matching wrong records
+    const orConditions = [];
+    if (reference) {
+      orConditions.push({ reference });
+      orConditions.push({ paystackReference: reference });
+    }
+    if (transfer_code) {
+      orConditions.push({ transferCode: transfer_code });
+    }
+
+    let payout = null;
+    if (orConditions.length > 0) {
+      payout = await prisma.agentPayout.findFirst({
+        where: { OR: orConditions },
+        include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
+      });
+    }
+
+    // Fallback: if reference looks like "WD-xxx-timestamp", try matching by the base reference
+    if (!payout && reference) {
+      const baseRef = reference.replace(/-\d{13,}$/, '');
+      if (baseRef !== reference) {
+        payout = await prisma.agentPayout.findFirst({
+          where: { reference: baseRef },
+          include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
+        });
+      }
+    }
 
     if (!payout) {
       console.log(`[Webhook] No payout found for reference: ${reference} / transfer_code: ${transfer_code}`);
@@ -1711,18 +1737,37 @@ const profitPayoutService = {
     
     console.log(`[Webhook] Transfer failed: ${reference} - ${reason}`);
 
-    // Find the payout
-    const payout = await prisma.agentPayout.findFirst({
-      where: {
-        OR: [
-          { reference },
-          { paystackReference: reference },
-          { transferCode: transfer_code }
-        ],
-        status: { in: ['PROCESSING', 'RESERVED'] }
-      },
-      include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
-    });
+    // Build search conditions — skip null values to avoid matching wrong records
+    const orConditions = [];
+    if (reference) {
+      orConditions.push({ reference });
+      orConditions.push({ paystackReference: reference });
+    }
+    if (transfer_code) {
+      orConditions.push({ transferCode: transfer_code });
+    }
+
+    let payout = null;
+    if (orConditions.length > 0) {
+      payout = await prisma.agentPayout.findFirst({
+        where: {
+          OR: orConditions,
+          status: { in: ['PROCESSING', 'RESERVED'] }
+        },
+        include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
+      });
+    }
+
+    // Fallback: try matching by base reference
+    if (!payout && reference) {
+      const baseRef = reference.replace(/-\d{13,}$/, '');
+      if (baseRef !== reference) {
+        payout = await prisma.agentPayout.findFirst({
+          where: { reference: baseRef, status: { in: ['PROCESSING', 'RESERVED'] } },
+          include: { user: { select: { id: true, name: true, phone: true, momoNumber: true } } }
+        });
+      }
+    }
 
     if (!payout) {
       console.log(`[Webhook] No pending payout found for reference: ${reference} / transfer_code: ${transfer_code}`);
@@ -1796,17 +1841,34 @@ const profitPayoutService = {
     
     console.log(`[Webhook] Transfer reversed: ${reference} - ${reason}`);
 
-    // Find the payout
-    const payout = await prisma.agentPayout.findFirst({
-      where: {
-        OR: [
-          { reference },
-          { paystackReference: reference },
-          { transferCode: transfer_code }
-        ]
-      },
-      include: { user: { select: { name: true } } }
-    });
+    // Build search conditions — skip null values to avoid matching wrong records
+    const orConditions = [];
+    if (reference) {
+      orConditions.push({ reference });
+      orConditions.push({ paystackReference: reference });
+    }
+    if (transfer_code) {
+      orConditions.push({ transferCode: transfer_code });
+    }
+
+    let payout = null;
+    if (orConditions.length > 0) {
+      payout = await prisma.agentPayout.findFirst({
+        where: { OR: orConditions },
+        include: { user: { select: { name: true } } }
+      });
+    }
+
+    // Fallback: try matching by base reference
+    if (!payout && reference) {
+      const baseRef = reference.replace(/-\d{13,}$/, '');
+      if (baseRef !== reference) {
+        payout = await prisma.agentPayout.findFirst({
+          where: { reference: baseRef },
+          include: { user: { select: { name: true } } }
+        });
+      }
+    }
 
     if (!payout) {
       console.log(`[Webhook] No payout found for reference: ${reference} / transfer_code: ${transfer_code}`);
