@@ -2055,9 +2055,9 @@ const profitPayoutService = {
       const totalWithdrawn = completedWithdrawals._sum.amount || 0;
       const allTimeProfit = totalProfitResult._sum.ownerProfit || 0;
       const adminAdjustment = adjustmentSum._sum.amount || 0;
-      // Available is DERIVED: totalProfit - withdrawn - pendingWD + adminAdjustment
-      // This guarantees: totalProfit + adjustment = withdrawn + pending + available (always)
-      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn - reservedForWithdrawal + adminAdjustment);
+      // Available = totalProfit - withdrawn + adminAdjustment
+      // Pending withdrawals shown separately — not deducted from available
+      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn + adminAdjustment);
       const walletBalance = walletData?.balance || 0;
 
       return {
