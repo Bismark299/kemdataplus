@@ -1045,6 +1045,8 @@ const profitPayoutService = {
    * Process a single withdrawal payout via Paystack (legacy - for single approvals)
    */
   async processSinglePayout(payout, adminId, otp = null) {
+    // reviewedBy is a FK to User — only set it for valid UUIDs, not 'SYSTEM_AUTO'
+    const reviewerId = adminId && adminId !== 'SYSTEM_AUTO' ? adminId : null;
     try {
       // Get or create recipient code
       const recipientCode = await this.getOrCreateRecipient({
@@ -1095,7 +1097,7 @@ const profitPayoutService = {
         data: {
           status: finalStatus,
           processedAt: new Date(),
-          reviewedBy: adminId,
+          reviewedBy: reviewerId,
           transferCode: savedTransferCode,
           paystackReference: savedPaystackRef,
           recipientCode
@@ -1158,7 +1160,7 @@ const profitPayoutService = {
         data: {
           status: 'FAILED',
           processedAt: new Date(),
-          reviewedBy: adminId,
+          reviewedBy: reviewerId,
           failureReason: err.message
         }
       });
