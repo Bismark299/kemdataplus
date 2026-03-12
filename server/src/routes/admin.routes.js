@@ -584,6 +584,215 @@ router.get('/dashboard', async (req, res, next) => {
 });
 
 /**
+ * GET /api/admin/dashboard-stats
+ * Fast aggregated dashboard stats using SQL - replaces heavy client-side computation
+ */
+router.get('/dashboard-stats', async (req, res, next) => {
+  try {
+    const dateFilter = req.query.date || null; // YYYY-MM-DD or empty for today
+
+    // Determine the target date range
+    let dayStart, dayEnd;
+    if (dateFilter) {
+      dayStart = new Date(dateFilter + 'T00:00:00.000Z');
+      dayEnd = new Date(dateFilter + 'T23:59:59.999Z');
+    } else {
+      const now = new Date();
+      dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+      dayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+    }
+
+    const dateWhere = { createdAt: { gte: dayStart, lte: dayEnd } };
+
+    // Run all aggregations in parallel for maximum speed
+    const [
+      // OrderItem stats by status for the target date
+      itemStatusStats,
+      // Legacy Order stats by status for the target date
+      legacyStatusStats,
+      // Total sold (completed OrderItems for date)
+      itemCompletedAgg,
+      // Total sold (completed legacy Orders for date)
+      legacyCompletedAgg,
+      // Total cost from completed OrderItems (baseCost field)
+      itemCostAgg,
+      // Total cost from completed legacy Orders
+      legacyCostAgg,
+      // Total wallet balance across all users
+      walletAgg,
+      // Network breakdown for pending orders (OrderItems)
+      itemPendingByNetwork,
+      // Network breakdown for pending legacy orders
+      legacyPendingByNetwork,
+      // Total data capacity for the date (all items)
+      allItemsForDate,
+      allLegacyForDate
+    ] = await Promise.all([
+      // OrderItem counts/amounts grouped by status
+      prisma.orderItem.groupBy({
+        by: ['status'],
+        where: { createdAt: dateWhere.createdAt },
+        _count: true,
+        _sum: { totalPrice: true }
+      }),
+      // Legacy Order counts/amounts grouped by status
+      prisma.order.groupBy({
+        by: ['status'],
+        where: dateWhere,
+        _count: true,
+        _sum: { totalPrice: true }
+      }),
+      // Completed OrderItems revenue
+      prisma.orderItem.aggregate({
+        where: { ...dateWhere, status: 'COMPLETED' },
+        _sum: { totalPrice: true }
+      }),
+      // Completed legacy Orders revenue
+      prisma.order.aggregate({
+        where: { ...dateWhere, status: 'COMPLETED' },
+        _sum: { totalPrice: true }
+      }),
+      // Completed OrderItem costs
+      prisma.orderItem.aggregate({
+        where: { ...dateWhere, status: 'COMPLETED' },
+        _sum: { baseCost: true, totalPrice: true }
+      }),
+      // Completed legacy Order costs
+      prisma.order.aggregate({
+        where: { ...dateWhere, status: 'COMPLETED' },
+        _sum: { baseCost: true, totalPrice: true }
+      }),
+      // Wallet balance sum
+      prisma.wallet.aggregate({
+        _sum: { balance: true }
+      }),
+      // Pending OrderItems with bundle info for network counts
+      prisma.orderItem.findMany({
+        where: { ...dateWhere, status: 'PENDING' },
+        select: { bundle: { select: { network: true } } }
+      }),
+      // Pending legacy orders with bundle info
+      prisma.order.findMany({
+        where: { ...dateWhere, status: 'PENDING' },
+        select: { bundle: { select: { network: true } } }
+      }),
+      // All OrderItems for date - get data amounts for capacity calc
+      prisma.orderItem.findMany({
+        where: { createdAt: dateWhere.createdAt },
+        select: {
+          status: true,
+          totalPrice: true,
+          quantity: true,
+          bundle: { select: { dataAmount: true } }
+        }
+      }),
+      // All legacy orders for date
+      prisma.order.findMany({
+        where: dateWhere,
+        select: {
+          status: true,
+          totalPrice: true,
+          quantity: true,
+          bundle: { select: { dataAmount: true } }
+        }
+      })
+    ]);
+
+    // Merge status stats from both sources
+    const statusMap = { PENDING: { count: 0, amount: 0, capacity: 0 }, PROCESSING: { count: 0, amount: 0, capacity: 0 }, COMPLETED: { count: 0, amount: 0, capacity: 0 }, CANCELLED: { count: 0, amount: 0, capacity: 0 } };
+
+    // Helper to parse data capacity
+    const parseCapacity = (dataAmount, qty) => {
+      const gb = parseInt(String(dataAmount || '').replace(/\D/g, '')) || 0;
+      return gb * (qty || 1);
+    };
+
+    // Process OrderItems
+    for (const row of itemStatusStats) {
+      const key = row.status;
+      if (statusMap[key]) {
+        statusMap[key].count += row._count;
+        statusMap[key].amount += row._sum.totalPrice || 0;
+      }
+    }
+    // Process legacy orders
+    for (const row of legacyStatusStats) {
+      const key = row.status;
+      if (statusMap[key]) {
+        statusMap[key].count += row._count;
+        statusMap[key].amount += row._sum.totalPrice || 0;
+      }
+    }
+
+    // Calculate capacity from individual items
+    for (const item of allItemsForDate) {
+      const key = item.status;
+      if (statusMap[key]) {
+        statusMap[key].capacity += parseCapacity(item.bundle?.dataAmount, item.quantity);
+      }
+    }
+    for (const item of allLegacyForDate) {
+      const key = item.status;
+      if (statusMap[key]) {
+        statusMap[key].capacity += parseCapacity(item.bundle?.dataAmount, item.quantity);
+      }
+    }
+
+    // Total sold = completed revenue
+    const totalSold = (itemCompletedAgg._sum.totalPrice || 0) + (legacyCompletedAgg._sum.totalPrice || 0);
+
+    // Total cost (from baseCost field, fall back to 95% estimate)
+    const itemBaseCost = itemCostAgg._sum.baseCost || 0;
+    const itemPrice = itemCostAgg._sum.totalPrice || 0;
+    const legacyBaseCost = legacyCostAgg._sum.baseCost || 0;
+    const legacyPrice = legacyCostAgg._sum.totalPrice || 0;
+    // Use baseCost if available, otherwise estimate at 95%
+    const totalCost = (itemBaseCost > 0 ? itemBaseCost : itemPrice * 0.95) +
+                      (legacyBaseCost > 0 ? legacyBaseCost : legacyPrice * 0.95);
+    const totalProfit = totalSold - totalCost;
+
+    // All orders for date
+    const totalOrders = Object.values(statusMap).reduce((s, v) => s + v.count, 0);
+    const totalAmount = Object.values(statusMap).reduce((s, v) => s + v.amount, 0);
+    const totalCapacity = Object.values(statusMap).reduce((s, v) => s + v.capacity, 0);
+
+    // Network pending counts
+    const networkPending = { MTN: 0, Telecel: 0, AirtelTigo: 0 };
+    const countNetwork = (items) => {
+      for (const item of items) {
+        const net = (item.bundle?.network || '').toUpperCase();
+        if (net.includes('MTN')) networkPending.MTN++;
+        else if (net.includes('TELECEL')) networkPending.Telecel++;
+        else if (net.includes('AIRTELTIGO') || net.includes('AIRTEL')) networkPending.AirtelTigo++;
+      }
+    };
+    countNetwork(itemPendingByNetwork);
+    countNetwork(legacyPendingByNetwork);
+
+    res.json({
+      totalOrders,
+      totalAmount,
+      totalCapacity,
+      completedAmount: totalSold,
+      totalSold,
+      totalCost,
+      totalProfit,
+      walletBalance: walletAgg._sum.balance || 0,
+      byStatus: {
+        pending: statusMap.PENDING,
+        processing: statusMap.PROCESSING,
+        completed: statusMap.COMPLETED,
+        cancelled: statusMap.CANCELLED
+      },
+      networkPending
+    });
+  } catch (error) {
+    console.error('[Dashboard Stats] Error:', error);
+    next(error);
+  }
+});
+
+/**
  * ========== STOREFRONT MONITORING ==========
  */
 

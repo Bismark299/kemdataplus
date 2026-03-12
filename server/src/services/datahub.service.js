@@ -14,7 +14,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 const prisma = require('../lib/prisma');
+
+// Force IPv4 to avoid IPv6 issues on cloud platforms (Render, Railway, etc.)
+const httpAgent = new http.Agent({ family: 4 });
+const httpsAgent = new https.Agent({ family: 4 });
 
 // Helper to get API config from settings
 // Priority: Environment variables > settings.json > defaults
@@ -73,7 +79,7 @@ const axios = require('axios');
  * Make API request to McbisSolution using axios
  * Axios handles redirects and cookies better than native fetch
  */
-async function apiRequest(endpoint, method = 'GET', body = null) {
+async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
   const config = getApiConfig();
   const url = `${config.url}${endpoint}`;
   
@@ -88,37 +94,49 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
       'Authorization': `Bearer ${config.token}`,
       'User-Agent': 'KemDataplus/1.0'
     },
-    timeout: 30000,
-    maxRedirects: 5
+    timeout: 45000,
+    maxRedirects: 5,
+    httpAgent: httpAgent,
+    httpsAgent: httpsAgent
   };
 
   if (body && method !== 'GET') {
     axiosConfig.data = body;
   }
 
-  try {
-    const response = await axios(axiosConfig);
-    console.log(`[DataHub] Response status: ${response.status}`);
-    return response.data;
-  } catch (error) {
-    // Handle axios errors
-    if (error.response) {
-      // Server responded with error status
-      const text = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
-      
-      // Check if response is HTML (Cloudflare page)
-      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
-        console.error(`[DataHub] Cloudflare blocking detected. Status: ${error.response.status}`);
-        throw new Error(`API returned HTML (likely Cloudflare). Status: ${error.response.status}. Contact McbisSolution to whitelist server IP.`);
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      const response = await axios(axiosConfig);
+      console.log(`[DataHub] Response status: ${response.status}`);
+      return response.data;
+    } catch (error) {
+      const isLastAttempt = attempt > retries;
+
+      // Handle axios errors
+      if (error.response) {
+        // Server responded with error status
+        const text = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+        
+        // Check if response is HTML (Cloudflare page)
+        if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
+          console.error(`[DataHub] Cloudflare blocking detected. Status: ${error.response.status}`);
+          throw new Error(`API returned HTML (likely Cloudflare). Status: ${error.response.status}. Contact McbisSolution to whitelist server IP.`);
+        }
+        
+        const errorMsg = error.response.data?.message || error.response.data?.error || `API Error: ${error.response.status}`;
+        throw new Error(errorMsg);
+      } else if (error.request) {
+        // Request made but no response - log details and retry
+        const code = error.code || 'UNKNOWN';
+        console.error(`[DataHub] No response (attempt ${attempt}/${retries + 1}): code=${code}, message=${error.message}`);
+        if (isLastAttempt) {
+          throw new Error(`No response from API server (${code}). The external API may be unreachable from this server.`);
+        }
+        // Wait before retry (1s, then 2s)
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      } else {
+        throw new Error(error.message);
       }
-      
-      const errorMsg = error.response.data?.message || error.response.data?.error || `API Error: ${error.response.status}`;
-      throw new Error(errorMsg);
-    } else if (error.request) {
-      // Request made but no response
-      throw new Error('No response from API server');
-    } else {
-      throw new Error(error.message);
     }
   }
 }
@@ -152,7 +170,9 @@ const datahubService = {
           'Authorization': `Bearer ${config.token}`,
           'User-Agent': 'KemDataplus/1.0'
         },
-        timeout: 30000
+        timeout: 45000,
+        httpAgent: httpAgent,
+        httpsAgent: httpsAgent
       });
       
       console.log('[DataHub Test] Status:', response.status);
@@ -192,10 +212,14 @@ const datahubService = {
         };
       }
       
+      const code = error.code || 'UNKNOWN';
       return {
         success: false,
-        error: error.message,
-        hint: 'Network error - check if API URL is correct'
+        error: `${error.message} (${code})`,
+        hint: code === 'ECONNREFUSED' ? 'Connection refused - API server may be down' :
+              code === 'ETIMEDOUT' || code === 'ECONNABORTED' ? 'Connection timed out - API server may be slow or blocking this IP' :
+              code === 'ENETUNREACH' ? 'Network unreachable - possible IPv6 issue on cloud host' :
+              'Network error - check if API URL is correct and reachable from server'
       };
     }
   },

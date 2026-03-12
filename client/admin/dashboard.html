@@ -7864,197 +7864,74 @@
             // Show loading skeletons
             showStatsSkeleton();
             
-            // Retry helper for resilience
-            const fetchWithRetry = async (url, retries = 2) => {
-                for (let i = 0; i <= retries; i++) {
-                    try {
-                        const res = await adminFetch(url);
-                        if (res.ok) return res;
-                        if (i < retries) {
-                            console.log(`[Stats] Retry ${i + 1}/${retries} for ${url}`);
-                            await new Promise(r => setTimeout(r, 1000));
-                        }
-                    } catch (e) {
-                        if (i < retries) {
-                            console.log(`[Stats] Retry ${i + 1}/${retries} after error: ${e.message}`);
-                            await new Promise(r => setTimeout(r, 1000));
-                        } else {
-                            throw e;
-                        }
-                    }
-                }
-                throw new Error('Failed after retries');
-            };
+            const dateFilter = document.getElementById('filterDate')?.value || '';
             
             try {
-                // Fetch orders from OrderGroup API (returns flat list for compatibility)
-                // No limit - fetch all orders so date filtering works for any date range
+                // PHASE 1: Fast aggregated stats from server (instant stat cards)
+                // This replaces the old approach of fetching ALL orders and computing client-side
+                const statsParam = dateFilter ? `?date=${dateFilter}` : '';
+                const statsRes = await adminFetch('/api/admin/dashboard-stats' + statsParam);
+                
+                if (statsRes.ok) {
+                    const s = await statsRes.json();
+                    
+                    // Update main stat cards immediately
+                    document.getElementById('ordersToday').textContent = s.totalOrders.toLocaleString();
+                    document.getElementById('amountToday').textContent = 'GH₵ ' + s.completedAmount.toFixed(2);
+                    document.getElementById('bundleToday').textContent = s.totalCapacity + ' GB';
+                    document.getElementById('totalSold').textContent = 'GH₵ ' + s.totalSold.toFixed(2);
+                    document.getElementById('totalProfit').textContent = 'GH₵ ' + s.totalProfit.toFixed(2);
+                    document.getElementById('walletBalance').textContent = 'GH₵ ' + s.walletBalance.toFixed(2);
+                    
+                    // Update status cards
+                    ['pending', 'processing', 'completed', 'cancelled'].forEach(status => {
+                        document.getElementById(status + 'Count').textContent = s.byStatus[status].count;
+                        document.getElementById(status + 'Amount').textContent = 'GH₵ ' + s.byStatus[status].amount.toFixed(2);
+                        document.getElementById(status + 'Capacity').textContent = s.byStatus[status].capacity + ' GB';
+                    });
+                    
+                    // All orders total
+                    document.getElementById('allCount').textContent = s.totalOrders;
+                    document.getElementById('allAmount').textContent = 'GH₵ ' + s.totalAmount.toFixed(2);
+                    document.getElementById('allCapacity').textContent = s.totalCapacity + ' GB';
+                    
+                    // Network pending counts
+                    const mtnEl = document.getElementById('mtnFilterPending');
+                    const telecelEl = document.getElementById('telecelFilterPending');
+                    const airteltigoEl = document.getElementById('airteltigoFilterPending');
+                    if (mtnEl) mtnEl.textContent = s.networkPending.MTN > 0 ? s.networkPending.MTN + ' Pending' : '0 Pending';
+                    if (telecelEl) telecelEl.textContent = s.networkPending.Telecel > 0 ? s.networkPending.Telecel + ' Pending' : '0 Pending';
+                    if (airteltigoEl) airteltigoEl.textContent = s.networkPending.AirtelTigo > 0 ? s.networkPending.AirtelTigo + ' Pending' : '0 Pending';
+                }
+                
+                // PHASE 2: Load full orders for the table (can be slower, table shows skeleton)
+                const fetchWithRetry = async (url, retries = 2) => {
+                    for (let i = 0; i <= retries; i++) {
+                        try {
+                            const res = await adminFetch(url);
+                            if (res.ok) return res;
+                            if (i < retries) {
+                                console.log(`[Stats] Retry ${i + 1}/${retries} for ${url}`);
+                                await new Promise(r => setTimeout(r, 1000));
+                            }
+                        } catch (e) {
+                            if (i < retries) {
+                                console.log(`[Stats] Retry ${i + 1}/${retries} after error: ${e.message}`);
+                                await new Promise(r => setTimeout(r, 1000));
+                            } else {
+                                throw e;
+                            }
+                        }
+                    }
+                    throw new Error('Failed after retries');
+                };
+                
                 const res = await fetchWithRetry('/api/order-groups/admin/all?compact=true');
                 if (!res.ok) throw new Error('Failed to fetch orders');
                 const data = await res.json();
-                const orders = data.orders || [];
-                ordersCache = orders; // Store for filtering
-                const todayUTC = getTodayUTC();
+                ordersCache = data.orders || [];
                 
-                // Check if there's a date filter set - RESPECT IT!
-                const dateFilter = document.getElementById('filterDate')?.value || '';
-                const targetDate = dateFilter || todayUTC;
-                
-                // Fetch total wallet balance from all users
-                // The /api/users endpoint already includes wallet.balance for each user
-                try {
-                    const usersRes = await adminFetch('/api/users?limit=1000');
-                    if (usersRes.ok) {
-                        const usersData = await usersRes.json();
-                        const users = usersData.users || [];
-                        
-                        // Sum wallet balances directly from users response
-                        const totalWalletBalance = users.reduce((sum, u) => {
-                            return sum + (parseFloat(u.wallet?.balance) || 0);
-                        }, 0);
-                        
-                        document.getElementById('walletBalance').textContent = 'GH₵ ' + totalWalletBalance.toFixed(2);
-                    }
-                } catch (walletErr) {
-                    console.error('Failed to fetch wallet balances:', walletErr);
-                }
-
-                // Filter orders based on selected date (or today if no filter)
-                const filteredDateOrders = orders.filter(o => {
-                    if (!o.createdAt) return false;
-                    try {
-                        if (dateFilter) {
-                            // User has selected a specific date
-                            return o.createdAt.startsWith(dateFilter);
-                        } else {
-                            // Default to today's orders
-                            return new Date(o.createdAt).toISOString().split('T')[0] === todayUTC;
-                        }
-                    } catch (e) {
-                        return false;
-                    }
-                });
-
-                let todayAmount = 0;
-                let todayBundle = 0;
-                let totalSold = 0;
-                let totalCost = 0;
-
-                // Create bundle lookup for cost calculation
-                const bundles = bundleTariffsData || [];
-                const bundleLookup = {};
-                bundles.forEach(b => {
-                    const key = `${b.network}-${b.name}`;
-                    bundleLookup[key] = {
-                        agent: parseFloat(b.agent || b.agentPrice || 0),
-                        price: parseFloat(b.price || 0)
-                    };
-                });
-
-                // Bundle = total data size for filtered date (from bundle.dataAmount like "5GB")
-                // Amount = amount from completed orders for filtered date only
-                filteredDateOrders.forEach(o => {
-                    // Parse data amount from bundle (e.g., "5GB" -> 5)
-                    const dataAmount = o.bundle?.dataAmount || o.dataAmount || '';
-                    const dataSize = parseInt(dataAmount.replace(/\D/g, '')) || 0;
-                    todayBundle += dataSize * (parseInt(o.quantity) || 1);
-                    
-                    // Only count completed orders for amount
-                    const status = (o.status || '').toLowerCase();
-                    if (status === 'completed') {
-                        todayAmount += parseFloat(o.totalPrice || o.total) || 0;
-                    }
-                });
-
-                // Calculate total sold and total cost for profit (filtered date's completed orders)
-                filteredDateOrders.filter(o => o.status === 'COMPLETED' || o.status === 'completed').forEach(o => {
-                    const orderPrice = parseFloat(o.totalPrice || o.total) || 0;
-                    totalSold += orderPrice;
-                    
-                    // Get cost from bundle lookup
-                    const bundleNetwork = o.bundle?.network || o.network || 'MTN';
-                    const bundleName = o.bundle?.name || '';
-                    const bundleKey = `${bundleNetwork}-${bundleName}`;
-                    const bundleInfo = bundleLookup[bundleKey];
-                    
-                    if (bundleInfo && bundleInfo.agent) {
-                        totalCost += bundleInfo.agent * (parseInt(o.quantity) || 1);
-                    } else {
-                        // Estimate cost as 95% of price if no bundle info
-                        totalCost += orderPrice * 0.95;
-                    }
-                });
-
-                // Calculate actual profit
-                const totalProfit = totalSold - totalCost;
-
-                // Update main stats (use filtered date orders, not always today)
-                document.getElementById('ordersToday').textContent = filteredDateOrders.length.toLocaleString();
-                document.getElementById('amountToday').textContent = 'GH₵ ' + todayAmount.toFixed(2);
-                document.getElementById('bundleToday').textContent = todayBundle + ' GB';
-                document.getElementById('totalSold').textContent = 'GH₵ ' + totalSold.toFixed(2);
-                document.getElementById('totalProfit').textContent = 'GH₵ ' + totalProfit.toFixed(2);
-
-                // Calculate order status stats (for filtered date)
-                const stats = {
-                    pending: { count: 0, amount: 0, capacity: 0 },
-                    processing: { count: 0, amount: 0, capacity: 0 },
-                    completed: { count: 0, amount: 0, capacity: 0 },
-                    cancelled: { count: 0, amount: 0, capacity: 0 }
-                };
-
-                filteredDateOrders.forEach(o => {
-                    const status = (o.status || 'pending').toLowerCase();
-                    const amount = parseFloat(o.totalPrice || o.total) || 0;
-                    // Parse capacity from bundle dataAmount (e.g., "5GB" -> 5)
-                    const dataAmountStr = o.bundle?.dataAmount || o.dataAmount || '';
-                    const capacityGB = parseInt(dataAmountStr.replace(/\D/g, '')) || 0;
-                    const quantity = parseInt(o.quantity) || 1;
-                    if (stats[status]) {
-                        stats[status].count++;
-                        stats[status].amount += amount;
-                        stats[status].capacity += capacityGB * quantity;
-                    }
-                });
-
-                // Update status cards
-                ['pending', 'processing', 'completed', 'cancelled'].forEach(status => {
-                    document.getElementById(status + 'Count').textContent = stats[status].count;
-                    document.getElementById(status + 'Amount').textContent = 'GH₵ ' + stats[status].amount.toFixed(2);
-                    document.getElementById(status + 'Capacity').textContent = stats[status].capacity + ' GB';
-                });
-
-                // All orders total (for filtered date)
-                const allAmount = filteredDateOrders.reduce((sum, o) => sum + (parseFloat(o.totalPrice || o.total) || 0), 0);
-                const allCapacity = filteredDateOrders.reduce((sum, o) => {
-                    const dataAmountStr = o.bundle?.dataAmount || o.dataAmount || '';
-                    const capacityGB = parseInt(dataAmountStr.replace(/\D/g, '')) || 0;
-                    const quantity = parseInt(o.quantity) || 1;
-                    return sum + (capacityGB * quantity);
-                }, 0);
-                document.getElementById('allCount').textContent = filteredDateOrders.length;
-                document.getElementById('allAmount').textContent = 'GH₵ ' + allAmount.toFixed(2);
-                document.getElementById('allCapacity').textContent = allCapacity + ' GB';
-
-                // Update network pending counts (for filtered date's pending orders)
-                const pendingOrders = filteredDateOrders.filter(o => (o.status || '').toLowerCase() === 'pending');
-                const networkPending = { MTN: 0, Telecel: 0, AirtelTigo: 0 };
-                pendingOrders.forEach(o => {
-                    const net = (o.bundle?.network || o.network || '').toUpperCase();
-                    if (net.includes('MTN')) networkPending.MTN++;
-                    else if (net.includes('TELECEL')) networkPending.Telecel++;
-                    else if (net.includes('AIRTELTIGO') || net.includes('AIRTEL')) networkPending.AirtelTigo++;
-                });
-
-                // Update network filter buttons pending counts
-                const mtnEl = document.getElementById('mtnFilterPending');
-                const telecelEl = document.getElementById('telecelFilterPending');
-                const airteltigoEl = document.getElementById('airteltigoFilterPending');
-                if (mtnEl) mtnEl.textContent = networkPending.MTN > 0 ? networkPending.MTN + ' Pending' : '0 Pending';
-                if (telecelEl) telecelEl.textContent = networkPending.Telecel > 0 ? networkPending.Telecel + ' Pending' : '0 Pending';
-                if (airteltigoEl) airteltigoEl.textContent = networkPending.AirtelTigo > 0 ? networkPending.AirtelTigo + ' Pending' : '0 Pending';
-
-                // Load orders table - respect date filter, apply all current filters
+                // Load orders table
                 applyFilters();
             } catch (err) {
                 showToast('Failed to load orders: ' + err.message, 'error');
