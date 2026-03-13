@@ -604,28 +604,35 @@ router.get('/dashboard-stats', async (req, res, next) => {
 
     const dateWhere = { createdAt: { gte: dayStart, lte: dayEnd } };
 
+    // Step 1: Get OrderGroup displayIds for deduplication
+    // Legacy orders whose reference matches an OrderGroup displayId are duplicates
+    const orderGroupDisplayIds = await prisma.orderGroup.findMany({
+      where: { createdAt: dateWhere.createdAt, displayId: { not: null } },
+      select: { displayId: true }
+    });
+    const displayIdSet = new Set(orderGroupDisplayIds.map(g => g.displayId));
+
+    // Legacy orders must exclude duplicates (same logic as /admin/all endpoint)
+    const legacyDateWhere = {
+      ...dateWhere,
+      ...(displayIdSet.size > 0 ? { reference: { notIn: Array.from(displayIdSet) } } : {})
+    };
+
     // Run all aggregations in parallel for maximum speed
     const [
       // OrderItem stats by status for the target date
       itemStatusStats,
-      // Legacy Order stats by status for the target date
+      // Legacy Order stats by status for the target date (deduplicated)
       legacyStatusStats,
-      // Total sold (completed OrderItems for date)
-      itemCompletedAgg,
-      // Total sold (completed legacy Orders for date)
-      legacyCompletedAgg,
-      // Total cost from completed OrderItems (baseCost field)
-      itemCostAgg,
-      // Total cost from completed legacy Orders
-      legacyCostAgg,
       // Total wallet balance across all users
       walletAgg,
-      // Network breakdown for pending orders (OrderItems)
+      // Pending OrderItems with bundle info for network counts
       itemPendingByNetwork,
-      // Network breakdown for pending legacy orders
+      // Pending legacy orders with bundle info (deduplicated)
       legacyPendingByNetwork,
-      // Total data capacity for the date (all items)
+      // All OrderItems for date - for capacity + per-row cost calc
       allItemsForDate,
+      // All legacy orders for date (deduplicated)
       allLegacyForDate
     ] = await Promise.all([
       // OrderItem counts/amounts grouped by status
@@ -635,32 +642,12 @@ router.get('/dashboard-stats', async (req, res, next) => {
         _count: true,
         _sum: { totalPrice: true }
       }),
-      // Legacy Order counts/amounts grouped by status
+      // Legacy Order counts/amounts grouped by status (deduplicated)
       prisma.order.groupBy({
         by: ['status'],
-        where: dateWhere,
+        where: legacyDateWhere,
         _count: true,
         _sum: { totalPrice: true }
-      }),
-      // Completed OrderItems revenue
-      prisma.orderItem.aggregate({
-        where: { ...dateWhere, status: 'COMPLETED' },
-        _sum: { totalPrice: true }
-      }),
-      // Completed legacy Orders revenue
-      prisma.order.aggregate({
-        where: { ...dateWhere, status: 'COMPLETED' },
-        _sum: { totalPrice: true }
-      }),
-      // Completed OrderItem costs
-      prisma.orderItem.aggregate({
-        where: { ...dateWhere, status: 'COMPLETED' },
-        _sum: { baseCost: true, totalPrice: true }
-      }),
-      // Completed legacy Order costs
-      prisma.order.aggregate({
-        where: { ...dateWhere, status: 'COMPLETED' },
-        _sum: { baseCost: true, totalPrice: true }
       }),
       // Wallet balance sum
       prisma.wallet.aggregate({
@@ -671,27 +658,29 @@ router.get('/dashboard-stats', async (req, res, next) => {
         where: { ...dateWhere, status: 'PENDING' },
         select: { bundle: { select: { network: true } } }
       }),
-      // Pending legacy orders with bundle info
+      // Pending legacy orders with bundle info (deduplicated)
       prisma.order.findMany({
-        where: { ...dateWhere, status: 'PENDING' },
+        where: { ...legacyDateWhere, status: 'PENDING' },
         select: { bundle: { select: { network: true } } }
       }),
-      // All OrderItems for date - get data amounts for capacity calc
+      // All OrderItems for date - get data amounts, cost, price for capacity + profit calc
       prisma.orderItem.findMany({
         where: { createdAt: dateWhere.createdAt },
         select: {
           status: true,
           totalPrice: true,
+          baseCost: true,
           quantity: true,
           bundle: { select: { dataAmount: true } }
         }
       }),
-      // All legacy orders for date
+      // All legacy orders for date (deduplicated)
       prisma.order.findMany({
-        where: dateWhere,
+        where: legacyDateWhere,
         select: {
           status: true,
           totalPrice: true,
+          baseCost: true,
           quantity: true,
           bundle: { select: { dataAmount: true } }
         }
@@ -715,7 +704,7 @@ router.get('/dashboard-stats', async (req, res, next) => {
         statusMap[key].amount += row._sum.totalPrice || 0;
       }
     }
-    // Process legacy orders
+    // Process legacy orders (already deduplicated via legacyDateWhere)
     for (const row of legacyStatusStats) {
       const key = row.status;
       if (statusMap[key]) {
@@ -724,31 +713,29 @@ router.get('/dashboard-stats', async (req, res, next) => {
       }
     }
 
-    // Calculate capacity from individual items
-    for (const item of allItemsForDate) {
-      const key = item.status;
-      if (statusMap[key]) {
-        statusMap[key].capacity += parseCapacity(item.bundle?.dataAmount, item.quantity);
-      }
-    }
-    for (const item of allLegacyForDate) {
-      const key = item.status;
-      if (statusMap[key]) {
-        statusMap[key].capacity += parseCapacity(item.bundle?.dataAmount, item.quantity);
-      }
-    }
+    // Calculate capacity and per-row cost from individual items
+    let totalSold = 0;
+    let totalCost = 0;
 
-    // Total sold = completed revenue
-    const totalSold = (itemCompletedAgg._sum.totalPrice || 0) + (legacyCompletedAgg._sum.totalPrice || 0);
+    const processItems = (items) => {
+      for (const item of items) {
+        const key = item.status;
+        if (statusMap[key]) {
+          statusMap[key].capacity += parseCapacity(item.bundle?.dataAmount, item.quantity);
+        }
+        // Per-row profit: only count COMPLETED orders
+        if (key === 'COMPLETED') {
+          const price = item.totalPrice || 0;
+          const cost = (item.baseCost && item.baseCost > 0) ? item.baseCost : price * 0.95;
+          totalSold += price;
+          totalCost += cost;
+        }
+      }
+    };
 
-    // Total cost (from baseCost field, fall back to 95% estimate)
-    const itemBaseCost = itemCostAgg._sum.baseCost || 0;
-    const itemPrice = itemCostAgg._sum.totalPrice || 0;
-    const legacyBaseCost = legacyCostAgg._sum.baseCost || 0;
-    const legacyPrice = legacyCostAgg._sum.totalPrice || 0;
-    // Use baseCost if available, otherwise estimate at 95%
-    const totalCost = (itemBaseCost > 0 ? itemBaseCost : itemPrice * 0.95) +
-                      (legacyBaseCost > 0 ? legacyBaseCost : legacyPrice * 0.95);
+    processItems(allItemsForDate);
+    processItems(allLegacyForDate);
+
     const totalProfit = totalSold - totalCost;
 
     // All orders for date
