@@ -5975,6 +5975,24 @@
             </div>
         </div>
 
+        <!-- ========== VIEW AGENT BALANCE MODAL ========== -->
+        <div class="statement-modal-overlay" id="viewBalanceOverlay" style="display:none;">
+            <div class="statement-modal" style="max-width: 440px;">
+                <div class="statement-header" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border-radius: 12px 12px 0 0; padding: 18px 22px;">
+                    <div class="statement-header-info">
+                        <h3 style="color: white; margin: 0; font-size: 1rem;"><i class="fas fa-eye" style="margin-right: 8px;"></i> Agent Balance View</h3>
+                        <p id="viewBalanceAgentName" style="color: rgba(255,255,255,0.85); margin: 4px 0 0 0; font-size: 0.85rem;">Loading...</p>
+                    </div>
+                    <button onclick="closeViewBalanceModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="viewBalanceContent" style="padding: 20px 22px;">
+                    <div style="text-align: center; padding: 30px 0; color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== HISTORY SECTION ========== -->
         <div class="history-section" id="historySection">
             <!-- History Section Header -->
@@ -12695,6 +12713,9 @@
                             <button onclick="quickAdjustAgent('${safeId}', '${safeName}', 'add')" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #10b981; background: #f0fdf4; color: #10b981; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;" title="Add to available balance">
                                 <i class="fas fa-plus" style="font-size: 0.6rem;"></i>
                             </button>
+                            <button onclick="viewAgentBalance('${safeId}', '${safeName}')" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #3b82f6; background: #eff6ff; color: #3b82f6; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;" title="View agent balance (as agent sees it)">
+                                <i class="fas fa-eye" style="font-size: 0.6rem;"></i>
+                            </button>
                         </div>
                     </td>
                     <td style="padding: 12px 14px; text-align: right; font-weight: 600; font-size: 0.88rem; color: ${(agent.walletBalance || 0) < 0 ? '#ef4444' : '#1e293b'};">
@@ -12917,23 +12938,75 @@
         }
 
         // ========== QUICK ADJUST AVAILABLE BALANCE ==========
+        async function viewAgentBalance(userId, agentName) {
+            const overlay = document.getElementById('viewBalanceOverlay');
+            const content = document.getElementById('viewBalanceContent');
+            document.getElementById('viewBalanceAgentName').textContent = agentName;
+            content.innerHTML = '<div style="text-align: center; padding: 30px 0; color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('active'), 10);
+            try {
+                const res = await adminFetch(`/api/profit-payouts/admin/agent-stats/${userId}`);
+                if (!res.ok) throw new Error('Failed to fetch agent stats');
+                const s = await res.json();
+                const pending = (s.pendingAmount || 0).toFixed(2);
+                const available = (s.availableForWithdrawal || 0).toFixed(2);
+                const reserved = (s.reservedForWithdrawal || 0).toFixed(2);
+                const paid = (s.totalPaidAmount || 0).toFixed(2);
+                const todayAmt = (s.todayAmount || 0).toFixed(2);
+                const todayCount = s.todayCount || 0;
+                const minPayout = (s.minPayout || 0).toFixed(2);
+                content.innerHTML = `
+                    <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 10px; padding: 16px; margin-bottom: 14px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #16a34a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Available to Withdraw</div>
+                        <div style="font-size: 1.8rem; font-weight: 700; color: #15803d; margin-top: 4px;">GH₵ ${available}</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Pending Earnings</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #f59e0b; margin-top: 2px;">GH₵ ${pending}</div>
+                        </div>
+                        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Reserved</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #8b5cf6; margin-top: 2px;">GH₵ ${reserved}</div>
+                        </div>
+                        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Total Paid Out</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-top: 2px;">GH₵ ${paid}</div>
+                        </div>
+                        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Today's Earnings</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #3b82f6; margin-top: 2px;">GH₵ ${todayAmt}</div>
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${todayCount} order${todayCount !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px;">
+                        <span style="font-size: 0.8rem; color: #92400e;"><i class="fas fa-info-circle" style="margin-right: 6px;"></i>Min Payout Threshold</span>
+                        <span style="font-size: 0.9rem; font-weight: 700; color: #92400e;">GH₵ ${minPayout}</span>
+                    </div>
+                `;
+            } catch (err) {
+                content.innerHTML = `<div style="text-align: center; padding: 20px; color: #ef4444;"><i class="fas fa-exclamation-circle" style="font-size: 1.5rem; margin-bottom: 8px; display: block;"></i>${err.message}</div>`;
+            }
+        }
+
+        function closeViewBalanceModal() {
+            const overlay = document.getElementById('viewBalanceOverlay');
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.style.display = 'none', 200);
+        }
+
+        document.getElementById('viewBalanceOverlay')?.addEventListener('click', function(e) {
+            if (e.target === this) closeViewBalanceModal();
+        });
+
         async function quickAdjustAgent(userId, agentName, type) {
-            const action = type === 'deduct' ? 'deduct from' : 'add to';
-            const amount = await showConfirmModal({
-                title: `${type === 'deduct' ? 'Deduct' : 'Add'} Available Balance`,
-                message: `Enter amount to ${action} ${agentName}'s available withdrawal balance.`,
-                type: type === 'deduct' ? 'danger' : 'success',
-                confirmText: type === 'deduct' ? 'Deduct' : 'Add',
-                cancelText: 'Cancel',
-                showInput: true,
-                inputLabel: 'Amount (GH₵)',
-                inputPlaceholder: 'Enter amount...',
-                inputType: 'number'
-            });
-            if (!amount) return;
-            const amountNum = parseFloat(amount);
+            const action = type === 'deduct' ? 'Deduct from' : 'Add to';
+            const input = prompt(`${action} ${agentName}'s available withdrawal balance.\n\nEnter amount (GH₵):`);
+            if (!input) return;
+            const amountNum = parseFloat(input);
             if (isNaN(amountNum) || amountNum <= 0) {
-                showToast('Enter a valid positive amount', 'error');
+                alert('Please enter a valid positive amount.');
                 return;
             }
             const finalAmount = type === 'deduct' ? -amountNum : amountNum;
@@ -12943,11 +13016,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, amount: finalAmount, note: `Quick ${type === 'deduct' ? 'deduction' : 'addition'} by Admin` })
                 });
-                if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to adjust');
                 showToast(`GH₵ ${amountNum.toFixed(2)} ${type === 'deduct' ? 'deducted from' : 'added to'} ${agentName}'s available balance`, 'success');
                 loadAgentProfits();
             } catch (err) {
-                showToast('Error: ' + err.message, 'error');
+                alert('Error: ' + err.message);
             }
         }
 

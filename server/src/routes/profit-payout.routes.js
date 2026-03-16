@@ -431,6 +431,19 @@ router.get('/admin/agent-profits', authenticate, authorize('ADMIN'), async (req,
 });
 
 /**
+ * GET /api/profit-payouts/admin/agent-stats/:userId
+ * Get an agent's profit stats (same view as agent sees)
+ */
+router.get('/admin/agent-stats/:userId', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const stats = await profitPayoutService.getUserProfitStats(req.params.userId);
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /api/profit-payouts/admin/agent-adjustment
  * Create an admin profit adjustment (positive or negative) for an agent
  */
@@ -456,6 +469,7 @@ router.post('/admin/agent-adjustment', authenticate, authorize('ADMIN'), async (
         createdBy: req.user.name || req.user.email || req.user.id
       }
     });
+
     res.json({ success: true, adjustment });
   } catch (err) {
     res.status(500).json({ error: err.message });

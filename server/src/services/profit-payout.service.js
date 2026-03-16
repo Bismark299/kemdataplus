@@ -272,7 +272,7 @@ const profitPayoutService = {
     const todayEnd = new Date();
     todayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [pending, paid, today, pendingWithdrawals] = await Promise.all([
+    const [pending, paid, today, pendingWithdrawals, completedWithdrawals, adminAdjustments] = await Promise.all([
       prisma.pendingProfit.aggregate({
         where: { userId, status: 'PENDING' },
         _sum: { amount: true },
@@ -299,18 +299,30 @@ const profitPayoutService = {
           status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
         },
         _sum: { amount: true }
+      }),
+      // Total successfully withdrawn (completed payouts)
+      prisma.agentPayout.aggregate({
+        where: { userId, status: 'COMPLETED' },
+        _sum: { amount: true }
+      }),
+      // Admin profit adjustments (positive = add, negative = deduct)
+      prisma.adminProfitAdjustment.aggregate({
+        where: { userId },
+        _sum: { amount: true }
       })
     ]);
 
     const settings = getPayoutSettings();
     
-    // Available = Total pending profits - amounts already requested for withdrawal
     const totalPending = pending._sum.amount || 0;
     const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
-    const availableForWithdrawal = Math.max(0, totalPending - reservedForWithdrawal);
+    const totalWithdrawn = completedWithdrawals._sum.amount || 0;
+    const adminAdjustment = adminAdjustments._sum.amount || 0;
+    // totalPending already excludes PAID profits, so don't subtract totalWithdrawn (that would double-count)
+    const availableForWithdrawal = Math.max(0, totalPending - reservedForWithdrawal + adminAdjustment);
 
     return {
-      pendingAmount: totalPending,
+      pendingAmount: Math.max(0, totalPending + adminAdjustment),
       pendingCount: pending._count || 0,
       availableForWithdrawal,  // This is what they can actually withdraw
       reservedForWithdrawal,   // Amount already in pending withdrawal requests
