@@ -272,17 +272,20 @@ const profitPayoutService = {
     const todayEnd = new Date();
     todayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [pending, paid, today, pendingWithdrawals, completedWithdrawals, adminAdjustments] = await Promise.all([
+    const [pending, paid, today, pendingWithdrawals, adminAdjustments] = await Promise.all([
+      // PENDING profits = not yet withdrawn (this is the live balance)
       prisma.pendingProfit.aggregate({
         where: { userId, status: 'PENDING' },
         _sum: { amount: true },
         _count: true
       }),
+      // PAID profits = already withdrawn
       prisma.pendingProfit.aggregate({
         where: { userId, status: 'PAID' },
         _sum: { amount: true },
         _count: true
       }),
+      // Today's pending profits
       prisma.pendingProfit.aggregate({
         where: { 
           userId, 
@@ -292,17 +295,12 @@ const profitPayoutService = {
         _sum: { amount: true },
         _count: true
       }),
-      // Get pending/processing withdrawal requests that haven't been completed
+      // Pending/processing withdrawal requests (reserved amounts)
       prisma.agentPayout.aggregate({
         where: { 
           userId, 
           status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
         },
-        _sum: { amount: true }
-      }),
-      // Total successfully withdrawn (completed payouts)
-      prisma.agentPayout.aggregate({
-        where: { userId, status: 'COMPLETED' },
         _sum: { amount: true }
       }),
       // Admin profit adjustments (positive = add, negative = deduct)
@@ -316,13 +314,13 @@ const profitPayoutService = {
     
     const totalPending = pending._sum.amount || 0;
     const reservedForWithdrawal = pendingWithdrawals._sum.amount || 0;
-    const totalWithdrawn = completedWithdrawals._sum.amount || 0;
     const adminAdjustment = adminAdjustments._sum.amount || 0;
-    // totalPending already excludes PAID profits, so don't subtract totalWithdrawn (that would double-count)
+    // totalPending only includes PENDING status (excludes PAID), so no need to subtract withdrawn
+    const pendingAmount = Math.max(0, totalPending + adminAdjustment);
     const availableForWithdrawal = Math.max(0, totalPending - reservedForWithdrawal + adminAdjustment);
 
     return {
-      pendingAmount: Math.max(0, totalPending + adminAdjustment),
+      pendingAmount,
       pendingCount: pending._count || 0,
       availableForWithdrawal,  // This is what they can actually withdraw
       reservedForWithdrawal,   // Amount already in pending withdrawal requests
