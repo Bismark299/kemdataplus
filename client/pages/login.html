@@ -555,7 +555,10 @@
     // =====================
     // SHOW/HIDE FORMS
     // =====================
+    let registrationEnabled = true;
+
     function showRegister() {
+      if (!registrationEnabled) return;
       document.getElementById('loginBox').style.display = 'none';
       document.getElementById('registerBox').style.display = 'block';
       clearErrors();
@@ -566,6 +569,26 @@
       document.getElementById('loginBox').style.display = 'block';
       clearErrors();
     }
+
+    // Check if registration is enabled
+    (async function checkRegistrationSetting() {
+      try {
+        const res = await fetch(API_BASE + '/settings/public');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.newRegistration === false) {
+            registrationEnabled = false;
+            // Hide the "Create one" link
+            const switchLink = document.querySelector('#loginBox .switch-link');
+            if (switchLink) switchLink.style.display = 'none';
+            // Ensure register box stays hidden
+            document.getElementById('registerBox').style.display = 'none';
+          }
+        }
+      } catch (e) {
+        // If settings fetch fails, allow registration by default
+      }
+    })();
 
     function clearErrors() {
       document.getElementById('loginError').style.display = 'none';

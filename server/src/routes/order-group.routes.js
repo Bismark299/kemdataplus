@@ -275,8 +275,8 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    // Default to 5000 orders if no limit specified (enough for ~2+ months of data)
-    const limit = Math.min(10000, Math.max(1, parseInt(req.query.limit) || 5000));
+    // Default to 5000 orders if no limit specified
+    const limit = Math.max(1, parseInt(req.query.limit) || 5000);
     const compact = req.query.compact === 'true';
 
     console.log(`[OrderGroup] Admin fetching orders (limit: ${limit})`);

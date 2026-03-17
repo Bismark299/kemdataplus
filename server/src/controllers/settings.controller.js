@@ -66,6 +66,7 @@ const settingsController = {
         momoName: settings.adminSettings?.adminName || 'KemDataplus',
         paystackEnabled: settings.siteSettings?.paystackEnabled !== false,
         momoClaimEnabled: settings.siteSettings?.momoClaimEnabled !== false,
+        newRegistration: settings.siteSettings?.newRegistration !== false,
         // Upload limits for client dashboard
         maxExcelUpload: settings.adminSettings?.maxExcelUpload || 50,
         maxBulkUpload: settings.adminSettings?.maxBulkUpload || 50

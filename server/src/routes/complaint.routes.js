@@ -11,6 +11,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const complaintService = require('../services/complaint.service');
+const prisma = require('../lib/prisma');
 
 // ============================================
 // AGENT ENDPOINTS
@@ -67,7 +68,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
  */
 router.post('/', authenticate, async (req, res, next) => {
   try {
-    const { type, subject, description, orderId, orderGroupId, affectedPhone, amount } = req.body;
+    const { type, subject, description, orderId, orderGroupId, affectedPhone, amount, dataSize, txDate, txRef } = req.body;
 
     if (!type || !subject || !description) {
       return res.status(400).json({ error: 'Type, subject, and description are required' });
@@ -90,7 +91,10 @@ router.post('/', authenticate, async (req, res, next) => {
       orderId,
       orderGroupId,
       affectedPhone,
-      amount: amount ? parseFloat(amount) : null
+      amount: amount ? parseFloat(amount) : null,
+      dataSize: dataSize || null,
+      txDate: txDate || null,
+      txRef: txRef || null
     });
 
     res.status(201).json({
@@ -181,6 +185,42 @@ router.get('/admin/:id', authenticate, authorize('ADMIN'), async (req, res, next
     }
 
     res.json(complaint);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/complaints/bulk-resolve
+ * Resolve all non-resolved complaints at once
+ */
+router.put('/admin/bulk-resolve', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const unresolved = await prisma.complaint.findMany({
+      where: {
+        status: { notIn: ['RESOLVED', 'CLOSED'] }
+      },
+      select: { id: true }
+    });
+
+    if (unresolved.length === 0) {
+      return res.json({ message: 'No unresolved complaints found', count: 0 });
+    }
+
+    await prisma.complaint.updateMany({
+      where: {
+        status: { notIn: ['RESOLVED', 'CLOSED'] }
+      },
+      data: {
+        status: 'RESOLVED',
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({
+      message: `Resolved ${unresolved.length} complaint(s)`,
+      count: unresolved.length
+    });
   } catch (error) {
     next(error);
   }

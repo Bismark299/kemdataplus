@@ -4,6 +4,7 @@ const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');
 const { assignAgentCode } = require('../utils/agentCode');
+const { getSiteSettings } = require('./settings.controller');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -26,6 +27,12 @@ const authController = {
   // Register new user
   async register(req, res, next) {
     try {
+      // Check if registration is enabled
+      const siteSettings = getSiteSettings();
+      if (siteSettings.newRegistration === false) {
+        return res.status(403).json({ error: 'Registration is currently disabled' });
+      }
+
       const { email, password, name, phone } = req.body;
 
       // Check if user exists

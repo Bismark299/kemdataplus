@@ -1330,9 +1330,9 @@ router.get('/audit-report', async (req, res, next) => {
       }
     });
     
-    // Separate Paystack vs MoMo deposits
+    // Separate Paystack agent deposits vs MoMo deposits
     // Identify Paystack by: paymentMethod='PAYSTACK' OR reference starts with 'PS_'
-    let paystackDeposits = { count: 0, amount: 0, fees: 0 };
+    let agentPaystackDeposits = { count: 0, amount: 0 };
     let momoDeposits = { count: 0, amount: 0 };
     
     deposits.forEach(d => {
@@ -1341,21 +1341,30 @@ router.get('/audit-report', async (req, res, next) => {
       const isPaystack = method.includes('PAYSTACK') || ref.startsWith('PS_');
       
       if (isPaystack) {
-        paystackDeposits.count++;
-        paystackDeposits.amount += d.amount;
-        // Platform absorbs 0.5% of total (customer paid 1.5%, Paystack takes ~1.95%)
-        paystackDeposits.fees += d.amount * 0.005;
+        agentPaystackDeposits.count++;
+        agentPaystackDeposits.amount += d.amount;
       } else {
         momoDeposits.count++;
         momoDeposits.amount += d.amount;
       }
     });
     
+    // Store Paystack payments (from StorefrontOrder with Paystack)
+    const storePaystackOrders = await prisma.storefrontOrder.findMany({
+      where: {
+        paymentMethod: 'PAYSTACK',
+        paymentStatus: 'PAID',
+        createdAt: dateFilter
+      }
+    });
+    let storePaystackPayments = { count: storePaystackOrders.length, amount: 0 };
+    storePaystackOrders.forEach(o => {
+      storePaystackPayments.amount += o.amount || 0;
+    });
+    
     const totalDeposits = {
-      count: deposits.length,
-      amount: paystackDeposits.amount + momoDeposits.amount,
-      fees: paystackDeposits.fees,
-      netReceived: paystackDeposits.amount + momoDeposits.amount - paystackDeposits.fees
+      count: deposits.length + storePaystackPayments.count,
+      amount: agentPaystackDeposits.amount + storePaystackPayments.amount + momoDeposits.amount
     };
     
     // 2. ORDERS SUMMARY
@@ -1368,9 +1377,7 @@ router.get('/audit-report', async (req, res, next) => {
       include: {
         bundle: true,
         orderGroup: {
-          include: {
-            user: { select: { id: true, name: true, role: true } }
-          }
+          select: { id: true, idempotencyKey: true, user: { select: { id: true, name: true, role: true } } }
         }
       }
     });
@@ -1401,21 +1408,25 @@ router.get('/audit-report', async (req, res, next) => {
     // Agent breakdown (for store orders)
     const agentStats = {};
     
-    // Process order items for system orders
+    // Process order items - separate system (direct) vs storefront-originated
     orderItems.forEach(item => {
       const network = item.bundle?.network || 'Unknown';
       const revenue = item.totalPrice || 0;
       const cost = item.baseCost || 0;
       const profit = revenue - cost;
       
-      // Check if this is a storefront-related order (will be counted separately)
-      // For system orders, count all direct order items
-      systemOrders.count++;
-      systemOrders.revenue += revenue;
-      systemOrders.cost += cost;
-      systemOrders.profit += profit;
+      // Check if this order came from a storefront (idempotencyKey starts with 'STORE-')
+      const isStoreOrder = item.orderGroup?.idempotencyKey?.startsWith('STORE-');
       
-      // Network breakdown
+      // Only count non-store orders as system (direct) orders
+      if (!isStoreOrder) {
+        systemOrders.count++;
+        systemOrders.revenue += revenue;
+        systemOrders.cost += cost;
+        systemOrders.profit += profit;
+      }
+      
+      // Network breakdown (all orders)
       if (!networkStats[network]) {
         networkStats[network] = { orders: 0, revenue: 0, cost: 0, profit: 0 };
       }
@@ -1489,8 +1500,8 @@ router.get('/audit-report', async (req, res, next) => {
     // 7. FINAL PROFIT SUMMARY
     // System gross profit = revenue - cost from direct orders
     const systemGrossProfit = systemOrders.profit;
-    // System net profit = gross - Paystack fees (0.5%)
-    const systemNetProfit = systemGrossProfit - paystackDeposits.fees;
+    // System net profit = gross profit (no fee deduction)
+    const systemNetProfit = systemGrossProfit;
     
     // Store profit breakdown
     const storeGrossProfit = storeOrdersSummary.ownerProfit + storeOrdersSummary.platformProfit;
@@ -1499,6 +1510,9 @@ router.get('/audit-report', async (req, res, next) => {
     
     // Total platform profit
     const totalPlatformProfit = systemNetProfit + platformCutFromStore;
+    
+    // Total Paystack = agent deposits + store payments
+    const totalPaystack = agentPaystackDeposits.amount + storePaystackPayments.amount;
     
     // Format agent stats as array
     const agentBreakdown = Object.entries(agentStats).map(([id, stats]) => ({
@@ -1518,11 +1532,13 @@ router.get('/audit-report', async (req, res, next) => {
         end: end.toISOString()
       },
       deposits: {
-        paystack: {
-          count: paystackDeposits.count,
-          amount: paystackDeposits.amount,
-          fees: paystackDeposits.fees,
-          netReceived: paystackDeposits.amount - paystackDeposits.fees
+        agentPaystack: {
+          count: agentPaystackDeposits.count,
+          amount: agentPaystackDeposits.amount
+        },
+        storePaystack: {
+          count: storePaystackPayments.count,
+          amount: storePaystackPayments.amount
         },
         momo: {
           count: momoDeposits.count,
@@ -1554,10 +1570,9 @@ router.get('/audit-report', async (req, res, next) => {
         count: walletBalances._count || 0
       },
       summary: {
-        totalDeposits: totalDeposits.amount,
+        totalDeposits: totalPaystack,
         totalOrderRevenue: systemOrders.revenue + storeOrdersSummary.revenue,
         systemGrossProfit: systemGrossProfit,
-        paystackFees: paystackDeposits.fees,
         systemNetProfit: systemNetProfit,
         storeGrossProfit: storeGrossProfit,
         agentEarnings: agentEarnings,
