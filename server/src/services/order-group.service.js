@@ -1264,6 +1264,37 @@ const orderGroupService = {
 
       // Update OrderGroup summary status
       await this.recalculateGroupStatus(item.orderGroupId);
+
+      // If COMPLETED, cascade to Order + StorefrontOrder + credit profit
+      if (newStatus === 'COMPLETED') {
+        try {
+          // Find linked Order by reference prefix (item ref = "ORD-XXXX-01", order ref = "ORD-XXXX")
+          const orderRef = item.reference.replace(/-\d+$/, '');
+          const linkedOrder = await prisma.order.findFirst({
+            where: { reference: orderRef }
+          });
+          if (linkedOrder) {
+            // Sync Order status
+            if (linkedOrder.status !== 'COMPLETED') {
+              await prisma.order.update({
+                where: { id: linkedOrder.id },
+                data: { status: 'COMPLETED', apiConfirmedAt: new Date() }
+              });
+              console.log(`[Sync] ✅ Order ${orderRef} synced to COMPLETED`);
+            }
+            // Sync StorefrontOrder + credit profit
+            if (linkedOrder.storefrontOrderId) {
+              const financialOrderService = require('./financial-order.service');
+              const profitResult = await financialOrderService.processCompletedStorefrontOrder(linkedOrder.id);
+              if (profitResult.credited) {
+                console.log(`[Sync] ✅ Agent profit credited: GHS ${profitResult.amount}`);
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`[Sync] Failed to cascade completion for item ${item.reference}:`, err.message);
+        }
+      }
     }
 
     return {

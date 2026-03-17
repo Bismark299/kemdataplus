@@ -512,13 +512,39 @@ const financialOrderService = {
       console.log(`[FinancialOrder] API success, provider status: ${apiStatus}`);
 
       // Update order with success
+      const isCompleted = apiStatus === 'success' || apiStatus === 'completed';
       await prisma.order.update({
         where: { id: orderId },
         data: {
-          status: apiStatus === 'success' || apiStatus === 'completed' ? 'COMPLETED' : 'PROCESSING',
-          externalStatus: apiStatus
+          status: isCompleted ? 'COMPLETED' : 'PROCESSING',
+          externalStatus: apiStatus,
+          ...(isCompleted ? { apiConfirmedAt: new Date() } : {})
         }
       });
+
+      // If instantly completed, cascade to StorefrontOrder + credit profit
+      if (isCompleted && order.storefrontOrderId) {
+        try {
+          const profitResult = await this.processCompletedStorefrontOrder(orderId);
+          if (profitResult.credited) {
+            console.log(`[FinancialOrder] ✅ Agent profit credited: GHS ${profitResult.amount}`);
+          }
+        } catch (err) {
+          console.error(`[FinancialOrder] Failed to credit profit for order ${orderId}:`, err.message);
+        }
+      }
+
+      // If instantly completed, also sync the OrderItem
+      if (isCompleted && order.reference) {
+        try {
+          await prisma.orderItem.updateMany({
+            where: { reference: { startsWith: order.reference } },
+            data: { status: 'COMPLETED', externalReference, externalStatus: apiStatus, apiConfirmedAt: new Date() }
+          });
+        } catch (err) {
+          console.error(`[FinancialOrder] Failed to sync OrderItem:`, err.message);
+        }
+      }
 
       console.log(`[FinancialOrder] ========== PUSH ORDER END ==========`);
 
