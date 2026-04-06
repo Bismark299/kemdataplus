@@ -143,7 +143,8 @@ router.post('/momo-details', authenticate, async (req, res) => {
       data: {
         momoName: momoName.trim(),
         momoNumber: momoNumber.trim(),
-        momoNetwork: momoNetwork.toUpperCase()
+        momoNetwork: momoNetwork.toUpperCase(),
+        momoRecipientCode: null  // Clear cached Paystack recipient so new number gets a fresh one
       }
     });
     

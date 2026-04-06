@@ -147,12 +147,19 @@ const profitPayoutService = {
       select: { momoRecipientCode: true, momoNumber: true, momoNetwork: true, momoName: true }
     });
 
-    // If same MoMo details already have a recipient code, reuse it
+    // Only reuse cached recipient if ALL MoMo details match exactly
     if (user?.momoRecipientCode && 
         user.momoNumber === accountNumber && 
-        user.momoNetwork === bankCode) {
+        user.momoNetwork === bankCode &&
+        user.momoName === accountName) {
       console.log(`[Payout] Reusing cached recipient code for user ${userId}`);
       return user.momoRecipientCode;
+    }
+
+    // Clear stale recipient code if MoMo details changed
+    if (user?.momoRecipientCode && 
+        (user.momoNumber !== accountNumber || user.momoNetwork !== bankCode)) {
+      console.log(`[Payout] MoMo details changed for user ${userId} - invalidating cached recipient code`);
     }
 
     // Create new recipient with Paystack
@@ -387,7 +394,8 @@ const profitPayoutService = {
         data: {
           momoName: accountName,
           momoNumber: accountNumber,
-          momoNetwork: networkCode
+          momoNetwork: networkCode,
+          momoRecipientCode: null  // Clear cached recipient so new details get a fresh one
         }
       });
       console.log('[requestWithdrawal] Saved MoMo details to user profile');
