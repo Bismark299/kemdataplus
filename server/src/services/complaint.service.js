@@ -461,11 +461,36 @@ const complaintService = {
 
     const recipientPhone = phone || complaint.affectedPhone || complaint.order.recipientPhone;
 
-    // Create a new order for the resend
+    // Create a new order for the resend using per-network routing
+    const settingsController = require('../controllers/settings.controller');
+    const ckgodswayService = require('./ckgodsway.service');
     const datahubService = require('./datahub.service');
+    const siteSettings = settingsController.getSiteSettings();
+    const network = complaint.order.bundle.network;
+    const isTruthy = (val) => val === true || val === 'true' || val === 1;
+    const getNetworkToggleKey = (prefix, net) => {
+      const n = (net || '').toLowerCase().replace(/\s+/g, '');
+      if (n === 'mtn') return `${prefix}_mtnAPI`;
+      if (n === 'telecel' || n === 'vodafone') return `${prefix}_telecelAPI`;
+      if (n === 'airteltigo' || n === 'at') return `${prefix}_airteltigoAPI`;
+      if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
+      return null;
+    };
+    const PROVIDERS = [
+      { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
+      { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: datahubService }
+    ];
+    let selectedService = datahubService; // fallback
+    for (const p of PROVIDERS) {
+      if (!isTruthy(siteSettings[p.key])) continue;
+      const toggleKey = getNetworkToggleKey(p.prefix, network);
+      if (toggleKey && siteSettings[toggleKey] === false) continue;
+      selectedService = p.service;
+      break;
+    }
     
-    const resendResult = await datahubService.placeOrder({
-      network: complaint.order.bundle.network,
+    const resendResult = await selectedService.placeOrder({
+      network: network,
       phone: recipientPhone,
       amount: parseFloat(complaint.order.bundle.dataAmount) || 1,
       orderId: `RESEND-${complaint.ticketNumber}`

@@ -727,6 +727,15 @@
         .network-filter-btn.airteltigo.active {
             background: #dbeafe;
         }
+        .network-filter-btn.bigtime {
+            color: #7c3aed;
+            border-color: #c4b5fd;
+        }
+        .network-filter-btn.bigtime i { color: #7c3aed; }
+        .network-filter-btn.bigtime:hover,
+        .network-filter-btn.bigtime.active {
+            background: #ede9fe;
+        }
         
         /* Filter Actions */
         .filter-actions {
@@ -2965,6 +2974,7 @@
         .network-badge.mtn { background: #fef3c7; color: #f59e0b; }
         .network-badge.vodafone { background: #fee2e2; color: #ef4444; }
         .network-badge.airteltigo { background: #dbeafe; color: #3b82f6; }
+        .network-badge.bigtime { background: #ede9fe; color: #7c3aed; }
         @media (max-width: 1200px) {
             .history-stats { grid-template-columns: repeat(3, 1fr); }
             .filter-row { flex-direction: column; }
@@ -4773,6 +4783,7 @@
                             <option value="MTN">MTN</option>
                             <option value="Telecel">Telecel</option>
                             <option value="AirtelTigo">AT-iShare</option>
+                            <option value="AT-BigTime">AT-Big Time</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -4811,6 +4822,10 @@
                     <button class="network-filter-btn airteltigo" data-network="AIRTELTIGO" id="filterBtnAirtelTigo">
                         <i class="fas fa-circle"></i> AT-iShare
                         <span class="pending-badge" id="airteltigoFilterPending">0 Pending</span>
+                    </button>
+                    <button class="network-filter-btn bigtime" data-network="AT-BIGTIME" id="filterBtnBigTime">
+                        <i class="fas fa-circle"></i> AT-Big Time
+                        <span class="pending-badge" id="bigtimeFilterPending">0 Pending</span>
                     </button>
                 </div>
                 
@@ -7889,9 +7904,11 @@
                     const mtnEl = document.getElementById('mtnFilterPending');
                     const telecelEl = document.getElementById('telecelFilterPending');
                     const airteltigoEl = document.getElementById('airteltigoFilterPending');
+                    const bigtimeEl = document.getElementById('bigtimeFilterPending');
                     if (mtnEl) mtnEl.textContent = s.networkPending.MTN > 0 ? s.networkPending.MTN + ' Pending' : '0 Pending';
                     if (telecelEl) telecelEl.textContent = s.networkPending.Telecel > 0 ? s.networkPending.Telecel + ' Pending' : '0 Pending';
                     if (airteltigoEl) airteltigoEl.textContent = s.networkPending.AirtelTigo > 0 ? s.networkPending.AirtelTigo + ' Pending' : '0 Pending';
+                    if (bigtimeEl) bigtimeEl.textContent = (s.networkPending['AT-BigTime'] || 0) > 0 ? s.networkPending['AT-BigTime'] + ' Pending' : '0 Pending';
                 }
                 
                 // PHASE 2: Load full orders for the table (can be slower, table shows skeleton)
@@ -8463,7 +8480,8 @@
                     const net = (o.bundle?.network || o.network || '').toUpperCase();
                     if (networkDropdown === 'MTN') return net.includes('MTN');
                     if (networkDropdown === 'Telecel') return net.includes('TELECEL');
-                    if (networkDropdown === 'AirtelTigo') return net.includes('AIRTELTIGO') || net.includes('AIRTEL');
+                    if (networkDropdown === 'AirtelTigo') return net === 'AIRTELTIGO';
+                    if (networkDropdown === 'AT-BigTime') return net.includes('BIG TIME') || net.includes('BIGTIME');
                     return false;
                 });
             }
@@ -14597,7 +14615,8 @@
                     const net = (o.bundle?.network || o.network || '').toUpperCase();
                     if (network === 'MTN') return net.includes('MTN');
                     if (network === 'TELECEL') return net.includes('TELECEL');
-                    if (network === 'AIRTELTIGO') return net.includes('AIRTELTIGO') || net.includes('AIRTEL');
+                    if (network === 'AIRTELTIGO') return net === 'AIRTELTIGO';
+                    if (network === 'AT-BIGTIME') return net.includes('BIG TIME') || net.includes('BIGTIME');
                     return false;
                 });
                 

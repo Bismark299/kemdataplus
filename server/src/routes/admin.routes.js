@@ -744,12 +744,13 @@ router.get('/dashboard-stats', async (req, res, next) => {
     const totalCapacity = Object.values(statusMap).reduce((s, v) => s + v.capacity, 0);
 
     // Network pending counts
-    const networkPending = { MTN: 0, Telecel: 0, AirtelTigo: 0 };
+    const networkPending = { MTN: 0, Telecel: 0, AirtelTigo: 0, 'AT-BigTime': 0 };
     const countNetwork = (items) => {
       for (const item of items) {
         const net = (item.bundle?.network || '').toUpperCase();
         if (net.includes('MTN')) networkPending.MTN++;
         else if (net.includes('TELECEL')) networkPending.Telecel++;
+        else if (net.includes('BIG TIME') || net.includes('BIGTIME')) networkPending['AT-BigTime']++;
         else if (net.includes('AIRTELTIGO') || net.includes('AIRTEL')) networkPending.AirtelTigo++;
       }
     };

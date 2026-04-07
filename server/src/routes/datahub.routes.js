@@ -53,12 +53,77 @@ router.get('/status/:reference', authenticate, authorize('ADMIN'), async (req, r
 /**
  * POST /api/datahub/process/:orderId
  * Process a specific order through API (Admin only)
+ * Uses per-network routing to select the correct provider
  */
 router.post('/process/:orderId', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const result = await datahubService.processOrder(orderId);
-    res.json(result);
+    const settingsController = require('../controllers/settings.controller');
+    const ckgodswayService = require('../services/ckgodsway.service');
+    const prisma = require('../lib/prisma');
+    
+    // Fetch order with bundle to get network
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { bundle: true }
+    });
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (order.externalReference) return res.status(400).json({ success: false, error: 'Order already sent to API' });
+    if (order.status === 'COMPLETED') return res.status(400).json({ success: false, error: 'Order already completed' });
+    
+    const network = order.bundle?.network || 'MTN';
+    const siteSettings = settingsController.getSiteSettings();
+    const isTruthy = (val) => val === true || val === 'true' || val === 1;
+    const getNetworkToggleKey = (prefix, net) => {
+      const n = (net || '').toLowerCase().replace(/\s+/g, '');
+      if (n === 'mtn') return `${prefix}_mtnAPI`;
+      if (n === 'telecel' || n === 'vodafone') return `${prefix}_telecelAPI`;
+      if (n === 'airteltigo' || n === 'at') return `${prefix}_airteltigoAPI`;
+      if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
+      return null;
+    };
+    const PROVIDERS = [
+      { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
+      { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: datahubService }
+    ];
+    
+    let provider = null;
+    for (const p of PROVIDERS) {
+      if (!isTruthy(siteSettings[p.key])) continue;
+      const toggleKey = getNetworkToggleKey(p.prefix, network);
+      if (toggleKey && siteSettings[toggleKey] === false) continue;
+      provider = p;
+      break;
+    }
+    
+    if (!provider) return res.status(400).json({ success: false, error: `No API provider enabled for ${network}` });
+    
+    let dataAmount = 1;
+    if (order.bundle?.dataAmount) {
+      const match = order.bundle.dataAmount.match(/(\d+)/);
+      if (match) dataAmount = parseInt(match[1]);
+    }
+    
+    // Atomic lock
+    const claim = await prisma.order.updateMany({
+      where: { id: orderId, apiSentAt: null, externalReference: null },
+      data: { apiSentAt: new Date() }
+    });
+    if (claim.count === 0) return res.status(400).json({ success: false, error: 'Order already being processed' });
+    
+    const result = await provider.service.placeOrder({
+      network, phone: order.recipientPhone, amount: dataAmount, orderId
+    });
+    
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: result.success ? 'PROCESSING' : 'PENDING', externalReference: result.reference || null }
+    });
+    if (!result.success) {
+      await prisma.order.update({ where: { id: orderId }, data: { apiSentAt: null } });
+    }
+    
+    res.json({ ...result, provider: provider.name });
   } catch (error) {
     if (error.message.includes('not found') || error.message.includes('already')) {
       return res.status(400).json({ success: false, error: error.message });

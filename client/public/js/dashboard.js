@@ -221,7 +221,7 @@
     if (!indicator) return;
     
     // Check if ALL networks are offline (use loaded data, not hardcoded list)
-    const allNetworks = Object.keys(BUNDLE_DATA).length > 0 ? Object.keys(BUNDLE_DATA) : ['MTN', 'Telecel', 'AirtelTigo'];
+    const allNetworks = Object.keys(BUNDLE_DATA).length > 0 ? Object.keys(BUNDLE_DATA) : ['MTN', 'Telecel', 'AirtelTigo', 'AT- BIG TIME'];
     const allNetworksOffline = allNetworks.every(net => NETWORK_STATUS[net] === false);
     
     const isActive = NETWORK_STATUS[currentNetwork] !== false;

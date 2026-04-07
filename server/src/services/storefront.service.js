@@ -1289,57 +1289,82 @@ const storefrontService = {
     console.log(`[Storefront] ✅ Paystack order ready for fulfillment: ${storefrontOrderId}`);
     console.log(`[Storefront] Agent profit (GHS ${result.agentProfit}) will be credited on completion`);
 
-    // AUTO-PROCESS: Push order to API for fulfillment
+    // AUTO-PROCESS: Push order to API for fulfillment (per-network routing)
     try {
       const settingsController = require('../controllers/settings.controller');
       const siteSettings = settingsController.getSiteSettings();
-      const orderNetwork = (result.bundleNetwork || '').toLowerCase();
+      const orderNetwork = result.bundleNetwork || '';
       
-      // Check if API is enabled using the actual settings structure
-      // Settings use: easydata_mtnAPI, easydata_telecelAPI, mcbis_mtnAPI, etc.
-      let apiEnabled = false;
-      let providerName = '';
+      // Per-network routing: find the right provider for this network
+      const isTruthy = (val) => val === true || val === 'true' || val === 1;
+      const getNetworkToggleKey = (prefix, network) => {
+        const n = (network || '').toLowerCase().replace(/\s+/g, '');
+        if (n === 'mtn') return `${prefix}_mtnAPI`;
+        if (n === 'telecel' || n === 'vodafone') return `${prefix}_telecelAPI`;
+        if (n === 'airteltigo' || n === 'at') return `${prefix}_airteltigoAPI`;
+        if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
+        return null;
+      };
       
-      // Check EasyData (masterAPI)
-      if (siteSettings.masterAPI === true || siteSettings.masterAPI === 'true') {
-        const networkKey = orderNetwork === 'mtn' ? 'easydata_mtnAPI' 
-          : orderNetwork === 'telecel' || orderNetwork === 'vodafone' ? 'easydata_telecelAPI'
-          : orderNetwork === 'airteltigo' || orderNetwork === 'at' ? 'easydata_airteltigoAPI'
-          : null;
-        
-        if (networkKey && siteSettings[networkKey] !== false) {
-          apiEnabled = true;
-          providerName = 'EasyData';
+      const PROVIDERS = [
+        { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', getService: () => require('./ckgodsway.service') },
+        { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', getService: () => require('./datahub.service') }
+      ];
+      
+      let selectedProvider = null;
+      for (const p of PROVIDERS) {
+        if (!isTruthy(siteSettings[p.key])) continue;
+        const toggleKey = getNetworkToggleKey(p.prefix, orderNetwork);
+        if (toggleKey) {
+          const enabled = siteSettings[toggleKey] !== false;
+          if (!enabled) continue;
         }
+        selectedProvider = p;
+        break;
       }
       
-      // Check MCBIS (mcbisAPI)
-      if (!apiEnabled && (siteSettings.mcbisAPI === true || siteSettings.mcbisAPI === 'true')) {
-        const networkKey = orderNetwork === 'mtn' ? 'mcbis_mtnAPI'
-          : orderNetwork === 'telecel' || orderNetwork === 'vodafone' ? 'mcbis_telecelAPI'
-          : orderNetwork === 'airteltigo' || orderNetwork === 'at' ? 'mcbis_airteltigoAPI'
-          : null;
+      if (selectedProvider) {
+        const service = selectedProvider.getService();
+        console.log(`[Storefront] Triggering ${selectedProvider.name} API fulfillment for order ${result.orderId} (${orderNetwork})...`);
         
-        if (networkKey && siteSettings[networkKey] !== false) {
-          apiEnabled = true;
-          providerName = 'MCBIS';
+        // Extract data amount
+        let dataAmount = 1;
+        const bundle = await prisma.bundle.findUnique({ where: { id: bundleId } });
+        if (bundle?.dataAmount) {
+          const match = bundle.dataAmount.match(/(\d+)/);
+          if (match) dataAmount = parseInt(match[1]);
         }
-      }
-      
-      if (apiEnabled) {
-        const datahubService = require('./datahub.service');
         
-        console.log(`[Storefront] Triggering ${providerName} API fulfillment for order ${result.orderId}...`);
+        // Atomic lock: claim order before API call
+        const claimResult = await prisma.order.updateMany({
+          where: { id: result.orderId, apiSentAt: null, status: 'PENDING', externalReference: null },
+          data: { apiSentAt: new Date() }
+        });
         
-        // Process the order
-        const apiResult = await datahubService.processOrder(result.orderId);
-        
-        if (apiResult.success) {
-          console.log(`[Storefront] ✅ API accepted order: ${apiResult.apiReference}`);
-        } else if (apiResult.alreadyProcessed) {
-          console.log(`[Storefront] Order already processed`);
+        if (claimResult.count === 0) {
+          console.log(`[Storefront] Order ${result.orderId} already claimed`);
         } else {
-          console.log(`[Storefront] ⚠️ API processing failed: ${apiResult.message}`);
+          const apiResult = await service.placeOrder({
+            network: orderNetwork,
+            phone: result.recipientPhone || customerPhone,
+            amount: dataAmount,
+            orderId: result.orderId
+          });
+          
+          await prisma.order.update({
+            where: { id: result.orderId },
+            data: {
+              status: apiResult.success ? 'PROCESSING' : 'PENDING',
+              externalReference: apiResult.reference || null
+            }
+          });
+          
+          if (!apiResult.success) {
+            await prisma.order.update({ where: { id: result.orderId }, data: { apiSentAt: null } });
+            console.log(`[Storefront] ⚠️ API processing failed: ${apiResult.error}`);
+          } else {
+            console.log(`[Storefront] ✅ ${selectedProvider.name} accepted order: ${apiResult.reference}`);
+          }
         }
       } else {
         console.log(`[Storefront] No API enabled for ${orderNetwork || 'unknown'} network, order will stay PENDING`);

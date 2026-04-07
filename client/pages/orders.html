@@ -337,6 +337,7 @@
         .network-mtn { background: #fef3cd; color: #856404; }
         .network-telecel { background: #d4edda; color: #155724; }
         .network-airteltigo { background: #cce5ff; color: #004085; }
+        .network-bigtime { background: #ede9fe; color: #7c3aed; }
         
         .item-data {
             font-weight: 700;
@@ -609,6 +610,7 @@
                         <option value="MTN">MTN</option>
                         <option value="TELECEL">Telecel</option>
                         <option value="AIRTELTIGO">AirtelTigo</option>
+                        <option value="AT-BIGTIME">AT-Big Time</option>
                     </select>
                     <select class="filter-select" id="statusFilter">
                         <option value="">All Status</option>
@@ -730,6 +732,7 @@
             const n = (network || '').toUpperCase();
             if (n.includes('MTN')) return 'network-mtn';
             if (n.includes('TELECEL')) return 'network-telecel';
+            if (n.includes('BIG TIME') || n.includes('BIGTIME')) return 'network-bigtime';
             if (n.includes('AIRTELTIGO') || n.includes('AT')) return 'network-airteltigo';
             return '';
         }
@@ -1093,16 +1096,17 @@
                 
                 // Network filter - check items or preview
                 let matchNetwork = !network;
+                const matchNet = (net, filter) => {
+                    const n = (net || '').toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+                    const f = filter.replace(/\s+/g, '').replace(/-/g, '');
+                    return n.includes(f) || f.includes(n);
+                };
                 if (network) {
                     if (group.items && group.items.length > 0) {
-                        matchNetwork = group.items.some(item => {
-                            const itemNetwork = (item.network || '').toUpperCase();
-                            return itemNetwork.includes(network) || network.includes(itemNetwork);
-                        });
+                        matchNetwork = group.items.some(item => matchNet(item.network, network));
                     }
                     if (!matchNetwork && group.preview) {
-                        const previewNetwork = (group.preview.network || '').toUpperCase();
-                        matchNetwork = previewNetwork.includes(network) || network.includes(previewNetwork);
+                        matchNetwork = matchNet(group.preview.network, network);
                     }
                 }
                 

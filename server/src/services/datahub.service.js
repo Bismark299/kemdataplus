@@ -843,98 +843,116 @@ const datahubService = {
    */
   async retryPendingOrders() {
     // Find PENDING orders that were NEVER sent to API
-    // Triple check: status=PENDING, no externalReference, no apiSentAt
     const pendingOrders = await prisma.order.findMany({
       where: {
         status: 'PENDING',
-        externalReference: null,  // Never got MCBIS reference
-        apiSentAt: null,          // Never attempted to send
-        // Only orders created more than 30 seconds ago (to avoid race conditions with new orders)
+        externalReference: null,
+        apiSentAt: null,
         createdAt: { lt: new Date(Date.now() - 30000) }
       },
       include: { bundle: true },
       take: 20,
-      orderBy: { createdAt: 'asc' } // Oldest first (FIFO)
+      orderBy: { createdAt: 'asc' }
     });
 
     if (pendingOrders.length === 0) {
       return { retried: 0, results: [] };
     }
 
-    console.log(`[DataHub] Found ${pendingOrders.length} pending orders eligible for retry`);
-    console.log(`[DataHub] Order IDs:`, pendingOrders.map(o => o.id));
+    console.log(`[Retry] Found ${pendingOrders.length} pending orders eligible for retry`);
 
-    // Check MCBIS balance once before starting
-    const balanceResult = await this.getWalletBalance();
-    if (!balanceResult.success) {
-      console.log(`[DataHub] Cannot check MCBIS balance for retry: ${balanceResult.error}`);
-      return { retried: 0, error: balanceResult.error };
-    }
-
-    console.log(`[DataHub] MCBIS balance for retry: ${balanceResult.balance} GHS`);
+    // Per-network routing helpers
+    const settingsController = require('../controllers/settings.controller');
+    const ckgodswayService = require('./ckgodsway.service');
+    const siteSettings = settingsController.getSiteSettings();
+    const isTruthy = (val) => val === true || val === 'true' || val === 1;
+    const getNetworkToggleKey = (prefix, network) => {
+      const n = (network || '').toLowerCase().replace(/\s+/g, '');
+      if (n === 'mtn') return `${prefix}_mtnAPI`;
+      if (n === 'telecel' || n === 'vodafone') return `${prefix}_telecelAPI`;
+      if (n === 'airteltigo' || n === 'at') return `${prefix}_airteltigoAPI`;
+      if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
+      return null;
+    };
+    const PROVIDERS = [
+      { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
+      { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: this }
+    ];
+    const getProviderForNetwork = (network) => {
+      for (const p of PROVIDERS) {
+        if (!isTruthy(siteSettings[p.key])) continue;
+        const toggleKey = getNetworkToggleKey(p.prefix, network);
+        if (toggleKey && siteSettings[toggleKey] === false) continue;
+        return p;
+      }
+      return null;
+    };
 
     const results = [];
-    let runningBalance = balanceResult.balance;
 
     for (const order of pendingOrders) {
-      // ============ EXTRA SAFETY: Re-verify order before processing ============
-      const freshOrder = await prisma.order.findUnique({
-        where: { id: order.id }
-      });
+      const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
+      if (!freshOrder || freshOrder.status !== 'PENDING' || freshOrder.externalReference || freshOrder.apiSentAt) {
+        continue;
+      }
 
-      // Skip if order state changed since we queried
-      if (!freshOrder) {
-        console.log(`[DataHub] Order ${order.id} no longer exists, skipping`);
+      const network = order.bundle?.network || 'MTN';
+      const provider = getProviderForNetwork(network);
+      if (!provider) {
+        console.log(`[Retry] No provider enabled for ${network}, skipping order ${order.id}`);
         continue;
       }
-      if (freshOrder.status !== 'PENDING') {
-        console.log(`[DataHub] Order ${order.id} status changed to ${freshOrder.status}, skipping`);
-        continue;
-      }
-      if (freshOrder.externalReference) {
-        console.log(`[DataHub] Order ${order.id} already has externalReference, skipping`);
-        continue;
-      }
-      if (freshOrder.apiSentAt) {
-        console.log(`[DataHub] Order ${order.id} already has apiSentAt, skipping`);
-        continue;
-      }
-      // ============ END SAFETY CHECK ============
 
-      // Estimate cost
       let dataAmount = 1;
       if (order.bundle?.dataAmount) {
         const match = order.bundle.dataAmount.match(/(\d+)/);
         if (match) dataAmount = parseInt(match[1]);
       }
-      const estimatedCost = dataAmount * 5; // 5 GHS per GB estimate
-
-      if (runningBalance < estimatedCost) {
-        console.log(`[DataHub] Stopping retry - insufficient balance for remaining orders`);
-        console.log(`[DataHub] Remaining balance: ${runningBalance} GHS, Next order needs: ~${estimatedCost} GHS`);
-        break;
-      }
 
       try {
-        console.log(`[DataHub] Retrying order ${order.id} (${order.bundle?.name || 'unknown'})...`);
-        const result = await this.processOrder(order.id);
-        results.push({ orderId: order.id, ...result });
+        console.log(`[Retry] Retrying order ${order.id} (${order.bundle?.name}) via ${provider.name}...`);
         
-        // Only deduct if successfully sent (not if alreadyProcessed)
-        if (result.success && !result.alreadyProcessed) {
-          runningBalance -= estimatedCost;
-          console.log(`[DataHub] Deducted ~${estimatedCost} GHS, remaining: ${runningBalance} GHS`);
+        // Atomic lock
+        const claim = await prisma.order.updateMany({
+          where: { id: order.id, apiSentAt: null, status: 'PENDING', externalReference: null },
+          data: { apiSentAt: new Date() }
+        });
+        if (claim.count === 0) {
+          console.log(`[Retry] Order ${order.id} already claimed, skipping`);
+          continue;
         }
         
-        // Delay between orders to prevent race conditions and API overload
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const result = await provider.service.placeOrder({
+          network: network,
+          phone: order.recipientPhone,
+          amount: dataAmount,
+          orderId: order.id
+        });
+        
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: result.success ? 'PROCESSING' : 'PENDING',
+            externalReference: result.reference || null
+          }
+        });
+        
+        if (!result.success) {
+          await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } });
+        }
+        
+        results.push({ orderId: order.id, success: result.success, provider: provider.name });
+        console.log(`[Retry] Order ${order.id}: ${result.success ? 'SUCCESS' : result.error} via ${provider.name}`);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
-        console.error(`[DataHub] Error retrying order ${order.id}:`, error.message);
+        console.error(`[Retry] Error retrying order ${order.id}:`, error.message);
+        await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } }).catch(() => {});
         results.push({ orderId: order.id, success: false, error: error.message });
       }
     }
 
-    console.log(`[DataHub] Retry complete: ${results.length} orders attempted`);
+    console.log(`[Retry] Complete: ${results.length} orders attempted`);
     return { retried: results.length, results };
   }
 };
