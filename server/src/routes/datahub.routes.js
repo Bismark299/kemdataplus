@@ -104,14 +104,15 @@ router.post('/sync-item/:itemId', authenticate, authorize('ADMIN'), async (req, 
  */
 router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    // Sync legacy Order table
-    const legacyResult = await datahubService.syncAllPendingOrders();
-    
-    // Sync new OrderItem table
-    const itemResult = await orderGroupService.syncAllProcessingItems();
+    // Run legacy Order sync and new OrderItem sync in parallel (MCBIS only)
+    const [legacyResult, itemResult] = await Promise.all([
+      datahubService.syncAllPendingOrders(),
+      orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled: false })
+    ]);
     
     res.json({
       success: true,
+      synced: (legacyResult.synced || 0) + (itemResult.completed || 0),
       legacy: {
         synced: legacyResult.synced || 0,
         results: legacyResult.results || []

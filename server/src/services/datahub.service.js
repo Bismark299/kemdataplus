@@ -808,7 +808,8 @@ const datahubService = {
         // Only sync orders that were actually pushed to API (have externalReference)
         externalReference: { not: null }
       },
-      take: 50 // Limit to prevent API overload
+      orderBy: { createdAt: 'desc' },
+      take: 30 // Limit to prevent API overload
     });
 
     console.log(`[DataHub] Found ${pendingOrders.length} orders with API references to sync`);
@@ -819,7 +820,7 @@ const datahubService = {
         const result = await this.syncOrderStatus(order.id);
         results.push({ orderId: order.id, ...result });
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         results.push({ orderId: order.id, success: false, error: error.message });
       }

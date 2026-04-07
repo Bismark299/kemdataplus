@@ -1474,7 +1474,8 @@ const orderGroupService = {
           status: { in: ['PROCESSING', 'PENDING'] },
           externalReference: { startsWith: 'CK-' }
         },
-        take: 100
+        orderBy: { createdAt: 'desc' },
+        take: 50
       });
       console.log(`[Sync] CK-Godsway: ${ckItems.length} items to sync`);
       items.push(...ckItems);
@@ -1487,7 +1488,8 @@ const orderGroupService = {
           externalReference: { not: null },
           NOT: { externalReference: { startsWith: 'CK-' } }
         },
-        take: 100
+        orderBy: { createdAt: 'desc' },
+        take: 50
       });
       console.log(`[Sync] MCBIS: ${mcbisItems.length} items to sync`);
       items.push(...mcbisItems);
@@ -1513,7 +1515,7 @@ const orderGroupService = {
         }
         
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
       }
