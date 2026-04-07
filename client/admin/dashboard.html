@@ -14403,7 +14403,13 @@
                 const res = await adminFetch('/api/datahub/sync-all', { method: 'POST' });
                 const data = await res.json();
                 
-                showToast(`Synced ${data.synced || 0} orders`, 'success');
+                const completed = data.completed || 0;
+                const checked = data.checked || data.synced || 0;
+                if (completed > 0) {
+                    showToast(`✅ ${completed} order(s) completed! (${checked} checked)`, 'success');
+                } else {
+                    showToast(`Checked ${checked} orders — no status changes`, 'info');
+                }
                 
                 // Refresh orders table
                 await loadStats();

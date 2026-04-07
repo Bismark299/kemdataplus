@@ -112,17 +112,11 @@ router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res, next
     
     res.json({
       success: true,
-      synced: (legacyResult.synced || 0) + (itemResult.completed || 0),
-      legacy: {
-        synced: legacyResult.synced || 0,
-        results: legacyResult.results || []
-      },
-      orderItems: {
-        total: itemResult.total || 0,
-        completed: itemResult.completed || 0,
-        failed: itemResult.failed || 0,
-        unchanged: itemResult.unchanged || 0
-      }
+      synced: (itemResult.completed || 0),
+      checked: (legacyResult.synced || 0) + (itemResult.total || 0),
+      completed: (itemResult.completed || 0),
+      failed: (itemResult.failed || 0),
+      unchanged: (legacyResult.synced || 0) + (itemResult.unchanged || 0)
     });
   } catch (error) {
     next(error);
