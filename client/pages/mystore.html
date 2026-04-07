@@ -781,9 +781,7 @@
                     </div>
                     <div class="network-filter" id="priceFilter">
                         <button class="network-btn active" data-network="all">All Networks</button>
-                        <button class="network-btn" data-network="MTN">MTN</button>
-                        <button class="network-btn" data-network="TELECEL">Telecel</button>
-                        <button class="network-btn" data-network="AIRTELTIGO">AirtelTigo</button>
+                        <!-- Network buttons built dynamically from products -->
                     </div>
                     <div id="productsEmpty" class="empty-state" style="display:none;"><i class="fas fa-box-open"></i><p>No bundles available.</p></div>
                     <div id="productsContainer"></div>
@@ -1292,10 +1290,35 @@
                 const getGB=str=>{const m=(str||'').match(/(\d+)/);return m?parseInt(m[1]):0;};
                 return getGB(a.bundle.dataAmount)-getGB(b.bundle.dataAmount);
             });
-            document.getElementById('statProducts').textContent=products.length;renderProducts();}
+            document.getElementById('statProducts').textContent=products.length;buildNetworkFilterButtons();renderProducts();}
         
         function parseDataAmount(str){const m=(str||'').match(/(\d+)/);return m?parseInt(m[1]):0;}
         
+        function getNetworkDisplayName(network) {
+            const map = {'TELECEL':'Telecel','AIRTELTIGO':'AT-iShare','AT- BIG TIME':'AT-Big Time'};
+            return map[network] || network;
+        }
+        function getNetworkColor(network) {
+            const map = {'MTN':'#ffc107','TELECEL':'#e60000','AIRTELTIGO':'#003366','AT- BIG TIME':'#7c3aed'};
+            return map[network] || '#6b7280';
+        }
+
+        function buildNetworkFilterButtons() {
+            const filter = document.getElementById('priceFilter');
+            const networks = [...new Set(products.map(p=>p.bundle.network))];
+            networks.sort((a,b)=>{ if(a==='MTN') return -1; if(b==='MTN') return 1; return a.localeCompare(b); });
+            let html = '<button class="network-btn active" data-network="all">All Networks</button>';
+            networks.forEach(n=>{ html+=`<button class="network-btn" data-network="${n}">${getNetworkDisplayName(n)}</button>`; });
+            filter.innerHTML = html;
+            filter.querySelectorAll('.network-btn').forEach(btn=>{
+                btn.addEventListener('click',()=>{
+                    filter.querySelectorAll('.network-btn').forEach(b=>b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderProducts(btn.dataset.network);
+                });
+            });
+        }
+
         function renderProducts(filter='all'){
             currentFilter=filter;
             const container=document.getElementById('productsContainer');
@@ -1305,8 +1328,9 @@
             if(filtered.length===0){empty.style.display='block';container.innerHTML='';return;}
             empty.style.display='none';
             
-            // Group by network
-            const networks=['MTN','TELECEL','AIRTELTIGO'];
+            // Group by network dynamically
+            const networks=[...new Set(filtered.map(p=>p.bundle.network))];
+            networks.sort((a,b)=>{ if(a==='MTN') return -1; if(b==='MTN') return 1; return a.localeCompare(b); });
             const grouped={};
             networks.forEach(n=>grouped[n]=[]);
             filtered.forEach(p=>{if(grouped[p.bundle.network])grouped[p.bundle.network].push(p);});
@@ -1319,8 +1343,8 @@
             let html='';
             networks.forEach(network=>{
                 if(grouped[network].length===0)return;
-                const networkName=network==='TELECEL'?'Telecel':network==='AIRTELTIGO'?'AirtelTigo':network;
-                const color=network==='MTN'?'#ffc107':network==='TELECEL'?'#e60000':'#003366';
+                const networkName=getNetworkDisplayName(network);
+                const color=getNetworkColor(network);
                 html+=`<div style="margin-bottom:25px;"><h3 style="color:${color};margin-bottom:12px;padding:10px;background:#f8fafc;border-radius:8px;border-left:4px solid ${color};"><i class="fas fa-signal"></i> ${networkName} Bundles (${grouped[network].length})</h3>`;
                 html+=`<table class="products-table" style="display:table;"><thead><tr><th>Bundle</th><th>Data</th><th>Cost</th><th>Sell Price</th><th>Profit</th><th></th></tr></thead><tbody>`;
                 grouped[network].forEach(e=>{

@@ -5,14 +5,14 @@ const path = require('path');
 const prisma = require('../lib/prisma');
 
 // Import multi-tenant services (optional - graceful fallback if not available)
-let pricingEngine, profitService, walletService, auditService, datahubService, easyDataService, settingsController, financialOrderService;
+let pricingEngine, profitService, walletService, auditService, datahubService, ckgodswayService, settingsController, financialOrderService;
 try {
   pricingEngine = require('../services/pricing.service');
   profitService = require('../services/profit.service');
   walletService = require('../services/wallet.service');
   auditService = require('../services/audit.service');
   datahubService = require('../services/datahub.service');
-  easyDataService = require('../services/easydata.service');
+  ckgodswayService = require('../services/ckgodsway.service');
   settingsController = require('./settings.controller');
   financialOrderService = require('../services/financial-order.service');
 } catch (e) {
@@ -37,68 +37,55 @@ function getSiteSettings() {
   }
 }
 
-// Either/Or API Provider Selection
-// masterAPI ON → EasyDataGH, mcbisAPI ON → MCBIS, Both OFF → null
-function getApiProvider() {
-  const siteSettings = getSiteSettings();
-  
-  // Debug log to see what settings we have
-  console.log(`[API] Settings check - masterAPI: ${siteSettings.masterAPI}, mcbisAPI: ${siteSettings.mcbisAPI}`);
-  
-  // Check masterAPI (accepts true, "true", 1)
-  if (siteSettings.masterAPI === true || siteSettings.masterAPI === 'true' || siteSettings.masterAPI === 1) {
-    console.log(`[API] Using EasyDataGH provider`);
-    return { name: 'EASYDATA', service: easyDataService };
-  }
-  
-  // Check mcbisAPI (accepts true, "true", 1)
-  if (siteSettings.mcbisAPI === true || siteSettings.mcbisAPI === 'true' || siteSettings.mcbisAPI === 1) {
-    console.log(`[API] Using MCBIS provider`);
-    return { name: 'MCBIS', service: datahubService };
-  }
-  
-  console.log(`[API] No API provider enabled`);
-  return null;
+// API Provider Selection - Per-Network Routing
+// For each network, find the first enabled provider that has that network turned on.
+// No single "master" provider — each order finds its own route.
+
+function isTruthy(val) {
+  return val === true || val === 'true' || val === 1;
 }
 
-// Helper to check if API is enabled for a specific network
-// Provider-specific toggles: easydata_mtnAPI, mcbis_mtnAPI, etc.
-function isNetworkApiEnabled(network) {
+// All providers in priority order
+const PROVIDERS = [
+  { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', getService: () => ckgodswayService },
+  { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', getService: () => datahubService }
+];
+
+function getNetworkToggleKey(prefix, network) {
+  const n = (network || '').toLowerCase().replace(/\s+/g, '');
+  if (n === 'mtn') return `${prefix}_mtnAPI`;
+  if (n === 'telecel' || n === 'vodafone') return `${prefix}_telecelAPI`;
+  if (n === 'airteltigo' || n === 'at') return `${prefix}_airteltigoAPI`;
+  if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
+  return null; // unknown network
+}
+
+// Find the right provider for a specific network
+function getProviderForNetwork(network) {
   const siteSettings = getSiteSettings();
-  const provider = getApiProvider();
-  
-  // No provider enabled
-  if (!provider) {
-    console.log(`[API] No API provider enabled (masterAPI and mcbisAPI both OFF)`);
-    return false;
-  }
-  
   const networkLower = (network || '').toLowerCase();
-  const providerPrefix = provider.name === 'EASYDATA' ? 'easydata' : 'mcbis';
   
-  // Check provider-specific network toggle
-  if (networkLower === 'mtn') {
-    const toggleKey = `${providerPrefix}_mtnAPI`;
-    const enabled = siteSettings[toggleKey] !== false;
-    console.log(`[API:${provider.name}] MTN API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
-    return enabled;
-  }
-  if (networkLower === 'telecel' || networkLower === 'vodafone') {
-    const toggleKey = `${providerPrefix}_telecelAPI`;
-    const enabled = siteSettings[toggleKey] !== false;
-    console.log(`[API:${provider.name}] Telecel API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
-    return enabled;
-  }
-  if (networkLower === 'airteltigo' || networkLower === 'at') {
-    const toggleKey = `${providerPrefix}_airteltigoAPI`;
-    const enabled = siteSettings[toggleKey] !== false;
-    console.log(`[API:${provider.name}] AirtelTigo API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
-    return enabled;
+  for (const p of PROVIDERS) {
+    // Is this provider enabled globally?
+    if (!isTruthy(siteSettings[p.key])) continue;
+    
+    // Is this network enabled on this provider?
+    const toggleKey = getNetworkToggleKey(p.prefix, networkLower);
+    if (toggleKey) {
+      const networkEnabled = siteSettings[toggleKey] !== false;
+      if (!networkEnabled) {
+        console.log(`[API] ${p.name}: ${network} disabled (${toggleKey}=${siteSettings[toggleKey]})`);
+        continue;
+      }
+    }
+    // Unknown network defaults to allowed if provider is enabled
+    
+    console.log(`[API] ${network} → ${p.name}`);
+    return { name: p.name, service: p.getService() };
   }
   
-  // Unknown network - allow by default if provider is enabled
-  console.log(`[API:${provider.name}] Network '${network}' - allowing (provider enabled)`);
-  return true;
+  console.log(`[API] No provider found for ${network}`);
+  return null;
 }
 
 /**
@@ -380,14 +367,14 @@ const orderController = {
         });
       }
 
-      // AUTO-PROCESS via API (Either/Or: masterAPI → EasyData, mcbisAPI → MCBIS)
+      // AUTO-PROCESS via API (per-network routing)
       let apiResult = null;
       const orderNetwork = order.bundle?.network || bundle.network;
-      const apiProvider = getApiProvider();
+      const apiProvider = getProviderForNetwork(orderNetwork);
       
       console.log(`[API] Order ${order.id} - Network: ${orderNetwork}, Provider: ${apiProvider?.name || 'NONE'}`);
       
-      if (apiProvider && isNetworkApiEnabled(orderNetwork)) {
+      if (apiProvider) {
         try {
           // ============ ATOMIC LOCK: Claim this order BEFORE calling API ============
           const claimResult = await prisma.order.updateMany({
@@ -454,7 +441,7 @@ const orderController = {
           }).catch(() => {});
         }
       } else {
-        console.log(`[API] Not processing order ${order.id} - ${apiProvider ? `${orderNetwork} API disabled` : 'No provider enabled'}`);
+        console.log(`[API] Not processing order ${order.id} - no provider enabled for ${orderNetwork}`);
       }
 
       res.status(201).json({

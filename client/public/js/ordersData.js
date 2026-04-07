@@ -138,7 +138,7 @@ const defaultOrdersData = [
     dateTime: formatOrderDateTime(new Date(Date.now() - 48 * 60 * 60 * 1000)),
     recipient: '0200000001',
     phones: ['0200000001', '0200000002'],
-    network: 'AirtelTigo Non-Expiry Bundles',
+    network: 'AT-iShare Non-Expiry Bundles',
     bundle: '20',
     total: 264,
     payment: 'completed',
@@ -301,7 +301,9 @@ function getNetworkDisplayName(network) {
   const networkNames = {
     'MTN': 'MTN Non-Expiry Bundles',
     'Telecel': 'Telecel Non-Expiry Bundles',
-    'AirtelTigo': 'AirtelTigo Non-Expiry Bundles'
+    'AirtelTigo': 'AT-iShare Non-Expiry Bundles',
+    'AT-iShare': 'AT-iShare Non-Expiry Bundles',
+    'AT-Big Time': 'AT-Big Time Non-Expiry Bundles'
   };
   if (!network) return 'Unknown Network';
   return networkNames[network] || network + ' Non-Expiry Bundles';

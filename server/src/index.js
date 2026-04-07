@@ -38,7 +38,7 @@ const storefrontRoutes = require('./routes/storefront.routes');
 const momoRoutes = require('./routes/momo.routes');
 const storeCustomerRoutes = require('./routes/store-customer.routes');
 const datahubRoutes = require('./routes/datahub.routes');
-const easydataRoutes = require('./routes/easydata.routes');
+const ckgodswayRoutes = require('./routes/ckgodsway.routes');
 const paystackRoutes = require('./routes/paystack.routes');
 const profitPayoutRoutes = require('./routes/profit-payout.routes');
 
@@ -269,7 +269,7 @@ app.use('/api/storefronts', storefrontRoutes);
 app.use('/api/momo', momoRoutes);
 app.use('/api/store-customer', storeCustomerRoutes);
 app.use('/api/datahub', datahubRoutes);
-app.use('/api/easydata', easydataRoutes);
+app.use('/api/ckgodsway', ckgodswayRoutes);
 app.use('/api/paystack', paystackRoutes);
 app.use('/api/profit-payouts', profitPayoutRoutes);
 app.use('/api/complaints', require('./routes/complaint.routes'));
@@ -453,26 +453,26 @@ function startAutoSync() {
       
       // Check which auto-sync toggles are enabled
       const mcbisAutoSyncEnabled = siteSettings.mcbisAutoSync;
-      const easyDataAutoSyncEnabled = siteSettings.easyDataAutoSync;
+      const ckgodswayAutoSyncEnabled = siteSettings.ckgodswayAutoSync;
       
       // Check which APIs are active
       const mcbisActive = siteSettings.mcbisAPI;
-      const easyDataActive = siteSettings.masterAPI;
+      const ckgodswayActive = siteSettings.ckgodswayAPI;
       
       // Skip if no auto-sync is enabled
-      if (!mcbisAutoSyncEnabled && !easyDataAutoSyncEnabled) {
-        return; // Both auto-syncs disabled
+      if (!mcbisAutoSyncEnabled && !ckgodswayAutoSyncEnabled) {
+        return; // All auto-syncs disabled
       }
       
       // Skip if no API is enabled
-      if (!mcbisActive && !easyDataActive) {
+      if (!mcbisActive && !ckgodswayActive) {
         return; // No API enabled
       }
       
       const mcbisShouldSync = mcbisAutoSyncEnabled && mcbisActive;
-      const easyDataShouldSync = easyDataAutoSyncEnabled && easyDataActive;
+      const ckgodswayShouldSync = ckgodswayAutoSyncEnabled && ckgodswayActive;
       
-      console.log(`[AutoSync] Running... (MCBIS AutoSync: ${mcbisShouldSync ? 'ON' : 'OFF'}, EasyData AutoSync: ${easyDataShouldSync ? 'ON' : 'OFF'})`);
+      console.log(`[AutoSync] Running... (MCBIS AutoSync: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway AutoSync: ${ckgodswayShouldSync ? 'ON' : 'OFF'})`);
       
       let totalSynced = 0;
       let totalCompleted = 0;
@@ -496,7 +496,7 @@ function startAutoSync() {
       try {
         const itemResult = await orderGroupService.syncAllProcessingItems({
           mcbisEnabled: mcbisShouldSync,
-          easyDataEnabled: easyDataShouldSync
+          ckgodswayEnabled: ckgodswayShouldSync
         });
         if (itemResult.total > 0) {
           console.log(`[AutoSync] OrderItems: ${itemResult.completed} completed, ${itemResult.failed} failed, ${itemResult.unchanged} unchanged`);

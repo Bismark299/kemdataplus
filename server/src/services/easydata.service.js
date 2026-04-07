@@ -124,6 +124,7 @@ const easyDataService = {
       let mappedNetwork = (network || 'mtn').toLowerCase();
       if (mappedNetwork === 'vodafone') mappedNetwork = 'telecel';
       if (mappedNetwork === 'airteltigo' || mappedNetwork === 'at') mappedNetwork = 'bigtime';
+      if (mappedNetwork === 'at- big time' || mappedNetwork === 'at-bigtime') mappedNetwork = 'bigtime';
       
       // Clean phone number (remove +233 prefix if present)
       let cleanPhone = phone.replace(/^\+233/, '0').replace(/^233/, '0');

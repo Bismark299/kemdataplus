@@ -158,6 +158,9 @@
     // Initialize cart as empty array (cart is session-only)
     cart = [];
 
+    // Dynamically rebuild network tabs from loaded data
+    rebuildNetworkTabs();
+
     bindNetworkTabs();
     bindModeButtons();
     bindSingleAdd();
@@ -217,8 +220,8 @@
     const indicator = $('#networkStatusIndicator');
     if (!indicator) return;
     
-    // Check if ALL networks are offline
-    const allNetworks = ['MTN', 'Telecel', 'AirtelTigo'];
+    // Check if ALL networks are offline (use loaded data, not hardcoded list)
+    const allNetworks = Object.keys(BUNDLE_DATA).length > 0 ? Object.keys(BUNDLE_DATA) : ['MTN', 'Telecel', 'AirtelTigo'];
     const allNetworksOffline = allNetworks.every(net => NETWORK_STATUS[net] === false);
     
     const isActive = NETWORK_STATUS[currentNetwork] !== false;
@@ -316,6 +319,35 @@
     }
     
     console.log(`✅ Bundle options updated for ${network}`);
+  }
+
+  /* --------------------------
+     Rebuild network tabs dynamically from API data
+  ---------------------------*/
+  function rebuildNetworkTabs() {
+    const container = $('#networkTabsContainer');
+    if (!container) return;
+
+    // Collect networks from loaded BUNDLE_DATA
+    const networks = Object.keys(BUNDLE_DATA);
+    if (networks.length === 0) return; // Keep hardcoded defaults if no data
+
+    // Sort: MTN first, then alphabetical
+    networks.sort((a, b) => {
+      if (a === 'MTN') return -1;
+      if (b === 'MTN') return 1;
+      return a.localeCompare(b);
+    });
+
+    // Set first network as current if current one is not in the list
+    if (!networks.includes(currentNetwork)) {
+      currentNetwork = networks[0];
+    }
+
+    container.innerHTML = networks.map(net => {
+      const displayName = {'TELECEL':'Telecel','AIRTELTIGO':'AT-iShare','AT- BIG TIME':'AT-Big Time'}[net] || net;
+      return `<div class="network-tab${net === currentNetwork ? ' active' : ''}" data-network="${net}">${displayName}</div>`;
+    }).join('');
   }
 
   /* --------------------------

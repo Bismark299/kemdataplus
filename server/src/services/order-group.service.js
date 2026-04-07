@@ -754,10 +754,11 @@ const orderGroupService = {
    * ============================================================
    * Sends each PENDING item to external API for fulfillment.
    * 
-   * Priority (Either/Or):
-   * - masterAPI ON  → Use EasyDataGH API
-   * - mcbisAPI ON   → Use MCBIS API (only if masterAPI is OFF)
-   * - Both OFF      → Orders stay PENDING (manual processing)
+   * Per-network routing:
+   * - Each item's network finds the first enabled provider
+   * - ckgodswayAPI + ckgodsway_{network}API → CK-Godsway
+   * - mcbisAPI + mcbis_{network}API → MCBIS
+   * - No provider found → Order stays PENDING
    * 
    * Rules:
    * - Only processes PENDING items (not PROCESSING, COMPLETED, etc.)
@@ -767,7 +768,7 @@ const orderGroupService = {
    */
   async processOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
-    const easyDataService = require('./easydata.service');
+    const ckgodswayService = require('./ckgodsway.service');
     const settingsController = require('../controllers/settings.controller');
     const fs = require('fs');
     const path = require('path');
@@ -793,51 +794,39 @@ const orderGroupService = {
     };
     
     // Determine which API provider to use
-    const getApiProvider = (siteSettings) => {
-      console.log(`[OrderGroup] Checking API provider - masterAPI: ${siteSettings.masterAPI}, mcbisAPI: ${siteSettings.mcbisAPI}`);
-      if (siteSettings.masterAPI) {
-        return 'EASYDATA'; // masterAPI = EasyDataGH
-      }
-      if (siteSettings.mcbisAPI) {
-        return 'MCBIS';
-      }
-      return null; // No API enabled
+    // Per-network routing: each network finds the first enabled provider that supports it
+    const isTruthy = (val) => val === true || val === 'true' || val === 1;
+    
+    const PROVIDERS = [
+      { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
+      { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: datahubService }
+    ];
+    
+    const getNetworkToggleKey = (prefix, network) => {
+      const n = (network || '').toLowerCase().replace(/\s+/g, '');
+      if (n === 'mtn') return `${prefix}_mtnAPI`;
+      if (n === 'telecel' || n === 'vodafone') return `${prefix}_telecelAPI`;
+      if (n === 'airteltigo' || n === 'at') return `${prefix}_airteltigoAPI`;
+      if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
+      return null;
     };
     
-    // Helper to check if network API is enabled
-    // Provider-specific toggles: easydata_mtnAPI, mcbis_mtnAPI, etc.
-    const isNetworkApiEnabled = (network, siteSettings, provider) => {
-      if (!provider) {
-        console.log(`[OrderGroup] No API provider enabled (masterAPI and mcbisAPI both OFF)`);
-        return false;
+    const getProviderForNetwork = (network, siteSettings) => {
+      for (const p of PROVIDERS) {
+        if (!isTruthy(siteSettings[p.key])) continue;
+        const toggleKey = getNetworkToggleKey(p.prefix, network);
+        if (toggleKey) {
+          const enabled = siteSettings[toggleKey] !== false;
+          if (!enabled) {
+            console.log(`[OrderGroup] ${p.name}: ${network} disabled (${toggleKey}=${siteSettings[toggleKey]})`);
+            continue;
+          }
+        }
+        console.log(`[OrderGroup] ${network} → ${p.name}`);
+        return { name: p.name, service: p.service };
       }
-      
-      const networkLower = (network || '').toLowerCase();
-      const providerPrefix = provider === 'EASYDATA' ? 'easydata' : 'mcbis';
-      
-      // Check provider-specific network toggle
-      if (networkLower === 'mtn') {
-        const toggleKey = `${providerPrefix}_mtnAPI`;
-        const enabled = siteSettings[toggleKey] !== false;
-        console.log(`[OrderGroup] MTN API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
-        return enabled;
-      }
-      if (networkLower === 'telecel' || networkLower === 'vodafone') {
-        const toggleKey = `${providerPrefix}_telecelAPI`;
-        const enabled = siteSettings[toggleKey] !== false;
-        console.log(`[OrderGroup] Telecel API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
-        return enabled;
-      }
-      if (networkLower === 'airteltigo' || networkLower === 'at') {
-        const toggleKey = `${providerPrefix}_airteltigoAPI`;
-        const enabled = siteSettings[toggleKey] !== false;
-        console.log(`[OrderGroup] AirtelTigo API check: ${toggleKey}=${siteSettings[toggleKey]}, enabled=${enabled}`);
-        return enabled;
-      }
-      
-      // Unknown network - allow if provider is enabled
-      console.log(`[OrderGroup] Network '${network}' - allowing by default`);
-      return true;
+      console.log(`[OrderGroup] No provider found for ${network}`);
+      return null;
     };
     
     const orderGroup = await prisma.orderGroup.findUnique({
@@ -860,34 +849,32 @@ const orderGroupService = {
     console.log(`[OrderGroup] Processing ${orderGroup.items.length} PENDING items for ${orderGroup.displayId}`);
 
     const siteSettings = getSiteSettings();
-    const apiProvider = getApiProvider(siteSettings);
     const results = [];
     let skipped = 0;
     
-    console.log(`[OrderGroup] API Provider: ${apiProvider || 'NONE'}`);
+    // Track balances per provider (fetched on first use)
+    const providerBalances = {};
     
-    // Get API balance once at the start
-    let apiBalance = 0;
-    let apiService = null;
-    
-    if (apiProvider === 'EASYDATA') {
-      apiService = easyDataService;
-      try {
-        const balanceResult = await easyDataService.getWalletBalance();
-        apiBalance = balanceResult.success ? balanceResult.balance : 0;
-        console.log(`[OrderGroup] EasyDataGH wallet balance: ${apiBalance} GHS`);
-      } catch (e) {
-        console.log(`[OrderGroup] Could not fetch EasyDataGH balance: ${e.message}`);
+    async function getProviderBalance(providerName, service) {
+      if (providerBalances[providerName] !== undefined) return providerBalances[providerName];
+      
+      if (providerName === 'CKGODSWAY') {
+        // CK-Godsway has no balance endpoint - bypass check
+        providerBalances[providerName] = Infinity;
+        console.log(`[OrderGroup] CK-Godsway: No balance endpoint, skipping balance check`);
+      } else if (providerName === 'MCBIS') {
+        try {
+          const balanceResult = await service.getWalletBalance();
+          providerBalances[providerName] = balanceResult.success ? balanceResult.balance : 0;
+          console.log(`[OrderGroup] MCBIS wallet balance: ${providerBalances[providerName]} GHS`);
+        } catch (e) {
+          providerBalances[providerName] = 0;
+          console.log(`[OrderGroup] Could not fetch MCBIS balance: ${e.message}`);
+        }
+      } else {
+        providerBalances[providerName] = 0;
       }
-    } else if (apiProvider === 'MCBIS') {
-      apiService = datahubService;
-      try {
-        const balanceResult = await datahubService.getWalletBalance();
-        apiBalance = balanceResult.success ? balanceResult.balance : 0;
-        console.log(`[OrderGroup] MCBIS wallet balance: ${apiBalance} GHS`);
-      } catch (e) {
-        console.log(`[OrderGroup] Could not fetch MCBIS balance: ${e.message}`);
-      }
+      return providerBalances[providerName];
     }
 
     for (const item of orderGroup.items) {
@@ -933,18 +920,22 @@ const orderGroupService = {
         continue;
       }
       
-      // Check 4: Is network API enabled?
-      if (!isNetworkApiEnabled(network, siteSettings, apiProvider)) {
-        console.log(`[OrderGroup] Skipping ${item.reference}: ${network} API disabled or no provider`);
+      // Check 4: Find the right API provider for this item's network
+      const provider = getProviderForNetwork(network, siteSettings);
+      if (!provider) {
+        console.log(`[OrderGroup] Skipping ${item.reference}: No provider enabled for ${network}`);
         skipped++;
         results.push({
           itemId: item.id,
           reference: item.reference,
           skipped: true,
-          reason: apiProvider ? `${network} API is disabled` : 'No API provider enabled'
+          reason: `No API provider enabled for ${network}`
         });
         continue;
       }
+      
+      const apiProvider = provider.name;
+      const apiService = provider.service;
       
       // Check 2: Extract data amount and estimate cost
       let dataAmount = 1;
@@ -957,6 +948,7 @@ const orderGroupService = {
       const estimatedCost = item.baseCost || (dataAmount * 3.9);
       
       // Check 3: Is API balance sufficient?
+      const apiBalance = await getProviderBalance(apiProvider, apiService);
       if (apiBalance < estimatedCost) {
         console.log(`[OrderGroup] Skipping ${item.reference}: Insufficient ${apiProvider} balance (need ${estimatedCost}, have ${apiBalance})`);
         skipped++;
@@ -1006,6 +998,22 @@ const orderGroupService = {
           orderId: item.id
         });
 
+        // Check for insufficient balance returned as a non-throwing failure
+        if (!result.success && result.error && result.error.includes('Insufficient balance')) {
+          console.log(`[OrderGroup] ${apiProvider} insufficient balance for ${item.reference}: ${result.error}`);
+          providerBalances[apiProvider] = 0;
+          // Reset apiSentAt so auto-retry can pick it up
+          await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } });
+          skipped++;
+          results.push({
+            itemId: item.id,
+            reference: item.reference,
+            skipped: true,
+            reason: `${apiProvider} insufficient balance — will auto-retry`
+          });
+          continue;
+        }
+
         // Update item status based on result
         await this.updateItemStatus(item.id, {
           status: result.success ? 'PROCESSING' : 'FAILED',
@@ -1024,9 +1032,9 @@ const orderGroupService = {
         // Deduct estimated cost from balance tracker (or use new_balance from API)
         if (result.success) {
           if (result.newBalance !== undefined) {
-            apiBalance = result.newBalance;
+            providerBalances[apiProvider] = result.newBalance;
           } else {
-            apiBalance -= estimatedCost;
+            providerBalances[apiProvider] = (providerBalances[apiProvider] || 0) - estimatedCost;
           }
         }
 
@@ -1038,16 +1046,18 @@ const orderGroupService = {
         
         // Check if it's an insufficient balance error from API
         if (error.message.includes('Insufficient') || error.message.includes('balance')) {
-          console.log(`[OrderGroup] ${apiProvider} balance depleted, stopping further processing`);
+          console.log(`[OrderGroup] ${apiProvider} balance depleted, keeping item PENDING for retry`);
+          providerBalances[apiProvider] = 0;
+          // Reset apiSentAt so auto-retry can pick it up
+          await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } }).catch(() => {});
           skipped++;
           results.push({
             itemId: item.id,
             reference: item.reference,
             skipped: true,
-            reason: `${apiProvider} balance depleted`
+            reason: `${apiProvider} insufficient balance — will auto-retry`
           });
-          // Stop processing remaining items
-          break;
+          continue;
         }
         
         await this.updateItemStatus(item.id, {
@@ -1064,12 +1074,11 @@ const orderGroupService = {
       }
     }
 
-    console.log(`[OrderGroup] Provider: ${apiProvider || 'NONE'}, Processed: ${results.filter(r => !r.skipped).length}, Skipped: ${skipped}`);
+    console.log(`[OrderGroup] Processed: ${results.filter(r => !r.skipped).length}, Skipped: ${skipped}`);
 
     return {
       orderGroupId,
       displayId: orderGroup.displayId,
-      provider: apiProvider,
       processed: results.filter(r => !r.skipped).length,
       skipped,
       results
@@ -1172,7 +1181,7 @@ const orderGroupService = {
    * ============================================================
    * SYNC ORDER ITEM STATUS FROM EXTERNAL API
    * ============================================================
-   * Checks the status of an OrderItem from MCBIS or EasyDataGH API
+   * Checks the status of an OrderItem from MCBIS or CK-Godsway API
    * and updates the local status accordingly.
    */
   async syncOrderItemStatus(itemId) {
@@ -1191,29 +1200,27 @@ const orderGroupService = {
 
     console.log(`[Sync] Checking status for item ${item.reference}, externalRef: ${item.externalReference}`);
 
-    // Determine which API to check based on the reference prefix or apiProvider field
+    // Determine which API to check based on the reference prefix
     let apiResult;
     try {
-      // Try to detect API from reference pattern or try both
+      const ref = item.externalReference || '';
       const datahubService = require('./datahub.service');
-      const easyDataService = require('./easydata.service');
+      const ckgodswayService = require('./ckgodsway.service');
       
-      // MCBIS references typically start with KDP- or numeric, EasyData with ED-
-      // But safer to try MCBIS first since it's the most common
-      apiResult = await datahubService.checkOrderStatus(item.externalReference);
-      
-      if (!apiResult.success || apiResult.status === 'unknown') {
-        // Try EasyDataGH as fallback
-        const easyResult = await easyDataService.checkOrderStatus(item.externalReference);
-        if (easyResult.success) {
-          apiResult = {
-            success: true,
-            status: easyResult.orderStatus,
-            provider: 'EASYDATA'
-          };
-        }
+      if (ref.startsWith('CK-')) {
+        // CK-Godsway order
+        const ckResult = await ckgodswayService.checkOrderStatus(ref);
+        apiResult = ckResult.success
+          ? { success: true, status: ckResult.status, provider: 'CKGODSWAY' }
+          : { success: false, error: ckResult.error };
       } else {
-        apiResult.provider = 'MCBIS';
+        // Default: MCBIS (legacy orders without prefix, or DH- prefix)
+        apiResult = await datahubService.checkOrderStatus(ref);
+        if (apiResult.success && apiResult.status !== 'unknown') {
+          apiResult.provider = 'MCBIS';
+        } else {
+          apiResult = { success: false, error: apiResult.error || 'Unknown status from MCBIS' };
+        }
       }
     } catch (error) {
       console.error(`[Sync] API check failed:`, error.message);
@@ -1452,12 +1459,11 @@ const orderGroupService = {
    * Call this periodically or via admin action
    * @param {Object} options - Filter options
    * @param {boolean} options.mcbisEnabled - Whether to sync MCBIS orders
-   * @param {boolean} options.easyDataEnabled - Whether to sync EasyDataGH orders
    */
   async syncAllProcessingItems(options = {}) {
-    const { mcbisEnabled = true, easyDataEnabled = true } = options;
+    const { mcbisEnabled = true, ckgodswayEnabled = true } = options;
     
-    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, EasyData: ${easyDataEnabled ? 'ON' : 'OFF'})`);
+    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'})`);
     
     const items = await prisma.orderItem.findMany({
       where: {
@@ -1480,14 +1486,14 @@ const orderGroupService = {
         // Determine which API this item belongs to
         const ref = item.externalReference || '';
         const isMcbisOrder = ref.startsWith('DH-');
-        const isEasyDataOrder = ref.startsWith('ED-');
+        const isCkgodswayOrder = ref.startsWith('CK-');
         
         // Skip if the corresponding auto-sync is disabled
         if (isMcbisOrder && !mcbisEnabled) {
           skipped++;
           continue;
         }
-        if (isEasyDataOrder && !easyDataEnabled) {
+        if (isCkgodswayOrder && !ckgodswayEnabled) {
           skipped++;
           continue;
         }

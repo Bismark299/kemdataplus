@@ -271,6 +271,7 @@
         .product-network.MTN { background: #ffc107; color: #000; }
         .product-network.TELECEL { background: #e60000; color: white; }
         .product-network.AIRTELTIGO { background: #003366; color: white; }
+        .product-network.AT-BIG-TIME { background: #7c3aed; color: white; }
         
         .product-body { 
             padding: 14px; 
@@ -1010,9 +1011,11 @@
         }
 
         function getNetworkDisplayName(network) {
-            if (network === 'TELECEL') return 'Telecel';
-            if (network === 'AIRTELTIGO') return 'AirtelTigo';
-            return network;
+            const map = {'TELECEL':'Telecel','AIRTELTIGO':'AT-iShare','AT- BIG TIME':'AT-Big Time'};
+            return map[network] || network;
+        }
+        function getNetworkCssClass(network) {
+            return (network || '').replace(/[^A-Za-z0-9-]/g, '-').replace(/-+/g, '-');
         }
 
         function renderProducts(filter = currentNetworkFilter) {
@@ -1048,7 +1051,7 @@
                 const isOutOfStock = p.outOfStock || !p.bundle?.isActive;
                 return `
                 <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}">
-                    <div class="product-network ${p.bundle.network}">${getNetworkDisplayName(p.bundle.network)}</div>
+                    <div class="product-network ${getNetworkCssClass(p.bundle.network)}">${getNetworkDisplayName(p.bundle.network)}</div>
                     ${isOutOfStock ? '<div class="out-of-stock-badge">OUT OF STOCK</div>' : ''}
                     <div class="product-body">
                         <div class="product-name">${p.displayName || p.bundle.name}</div>

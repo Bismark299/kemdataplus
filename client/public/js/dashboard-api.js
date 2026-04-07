@@ -254,8 +254,12 @@
       'MTN': 'MTN',
       'Telecel': 'TELECEL',
       'TELECEL': 'TELECEL',
+      'AT-iShare': 'AIRTELTIGO',
       'AirtelTigo': 'AIRTELTIGO',
-      'AIRTELTIGO': 'AIRTELTIGO'
+      'AIRTELTIGO': 'AIRTELTIGO',
+      'iShare': 'AIRTELTIGO',
+      'AT-Big Time': 'AT- BIG TIME',
+      'AT- BIG TIME': 'AT- BIG TIME'
     };
 
     const apiNetwork = networkMap[network] || network.toUpperCase();
@@ -425,15 +429,20 @@
       const NETWORK_STATUS = {};
       const AVAILABLE_BUNDLES = {};
 
-      // Map network names
-      const networkMap = {
-        'MTN': 'MTN',
-        'TELECEL': 'Telecel',
-        'AIRTELTIGO': 'AirtelTigo'
-      };
+      // Map network names to display format (handles any network dynamically)
+      function getDisplayNetwork(network) {
+        const knownMap = {
+          'MTN': 'MTN',
+          'TELECEL': 'Telecel',
+          'AIRTELTIGO': 'AT-iShare',
+          'AT- BIG TIME': 'AT-Big Time'
+        };
+        // Return known mapping, or title-case the original name
+        return knownMap[network] || network.charAt(0).toUpperCase() + network.slice(1).toLowerCase();
+      }
 
       bundles.forEach(bundle => {
-        const displayNetwork = networkMap[bundle.network] || bundle.network;
+        const displayNetwork = getDisplayNetwork(bundle.network);
         
         if (!PRICING[displayNetwork]) {
           PRICING[displayNetwork] = {};

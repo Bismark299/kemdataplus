@@ -70,7 +70,10 @@ const NETWORK_MAP = {
   'AIRTELTIGO': 'atishare',  // AT Premium (iShare)
   'AirtelTigo': 'atishare',
   'airteltigo': 'atishare',
-  'AT': 'atishare'
+  'AT': 'atishare',
+  'AT- BIG TIME': 'atbigtime',
+  'AT-BIG TIME': 'atbigtime',
+  'AT-BIGTIME': 'atbigtime'
 };
 
 const axios = require('axios');
@@ -729,21 +732,30 @@ const datahubService = {
         });
         
         if (orderItem && (orderItem.status !== newStatus || !orderItem.externalReference)) {
-          await prisma.orderItem.update({
-            where: { id: orderItem.id },
-            data: { 
-              status: newStatus,
-              externalStatus: statusResult.status,
-              externalReference: order.externalReference,
-              ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
-            }
-          });
-          console.log(`[DataHub] ✅ OrderItem synced: ${orderItem.status} → ${newStatus}, externalRef: ${order.externalReference}`);
+          // PREVENT STATUS DOWNGRADES on OrderItem too (e.g., admin manually completed)
+          const itemPriority = { 'PENDING': 1, 'PROCESSING': 2, 'COMPLETED': 3, 'FAILED': 3, 'CANCELLED': 3 };
+          const curPri = itemPriority[orderItem.status] || 0;
+          const newPri = itemPriority[newStatus] || 0;
+          
+          if (newPri < curPri) {
+            console.log(`[DataHub] ⚠️ Skipping OrderItem downgrade: ${orderItem.status} → ${newStatus} (manual override preserved)`);
+          } else {
+            await prisma.orderItem.update({
+              where: { id: orderItem.id },
+              data: { 
+                status: newStatus,
+                externalStatus: statusResult.status,
+                externalReference: order.externalReference,
+                ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+              }
+            });
+            console.log(`[DataHub] ✅ OrderItem synced: ${orderItem.status} → ${newStatus}, externalRef: ${order.externalReference}`);
 
-          // 3. Recalculate OrderGroup summary status
-          const orderGroupService = require('./order-group.service');
-          await orderGroupService.recalculateGroupStatus(orderItem.orderGroupId);
-          console.log(`[DataHub] ✅ OrderGroup status recalculated`);
+            // 3. Recalculate OrderGroup summary status
+            const orderGroupService = require('./order-group.service');
+            await orderGroupService.recalculateGroupStatus(orderItem.orderGroupId);
+            console.log(`[DataHub] ✅ OrderGroup status recalculated`);
+          }
         }
       }
 
