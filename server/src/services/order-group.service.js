@@ -1465,39 +1465,43 @@ const orderGroupService = {
     
     console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'})`);
     
-    const items = await prisma.orderItem.findMany({
-      where: {
-        status: { in: ['PROCESSING', 'PENDING'] },
-        externalReference: { not: null }
-      },
-      take: 100 // Limit to prevent API overload
-    });
+    // Fetch each provider's items separately so one provider can't starve the other
+    let items = [];
 
-    console.log(`[Sync] Found ${items.length} items to sync`);
+    if (ckgodswayEnabled) {
+      const ckItems = await prisma.orderItem.findMany({
+        where: {
+          status: { in: ['PROCESSING', 'PENDING'] },
+          externalReference: { startsWith: 'CK-' }
+        },
+        take: 100
+      });
+      console.log(`[Sync] CK-Godsway: ${ckItems.length} items to sync`);
+      items.push(...ckItems);
+    }
+
+    if (mcbisEnabled) {
+      const mcbisItems = await prisma.orderItem.findMany({
+        where: {
+          status: { in: ['PROCESSING', 'PENDING'] },
+          externalReference: { not: null },
+          NOT: { externalReference: { startsWith: 'CK-' } }
+        },
+        take: 100
+      });
+      console.log(`[Sync] MCBIS: ${mcbisItems.length} items to sync`);
+      items.push(...mcbisItems);
+    }
+
+    console.log(`[Sync] Total: ${items.length} items to sync`);
 
     const results = [];
     let completed = 0;
     let failed = 0;
     let unchanged = 0;
-    let skipped = 0;
 
     for (const item of items) {
       try {
-        // Determine which API this item belongs to
-        const ref = item.externalReference || '';
-        const isMcbisOrder = ref.startsWith('DH-');
-        const isCkgodswayOrder = ref.startsWith('CK-');
-        
-        // Skip if the corresponding auto-sync is disabled
-        if (isMcbisOrder && !mcbisEnabled) {
-          skipped++;
-          continue;
-        }
-        if (isCkgodswayOrder && !ckgodswayEnabled) {
-          skipped++;
-          continue;
-        }
-        
         const result = await this.syncOrderItemStatus(item.id);
         results.push({ itemId: item.id, reference: item.reference, ...result });
         
@@ -1515,7 +1519,7 @@ const orderGroupService = {
       }
     }
 
-    console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged, ${skipped} skipped`);
+    console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged`);
 
     return {
       success: true,
@@ -1523,7 +1527,6 @@ const orderGroupService = {
       completed,
       failed,
       unchanged,
-      skipped,
       results
     };
   }

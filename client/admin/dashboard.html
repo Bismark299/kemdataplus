@@ -6273,7 +6273,7 @@
                     </p>
                     <div class="form-actions">
                         <button type="button" class="btn-cancel" id="cancelBundleModalEditBtn">Cancel</button>
-                        <button type="submit" class="btn-save" id="saveBundleModalEditBtn">Save Bundle</button>
+                        <button type="button" class="btn-save" id="saveBundleModalEditBtn">Save Bundle</button>
                     </div>
                 </form>
             </div>
@@ -11920,8 +11920,14 @@
                 console.log('[Networks] bundleTariffsData:', bundleTariffsData);
 
                 renderNetworkCards();
-                renderBundleTariffs();
+                // Preserve current network filter selection across reload
+                const savedFilter = document.getElementById('bundleNetworkFilter')?.value || '';
                 populateNetworkDropdowns();
+                if (savedFilter) {
+                    const filterEl = document.getElementById('bundleNetworkFilter');
+                    if (filterEl) filterEl.value = savedFilter;
+                }
+                renderBundleTariffs(savedFilter);
                 // Initial sync to frontend
                 syncBundlesToFrontend();
             } catch (err) {
