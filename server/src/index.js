@@ -376,14 +376,17 @@ async function cleanupDatabaseTriggers() {
     }
   }
   
-  // Also clear orphaned orders: reset apiSentAt for PENDING orders with no externalReference
-  // These got stuck because the trigger blocked saving externalReference after MCBIS call
+  // Clear orphaned orders: reset apiSentAt for PENDING orders with no externalReference
+  // ONLY for orders older than 10 minutes — recent orders may still be in-flight!
+  // Resetting apiSentAt on in-flight orders causes DUPLICATE deliveries.
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
   try {
     const result = await prismaCleanup.order.updateMany({
       where: {
         status: 'PENDING',
         apiSentAt: { not: null },
-        externalReference: null
+        externalReference: null,
+        updatedAt: { lt: tenMinutesAgo }  // Only reset if stale >10 min
       },
       data: {
         apiSentAt: null,
@@ -391,19 +394,20 @@ async function cleanupDatabaseTriggers() {
       }
     });
     if (result.count > 0) {
-      console.log(`[Cleanup] Reset ${result.count} orphaned PENDING orders for retry`);
+      console.log(`[Cleanup] Reset ${result.count} orphaned PENDING orders (>10min old) for retry`);
     }
   } catch (e) {
     console.warn(`[Cleanup] Order cleanup error: ${e.message}`);
   }
   
-  // Same for OrderItems
+  // Same for OrderItems — only reset if stale >10 min
   try {
     const result = await prismaCleanup.orderItem.updateMany({
       where: {
         status: 'PENDING',
         apiSentAt: { not: null },
-        externalReference: null
+        externalReference: null,
+        updatedAt: { lt: tenMinutesAgo }  // Only reset if stale >10 min
       },
       data: {
         apiSentAt: null,
@@ -411,7 +415,7 @@ async function cleanupDatabaseTriggers() {
       }
     });
     if (result.count > 0) {
-      console.log(`[Cleanup] Reset ${result.count} orphaned PENDING OrderItems for retry`);
+      console.log(`[Cleanup] Reset ${result.count} orphaned PENDING OrderItems (>10min old) for retry`);
     }
   } catch (e) {
     console.warn(`[Cleanup] OrderItem cleanup error: ${e.message}`);

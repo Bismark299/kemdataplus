@@ -848,7 +848,7 @@ const datahubService = {
         status: 'PENDING',
         externalReference: null,
         apiSentAt: null,
-        createdAt: { lt: new Date(Date.now() - 30000) }
+        createdAt: { lt: new Date(Date.now() - 5 * 60 * 1000) }  // 5 min grace period — give instant auto-process time
       },
       include: { bundle: true },
       take: 20,

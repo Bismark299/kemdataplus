@@ -1371,21 +1371,24 @@ const orderGroupService = {
    * - Are newer than 24 hours (don't retry very old orders)
    */
   async retryStuckPendingOrders() {
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    // Find stuck PENDING OrderGroups
+    // Find stuck PENDING OrderGroups where items were NEVER sent to API
+    // CRITICAL: Only pick items with apiSentAt IS NULL — never reset apiSentAt!
+    // If apiSentAt is set, the order was already claimed and may be in-flight.
     const stuckOrderGroups = await prisma.orderGroup.findMany({
       where: {
         status: 'PENDING',
         createdAt: {
           gte: twentyFourHoursAgo,  // Not older than 24 hours
-          lte: oneMinuteAgo         // At least 1 minute old
+          lte: fiveMinutesAgo       // At least 5 minutes old (give instant auto-process time)
         },
         items: {
           some: {
             status: 'PENDING',
-            externalReference: null  // Never sent to API
+            externalReference: null,  // Never sent to API
+            apiSentAt: null           // Never even attempted
           }
         }
       },
@@ -1407,19 +1410,11 @@ const orderGroupService = {
       try {
         console.log(`[AutoRetry] Retrying ${orderGroup.displayId}...`);
         
-        // Clear apiSentAt for stuck items to allow retry
-        await prisma.orderItem.updateMany({
-          where: {
-            orderGroupId: orderGroup.id,
-            status: 'PENDING',
-            externalReference: null
-          },
-          data: {
-            apiSentAt: null  // Reset so processOrderItems can claim them
-          }
-        });
+        // DO NOT reset apiSentAt — processOrderItems uses it as an atomic lock.
+        // Items with apiSentAt already set will be skipped by processOrderItems (duplicate check #2).
+        // We only process items that were genuinely never attempted.
         
-        // Process the order items
+        // Process the order items (only PENDING items with apiSentAt=null will be claimed)
         const result = await this.processOrderItems(orderGroup.id);
         
         retriedCount++;
