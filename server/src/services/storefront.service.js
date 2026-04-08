@@ -942,6 +942,14 @@ const storefrontService = {
       take: 20 // Limit to last 20 orders
     });
 
+    // Status priority: show whichever is further along in the fulfillment pipeline
+    const STATUS_PRIORITY = { 'PENDING': 1, 'PROCESSING': 2, 'COMPLETED': 3, 'FAILED': 3, 'CANCELLED': 3, 'DUPLICATE_HOLD': 0 };
+    const higherStatus = (a, b) => {
+      const pa = STATUS_PRIORITY[a] || 0;
+      const pb = STATUS_PRIORITY[b] || 0;
+      return pa >= pb ? a : b;
+    };
+
     // Map to customer-friendly format
     return orders.map(o => ({
       id: o.id.slice(0, 8).toUpperCase(),
@@ -950,7 +958,7 @@ const storefrontService = {
       network: o.bundle?.network || 'N/A',
       dataAmount: o.bundle?.dataAmount || 'N/A',
       amount: o.amount,
-      status: o.order?.status || o.status,
+      status: higherStatus(o.status, o.order?.status || 'PENDING'),
       paymentStatus: o.paymentStatus,
       createdAt: o.createdAt
     }));
