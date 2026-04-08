@@ -116,15 +116,13 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
-    // Auto-process order via API if enabled
-    // This happens in the background - don't wait for it
-    setImmediate(async () => {
-      try {
-        await orderGroupService.processOrderItems(result.orderGroup.id);
-      } catch (err) {
-        console.error(`[OrderGroup] Auto-process error:`, err.message);
-      }
-    });
+    // Auto-process order via API inline (not setImmediate) so errors are caught
+    let processResult = null;
+    try {
+      processResult = await orderGroupService.processOrderItems(result.orderGroup.id);
+    } catch (err) {
+      console.error(`[OrderGroup] Auto-process error:`, err.message);
+    }
 
     res.status(201).json({
       message: result.message,
@@ -133,7 +131,7 @@ router.post('/', authenticate, async (req, res, next) => {
         itemCount: result.orderGroup.itemCount,
         isBatch: result.orderGroup.itemCount > 1,
         totalAmount: result.orderGroup.totalAmount,
-        status: 'PENDING',
+        status: processResult?.processed > 0 ? 'PROCESSING' : 'PENDING',
         items: result.orderGroup.items.map(item => ({
           itemNumber: item.itemIndex,
           reference: item.reference,

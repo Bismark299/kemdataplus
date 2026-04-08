@@ -1265,9 +1265,12 @@ const storefrontService = {
       return {
         orderId: order.id,
         storefrontOrderId: storefrontOrderId,
+        bundleId: bundle.id, // Needed for auto-process API fulfillment
         bundle: bundle.name,
         bundleNetwork: bundle.network, // Pass network for API fulfillment
+        dataAmount: bundle.dataAmount, // Pass data amount for API call
         phone: recipientPhone, // The phone where data goes
+        recipientPhone: recipientPhone, // Alias for auto-process
         amount: storefrontOrder.amount,
         agentProfit: storefrontOrder.ownerProfit,
         status: hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PROCESSING',
@@ -1335,11 +1338,10 @@ const storefrontService = {
         const service = selectedProvider.getService();
         console.log(`[Storefront] Triggering ${selectedProvider.name} API fulfillment for order ${result.orderId} (${orderNetwork})...`);
         
-        // Extract data amount
+        // Extract data amount from result (passed from transaction)
         let dataAmount = 1;
-        const bundle = await prisma.bundle.findUnique({ where: { id: bundleId } });
-        if (bundle?.dataAmount) {
-          const match = bundle.dataAmount.match(/(\d+)/);
+        if (result.dataAmount) {
+          const match = result.dataAmount.match(/(\d+)/);
           if (match) dataAmount = parseInt(match[1]);
         }
         

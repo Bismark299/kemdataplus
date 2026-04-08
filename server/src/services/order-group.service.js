@@ -865,14 +865,15 @@ const orderGroupService = {
       } else if (providerName === 'MCBIS') {
         try {
           const balanceResult = await service.getWalletBalance();
-          providerBalances[providerName] = balanceResult.success ? balanceResult.balance : 0;
+          providerBalances[providerName] = balanceResult.success ? balanceResult.balance : Infinity;
           console.log(`[OrderGroup] MCBIS wallet balance: ${providerBalances[providerName]} GHS`);
         } catch (e) {
-          providerBalances[providerName] = 0;
-          console.log(`[OrderGroup] Could not fetch MCBIS balance: ${e.message}`);
+          // If balance check fails, proceed anyway — let placeOrder fail naturally
+          providerBalances[providerName] = Infinity;
+          console.log(`[OrderGroup] Could not fetch MCBIS balance (proceeding anyway): ${e.message}`);
         }
       } else {
-        providerBalances[providerName] = 0;
+        providerBalances[providerName] = Infinity;
       }
       return providerBalances[providerName];
     }
