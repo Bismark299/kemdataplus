@@ -146,7 +146,7 @@ async function sendSMS(phoneNumber, message) {
  * Send payout completion SMS to agent
  */
 async function sendPayoutCompletedSMS(agentPhone, agentName, amount, reference) {
-  const message = `Hi ${agentName || 'Agent'}, your withdrawal of GHC ${amount.toFixed(2)} has been sent to your MoMo account. Ref: ${reference}. Thank you for using KemDataplus!`;
+  const message = `Hi ${agentName || 'Agent'}, your request (Ref: ${reference}) has been completed successfully. Thank you for using KemDataplus!`;
   
   return await sendSMS(agentPhone, message);
 }
@@ -155,7 +155,7 @@ async function sendPayoutCompletedSMS(agentPhone, agentName, amount, reference) 
  * Send payout failed SMS to agent
  */
 async function sendPayoutFailedSMS(agentPhone, agentName, amount, reason) {
-  const message = `Hi ${agentName || 'Agent'}, your withdrawal of GHC ${amount.toFixed(2)} could not be processed. ${reason ? `Reason: ${reason}. ` : ''}Please contact support or try again. - KemDataplus`;
+  const message = `Hi ${agentName || 'Agent'}, your recent request could not be completed. ${reason ? `Reason: ${reason}. ` : ''}Please contact support or try again. - KemDataplus`;
   
   return await sendSMS(agentPhone, message);
 }
@@ -164,7 +164,7 @@ async function sendPayoutFailedSMS(agentPhone, agentName, amount, reason) {
  * Send withdrawal request received SMS
  */
 async function sendWithdrawalRequestSMS(agentPhone, agentName, amount) {
-  const message = `Hi ${agentName || 'Agent'}, your withdrawal request of GHC ${amount.toFixed(2)} has been received and is being processed. You'll be notified once it's sent. - KemDataplus`;
+  const message = `Hi ${agentName || 'Agent'}, your request has been received and is being processed. You'll be notified once it's done. - KemDataplus`;
   
   return await sendSMS(agentPhone, message);
 }
@@ -173,7 +173,7 @@ async function sendWithdrawalRequestSMS(agentPhone, agentName, amount) {
  * Send profit credited SMS
  */
 async function sendProfitCreditedSMS(agentPhone, agentName, amount, orderId) {
-  const message = `Hi ${agentName || 'Agent'}, GHC ${amount.toFixed(2)} profit has been credited to your wallet from order #${orderId?.slice(-6) || 'N/A'}. - KemDataplus`;
+  const message = `Hi ${agentName || 'Agent'}, your account has been updated for order #${orderId?.slice(-6) || 'N/A'}. Log in to check details. - KemDataplus`;
   
   return await sendSMS(agentPhone, message);
 }
