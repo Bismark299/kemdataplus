@@ -452,25 +452,18 @@
             flex: 1;
             min-width: 0;
             position: relative;
-            overflow: hidden;
-            height: 44px;
+            min-height: 38px;
         }
         .ticker-slide {
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
-            pointer-events: none;
+            display: none;
         }
         .ticker-slide.active {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
+            display: block;
+            animation: slideIn 0.4s ease-out;
         }
-        .ticker-slide.exit-up {
-            opacity: 0;
-            transform: translateY(-20px);
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .ticker-label {
@@ -607,9 +600,6 @@
             .ticker-badge {
                 padding: 3px 8px;
                 font-size: 0.6rem;
-            }
-            .ticker-slides {
-                height: 42px;
             }
         }
     </style>
@@ -998,14 +988,19 @@
             const data = await DashboardAPI.getLastDelivery();
             const ticker = document.getElementById('lastDeliveryTicker');
 
-            if (!data || !data.deliveries || !data.deliveries.length) {
+            // Handle both old {delivery} and new {deliveries} response formats
+            let deliveries = data?.deliveries || [];
+            if (!deliveries.length && data?.delivery) {
+                deliveries = [data.delivery];
+            }
+            if (!deliveries.length) {
                 ticker.style.display = 'none';
                 return;
             }
 
-            const isNew = data.deliveries[0].orderId !== lastTopOrderId;
-            lastTopOrderId = data.deliveries[0].orderId;
-            tickerDeliveries = data.deliveries;
+            const isNew = deliveries[0].orderId !== lastTopOrderId;
+            lastTopOrderId = deliveries[0].orderId;
+            tickerDeliveries = deliveries;
 
             // Build slides
             const slidesContainer = document.getElementById('tickerSlides');
@@ -1053,25 +1048,9 @@
         const slides = document.querySelectorAll('.ticker-slide');
         if (slides.length <= 1) return;
 
-        const current = slides[tickerIndex];
-        current.classList.remove('active');
-        current.classList.add('exit-up');
-
+        slides[tickerIndex].classList.remove('active');
         tickerIndex = (tickerIndex + 1) % slides.length;
-        const next = slides[tickerIndex];
-        next.classList.remove('exit-up');
-
-        // Reset position for enter animation
-        next.style.transition = 'none';
-        next.style.transform = 'translateY(20px)';
-        next.style.opacity = '0';
-        // Force reflow
-        next.offsetHeight;
-        next.style.transition = '';
-        next.classList.add('active');
-
-        // Remove exit class from previous after transition
-        setTimeout(() => { current.classList.remove('exit-up'); }, 500);
+        slides[tickerIndex].classList.add('active');
 
         // Update network color theme
         if (tickerDeliveries[tickerIndex]) {
