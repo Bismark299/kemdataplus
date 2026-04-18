@@ -515,6 +515,7 @@ const orderGroupService = {
         totalAmount: order.totalAmount,
         status: summaryStatus,
         createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
         isLegacy: false,
         items: order.items.map(item => ({
           id: item.id,
@@ -527,7 +528,8 @@ const orderGroupService = {
           bundle: item.bundle?.name || 'Unknown',
           network: item.bundle?.network || 'MTN',
           dataAmount: item.bundle?.dataAmount || '',
-          failureReason: item.failureReason
+          failureReason: item.failureReason,
+          updatedAt: item.updatedAt
         })),
         preview: order.items[0] ? {
           bundle: order.items[0].bundle?.name,
@@ -545,6 +547,7 @@ const orderGroupService = {
       totalAmount: order.totalPrice || 0,
       status: order.status,
       createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
       isLegacy: true,
       items: [{
         id: order.id,
@@ -557,7 +560,8 @@ const orderGroupService = {
         bundle: order.bundle?.name || 'Unknown',
         network: order.bundle?.network || 'MTN',
         dataAmount: order.bundle?.dataAmount || '',
-        failureReason: order.failureReason
+        failureReason: order.failureReason,
+        updatedAt: order.updatedAt
       }],
       preview: {
         bundle: order.bundle?.name,
