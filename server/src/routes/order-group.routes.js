@@ -207,39 +207,40 @@ router.get('/', authenticate, async (req, res, next) => {
 
 /**
  * GET /api/order-groups/last-delivery
- * Get the last completed delivery across the entire tenant (for live ticker)
+ * Get the last 5 completed deliveries across the entire tenant (for live ticker)
  */
 router.get('/last-delivery', authenticate, async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
 
-    // Find the most recently completed OrderItem in the tenant
-    const lastItem = await prisma.orderItem.findFirst({
+    // Find the 5 most recently completed OrderItems in the tenant
+    const lastItems = await prisma.orderItem.findMany({
       where: {
         status: 'COMPLETED',
         orderGroup: { tenantId: tenantId || undefined }
       },
       orderBy: { updatedAt: 'desc' },
+      take: 5,
       include: {
         bundle: { select: { name: true, network: true, dataAmount: true } },
         orderGroup: { select: { displayId: true, createdAt: true } }
       }
     });
 
-    if (!lastItem) {
-      return res.json({ delivery: null });
+    if (!lastItems.length) {
+      return res.json({ deliveries: [] });
     }
 
     res.json({
-      delivery: {
-        orderId: lastItem.orderGroup?.displayId || lastItem.reference,
-        recipientPhone: lastItem.recipientPhone,
-        bundle: lastItem.bundle?.name || 'Unknown',
-        network: lastItem.bundle?.network || 'MTN',
-        dataAmount: lastItem.bundle?.dataAmount || '',
-        deliveredAt: lastItem.updatedAt,
-        createdAt: lastItem.orderGroup?.createdAt || lastItem.createdAt
-      }
+      deliveries: lastItems.map(item => ({
+        orderId: item.orderGroup?.displayId || item.reference,
+        recipientPhone: item.recipientPhone,
+        bundle: item.bundle?.name || 'Unknown',
+        network: item.bundle?.network || 'MTN',
+        dataAmount: item.bundle?.dataAmount || '',
+        deliveredAt: item.updatedAt,
+        createdAt: item.orderGroup?.createdAt || item.createdAt
+      }))
     });
   } catch (error) {
     next(error);
