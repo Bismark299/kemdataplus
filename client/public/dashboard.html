@@ -881,24 +881,17 @@
     async function loadLastDelivery() {
         try {
             if (typeof DashboardAPI === 'undefined') return;
-            const data = await DashboardAPI.getOrders(1, 200);
-            const orders = data.orders || [];
-
-            // Find the most recently DELIVERED order (by updatedAt = completion time)
-            const completed = orders
-                .filter(o => (o.status || '').toUpperCase() === 'COMPLETED')
-                .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-
+            const data = await DashboardAPI.getLastDelivery();
             const ticker = document.getElementById('lastDeliveryTicker');
-            if (!completed.length) { ticker.style.display = 'none'; return; }
 
-            // Pick the most recently delivered order
-            const last = completed[0];
-            const deliveredAt = new Date(last.updatedAt || last.createdAt);
+            if (!data || !data.delivery) { ticker.style.display = 'none'; return; }
+
+            const d = data.delivery;
+            const deliveredAt = new Date(d.deliveredAt || d.createdAt);
             const timeAgo = getTimeAgo(deliveredAt);
 
             document.getElementById('tickerOrderId').textContent =
-                'Order #' + (last.displayId || last.id?.slice(-6)?.toUpperCase() || '---');
+                'Order #' + (d.orderId || '---');
             document.getElementById('tickerTime').textContent = timeAgo;
             ticker.style.display = 'block';
         } catch (e) {

@@ -217,6 +217,15 @@
     }
   }
 
+  async function getLastDelivery() {
+    try {
+      return await apiRequest('/order-groups/last-delivery');
+    } catch (error) {
+      console.error('Failed to get last delivery:', error);
+      return null;
+    }
+  }
+
   async function cancelOrder(orderId) {
     return await apiRequest(`/orders/${orderId}/cancel`, 'POST');
   }
@@ -572,6 +581,7 @@
     // Legacy order functions (backward compatibility)
     createOrder,
     getOrders,
+    getLastDelivery,
     cancelOrder,
     // New OrderGroup batch functions
     createOrderGroup,

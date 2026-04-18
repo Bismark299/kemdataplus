@@ -206,6 +206,47 @@ router.get('/', authenticate, async (req, res, next) => {
 });
 
 /**
+ * GET /api/order-groups/last-delivery
+ * Get the last completed delivery across the entire tenant (for live ticker)
+ */
+router.get('/last-delivery', authenticate, async (req, res, next) => {
+  try {
+    const tenantId = req.user.tenantId;
+
+    // Find the most recently completed OrderItem in the tenant
+    const lastItem = await prisma.orderItem.findFirst({
+      where: {
+        status: 'COMPLETED',
+        orderGroup: { tenantId: tenantId || undefined }
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        bundle: { select: { name: true, network: true, dataAmount: true } },
+        orderGroup: { select: { displayId: true, createdAt: true } }
+      }
+    });
+
+    if (!lastItem) {
+      return res.json({ delivery: null });
+    }
+
+    res.json({
+      delivery: {
+        orderId: lastItem.orderGroup?.displayId || lastItem.reference,
+        recipientPhone: lastItem.recipientPhone,
+        bundle: lastItem.bundle?.name || 'Unknown',
+        network: lastItem.bundle?.network || 'MTN',
+        dataAmount: lastItem.bundle?.dataAmount || '',
+        deliveredAt: lastItem.updatedAt,
+        createdAt: lastItem.orderGroup?.createdAt || lastItem.createdAt
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/order-groups/:id
  * Get single order details
  */
