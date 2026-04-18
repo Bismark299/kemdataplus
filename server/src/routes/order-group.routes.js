@@ -213,11 +213,12 @@ router.get('/last-delivery', authenticate, async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
 
-    // Find the 5 most recently completed OrderItems in the tenant
+    // Find the 5 most recently completed MTN OrderItems in the tenant
     const lastItems = await prisma.orderItem.findMany({
       where: {
         status: 'COMPLETED',
-        orderGroup: { tenantId: tenantId || undefined }
+        orderGroup: { tenantId: tenantId || undefined },
+        bundle: { network: 'MTN' }
       },
       orderBy: { updatedAt: 'desc' },
       take: 5,
