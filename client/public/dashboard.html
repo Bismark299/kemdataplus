@@ -892,7 +892,8 @@
 
             document.getElementById('tickerOrderId').textContent =
                 'Order #' + (d.orderId || '---');
-            document.getElementById('tickerTime').textContent = timeAgo;
+            document.getElementById('tickerTime').textContent =
+                deliveredAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true });
             ticker.style.display = 'block';
         } catch (e) {
             console.warn('Ticker error:', e);
