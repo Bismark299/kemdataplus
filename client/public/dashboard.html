@@ -371,6 +371,140 @@
         </div>
     </div>
 
+    <!-- LAST DELIVERY LIVE TICKER -->
+    <div class="live-ticker" id="lastDeliveryTicker" style="display:none;">
+        <div class="ticker-inner">
+            <div class="ticker-pulse"></div>
+            <div class="ticker-content">
+                <div class="ticker-label"><i class="fas fa-check-circle"></i> Last Delivered</div>
+                <div class="ticker-details">
+                    <span class="ticker-order" id="tickerOrderId">---</span>
+                    <span class="ticker-separator">•</span>
+                    <span class="ticker-time" id="tickerTime">---</span>
+                </div>
+            </div>
+            <div class="ticker-badge" id="tickerBadge">
+                <i class="fas fa-bolt"></i> LIVE
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .live-ticker {
+            max-width: 900px;
+            margin: 0 auto 16px;
+            padding: 0 16px;
+        }
+        .ticker-inner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .ticker-inner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #10b981, #34d399, #10b981);
+            background-size: 200% 100%;
+            animation: tickerShimmer 2s ease-in-out infinite;
+        }
+        @keyframes tickerShimmer {
+            0%, 100% { background-position: 0% 0; }
+            50% { background-position: 100% 0; }
+        }
+        .ticker-pulse {
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 50%;
+            flex-shrink: 0;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .ticker-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .ticker-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #059669;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .ticker-label i {
+            margin-right: 4px;
+        }
+        .ticker-details {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ticker-order {
+            font-weight: 700;
+            color: #065f46;
+            font-size: 0.95rem;
+        }
+        .ticker-separator {
+            color: #a7f3d0;
+            font-size: 0.8rem;
+        }
+        .ticker-time {
+            font-size: 0.82rem;
+            color: #047857;
+        }
+        .ticker-badge {
+            background: #10b981;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .ticker-badge i {
+            font-size: 0.6rem;
+        }
+        @media (max-width: 600px) {
+            .live-ticker {
+                padding: 0 10px;
+                margin-bottom: 12px;
+            }
+            .ticker-inner {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+            .ticker-order {
+                font-size: 0.85rem;
+            }
+            .ticker-time {
+                font-size: 0.75rem;
+            }
+            .ticker-badge {
+                padding: 3px 8px;
+                font-size: 0.6rem;
+            }
+        }
+    </style>
+
     <!-- QUICK ACTION CARDS -->
     <div class="quick-actions">
         <div class="action-card" onclick="window.location.href='./dashboard.html#buy-bundles'">
@@ -740,6 +874,61 @@
 
     // Initialize on load
     document.addEventListener('DOMContentLoaded', loadUserData);
+
+    // =====================
+    // LAST DELIVERY LIVE TICKER
+    // =====================
+    async function loadLastDelivery() {
+        try {
+            if (typeof DashboardAPI === 'undefined') return;
+            const data = await DashboardAPI.getOrders(1, 200);
+            const orders = data.orders || [];
+
+            // Find the most recent COMPLETED order
+            // Prioritize today's orders (by createdAt) so older orders completing late don't mislead
+            const completed = orders
+                .filter(o => (o.status || '').toUpperCase() === 'COMPLETED')
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            const ticker = document.getElementById('lastDeliveryTicker');
+            if (!completed.length) { ticker.style.display = 'none'; return; }
+
+            // Pick the newest order (by creation date) that's completed
+            const last = completed[0];
+            const deliveredAt = new Date(last.updatedAt || last.createdAt);
+            const timeAgo = getTimeAgo(deliveredAt);
+
+            document.getElementById('tickerOrderId').textContent =
+                'Order #' + (last.displayId || last.id?.slice(-6)?.toUpperCase() || '---');
+            document.getElementById('tickerTime').textContent = timeAgo;
+            ticker.style.display = 'block';
+        } catch (e) {
+            console.warn('Ticker error:', e);
+        }
+    }
+
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHr = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHr / 24);
+
+        if (diffSec < 60) return 'Just now';
+        if (diffMin < 2) return '1 min ago';
+        if (diffMin < 60) return diffMin + ' mins ago';
+        if (diffHr < 2) return '1 hour ago';
+        if (diffHr < 24) return diffHr + ' hours ago';
+        if (diffDay < 2) return 'Yesterday';
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Load on init and refresh every 30 seconds
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(loadLastDelivery, 2000); // after dashboard init
+        setInterval(loadLastDelivery, 30000);
+    });
 </script>
 
 <!-- FAQ SUPPORT BOT -->

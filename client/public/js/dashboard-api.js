@@ -203,6 +203,7 @@
               reference: item.reference,
               totalPrice: item.totalPrice || item.unitPrice || item.price || (group.totalAmount / group.items.length),
               createdAt: group.createdAt,
+              updatedAt: item.updatedAt || group.updatedAt,
               network: item.network || item.bundle?.network,
               dataAmount: item.dataAmount || item.bundle?.dataAmount
             });
