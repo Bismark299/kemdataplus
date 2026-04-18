@@ -884,16 +884,15 @@
             const data = await DashboardAPI.getOrders(1, 200);
             const orders = data.orders || [];
 
-            // Find the most recent COMPLETED order
-            // Prioritize today's orders (by createdAt) so older orders completing late don't mislead
+            // Find the most recently DELIVERED order (by updatedAt = completion time)
             const completed = orders
                 .filter(o => (o.status || '').toUpperCase() === 'COMPLETED')
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
 
             const ticker = document.getElementById('lastDeliveryTicker');
             if (!completed.length) { ticker.style.display = 'none'; return; }
 
-            // Pick the newest order (by creation date) that's completed
+            // Pick the most recently delivered order
             const last = completed[0];
             const deliveredAt = new Date(last.updatedAt || last.createdAt);
             const timeAgo = getTimeAgo(deliveredAt);
