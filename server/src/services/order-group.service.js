@@ -20,6 +20,7 @@
  */
 
 const prisma = require('../lib/prisma');
+const walletService = require('./wallet.service');
 
 // ============================================================
 // CONSTANTS
@@ -1135,32 +1136,6 @@ const orderGroupService = {
         }
       });
 
-      // Refund wallet if it was deducted
-      if (orderGroup.walletDeducted) {
-        const wallet = await tx.wallet.findUnique({
-          where: { userId }
-        });
-
-        await tx.wallet.update({
-          where: { userId },
-          data: {
-            balance: { increment: orderGroup.totalAmount }
-          }
-        });
-
-        // Create refund transaction
-        await tx.transaction.create({
-          data: {
-            walletId: wallet.id,
-            type: 'REFUND',
-            amount: orderGroup.totalAmount,
-            reference: `REFUND-${orderGroup.displayId}`,
-            description: `Refund for cancelled order ${orderGroup.displayId}`,
-            status: 'COMPLETED'
-          }
-        });
-      }
-
       // Audit log
       await tx.auditLog.create({
         data: {
@@ -1175,6 +1150,23 @@ const orderGroupService = {
         }
       });
     });
+
+    // Refund wallet via walletService (writes to walletLedger, idempotent, always COMPLETED)
+    if (orderGroup.walletDeducted) {
+      try {
+        await walletService.creditWallet(
+          userId,
+          orderGroup.totalAmount,
+          `Refund for cancelled order ${orderGroup.displayId}`,
+          `REFUND-${orderGroup.displayId}`,
+          { entryType: 'REFUND', orderId: orderGroup.id }
+        );
+      } catch (refundErr) {
+        if (refundErr.message !== 'Duplicate transaction reference') {
+          console.error(`[OrderGroup] Refund failed for order ${orderGroup.displayId}:`, refundErr.message);
+        }
+      }
+    }
 
     return {
       success: true,

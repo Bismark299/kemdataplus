@@ -22,6 +22,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const orderGroupService = require('../services/order-group.service');
+const walletService = require('../services/wallet.service');
 const prisma = require('../lib/prisma');
 
 // ============================================================
@@ -668,40 +669,26 @@ router.post('/admin/:id/reject', authenticate, authorize('ADMIN'), async (req, r
       });
     }
 
-    // Check if wallet was already deducted and needs refund
+    // Refund wallet via walletService (writes to walletLedger, idempotent, always COMPLETED)
     let refunded = false;
     if (orderGroup.walletDeducted) {
-      // Get wallet first to verify it exists
-      const wallet = await prisma.wallet.findUnique({
-        where: { userId: orderGroup.userId }
-      });
-
-      if (wallet) {
-        // Refund to wallet
-        await prisma.wallet.update({
-          where: { userId: orderGroup.userId },
-          data: {
-            balance: { increment: orderGroup.totalAmount }
-          }
-        });
-
-        // Create refund transaction with unique reference
-        const refundRef = `REFUND-${orderGroup.displayId}-${Date.now()}`;
-        await prisma.transaction.create({
-          data: {
-            walletId: wallet.id,
-            type: 'REFUND',
-            amount: orderGroup.totalAmount,
-            reference: refundRef,
-            description: `Duplicate order refund - ${orderGroup.displayId}${reason ? ` (Reason: ${reason})` : ''}`,
-            status: 'COMPLETED'
-          }
-        });
-
+      try {
+        await walletService.creditWallet(
+          orderGroup.userId,
+          orderGroup.totalAmount,
+          `Duplicate order refund - ${orderGroup.displayId}${reason ? ` (Reason: ${reason})` : ''}`,
+          `REFUND-${orderGroup.displayId}`,
+          { entryType: 'REFUND', orderId: orderGroup.id }
+        );
         refunded = true;
         console.log(`[Admin] Refunded ${orderGroup.totalAmount} for rejected duplicate order ${orderGroup.displayId}`);
-      } else {
-        console.log(`[Admin] No wallet found for user ${orderGroup.userId}, skipping refund for order ${orderGroup.displayId}`);
+      } catch (refundErr) {
+        if (refundErr.message === 'Duplicate transaction reference') {
+          refunded = true; // Already refunded on a prior call
+          console.log(`[Admin] Refund already exists for order ${orderGroup.displayId}`);
+        } else {
+          console.error(`[Admin] Failed to refund order ${orderGroup.displayId}:`, refundErr.message);
+        }
       }
     }
 
@@ -1068,35 +1055,28 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
       
       const refundAmount = legacyOrder.totalPrice || legacyOrder.unitPrice || 0;
       
-      await prisma.$transaction(async (tx) => {
-        // Update legacy order status
-        await tx.order.update({
-          where: { id: itemId },
-          data: { status: 'CANCELLED' }
-        });
-        
-        // Refund to wallet
-        if (refundAmount > 0) {
-          const wallet = await tx.wallet.findUnique({ where: { userId: legacyOrder.userId } });
-          
-          if (wallet) {
-            await tx.wallet.update({
-              where: { userId: legacyOrder.userId },
-              data: { balance: { increment: refundAmount } }
-            });
-            
-            await tx.transaction.create({
-              data: {
-                walletId: wallet.id,
-                amount: refundAmount,
-                type: 'REFUND',
-                description: `Refund for cancelled order ${legacyOrder.reference}`,
-                reference: `REFUND-${legacyOrder.reference}-${Date.now()}`
-              }
-            });
+      // Cancel the order atomically
+      await prisma.order.update({
+        where: { id: itemId },
+        data: { status: 'CANCELLED' }
+      });
+
+      // Refund to wallet via walletService (writes to walletLedger, idempotent)
+      if (refundAmount > 0) {
+        try {
+          await walletService.creditWallet(
+            legacyOrder.userId,
+            refundAmount,
+            `Refund for cancelled order ${legacyOrder.reference}`,
+            `REFUND-${legacyOrder.reference}`,
+            { entryType: 'REFUND' }
+          );
+        } catch (refundErr) {
+          if (refundErr.message !== 'Duplicate transaction reference') {
+            console.error(`[Admin] Refund failed for legacy order ${legacyOrder.reference}:`, refundErr.message);
           }
         }
-      });
+      }
       
       console.log(`[Admin] Cancelled legacy order ${itemId}, refunded ${refundAmount}`);
       
@@ -1160,28 +1140,25 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
         });
       }
       
-      // Refund to wallet
-      if (refundAmount > 0) {
-        const wallet = await tx.wallet.findUnique({ where: { userId: item.orderGroup.userId } });
-        
-        if (wallet) {
-          await tx.wallet.update({
-            where: { userId: item.orderGroup.userId },
-            data: { balance: { increment: refundAmount } }
-          });
-          
-          await tx.transaction.create({
-            data: {
-              walletId: wallet.id,
-              amount: refundAmount,
-              type: 'REFUND',
-              description: `Refund for cancelled item ${item.reference}`,
-              reference: `REFUND-${item.reference}-${Date.now()}`
-            }
-          });
+      // Wallet credit is handled after the transaction via walletService
+    });
+
+    // Refund to wallet via walletService (writes to walletLedger, idempotent, always COMPLETED)
+    if (refundAmount > 0) {
+      try {
+        await walletService.creditWallet(
+          item.orderGroup.userId,
+          refundAmount,
+          `Refund for cancelled item ${item.reference}`,
+          `REFUND-${item.reference}`,
+          { entryType: 'REFUND', orderId: item.orderGroupId }
+        );
+      } catch (refundErr) {
+        if (refundErr.message !== 'Duplicate transaction reference') {
+          console.error(`[Admin] Refund failed for item ${item.reference}:`, refundErr.message);
         }
       }
-    });
+    }
     
     console.log(`[Admin] Cancelled item ${itemId}, refunded ${refundAmount}`);
     
