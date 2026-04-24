@@ -84,9 +84,41 @@ const settingsController = {
       if (!adminSettings || !siteSettings) {
         return res.status(400).json({ error: 'adminSettings and siteSettings are required' });
       }
+
+      // Detect auto-sync toggling ON (false/undefined → true)
+      const oldSettings = getSiteSettings();
+      const mcbisToggledOn = !oldSettings.mcbisAutoSync && siteSettings.mcbisAutoSync;
+      const ckgodswayToggledOn = !oldSettings.ckgodswayAutoSync && siteSettings.ckgodswayAutoSync;
+
       const settings = { adminSettings, siteSettings };
       writeSettings(settings);
       console.log('[Settings] Updated:', { mcbisAPI: siteSettings.mcbisAPI, mcbisAutoSync: siteSettings.mcbisAutoSync });
+
+      // If either auto-sync just turned ON, fire a catch-up sync immediately (non-blocking)
+      if (mcbisToggledOn || ckgodswayToggledOn) {
+        console.log(`[Settings] Auto-sync re-enabled (MCBIS: ${mcbisToggledOn}, CKGodsway: ${ckgodswayToggledOn}) — triggering catch-up sync`);
+        setImmediate(async () => {
+          try {
+            const orderGroupService = require('../services/order-group.service');
+            const datahubService = require('../services/datahub.service');
+            // Run both catch-up passes concurrently
+            await Promise.all([
+              orderGroupService.syncAllProcessingItems({
+                mcbisEnabled: !!(siteSettings.mcbisAutoSync && siteSettings.mcbisAPI),
+                ckgodswayEnabled: !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI),
+                catchUp: true
+              }),
+              mcbisToggledOn && siteSettings.mcbisAPI
+                ? datahubService.syncAllPendingOrders({ catchUp: true })
+                : Promise.resolve()
+            ]);
+            console.log('[Settings] Catch-up sync complete');
+          } catch (err) {
+            console.error('[Settings] Catch-up sync error:', err.message);
+          }
+        });
+      }
+
       res.json({ success: true });
     } catch (err) {
       console.error('Error saving settings:', err);

@@ -1451,38 +1451,41 @@ const orderGroupService = {
    * Call this periodically or via admin action
    * @param {Object} options - Filter options
    * @param {boolean} options.mcbisEnabled - Whether to sync MCBIS orders
+   * @param {boolean} options.catchUp - When true: no row cap, oldest-first (use on re-enable)
    */
   async syncAllProcessingItems(options = {}) {
-    const { mcbisEnabled = true, ckgodswayEnabled = true } = options;
+    const { mcbisEnabled = true, ckgodswayEnabled = true, catchUp = false } = options;
     
-    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'})`);
+    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'}${catchUp ? ', CATCH-UP mode' : ''})`);
     
     // Fetch each provider's items separately so one provider can't starve the other
     let items = [];
 
     if (ckgodswayEnabled) {
-      const ckItems = await prisma.orderItem.findMany({
+      const ckQuery = {
         where: {
           status: { in: ['PROCESSING', 'PENDING'] },
           externalReference: { startsWith: 'CK-' }
         },
-        orderBy: { createdAt: 'desc' },
-        take: 50
-      });
+        orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
+      };
+      if (!catchUp) ckQuery.take = 50;
+      const ckItems = await prisma.orderItem.findMany(ckQuery);
       console.log(`[Sync] CK-Godsway: ${ckItems.length} items to sync`);
       items.push(...ckItems);
     }
 
     if (mcbisEnabled) {
-      const mcbisItems = await prisma.orderItem.findMany({
+      const mcbisQuery = {
         where: {
           status: { in: ['PROCESSING', 'PENDING'] },
           externalReference: { not: null },
           NOT: { externalReference: { startsWith: 'CK-' } }
         },
-        orderBy: { createdAt: 'desc' },
-        take: 50
-      });
+        orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
+      };
+      if (!catchUp) mcbisQuery.take = 50;
+      const mcbisItems = await prisma.orderItem.findMany(mcbisQuery);
       console.log(`[Sync] MCBIS: ${mcbisItems.length} items to sync`);
       items.push(...mcbisItems);
     }

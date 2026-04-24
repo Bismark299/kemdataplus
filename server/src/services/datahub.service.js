@@ -797,20 +797,23 @@ const datahubService = {
    * Sync all pending orders that have an external reference (were pushed to API)
    * Runs every minute via auto-sync
    */
-  async syncAllPendingOrders() {
+  async syncAllPendingOrders(options = {}) {
+    const { catchUp = false } = options;
     // First, try to process orders that are PENDING and haven't been pushed yet
     // (likely due to insufficient MCBIS balance earlier)
     await this.retryPendingOrders();
     
-    const pendingOrders = await prisma.order.findMany({
+    const orderQuery = {
       where: {
         status: { in: ['PROCESSING', 'PENDING'] },
         // Only sync orders that were actually pushed to API (have externalReference)
         externalReference: { not: null }
       },
-      orderBy: { createdAt: 'desc' },
-      take: 30 // Limit to prevent API overload
-    });
+      orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
+    };
+    if (!catchUp) orderQuery.take = 30; // Steady-state: limit to prevent API overload
+    const pendingOrders = await prisma.order.findMany(orderQuery);
+    if (catchUp) console.log(`[DataHub] Catch-up mode: processing all ${pendingOrders.length} backlogged orders (oldest first)`);
 
     console.log(`[DataHub] Found ${pendingOrders.length} orders with API references to sync`);
     
