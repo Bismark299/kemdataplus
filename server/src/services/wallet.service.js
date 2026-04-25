@@ -124,7 +124,7 @@ const walletService = {
       // Check daily credit cap
       await this.checkDailyCap(wallet, amount, 'credit', tx);
 
-      const newBalance = wallet.balance + amount;
+      const newBalance = Math.round((wallet.balance + amount) * 1e10) / 1e10;
 
       // Create ledger entry
       const ledgerEntry = await tx.walletLedger.create({
@@ -219,7 +219,7 @@ const walletService = {
       // Check daily debit cap
       await this.checkDailyCap(wallet, amount, 'debit', tx);
 
-      const newBalance = wallet.balance - amount;
+      const newBalance = Math.round((wallet.balance - amount) * 1e10) / 1e10;
 
       // Create ledger entry
       const ledgerEntry = await tx.walletLedger.create({
