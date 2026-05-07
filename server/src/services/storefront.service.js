@@ -1368,9 +1368,28 @@ const storefrontService = {
               externalReference: apiResult.reference || null
             }
           });
-          
-          if (!apiResult.success) {
+
+          // CRITICAL: Also update the linked OrderItem so retryStuckPendingOrders
+          // does not pick it up and send a duplicate to the API.
+          if (apiResult.success && apiResult.reference) {
+            await prisma.orderItem.updateMany({
+              where: {
+                orderGroup: { idempotencyKey: `STORE-PAYSTACK-${storefrontOrderId}` },
+                status: 'PENDING'
+              },
+              data: {
+                status: 'PROCESSING',
+                externalReference: apiResult.reference,
+                apiSentAt: new Date()
+              }
+            });
+          } else if (!apiResult.success) {
+            // On failure: mark OrderItem apiSentAt so it's visible as attempted,
+            // but clear it (null) so auto-retry can pick it up normally.
             await prisma.order.update({ where: { id: result.orderId }, data: { apiSentAt: null } });
+          }
+
+          if (!apiResult.success) {
             console.log(`[Storefront] ⚠️ API processing failed: ${apiResult.error}`);
           } else {
             console.log(`[Storefront] ✅ ${selectedProvider.name} accepted order: ${apiResult.reference}`);
