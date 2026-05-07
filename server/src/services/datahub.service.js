@@ -899,6 +899,31 @@ const datahubService = {
         continue;
       }
 
+      // CRITICAL: Skip if a linked OrderItem already exists for this order and has been
+      // sent or completed. The OrderItem system will handle fulfilment — if we also send
+      // via the legacy Order path we create a duplicate delivery to the customer.
+      if (freshOrder.reference) {
+        const linkedItem = await prisma.orderItem.findFirst({
+          where: {
+            reference: { startsWith: freshOrder.reference + '-' },
+            status: { in: ['PROCESSING', 'COMPLETED'] }
+          },
+          select: { id: true, reference: true, status: true, externalReference: true }
+        });
+        if (linkedItem) {
+          console.log(`[Retry] Skipping Order ${freshOrder.reference} — linked OrderItem ${linkedItem.reference} is already ${linkedItem.status}. Marking Order COMPLETED to prevent future retries.`);
+          await prisma.order.update({
+            where: { id: freshOrder.id },
+            data: {
+              status: linkedItem.status === 'COMPLETED' ? 'COMPLETED' : 'PROCESSING',
+              externalReference: freshOrder.externalReference || linkedItem.externalReference || null,
+              ...(linkedItem.status === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+            }
+          });
+          continue;
+        }
+      }
+
       const network = order.bundle?.network || 'MTN';
       const provider = getProviderForNetwork(network);
       if (!provider) {
@@ -932,15 +957,20 @@ const datahubService = {
           orderId: order.id
         });
         
+        // CKGodsway has no idempotency — each retry creates a NEW order on their end.
+        // On failure: mark FAILED so retryPendingOrders never re-queues it.
+        // For MCBIS: keep existing behavior (reset apiSentAt, stay PENDING for retry).
+        const isCkGodsway = provider.name === 'CKGODSWAY';
         await prisma.order.update({
           where: { id: order.id },
           data: {
-            status: result.success ? 'PROCESSING' : 'PENDING',
-            externalReference: result.reference || null
+            status: result.success ? 'PROCESSING' : (isCkGodsway ? 'FAILED' : 'PENDING'),
+            externalReference: result.reference || null,
+            ...(result.success ? {} : { failureReason: result.error || 'API failed' })
           }
         });
         
-        if (!result.success) {
+        if (!result.success && !isCkGodsway) {
           await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } });
         }
         
@@ -950,7 +980,13 @@ const datahubService = {
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
         console.error(`[Retry] Error retrying order ${order.id}:`, error.message);
-        await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } }).catch(() => {});
+        const isCkGodsway = provider?.name === 'CKGODSWAY';
+        if (isCkGodsway) {
+          // Don't re-queue CKGodsway orders — mark FAILED to stop retry loop
+          await prisma.order.update({ where: { id: order.id }, data: { status: 'FAILED', failureReason: error.message } }).catch(() => {});
+        } else {
+          await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } }).catch(() => {});
+        }
         results.push({ orderId: order.id, success: false, error: error.message });
       }
     }
