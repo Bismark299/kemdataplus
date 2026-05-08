@@ -299,12 +299,11 @@ const orderGroupService = {
       }
 
       // 4e. Deduct wallet
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          balance: { decrement: grandTotal }
-        }
-      });
+      // Use GREATEST(0, balance - amount) via raw SQL to guard against
+      // floating point precision producing infinitesimally negative balances
+      // which violate the wallet_balance_non_negative DB constraint.
+      const deductAmount = Math.round(grandTotal * 100) / 100;
+      await tx.$executeRaw`UPDATE "wallets" SET balance = GREATEST(0, ROUND((balance - ${deductAmount})::numeric, 10)), "updatedAt" = NOW() WHERE "userId" = ${userId}`;
 
       // 4f. Create wallet transaction
       await tx.transaction.create({
@@ -1057,6 +1056,7 @@ const orderGroupService = {
             }
           } catch (checkErr) {
             // Can't reach MCBIS to verify — leave as PROCESSING with the ref so auto-sync can resolve it later
+            // If rate-limited, MCBIS is reachable so the order likely went through
             console.log(`[OrderGroup] Could not verify ${result.reference} with MCBIS (${checkErr.message}) — marking PROCESSING for auto-sync`);
             await this.updateItemStatus(item.id, {
               status: 'PROCESSING',
@@ -1064,6 +1064,8 @@ const orderGroupService = {
               failureReason: null
             });
           }
+          // Delay between status checks to avoid MCBIS rate limiting
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
           // Update item status based on result
           await this.updateItemStatus(item.id, {

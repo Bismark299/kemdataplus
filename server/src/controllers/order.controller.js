@@ -275,17 +275,15 @@ const orderController = {
           }
 
           // Atomic balance deduction - will fail if concurrent update changed balance
-          const updatedWallet = await tx.wallet.update({
-            where: { 
-              id: wallet.id,
-              // Optimistic lock: ensure balance hasn't changed
-              balance: { gte: totalPrice }
-            },
-            data: {
-              balance: { decrement: totalPrice }
-            }
-          });
+          // Use GREATEST(0, ...) to guard against floating point producing -epsilon balances
+          const deductAmount = Math.round(totalPrice * 100) / 100;
+          const deductResult = await tx.$executeRaw`UPDATE "wallets" SET balance = GREATEST(0, ROUND((balance - ${deductAmount})::numeric, 10)), "updatedAt" = NOW() WHERE id = ${wallet.id} AND balance >= ${deductAmount}`;
 
+          if (deductResult === 0) {
+            throw new Error('INSUFFICIENT_BALANCE');
+          }
+          // Re-fetch wallet to confirm update
+          const updatedWallet = await tx.wallet.findUnique({ where: { id: wallet.id } });
           if (!updatedWallet) {
             throw new Error('INSUFFICIENT_BALANCE');
           }
