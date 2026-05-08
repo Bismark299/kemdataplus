@@ -8093,12 +8093,19 @@
                     <td>${bundle.dataAmount || o.dataAmount || ''}</td>
                     <td>${parseFloat(o.totalPrice || o.total || 0).toFixed(2)}</td>
                     <td><span class="badge badge-${(o.paymentStatus || 'COMPLETED').toLowerCase() === 'completed' ? 'completed' : 'pending'}">${(o.paymentStatus || 'COMPLETED')}</span></td>
-                    <td><span class="badge badge-${(o.status || 'PENDING').toLowerCase()}">${o.status || 'PENDING'}</span></td>
+                    <td>
+                        <span class="badge badge-${(o.status || 'PENDING').toLowerCase()}">${o.status || 'PENDING'}</span>
+                        ${o.status === 'FAILED' && o.failureReason ? `<div title="${o.failureReason}" style="font-size:0.65rem;color:#991b1b;margin-top:3px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help;">${o.failureReason.includes('404') ? '⚠️ Not received by MCBIS' : o.failureReason.substring(0, 40)}</div>` : ''}
+                    </td>
                     <td>
                         <div class="action-icons">
                             <button class="action-icon copy" data-action="copy-order" data-id="${o.id}" title="Copy Details" style="background:#6b7280;">
                                 <i class="fas fa-copy"></i>
                             </button>
+                            ${o.status === 'FAILED' && !o.externalReference ? `
+                            <button class="action-icon" data-action="retry-order" data-id="${o.id}" title="Retry - re-send to provider" style="background:#d97706;color:white;">
+                                <i class="fas fa-redo"></i>
+                            </button>` : ''}
                             <button class="action-icon cancel" data-action="cancel-order" data-id="${o.id}" title="Cancel">
                                 <i class="fas fa-times"></i>
                             </button>
@@ -8357,6 +8364,29 @@
                 showToast('Error: ' + err.message, 'error');
             }
         }
+
+        async function retryOrder(orderId) {
+            const confirmed = await showConfirmModal({
+                title: 'Retry Order',
+                message: 'Re-send this order to the provider? Only use this if the order was never received by MCBIS (shows ⚠️ Not received).',
+                type: 'success',
+                confirmText: 'Retry',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
+            try {
+                const res = await adminFetch(`/api/order-groups/admin/item/${orderId}/retry`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to retry order');
+                showToast('Order re-queued for sending. Check status in ~1 minute.');
+                loadStats();
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
         
         function viewOrder(orderId) {
             const order = ordersCache.find(o => o.id == orderId);
@@ -14568,6 +14598,7 @@
             const id = btn.getAttribute('data-id');
             if (action === 'cancel-order') cancelOrder(id);
             else if (action === 'complete-order') completeOrder(id);
+            else if (action === 'retry-order') retryOrder(id);
             else if (action === 'view-order') viewOrder(id);
             else if (action === 'copy-order') copyOrderDetails(id);
         });

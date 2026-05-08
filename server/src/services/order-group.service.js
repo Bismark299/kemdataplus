@@ -1019,53 +1019,19 @@ const orderGroupService = {
           continue;
         }
 
-        // ============ NETWORK ERROR: VERIFY WITH MCBIS BEFORE MARKING FAILED ============
+        // ============ NETWORK ERROR: MARK PROCESSING, LET AUTO-SYNC VERIFY ============
         // If we got a network/timeout error, MCBIS may have already received and processed
-        // the order despite no response coming back. Check the reference before declaring FAILED
-        // to prevent duplicates when admin re-sends manually.
+        // the order despite no response. Store the reference and mark PROCESSING so that
+        // auto-sync (syncOrderItemStatus) checks the real status each minute.
+        // This avoids hammering MCBIS with immediate status checks (rate limiting).
+        // Auto-sync will mark FAILED if MCBIS returns 404 (never received).
         if (!result.success && result.networkError && result.reference && apiProvider === 'MCBIS') {
-          console.log(`[OrderGroup] Network error for ${item.reference} — checking MCBIS status for ref ${result.reference}`);
-          try {
-            const statusCheck = await apiService.checkOrderStatus(result.reference);
-            const apiStatus = (statusCheck.status || '').toLowerCase();
-            console.log(`[OrderGroup] MCBIS status check for ${result.reference}: ${apiStatus}`);
-
-            if (apiStatus === 'success' || apiStatus === 'completed' || apiStatus === 'delivered' || apiStatus === 'successful') {
-              // MCBIS processed it — mark PROCESSING so auto-sync can confirm
-              console.log(`[OrderGroup] ✅ MCBIS already processed ${result.reference} — marking PROCESSING`);
-              await this.updateItemStatus(item.id, {
-                status: 'PROCESSING',
-                externalReference: result.reference,
-                failureReason: null
-              });
-            } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
-              console.log(`[OrderGroup] ✅ MCBIS has ${result.reference} in ${apiStatus} — marking PROCESSING`);
-              await this.updateItemStatus(item.id, {
-                status: 'PROCESSING',
-                externalReference: result.reference,
-                failureReason: null
-              });
-            } else {
-              // MCBIS doesn't know this reference — safe to mark FAILED
-              console.log(`[OrderGroup] MCBIS returned '${apiStatus}' for ${result.reference} — marking FAILED (safe)`);
-              await this.updateItemStatus(item.id, {
-                status: 'FAILED',
-                externalReference: result.reference,
-                failureReason: result.error
-              });
-            }
-          } catch (checkErr) {
-            // Can't reach MCBIS to verify — leave as PROCESSING with the ref so auto-sync can resolve it later
-            // If rate-limited, MCBIS is reachable so the order likely went through
-            console.log(`[OrderGroup] Could not verify ${result.reference} with MCBIS (${checkErr.message}) — marking PROCESSING for auto-sync`);
-            await this.updateItemStatus(item.id, {
-              status: 'PROCESSING',
-              externalReference: result.reference,
-              failureReason: null
-            });
-          }
-          // Delay between status checks to avoid MCBIS rate limiting
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          console.log(`[OrderGroup] Network error for ${item.reference} — storing ref ${result.reference}, marking PROCESSING for auto-sync`);
+          await this.updateItemStatus(item.id, {
+            status: 'PROCESSING',
+            externalReference: result.reference,
+            failureReason: null
+          });
         } else {
           // Update item status based on result
           await this.updateItemStatus(item.id, {
@@ -1259,12 +1225,20 @@ const orderGroupService = {
           ? { success: true, status: ckResult.status, provider: 'CKGODSWAY' }
           : { success: false, error: ckResult.error };
       } else {
-        // Default: MCBIS (legacy orders without prefix, or DH- prefix)
-        apiResult = await datahubService.checkOrderStatus(ref);
-        if (apiResult.success && apiResult.status !== 'unknown') {
-          apiResult.provider = 'MCBIS';
+        // Default: MCBIS (legacy orders without prefix, or KEM- prefix)
+        const mcbisResult = await datahubService.checkOrderStatus(ref);
+        if (mcbisResult.success) {
+          const s = (mcbisResult.status || '').toLowerCase();
+          if (s === 'unknown') {
+            // MCBIS returned 404 — reference never received, safe to mark FAILED
+            console.log(`[Sync] MCBIS 404 for ${ref} — order never received, will mark FAILED`);
+            apiResult = { success: true, status: 'failed', provider: 'MCBIS', notReceived: true };
+          } else {
+            apiResult = { success: true, status: s, provider: 'MCBIS' };
+          }
         } else {
-          apiResult = { success: false, error: apiResult.error || 'Unknown status from MCBIS' };
+          // Network error reaching MCBIS — don't change status, try again next cycle
+          apiResult = { success: false, error: mcbisResult.error || 'MCBIS unreachable' };
         }
       }
     } catch (error) {
@@ -1304,13 +1278,22 @@ const orderGroupService = {
     
     if (statusChanged) {
       console.log(`[Sync] Status change: ${item.status} → ${newStatus}`);
+
+      // Set a clear failureReason so admin knows whether it's safe to re-send
+      let failureReason = undefined;
+      if (newStatus === 'FAILED') {
+        failureReason = apiResult.notReceived
+          ? 'MCBIS 404 - order never received by provider (safe to re-send)'
+          : `Provider reported failure: ${apiResult.status}`;
+      }
       
       await prisma.orderItem.update({
         where: { id: itemId },
         data: {
           status: newStatus,
           externalStatus: apiResult.status,
-          ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
+          ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {}),
+          ...(failureReason !== undefined ? { failureReason } : { failureReason: null })
         }
       });
 

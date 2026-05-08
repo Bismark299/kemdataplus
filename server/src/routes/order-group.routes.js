@@ -1298,4 +1298,76 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
   }
 });
 
+/**
+ * POST /api/order-groups/admin/item/:itemId/retry
+ * Retry a FAILED order item that was never received by the provider (MCBIS 404).
+ * Resets the item to PENDING and re-queues it for sending.
+ */
+router.post('/admin/item/:itemId/retry', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    const orderGroupService = require('../services/order-group.service');
+
+    const item = await prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: { orderGroup: true }
+    });
+
+    if (!item) {
+      return res.status(404).json({ error: 'Order item not found' });
+    }
+
+    if (item.status !== 'FAILED') {
+      return res.status(400).json({ error: 'Only FAILED orders can be retried' });
+    }
+
+    // Safety: only allow retry if the item was never confirmed received by provider
+    const safeToRetry = !item.externalReference && (
+      !item.failureReason ||
+      item.failureReason.includes('404') ||
+      item.failureReason.includes('never received') ||
+      item.failureReason.includes('network')
+    );
+
+    if (!safeToRetry) {
+      return res.status(400).json({
+        error: 'This order cannot be retried — it was confirmed received by the provider. Cancel and refund instead.',
+        failureReason: item.failureReason
+      });
+    }
+
+    // Reset item to PENDING so processOrderItems will pick it up
+    await prisma.orderItem.update({
+      where: { id: itemId },
+      data: {
+        status: 'PENDING',
+        failureReason: null,
+        apiSentAt: null,
+        externalReference: null
+      }
+    });
+
+    // Also reset the parent group status if it was FAILED
+    if (item.orderGroup && item.orderGroup.status === 'FAILED') {
+      await prisma.orderGroup.update({
+        where: { id: item.orderGroup.id },
+        data: { status: 'PENDING' }
+      });
+    }
+
+    // Trigger processing immediately
+    try {
+      await orderGroupService.processOrderItems(item.orderGroup.id);
+    } catch (processErr) {
+      console.error('[RetryItem] processOrderItems error:', processErr.message);
+      // Non-fatal — auto-sync will pick it up within 1 minute
+    }
+
+    res.json({ success: true, message: 'Order re-queued for sending' });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
