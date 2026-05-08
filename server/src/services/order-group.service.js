@@ -1020,12 +1020,58 @@ const orderGroupService = {
           continue;
         }
 
-        // Update item status based on result
-        await this.updateItemStatus(item.id, {
-          status: result.success ? 'PROCESSING' : 'FAILED',
-          externalReference: result.reference,
-          failureReason: result.success ? null : result.error
-        });
+        // ============ NETWORK ERROR: VERIFY WITH MCBIS BEFORE MARKING FAILED ============
+        // If we got a network/timeout error, MCBIS may have already received and processed
+        // the order despite no response coming back. Check the reference before declaring FAILED
+        // to prevent duplicates when admin re-sends manually.
+        if (!result.success && result.networkError && result.reference && apiProvider === 'MCBIS') {
+          console.log(`[OrderGroup] Network error for ${item.reference} — checking MCBIS status for ref ${result.reference}`);
+          try {
+            const statusCheck = await apiService.checkOrderStatus(result.reference);
+            const apiStatus = (statusCheck.status || '').toLowerCase();
+            console.log(`[OrderGroup] MCBIS status check for ${result.reference}: ${apiStatus}`);
+
+            if (apiStatus === 'success' || apiStatus === 'completed' || apiStatus === 'delivered' || apiStatus === 'successful') {
+              // MCBIS processed it — mark PROCESSING so auto-sync can confirm
+              console.log(`[OrderGroup] ✅ MCBIS already processed ${result.reference} — marking PROCESSING`);
+              await this.updateItemStatus(item.id, {
+                status: 'PROCESSING',
+                externalReference: result.reference,
+                failureReason: null
+              });
+            } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
+              console.log(`[OrderGroup] ✅ MCBIS has ${result.reference} in ${apiStatus} — marking PROCESSING`);
+              await this.updateItemStatus(item.id, {
+                status: 'PROCESSING',
+                externalReference: result.reference,
+                failureReason: null
+              });
+            } else {
+              // MCBIS doesn't know this reference — safe to mark FAILED
+              console.log(`[OrderGroup] MCBIS returned '${apiStatus}' for ${result.reference} — marking FAILED (safe)`);
+              await this.updateItemStatus(item.id, {
+                status: 'FAILED',
+                externalReference: result.reference,
+                failureReason: result.error
+              });
+            }
+          } catch (checkErr) {
+            // Can't reach MCBIS to verify — leave as PROCESSING with the ref so auto-sync can resolve it later
+            console.log(`[OrderGroup] Could not verify ${result.reference} with MCBIS (${checkErr.message}) — marking PROCESSING for auto-sync`);
+            await this.updateItemStatus(item.id, {
+              status: 'PROCESSING',
+              externalReference: result.reference,
+              failureReason: null
+            });
+          }
+        } else {
+          // Update item status based on result
+          await this.updateItemStatus(item.id, {
+            status: result.success ? 'PROCESSING' : 'FAILED',
+            externalReference: result.reference,
+            failureReason: result.success ? null : result.error
+          });
+        }
 
         results.push({
           itemId: item.id,

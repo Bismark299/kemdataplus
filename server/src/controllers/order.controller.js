@@ -412,17 +412,23 @@ const orderController = {
             
             // Update order with result
             // PROCESSING = API accepted, waiting for delivery confirmation
+            // FAILED = API rejected — for CKGodsway we mark FAILED (no idempotency,
+            //   clearing apiSentAt would re-queue and create a duplicate order each retry)
+            const isCkGodsway = apiProvider.name === 'CKGODSWAY';
+            const failStatus = isCkGodsway ? 'FAILED' : 'PENDING';
             await prisma.order.update({
               where: { id: order.id },
               data: {
-                status: result.success ? 'PROCESSING' : 'PENDING',
+                status: result.success ? 'PROCESSING' : failStatus,
                 externalReference: result.reference || null,
+                ...(result.success ? {} : { failureReason: result.error || 'API failed' }),
                 // apiSentAt already set by atomic lock
               }
             });
             
-            // If failed, clear apiSentAt so it can be retried
-            if (!result.success) {
+            // For MCBIS only: clear apiSentAt so the order can be retried by retryPendingOrders
+            // For CKGodsway: leave apiSentAt set — order is marked FAILED above, no retry
+            if (!result.success && !isCkGodsway) {
               await prisma.order.update({
                 where: { id: order.id },
                 data: { apiSentAt: null }
@@ -434,11 +440,20 @@ const orderController = {
           }
         } catch (apiError) {
           console.error(`[API] Auto-process failed for ${order.id}:`, apiError.message);
-          // Clear apiSentAt on error so order can be retried
-          await prisma.order.update({
-            where: { id: order.id },
-            data: { apiSentAt: null }
-          }).catch(() => {});
+          // For CKGodsway: mark FAILED (don't retry — no idempotency, each retry = new order)
+          // For MCBIS: clear apiSentAt so it can be retried
+          const isCkGodsway = apiProvider?.name === 'CKGODSWAY';
+          if (isCkGodsway) {
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'FAILED', failureReason: apiError.message }
+            }).catch(() => {});
+          } else {
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { apiSentAt: null }
+            }).catch(() => {});
+          }
         }
       } else {
         console.log(`[API] Not processing order ${order.id} - no provider enabled for ${orderNetwork}`);

@@ -1384,9 +1384,16 @@ const storefrontService = {
               }
             });
           } else if (!apiResult.success) {
-            // On failure: mark OrderItem apiSentAt so it's visible as attempted,
-            // but clear it (null) so auto-retry can pick it up normally.
-            await prisma.order.update({ where: { id: result.orderId }, data: { apiSentAt: null } });
+            // CKGodsway has no idempotency — each retry creates a NEW order on their end.
+            // Mark FAILED so retryPendingOrders never re-queues it.
+            // For MCBIS: reset apiSentAt so it stays PENDING and can be retried.
+            const isCkGodsway = selectedProvider.name === 'CKGODSWAY';
+            await prisma.order.update({
+              where: { id: result.orderId },
+              data: isCkGodsway
+                ? { status: 'FAILED', failureReason: apiResult.error || 'CKGodsway API failed' }
+                : { apiSentAt: null }
+            });
           }
 
           if (!apiResult.success) {

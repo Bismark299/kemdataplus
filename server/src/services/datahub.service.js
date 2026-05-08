@@ -83,6 +83,14 @@ const axios = require('axios');
  * Axios handles redirects and cookies better than native fetch
  */
 async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
+  // CRITICAL SAFETY: Never retry POST requests on network errors.
+  // POST /placeOrder is NOT idempotent — MCBIS may have received and processed the request
+  // even if we got no response (ECONNABORTED/timeout). Retrying would send data to the
+  // customer multiple times. Only GET requests (status checks) are safe to retry.
+  if (method.toUpperCase() === 'POST') {
+    retries = 0;
+  }
+
   const config = getApiConfig();
   const url = `${config.url}${endpoint}`;
   
@@ -369,11 +377,20 @@ const datahubService = {
     } catch (error) {
       console.error(`[DataHub] API FAILED:`, error.message);
       console.error(`[DataHub] Full error:`, error);
+      // Flag network/timeout errors separately so the caller can verify MCBIS status
+      // before marking as FAILED (order may have been received by MCBIS despite no response)
+      const isNetworkError = error.message.includes('ECONNABORTED') ||
+        error.message.includes('ETIMEDOUT') ||
+        error.message.includes('ECONNRESET') ||
+        error.message.includes('No response from API server') ||
+        error.message.includes('521') ||
+        error.message.includes('522');
       return {
         success: false,
         reference: reference,
         status: 'failed',
-        error: error.message
+        error: error.message,
+        networkError: isNetworkError
       };
     }
   },
