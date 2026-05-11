@@ -183,7 +183,7 @@ async function processStuckResult(payout, paystackStatus, transferCode) {
         where: { id: payout.id },
         data: {
           status: 'COMPLETED',
-          completedAt: new Date(),
+          processedAt: new Date(),
           transferCode: transferCode || payout.transferCode,
           reviewNotes: (payout.reviewNotes || '') + '\nAuto-completed by stuck checker (webhook missed)'
         }

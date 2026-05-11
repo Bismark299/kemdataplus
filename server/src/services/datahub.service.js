@@ -159,6 +159,20 @@ function generateReference() {
   return `KEM${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 }
 
+// Rate-limit backoff: when MCBIS returns "Too Many Attempts", skip all status
+// checks for RATE_LIMIT_COOLDOWN_MS to let the window reset.
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+let mcbisRateLimitedUntil = 0;
+
+function isMcbisRateLimited() {
+  return Date.now() < mcbisRateLimitedUntil;
+}
+
+function setMcbisRateLimited() {
+  mcbisRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+  console.warn(`[DataHub] ⚠️ Rate-limited by MCBIS. Pausing status checks for ${RATE_LIMIT_COOLDOWN_MS / 60000} minutes until ${new Date(mcbisRateLimitedUntil).toISOString()}`);
+}
+
 const datahubService = {
   /**
    * Test connection and return raw response details for debugging
@@ -279,6 +293,12 @@ const datahubService = {
    * Check order status by reference
    */
   async checkOrderStatus(reference) {
+    // Respect rate-limit cooldown to avoid hammering MCBIS
+    if (isMcbisRateLimited()) {
+      const secondsLeft = Math.ceil((mcbisRateLimitedUntil - Date.now()) / 1000);
+      return { success: false, status: 'unknown', error: `MCBIS rate-limited, retry in ${secondsLeft}s` };
+    }
+
     try {
       const result = await apiRequest(`/checkOrderStatus/${reference}`);
       
@@ -308,6 +328,14 @@ const datahubService = {
         raw: result
       };
     } catch (error) {
+      // Detect rate-limiting from MCBIS
+      if (
+        error.message?.toLowerCase().includes('too many') ||
+        error.message?.toLowerCase().includes('rate limit') ||
+        error.message?.toLowerCase().includes('too many attempts')
+      ) {
+        setMcbisRateLimited();
+      }
       return {
         success: false,
         status: 'unknown',
@@ -836,11 +864,16 @@ const datahubService = {
     
     const results = [];
     for (const order of pendingOrders) {
+      // Abort cycle early if MCBIS has rate-limited us
+      if (isMcbisRateLimited()) {
+        console.warn(`[DataHub] MCBIS rate-limited — stopping legacy sync cycle after ${results.length} order(s)`);
+        break;
+      }
       try {
         const result = await this.syncOrderStatus(order.id);
         results.push({ orderId: order.id, ...result });
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // 400ms delay keeps total cycle within MCBIS rate limits
+        await new Promise(resolve => setTimeout(resolve, 400));
       } catch (error) {
         results.push({ orderId: order.id, success: false, error: error.message });
       }

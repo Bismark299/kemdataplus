@@ -1515,7 +1515,7 @@ const orderGroupService = {
         },
         orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
       };
-      if (!catchUp) mcbisQuery.take = 50;
+      if (!catchUp) mcbisQuery.take = 20; // reduced from 50 to limit API call rate
       const mcbisItems = await prisma.orderItem.findMany(mcbisQuery);
       console.log(`[Sync] MCBIS: ${mcbisItems.length} items to sync`);
       items.push(...mcbisItems);
@@ -1532,7 +1532,13 @@ const orderGroupService = {
       try {
         const result = await this.syncOrderItemStatus(item.id);
         results.push({ itemId: item.id, reference: item.reference, ...result });
-        
+
+        // If MCBIS rate-limited us, abort remaining items immediately
+        if (!result.success && result.error && result.error.includes('rate-limited')) {
+          console.warn(`[Sync] MCBIS rate-limit detected — stopping cycle early after ${results.length} item(s)`);
+          break;
+        }
+
         if (result.statusChanged) {
           if (result.newStatus === 'COMPLETED') completed++;
           else if (result.newStatus === 'FAILED') failed++;
@@ -1540,8 +1546,8 @@ const orderGroupService = {
           unchanged++;
         }
         
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Delay between calls — 400ms keeps total cycle well under MCBIS rate limits
+        await new Promise(resolve => setTimeout(resolve, 400));
       } catch (error) {
         results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
       }
