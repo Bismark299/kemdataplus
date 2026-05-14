@@ -285,6 +285,33 @@ router.get('/batches/:batchRef', authenticate, authorize('ADMIN'), async (req, r
 });
 
 /**
+ * POST /api/topupgh/sync-all
+ * Admin manually triggers delivery sync for ALL non-terminal batches at once.
+ * Useful for recovery when webhooks were missed or the server was down.
+ */
+router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const activeBatches = await prisma.topUpGHBatch.findMany({
+      where  : { status: { in: ['SUBMITTED', 'PARTIAL'] }, topupghOrderId: { not: null } },
+      select : { id: true, batchRef: true }
+    });
+
+    if (!activeBatches.length) {
+      return res.json({ success: true, message: 'No active batches to sync', synced: 0 });
+    }
+
+    // Run sequentially to avoid hammering the Etopup API
+    for (const b of activeBatches) {
+      await batchSvc.syncBatchDelivery(b.id);
+    }
+
+    res.json({ success: true, message: `Synced ${activeBatches.length} batch(es)`, synced: activeBatches.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/topupgh/batches/:batchRef/sync
  * Admin manually triggers delivery status refresh for a batch.
  */
@@ -414,6 +441,8 @@ router.get('/phone-status', authenticate, authorize('ADMIN'), async (req, res, n
  * Query Etopup directly for the current status of a specific order.
  * Calls both /orders/:id and /orders/:id/delivery-status and merges,
  * handling multiple Etopup response shapes.
+ *
+ * Priority: local DB (has network/bundle/full delivery data) → API fallback.
  */
 router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
@@ -422,7 +451,22 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
       return res.status(400).json({ success: false, message: 'Invalid order ID' });
     }
 
-    // Call both endpoints in parallel — neither is guaranteed to have all the data
+    // ── 1. Check local DB first ──────────────────────────────────────────────
+    // Orders sent through this site have a batch record with topupghOrderId set.
+    // These have the richest data: network, bundle name, data amount, delivery status.
+    const localBatch = await prisma.topUpGHBatch.findFirst({
+      where   : { topupghOrderId: orderId },
+      include : {
+        items : {
+          include : {
+            bundle : { select: { name: true, network: true, dataAmount: true } }
+          },
+          orderBy : { itemIndex: 'asc' }
+        }
+      }
+    });
+
+    // ── 2. Call Etopup API for live delivery status ──────────────────────────
     const [orderResult, deliveryResult] = await Promise.allSettled([
       topupghSvc.getOrderStatus(orderId),
       topupghSvc.getDeliveryStatus(orderId)
@@ -431,15 +475,15 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
     const od = orderResult.status === 'fulfilled' ? orderResult.value : {};
     const dd = deliveryResult.status === 'fulfilled' ? deliveryResult.value : {};
 
-    // Normalize order data — try multiple common response shapes
-    const order = od.order || od.data?.order || od.data || od;
-
-    // Log raw responses so we can verify actual field names from Etopup
-    console.log(`[order-status] raw orderResult:`, JSON.stringify(od).slice(0, 800));
+    // Log raw API responses for field-name verification
+    console.log(`[order-status] raw orderResult:`,   JSON.stringify(od).slice(0, 800));
     console.log(`[order-status] raw deliveryResult:`, JSON.stringify(dd).slice(0, 800));
 
-    // Normalize delivery items — try multiple shapes
-    const rawItems =
+    // Normalize order-level info from API
+    const order = od.order || od.data?.order || od.data || od;
+
+    // Build a phone→delivery-status map from the API response
+    const apiDeliveryItems =
       dd.delivery_status?.items ||
       dd.items                  ||
       dd.data?.items            ||
@@ -447,20 +491,59 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
       order.items               ||
       [];
 
-    // Normalize individual item fields — Etopup uses _beneficiary_number / _data_size (leading underscore)
-    const deliveryItems = rawItems.map(it => ({
-      beneficiary_number : it.beneficiary_number || it._beneficiary_number || it.phone || it.number,
-      network            : it.network            || it.network_name || it.provider,
-      data_size          : it.data_size          || it._data_size   || it.amount || it.size,
-      delivery_status    : it.delivery_status    || it.status       || it.delivery,
-      delivery_date      : it.delivery_date      || it.date         || (it.delivered_at ? it.delivered_at.split('T')[0] : null),
-      delivery_time      : it.delivery_time      || it.time         || (it.delivered_at ? it.delivered_at.split('T')[1]?.slice(0,8) : null),
-      item_id            : it.item_id            || it.id           || it._id,
-      _raw               : it   // pass through all original fields so client can inspect
-    }));
+    const apiByPhone = {};
+    for (const it of apiDeliveryItems) {
+      const phone = it.beneficiary_number || it._beneficiary_number || it.phone || it.number;
+      if (phone) apiByPhone[phone] = it;
+    }
 
-    // Derive overall status from delivery items if the order object doesn't have it
-    let derivedStatus = order.status || null;
+    let deliveryItems;
+    let source;
+
+    if (localBatch && localBatch.items.length > 0) {
+      // ── Local DB path: rich data, overlay API delivery status if available ──
+      source = 'local';
+      deliveryItems = localBatch.items.map(it => {
+        const api = apiByPhone[it.recipientPhone] || {};
+        // API delivery date/time (when available) is more precise than what's in DB
+        const apiDate = api.delivery_date || null;
+        const apiTime = api.delivery_time || null;
+        const deliveryDt = apiDate && apiTime
+          ? apiDate + 'T' + apiTime
+          : (it.topupghDeliveryDate ? it.topupghDeliveryDate.toISOString() : null);
+
+        return {
+          beneficiary_number : it.recipientPhone,
+          network            : it.bundle?.network   || null,
+          data_size          : it.bundle?.dataAmount || null,
+          bundle_name        : it.bundle?.name       || null,
+          delivery_status    : api.delivery_status || it.topupghDeliveryStatus || null,
+          delivery_date      : deliveryDt ? deliveryDt.split('T')[0] : null,
+          delivery_time      : deliveryDt ? deliveryDt.split('T')[1]?.slice(0, 8) : null,
+          item_id            : api.item_id || it.topupghItemId || null,
+          internal_status    : it.status,
+          order_ref          : null   // populated below if needed
+        };
+      });
+    } else {
+      // ── API-only path: best-effort normalisation ─────────────────────────
+      source = 'api';
+      deliveryItems = apiDeliveryItems.map(it => ({
+        beneficiary_number : it.beneficiary_number || it._beneficiary_number || it.phone || it.number,
+        network            : it.network            || it.network_name || it.provider || null,
+        data_size          : it.data_size !== undefined ? it.data_size : (it._data_size !== undefined ? it._data_size : null),
+        bundle_name        : null,
+        delivery_status    : it.delivery_status    || it.status  || it.delivery || null,
+        delivery_date      : it.delivery_date      || it.date    || (it.delivered_at ? it.delivered_at.split('T')[0] : null),
+        delivery_time      : it.delivery_time      || it.time    || (it.delivered_at ? it.delivered_at.split('T')[1]?.slice(0, 8) : null),
+        item_id            : it.item_id            || it.id      || it._id || null,
+        internal_status    : null,
+        _raw               : it
+      }));
+    }
+
+    // Derive overall status
+    let derivedStatus = (localBatch?.status) || order.status || null;
     if (!derivedStatus && deliveryItems.length) {
       const allDelivered = deliveryItems.every(i => (i.delivery_status || '').toLowerCase().includes('deliver'));
       const anyFailed    = deliveryItems.some(i  => (i.delivery_status || '').toLowerCase().includes('fail'));
@@ -470,14 +553,15 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
     const normalized = {
       order_id               : order.order_id || orderId,
       status                 : derivedStatus,
-      total_amount           : order.total_amount,
-      items_count            : order.items_count || rawItems.length || undefined,
+      total_amount           : localBatch?.totalAmount ?? order.total_amount,
+      items_count            : deliveryItems.length || order.items_count || undefined,
       delivery_info          : order.delivery_info,
       formatted_delivery_info: order.formatted_delivery_info,
+      source,
       items                  : deliveryItems
     };
 
-    console.log(`[order-status] orderId=${orderId} status=${derivedStatus} items=${deliveryItems.length}`);
+    console.log(`[order-status] orderId=${orderId} source=${source} status=${derivedStatus} items=${deliveryItems.length}`);
     res.json({ success: true, data: normalized });
   } catch (err) {
     next(err);

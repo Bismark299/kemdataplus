@@ -451,6 +451,7 @@
         </div>
         <div class="q-right">
             <button class="btn btn-outline btn-sm" onclick="loadQueueStats()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button class="btn btn-outline btn-sm" id="syncAllBtn" onclick="syncAllBatches()" style="color:#059669;border-color:#059669;"><i class="fas fa-cloud-download-alt"></i> Sync All</button>
             <button class="btn btn-amber btn-sm" id="dispatchBtn" onclick="forceDispatch()"><i class="fas fa-paper-plane"></i> Dispatch Now</button>
         </div>
     </div>
@@ -657,6 +658,21 @@ async function forceDispatch() {
         } else { toast(d.message || 'Dispatch failed', 'error'); }
     } catch { toast('Request failed', 'error'); }
     finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Dispatch Now'; }
+}
+
+async function syncAllBatches() {
+    const btn = document.getElementById('syncAllBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Syncing...';
+    try {
+        const r = await fetch(API + '/topupgh/sync-all', { method:'POST', headers: ah() });
+        const d = await r.json();
+        if (d.success) {
+            toast(d.message || 'Sync complete', 'success');
+            setTimeout(loadAll, 1200);
+        } else { toast(d.message || 'Sync failed', 'error'); }
+    } catch { toast('Sync request failed', 'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt"></i> Sync All'; }
 }
 
 function applyFilters() { loadBatches(1); }
@@ -969,20 +985,27 @@ async function checkOrderStatus() {
             var iRows = items.map(function(it, idx) {
                 var dt = (it.delivery_date && it.delivery_time)
                     ? fmt(it.delivery_date + 'T' + it.delivery_time)
-                    : (it.delivery_date || '—');
-                // If key fields still blank, show raw field dump as tooltip/detail
-                var rawKeys = it._raw ? Object.keys(it._raw).map(function(k){ return k + '=' + JSON.stringify(it._raw[k]); }).join('  ') : '';
-                return '<tr style="border-bottom:1px solid #f1f5f9;" title="' + rawKeys.replace(/"/g,'&quot;') + '">' +
+                    : (it.delivery_date ? fmt(it.delivery_date) : '—');
+                // data_size from DB is already a string like "5GB"; from API it may be a number
+                var dataLabel = it.data_size != null
+                    ? (typeof it.data_size === 'number' ? it.data_size + ' GB' : it.data_size)
+                    : '—';
+                // bundle_name for orders sent through this site
+                var bundleLabel = it.bundle_name ? '<span style="color:#6b7280;font-size:0.75rem;display:block;">' + it.bundle_name + '</span>' : '';
+                return '<tr style="border-bottom:1px solid #f1f5f9;">' +
                     '<td style="padding:8px 10px;color:#6b7280;font-size:0.78rem;">' + (idx+1) + '</td>' +
                     '<td style="padding:8px 10px;font-weight:700;">' + (it.beneficiary_number || '—') + '</td>' +
                     '<td style="padding:8px 10px;text-transform:uppercase;font-size:0.8rem;">' + (it.network || '—') + '</td>' +
-                    '<td style="padding:8px 10px;">' + (it.data_size !== undefined && it.data_size !== null ? it.data_size + ' GB' : '—') + '</td>' +
+                    '<td style="padding:8px 10px;">' + dataLabel + bundleLabel + '</td>' +
                     '<td style="padding:8px 10px;font-weight:700;color:' + dsColor(it.delivery_status) + ';text-transform:capitalize;">' + (it.delivery_status || '—') + '</td>' +
                     '<td style="padding:8px 10px;font-size:0.78rem;color:#6b7280;">' + dt + '</td>' +
                     '<td style="padding:8px 10px;font-family:monospace;font-size:0.75rem;color:#7c3aed;">' + (it.item_id || '—') + '</td>' +
                 '</tr>';
             }).join('');
-            itemsHtml = '<div style="font-size:0.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Order Items (' + items.length + ') <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">— hover a row to see raw API fields</span></div>' +
+            var sourceNote = data.source === 'local'
+                ? '<span style="font-weight:400;text-transform:none;letter-spacing:0;color:#059669;">— from local records</span>'
+                : '<span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">— from Etopup API</span>';
+            itemsHtml = '<div style="font-size:0.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Order Items (' + items.length + ') ' + sourceNote + '</div>' +
                 '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">' +
                 '<thead><tr style="background:#f8fafc;">' +
                 '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">#</th>' +
@@ -995,10 +1018,14 @@ async function checkOrderStatus() {
                 '</tr></thead><tbody>' + iRows + '</tbody></table></div>';
         }
 
+        var sourceTag = data.source === 'local'
+            ? '<span style="margin-left:8px;font-size:0.72rem;font-weight:600;color:#059669;background:#f0fdf4;padding:2px 7px;border-radius:4px;border:1px solid #bbf7d0;">local records</span>'
+            : '<span style="margin-left:8px;font-size:0.72rem;font-weight:600;color:#6b7280;background:#f8fafc;padding:2px 7px;border-radius:4px;border:1px solid #e5e7eb;">Etopup API</span>';
+
         res.style.display = 'block';
         res.innerHTML =
             '<div style="font-size:0.78rem;font-weight:700;color:#3b82f6;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">' +
-            '<i class="fas fa-satellite-dish" style="margin-right:5px;"></i>Live Status from Etopup</div>' +
+            '<i class="fas fa-satellite-dish" style="margin-right:5px;"></i>Live Status from Etopup' + sourceTag + '</div>' +
             summaryHtml + deliveryHtml + itemsHtml;
     } catch(e) {
         res.style.display = 'block';

@@ -331,8 +331,18 @@ async function runSyncAll() {
 }
 
 /**
+ * Normalize a phone number to its last 9 digits for format-agnostic matching.
+ * Handles: 0XXXXXXXXX, 233XXXXXXXXX, +233XXXXXXXXX
+ */
+function _normalizePhone(phone) {
+  if (!phone) return '';
+  return String(phone).replace(/\D/g, '').slice(-9);
+}
+
+/**
  * Apply delivery status items from TopUpGH API to our OrderItems.
- * Matches by beneficiary_number (phone).
+ * Matches by beneficiary_number (phone) using normalized comparison so that
+ * format differences (0XXXXXXXXX vs 233XXXXXXXXX) don't break matching.
  *
  * @param {object} batch  - TopUpGHBatch record with items[]
  * @param {Array}  apiItems - Items array from TopUpGH delivery-status response
@@ -344,18 +354,20 @@ async function _applyDeliveryStatus(batch, apiItems) {
   let pendingCount   = 0;
 
   for (const apiItem of apiItems) {
-    const phone          = apiItem.beneficiary_number;
+    // Etopup uses beneficiary_number in responses; _beneficiary_number in create payloads
+    const phone          = apiItem.beneficiary_number || apiItem._beneficiary_number;
     const deliveryStatus = apiItem.delivery_status;
     const topupghItemId  = apiItem.item_id;
     const deliveryDate   = apiItem.delivery_date && apiItem.delivery_time
       ? new Date(`${apiItem.delivery_date}T${apiItem.delivery_time}`)
       : null;
 
-    // Find matching internal item by phone number within this batch
-    const internalItem = batch.items.find(i => i.recipientPhone === phone);
+    // Normalize both sides — handles 0XXXXXXXXX vs 233XXXXXXXXX mismatch
+    const phoneKey     = _normalizePhone(phone);
+    const internalItem = batch.items.find(i => _normalizePhone(i.recipientPhone) === phoneKey);
 
     if (!internalItem) {
-      console.log(`[TopUpGH Sync] No internal item found for phone ${phone} in batch ${batch.batchRef}`);
+      console.log(`[TopUpGH Sync] No internal item found for phone ${phone} (key: ${phoneKey}) in batch ${batch.batchRef}`);
       continue;
     }
 
