@@ -255,19 +255,115 @@
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            position: fixed; left: 0; top: 0;
+            width: 240px; height: 100vh;
+            background: #1a1f36; z-index: 1000;
+            transition: width 0.3s ease;
+            display: flex; flex-direction: column;
+        }
+        .sidebar.collapsed { width: 70px; }
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .menu-label,
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .logout-btn span { display: none; }
+        .sidebar.collapsed .sidebar-logo { justify-content: center; padding: 20px 10px; }
+        .sidebar.collapsed .nav-link { justify-content: center; padding: 12px; }
+        .sidebar.collapsed .nav-link i { width: auto; font-size: 1.1rem; }
+        .sidebar.collapsed .logout-btn { justify-content: center; padding: 12px; }
+        .sidebar-toggle {
+            position: absolute; right: -12px; top: 70px;
+            width: 24px; height: 24px; background: #3b82f6;
+            border: 2px solid #1a1f36; border-radius: 50%;
+            color: white; font-size: 0.7rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1001; transition: transform 0.3s ease;
+        }
+        .sidebar-toggle:hover { background: #2563eb; }
+        .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+        .sidebar-logo {
+            padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .sidebar .logo-box {
+            width: 45px; height: 45px; background: white; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #1a1f36; font-size: 0.9rem; flex-shrink: 0;
+        }
+        .logo-text { color: white; font-weight: 600; font-size: 1rem; }
+        .menu-label {
+            padding: 20px 20px 10px;
+            font-size: 0.75rem; color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .nav-menu { list-style: none; overflow-y: auto; flex: 1; }
+        .nav-item { margin: 4px 12px; }
+        .nav-link {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 15px; color: rgba(255,255,255,0.7);
+            text-decoration: none; border-radius: 8px;
+            transition: all 0.2s; font-size: 0.9rem;
+        }
+        .nav-link:hover { background: rgba(255,255,255,0.1); color: white; }
+        .nav-link.active { background: #3b82f6; color: white; }
+        .nav-link i { width: 20px; text-align: center; }
+        .sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; }
+        .logout-btn {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 15px; color: rgba(255,255,255,0.7);
+            background: none; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 0.9rem; width: 100%;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        /* Layout with sidebar */
+        .layout { margin-left: 240px; transition: margin-left 0.3s ease; min-height: 100vh; }
+        .layout.sidebar-collapsed { margin-left: 70px; }
+
         @media (max-width: 900px) {
             .page { padding: 16px; }
             .filter-actions { margin-left: 0; width: 100%; }
+            .layout { margin-left: 0; }
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s ease, width 0.3s ease; }
+            .sidebar.mobile-open { transform: translateX(0); }
         }
         @media (max-width: 600px) {
             .stat-pill { min-width: calc(50% - 7px); }
-            .topnav { padding: 0 16px; }
-            .topnav-divider, .topnav-title { display: none; }
         }
     </style>
 </head>
 <body>
 
+<aside class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Collapse/Expand Sidebar">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+    <div class="sidebar-logo">
+        <div class="logo-box">KDP</div>
+        <span class="logo-text">KemDataplus</span>
+    </div>
+    <div class="menu-label">Menu</div>
+    <ul class="nav-menu">
+        <li class="nav-item"><a href="/admin/dashboard.html#dashboard" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#wallet" class="nav-link"><i class="fas fa-wallet"></i><span>Wallet</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#users" class="nav-link"><i class="fas fa-users"></i><span>Users</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#agentProfits" class="nav-link"><i class="fas fa-coins"></i><span>Agent Profits</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#history" class="nav-link"><i class="fas fa-history"></i><span>History</span></a></li>
+        <li class="nav-item"><a href="/admin/batches.html" class="nav-link active"><i class="fas fa-layer-group"></i><span>Etopup Batches</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#networks" class="nav-link"><i class="fas fa-network-wired"></i><span>Networks</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#storefronts" class="nav-link"><i class="fas fa-store"></i><span>Storefronts</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#reports" class="nav-link"><i class="fas fa-chart-bar"></i><span>Reports</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#complaints" class="nav-link"><i class="fas fa-headset"></i><span>Support</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#alerts" class="nav-link"><i class="fas fa-bell"></i><span>System Alerts</span></a></li>
+        <li class="nav-item"><a href="/admin/dashboard.html#settings" class="nav-link"><i class="fas fa-cog"></i><span>Settings</span></a></li>
+    </ul>
+    <div class="sidebar-footer">
+        <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+    </div>
+</aside>
+
+<div class="layout" id="layout">
 <nav class="topnav">
     <div class="topnav-left">
         <div class="topnav-logo">
@@ -276,7 +372,6 @@
         </div>
         <div class="topnav-divider"></div>
         <span class="topnav-title"><i class="fas fa-layer-group" style="color:#f59e0b;margin-right:6px;"></i>Etopup Batches</span>
-        <a href="/admin/dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
     </div>
     <div class="topnav-right">
         <div class="admin-chip">
@@ -835,17 +930,72 @@ async function checkOrderStatus() {
             return;
         }
         var data = d.data || {};
-        var rows = Object.entries(data).map(function(kv) {
-            var k = kv[0], v = kv[1];
-            if (v === null || v === undefined) v = '—';
-            if (typeof v === 'object') v = '<pre style="margin:0;white-space:pre-wrap;font-size:0.78rem;">' + JSON.stringify(v, null, 2) + '</pre>';
-            return '<tr><td style="padding:6px 10px;font-weight:600;color:#6b7280;white-space:nowrap;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.3px;">' + k + '</td>' +
-                   '<td style="padding:6px 10px;color:#1a1f36;">' + v + '</td></tr>';
-        }).join('');
+        var items = data.items || [];
+        var statusColor = {'delivered':'#059669','processing':'#d97706','failed':'#dc2626','pending':'#6b7280'};
+        var st = (data.status||'').toLowerCase();
+        var stColor = statusColor[st] || '#6b7280';
+
+        // Summary cards row
+        var summaryHtml =
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
+                '<div style="flex:1;min-width:130px;background:#eff6ff;border-radius:10px;padding:12px 16px;border:1px solid #bfdbfe;">' +
+                    '<div style="font-size:0.7rem;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Order ID</div>' +
+                    '<div style="font-size:1.1rem;font-weight:800;color:#1e40af;">#' + (data.order_id || orderId) + '</div>' +
+                '</div>' +
+                '<div style="flex:1;min-width:130px;background:#f0fdf4;border-radius:10px;padding:12px 16px;border:1px solid #bbf7d0;">' +
+                    '<div style="font-size:0.7rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Status</div>' +
+                    '<div style="font-size:1rem;font-weight:700;color:' + stColor + ';text-transform:capitalize;">' + (data.status || '—') + '</div>' +
+                '</div>' +
+                (data.total_amount !== undefined ? '<div style="flex:1;min-width:130px;background:#fffbeb;border-radius:10px;padding:12px 16px;border:1px solid #fde68a;">' +
+                    '<div style="font-size:0.7rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Total Amount</div>' +
+                    '<div style="font-size:1rem;font-weight:700;color:#92400e;">GH₵ ' + Number(data.total_amount).toFixed(2) + '</div>' +
+                '</div>' : '') +
+                (data.items_count !== undefined ? '<div style="flex:1;min-width:110px;background:#faf5ff;border-radius:10px;padding:12px 16px;border:1px solid #e9d5ff;">' +
+                    '<div style="font-size:0.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Items</div>' +
+                    '<div style="font-size:1rem;font-weight:700;color:#5b21b6;">' + data.items_count + '</div>' +
+                '</div>' : '') +
+            '</div>';
+
+        // Delivery info banner
+        var deliveryHtml = data.formatted_delivery_info || data.delivery_info
+            ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.83rem;color:#065f46;">' +
+              '<i class="fas fa-truck" style="margin-right:7px;color:#059669;"></i>' + (data.formatted_delivery_info || data.delivery_info) +
+              '</div>' : '';
+
+        // Items table
+        var itemsHtml = '';
+        if (items.length) {
+            var dsColor = function(s){ s=(s||'').toLowerCase(); return s.indexOf('deliver')>=0?'#059669':s.indexOf('fail')>=0?'#dc2626':'#d97706'; };
+            var iRows = items.map(function(it, idx) {
+                var dt = (it.delivery_date && it.delivery_time) ? fmt(it.delivery_date + 'T' + it.delivery_time) : (it.delivery_date || '—');
+                return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+                    '<td style="padding:8px 10px;color:#6b7280;font-size:0.78rem;">' + (idx+1) + '</td>' +
+                    '<td style="padding:8px 10px;font-weight:700;">' + (it.beneficiary_number || '—') + '</td>' +
+                    '<td style="padding:8px 10px;text-transform:uppercase;font-size:0.8rem;">' + (it.network || '—') + '</td>' +
+                    '<td style="padding:8px 10px;">' + (it.data_size ? it.data_size + ' GB' : '—') + '</td>' +
+                    '<td style="padding:8px 10px;font-weight:700;color:' + dsColor(it.delivery_status) + ';text-transform:capitalize;">' + (it.delivery_status || 'Pending') + '</td>' +
+                    '<td style="padding:8px 10px;font-size:0.78rem;color:#6b7280;">' + dt + '</td>' +
+                    '<td style="padding:8px 10px;font-family:monospace;font-size:0.75rem;color:#7c3aed;">' + (it.item_id || '—') + '</td>' +
+                '</tr>';
+            }).join('');
+            itemsHtml = '<div style="font-size:0.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Order Items (' + items.length + ')</div>' +
+                '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">' +
+                '<thead><tr style="background:#f8fafc;">' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">#</th>' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Phone</th>' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Network</th>' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Data</th>' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Delivery</th>' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Date &amp; Time</th>' +
+                '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Item ID</th>' +
+                '</tr></thead><tbody>' + iRows + '</tbody></table></div>';
+        }
+
         res.style.display = 'block';
-        res.innerHTML = '<div style="font-size:0.78rem;font-weight:700;color:#3b82f6;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">' +
-            '<i class="fas fa-check-circle" style="margin-right:5px;"></i>Order #' + orderId + ' — Live Status from Etopup</div>' +
-            '<table style="width:100%;border-collapse:collapse;"><tbody>' + rows + '</tbody></table>';
+        res.innerHTML =
+            '<div style="font-size:0.78rem;font-weight:700;color:#3b82f6;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">' +
+            '<i class="fas fa-satellite-dish" style="margin-right:5px;"></i>Live Status from Etopup</div>' +
+            summaryHtml + deliveryHtml + itemsHtml;
     } catch(e) {
         res.style.display = 'block';
         res.innerHTML = '<div style="color:#dc2626;"><i class="fas fa-wifi"></i> Request failed — check connection</div>';
@@ -887,13 +1037,13 @@ async function checkPhoneStatus() {
                 '<td style="padding:7px 10px;">' + (it.dataAmount||'—') + '</td>' +
                 '<td style="padding:7px 10px;font-family:monospace;font-size:0.8rem;color:#7c3aed;">' + (it.batchRef||'—') + '</td>' +
                 '<td style="padding:7px 10px;font-size:0.78rem;color:#6b7280;">' + (it.sentAt ? fmt(it.sentAt) : '—') + '</td>' +
-                '<td style="padding:7px 10px;"><span style="font-weight:700;color:' + dsColor(it.topupghDeliveryStatus) + ';">' + (it.topupghDeliveryStatus||'Pending') + '</span></td>' +
-                '<td style="padding:7px 10px;font-size:0.78rem;color:#6b7280;">' + (it.topupghDeliveryDate ? fmt(it.topupghDeliveryDate) : '—') + '</td>' +
+                '<td style="padding:7px 10px;"><span style="font-weight:700;color:' + dsColor(it.topupghDeliveryStatus) + ';text-transform:capitalize;">' + (it.topupghDeliveryStatus||'Pending') + '</span></td>' +
+                '<td style="padding:7px 10px;font-size:0.78rem;color:#374151;font-weight:600;">' + (it.topupghDeliveryDate ? fmt(it.topupghDeliveryDate) : '—') + '</td>' +
                 '<td style="padding:7px 10px;font-family:monospace;font-size:0.79rem;color:#3b82f6;">' + (it.orderRef||'—') + '</td>' +
             '</tr>';
         }).join('');
         res.innerHTML = '<div style="font-size:0.78rem;font-weight:700;color:#3b82f6;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">' +
-            '<i class="fas fa-check-circle" style="margin-right:5px;"></i>' + items.length + ' record(s) found — Local DB status</div>' +
+            '<i class="fas fa-check-circle" style="margin-right:5px;"></i>' + items.length + ' record(s) found' + (d.synced && d.synced.length ? ' — synced live from Etopup' : ' — from local DB') + '</div>' +
             '<table style="width:100%;border-collapse:collapse;min-width:600px;">' +
             '<thead><tr style="background:#f8fafc;">' +
             '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Phone</th>' +
@@ -920,7 +1070,24 @@ async function loadAll() { await Promise.all([loadBatches(1), loadQueueStats()])
     await boot();
     loadAll();
     loadBalance();
+
+    // Sidebar toggle
+    const sidebar = document.getElementById('sidebar');
+    const layout   = document.getElementById('layout');
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        sidebar.classList.toggle('collapsed');
+        layout.classList.toggle('sidebar-collapsed');
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async function() {
+        try { await fetch('/api/auth/logout', { method: 'POST', headers: ah() }); } catch(e) {}
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/pages/login.html';
+    });
 })();
 </script>
+</div><!-- /layout -->
 </body>
 </html>

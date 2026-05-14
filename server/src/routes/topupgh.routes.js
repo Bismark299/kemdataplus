@@ -334,7 +334,8 @@ router.post('/batches/:batchRef/sync', authenticate, authorize('ADMIN'), async (
 
 /**
  * GET /api/topupgh/phone-status
- * Look up Etopup delivery status for one or more phone numbers from local DB.
+ * Look up Etopup delivery status for one or more phone numbers.
+ * Auto-syncs the relevant batches with Etopup before returning results.
  * Query: phones=0241234567&phones=0551234567  (repeatable)
  */
 router.get('/phone-status', authenticate, authorize('ADMIN'), async (req, res, next) => {
@@ -345,6 +346,39 @@ router.get('/phone-status', authenticate, authorize('ADMIN'), async (req, res, n
     phones = phones.map(p => p.trim()).filter(Boolean);
     if (!phones.length) return res.status(400).json({ success: false, message: 'No valid phone numbers provided' });
 
+    // Find which batches these phones belong to
+    const itemsForSync = await prisma.orderItem.findMany({
+      where: {
+        topupghBatchId: { not: null },
+        recipientPhone: { in: phones }
+      },
+      select: {
+        topupghBatch: { select: { id: true, batchRef: true, status: true, topupghOrderId: true } }
+      }
+    });
+
+    // Sync each unique non-terminal batch with Etopup (live API call from Render)
+    const batchesSynced = [];
+    const seenBatchIds = new Set();
+    for (const item of itemsForSync) {
+      const b = item.topupghBatch;
+      if (!b || seenBatchIds.has(b.id)) continue;
+      seenBatchIds.add(b.id);
+      if (b.status !== 'DELIVERED' && b.status !== 'FAILED' && b.topupghOrderId) {
+        try {
+          await batchSvc.syncBatchDelivery(b.id);
+          batchesSynced.push(b.batchRef);
+        } catch (syncErr) {
+          console.warn(`[phone-status] Sync failed for batch ${b.batchRef}:`, syncErr.message);
+        }
+      }
+    }
+
+    if (batchesSynced.length) {
+      console.log(`[phone-status] Auto-synced batches: ${batchesSynced.join(', ')}`);
+    }
+
+    // Now return fresh data from DB
     const items = await prisma.orderItem.findMany({
       where: {
         topupghBatchId: { not: null },
@@ -369,7 +403,7 @@ router.get('/phone-status', authenticate, authorize('ADMIN'), async (req, res, n
       orderRef              : item.orderGroup?.displayId  || null
     }));
 
-    res.json({ success: true, items: formatted, count: formatted.length });
+    res.json({ success: true, items: formatted, count: formatted.length, synced: batchesSynced });
   } catch (err) {
     next(err);
   }
