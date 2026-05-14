@@ -1,0 +1,926 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etopup Batches - Admin</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../public/img/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; color: #1a1f36; }
+
+        /* ===== TOP NAV ===== */
+        .topnav {
+            background: #1a1f36; padding: 0 28px;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 58px; position: sticky; top: 0; z-index: 200;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+        .topnav-left { display: flex; align-items: center; gap: 18px; }
+        .topnav-logo { color: white; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+        .topnav-logo .logo-box {
+            width: 32px; height: 32px; background: #f59e0b;
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 0.75rem; color: #1a1f36;
+        }
+        .topnav-divider { width: 1px; height: 22px; background: rgba(255,255,255,0.2); }
+        .topnav-title { color: rgba(255,255,255,0.85); font-size: 0.9rem; }
+        .back-link {
+            color: rgba(255,255,255,0.65); font-size: 0.82rem;
+            text-decoration: none; display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 6px; transition: all 0.2s;
+        }
+        .back-link:hover { background: rgba(255,255,255,0.1); color: white; }
+        .topnav-right { display: flex; align-items: center; gap: 12px; }
+        .admin-chip {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.1); border-radius: 20px;
+            padding: 5px 12px 5px 6px;
+        }
+        .admin-chip .av {
+            width: 26px; height: 26px; background: #3b82f6;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; color: white; font-weight: 700; font-size: 0.75rem;
+        }
+        .admin-chip span { color: rgba(255,255,255,0.85); font-size: 0.82rem; }
+
+        /* ===== PAGE WRAPPER ===== */
+        .page { padding: 24px 28px; max-width: 1400px; }
+
+        /* ===== PAGE HEADER ===== */
+        .page-header { margin-bottom: 22px; }
+        .page-header h1 {
+            font-size: 1.3rem; font-weight: 700; color: #1a1f36;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .page-header h1 .icon-wrap {
+            width: 38px; height: 38px; background: #fef3c7;
+            border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; color: #d97706; font-size: 1rem;
+        }
+        .page-header p { color: #6b7280; font-size: 0.88rem; margin-top: 4px; margin-left: 48px; }
+
+        /* ===== STAT STRIP ===== */
+        .stat-strip { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+        .stat-pill {
+            background: white; border-radius: 10px; padding: 14px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            display: flex; align-items: center; gap: 14px; flex: 1; min-width: 160px;
+        }
+        .stat-pill .s-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;
+        }
+        .stat-pill.s-blue .s-icon   { background: #dbeafe; color: #2563eb; }
+        .stat-pill.s-amber .s-icon  { background: #fef3c7; color: #d97706; }
+        .stat-pill.s-green .s-icon  { background: #d1fae5; color: #059669; }
+        .stat-pill.s-purple .s-icon { background: #ede9fe; color: #7c3aed; }
+        .stat-pill .s-body label { font-size: 0.75rem; color: #6b7280; display: block; }
+        .stat-pill .s-body .val { font-size: 1.2rem; font-weight: 700; color: #1a1f36; }
+        .stat-pill .s-body .sub { font-size: 0.73rem; color: #9ca3af; margin-top: 1px; }
+
+        /* ===== FILTER BAR ===== */
+        .filter-card {
+            background: white; border-radius: 12px;
+            padding: 16px 20px; margin-bottom: 18px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+        }
+        .filter-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
+        .filter-group input,
+        .filter-group select {
+            padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
+            font-size: 0.875rem; background: #f9fafb; color: #1a1f36;
+            transition: border-color 0.2s; min-width: 140px;
+        }
+        .filter-group input:focus,
+        .filter-group select:focus { outline: none; border-color: #3b82f6; background: white; }
+        .filter-group input[type="date"] { min-width: 155px; }
+        .filter-actions { display: flex; gap: 8px; margin-left: auto; align-items: flex-end; }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            padding: 9px 18px; border: none; border-radius: 8px;
+            font-size: 0.875rem; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 7px;
+            transition: all 0.18s; white-space: nowrap;
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-amber { background: #f59e0b; color: white; }
+        .btn-amber:hover { background: #d97706; }
+        .btn-green { background: #10b981; color: white; }
+        .btn-green:hover { background: #059669; }
+        .btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
+        .btn-outline:hover { background: #f9fafb; }
+        .btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+        .btn-xs { padding: 5px 10px; font-size: 0.78rem; }
+
+        /* ===== TABLE CARD ===== */
+        .table-card {
+            background: white; border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07); overflow: hidden;
+            margin-bottom: 22px;
+        }
+        .table-card-header {
+            padding: 14px 20px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .table-card-header .ttl { font-size: 0.95rem; font-weight: 600; color: #1a1f36; display: flex; align-items: center; gap: 8px; }
+        .table-card-header .ttl i { color: #f59e0b; }
+        .table-card-header .meta { font-size: 0.82rem; color: #9ca3af; }
+
+        .scroll-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #f8fafc; padding: 11px 14px;
+            text-align: left; font-size: 0.72rem; font-weight: 700;
+            color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+        }
+        tbody td {
+            padding: 13px 14px; border-bottom: 1px solid #f1f5f9;
+            font-size: 0.875rem; color: #334155;
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: #fafbfc; }
+        tbody tr.expanded td { background: #fffbeb; }
+
+        .mono { font-family: 'Courier New', monospace; font-size: 0.82rem; }
+        .bold { font-weight: 700; }
+        .green { color: #059669; font-weight: 600; }
+        .amber { color: #d97706; font-weight: 600; }
+        .red   { color: #dc2626; font-weight: 600; }
+        .purple { color: #7c3aed; font-weight: 600; }
+        .muted { color: #9ca3af; font-size: 0.78rem; }
+
+        /* ===== BADGE ===== */
+        .badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2px;
+        }
+        .b-submitted { background: #dbeafe; color: #1d4ed8; }
+        .b-partial   { background: #fef3c7; color: #92400e; }
+        .b-delivered { background: #d1fae5; color: #065f46; }
+        .b-failed    { background: #fee2e2; color: #991b1b; }
+        .b-pending   { background: #f3f4f6; color: #4b5563; }
+
+        /* ===== EXPAND ROW ===== */
+        .expand-btn {
+            background: none; border: none; cursor: pointer;
+            width: 28px; height: 28px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            color: #6b7280; font-size: 0.75rem; transition: all 0.2s;
+        }
+        .expand-btn:hover { background: #f3f4f6; color: #1a1f36; }
+        .expand-btn.open { background: #fef3c7; color: #d97706; transform: rotate(90deg); }
+
+        .detail-row td {
+            padding: 0 !important; background: #fffdf5 !important;
+            border-bottom: 2px solid #f59e0b !important;
+        }
+        .detail-inner { padding: 0 16px 16px 50px; }
+        .detail-orders-title {
+            font-size: 0.78rem; font-weight: 700; color: #6b7280;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 14px 0 10px;
+        }
+        .detail-table { width: 100%; border-collapse: collapse; }
+        .detail-table th {
+            background: #f8fafc; padding: 9px 12px;
+            text-align: left; font-size: 0.7rem; font-weight: 700;
+            color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .detail-table td {
+            padding: 10px 12px; border-bottom: 1px solid #f1f5f9;
+            font-size: 0.83rem; color: #334155;
+        }
+        .detail-table tr:last-child td { border-bottom: none; }
+        .detail-table tr:hover td { background: #f8fafc; }
+
+        /* ===== PAGINATION ===== */
+        .pagination {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px; border-top: 1px solid #f1f5f9; font-size: 0.85rem;
+        }
+        .pagination .info { color: #6b7280; }
+        .pag-btns { display: flex; gap: 6px; }
+        .pag-btn {
+            padding: 6px 12px; border: 1px solid #e5e7eb;
+            background: white; border-radius: 6px; font-size: 0.82rem;
+            cursor: pointer; transition: all 0.18s; color: #374151;
+        }
+        .pag-btn:hover:not(:disabled) { background: #f3f4f6; }
+        .pag-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .pag-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ===== EMPTY ===== */
+        .empty-cell { text-align: center; padding: 50px 20px !important; color: #9ca3af; }
+        .empty-cell i { font-size: 2rem; margin-bottom: 10px; display: block; }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed; bottom: 22px; right: 22px; z-index: 9999;
+            background: #1a1f36; color: white; padding: 13px 18px;
+            border-radius: 10px; font-size: 0.88rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: translateY(70px); opacity: 0;
+            transition: all 0.3s; pointer-events: none;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid #10b981; }
+        .toast.error   { border-left: 4px solid #ef4444; }
+        .toast.info    { border-left: 4px solid #3b82f6; }
+
+        /* ===== QUEUE BANNER ===== */
+        .queue-banner {
+            background: white; border-radius: 12px; padding: 16px 20px;
+            margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            border-left: 4px solid #f59e0b;
+            display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+        }
+        .queue-banner .q-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+        .queue-banner .q-item label { font-size: 0.73rem; color: #6b7280; font-weight: 600; text-transform: uppercase; display: block; }
+        .queue-banner .q-item .v { font-size: 1.1rem; font-weight: 700; color: #1a1f36; }
+        .queue-banner .q-item .v.ready { color: #059669; }
+        .queue-banner .q-item .v.waiting { color: #d97706; }
+        .queue-banner .q-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 900px) {
+            .page { padding: 16px; }
+            .filter-actions { margin-left: 0; width: 100%; }
+        }
+        @media (max-width: 600px) {
+            .stat-pill { min-width: calc(50% - 7px); }
+            .topnav { padding: 0 16px; }
+            .topnav-divider, .topnav-title { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="topnav">
+    <div class="topnav-left">
+        <div class="topnav-logo">
+            <div class="logo-box">KD</div>
+            KemDataplus
+        </div>
+        <div class="topnav-divider"></div>
+        <span class="topnav-title"><i class="fas fa-layer-group" style="color:#f59e0b;margin-right:6px;"></i>Etopup Batches</span>
+        <a href="/admin/dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+    <div class="topnav-right">
+        <div class="admin-chip">
+            <div class="av" id="adminAv">A</div>
+            <span id="adminName">Admin</span>
+        </div>
+    </div>
+</nav>
+
+<div class="page">
+
+    <div class="page-header">
+        <h1>
+            <div class="icon-wrap"><i class="fas fa-layer-group"></i></div>
+            Etopup MTN Batch Manager
+        </h1>
+        <p>MTN orders are batched (min. 5) and dispatched to the Etopup reseller API. Track delivery per order here.</p>
+    </div>
+
+    <div class="stat-strip">
+        <div class="stat-pill s-blue">
+            <div class="s-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="s-body">
+                <label>Total Batches</label>
+                <div class="val" id="sTotalBatches">—</div>
+                <div class="sub">All time</div>
+            </div>
+        </div>
+        <div class="stat-pill s-amber">
+            <div class="s-icon"><i class="fas fa-clock"></i></div>
+            <div class="s-body">
+                <label>Queued Orders</label>
+                <div class="val" id="sQueued">—</div>
+                <div class="sub" id="sQueuedSub">Awaiting next batch</div>
+            </div>
+        </div>
+        <div class="stat-pill s-green">
+            <div class="s-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="s-body">
+                <label>Delivered Today</label>
+                <div class="val" id="sDelivered">—</div>
+                <div class="sub">Orders confirmed</div>
+            </div>
+        </div>
+        <div class="stat-pill s-purple">
+            <div class="s-icon"><i class="fas fa-coins"></i></div>
+            <div class="s-body">
+                <label>Etopup Balance</label>
+                <div class="val" id="sBalance">—</div>
+                <div class="sub"><a href="#" onclick="loadBalance()" style="color:#7c3aed;font-size:0.75rem;">Refresh balance</a></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="queue-banner">
+        <div class="q-stats">
+            <div class="q-item">
+                <label><i class="fas fa-inbox" style="margin-right:4px;"></i>In Queue</label>
+                <div class="v" id="qCount">—</div>
+            </div>
+            <div class="q-item">
+                <label>Min. Batch</label>
+                <div class="v">5 orders</div>
+            </div>
+            <div class="q-item">
+                <label>Oldest Order</label>
+                <div class="v" id="qAge">—</div>
+            </div>
+            <div class="q-item">
+                <label>Max Wait</label>
+                <div class="v">30 min</div>
+            </div>
+            <div class="q-item">
+                <label>Queue Status</label>
+                <div class="v" id="qStatus">—</div>
+            </div>
+        </div>
+        <div class="q-right">
+            <button class="btn btn-outline btn-sm" onclick="loadQueueStats()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button class="btn btn-amber btn-sm" id="dispatchBtn" onclick="forceDispatch()"><i class="fas fa-paper-plane"></i> Dispatch Now</button>
+        </div>
+    </div>
+
+    <!-- ===== ORDER STATUS CHECKER ===== -->
+    <div class="filter-card" style="border-left:4px solid #3b82f6;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="width:34px;height:34px;background:#dbeafe;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#2563eb;font-size:0.9rem;flex-shrink:0;">
+                <i class="fas fa-search"></i>
+            </div>
+            <div>
+                <div style="font-size:0.95rem;font-weight:700;color:#1a1f36;">Check Delivery Status</div>
+                <div style="font-size:0.78rem;color:#6b7280;">Look up delivery status by Etopup Order ID <em>or</em> by phone number(s)</div>
+            </div>
+        </div>
+        <!-- Mode tabs -->
+        <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;width:fit-content;">
+            <button id="scModeOrderId" onclick="scSetMode('orderId')"
+                style="padding:7px 18px;font-size:0.82rem;font-weight:600;border:none;cursor:pointer;background:#3b82f6;color:white;transition:all 0.18s;">
+                <i class="fas fa-hashtag"></i> By Order ID
+            </button>
+            <button id="scModePhone" onclick="scSetMode('phone')"
+                style="padding:7px 18px;font-size:0.82rem;font-weight:600;border:none;cursor:pointer;background:white;color:#374151;transition:all 0.18s;border-left:1px solid #e5e7eb;">
+                <i class="fas fa-phone"></i> By Phone Number(s)
+            </button>
+        </div>
+        <!-- By Order ID -->
+        <div id="scPanelOrderId" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="filter-group" style="flex:1;min-width:200px;max-width:280px;">
+                <label>Etopup Order ID</label>
+                <input type="number" id="scOrderId" placeholder="e.g. 12345" min="1"
+                    onkeydown="if(event.key==='Enter') runStatusCheck()">
+            </div>
+            <div style="padding-bottom:2px;">
+                <button class="btn btn-primary btn-sm" id="scBtn" onclick="runStatusCheck()">
+                    <i class="fas fa-search"></i> Check Status
+                </button>
+            </div>
+        </div>
+        <!-- By Phone Number(s) -->
+        <div id="scPanelPhone" style="display:none;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <div class="filter-group" style="flex:1;min-width:260px;">
+                <label>Phone Number(s) <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">— one per line or comma-separated</span></label>
+                <textarea id="scPhones" rows="3" placeholder="0241234567&#10;0551234567&#10;0271234567"
+                    style="padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:0.875rem;background:#f9fafb;color:#1a1f36;resize:vertical;width:100%;font-family:inherit;min-width:260px;"
+                    onkeydown="if(event.ctrlKey&&event.key==='Enter') runStatusCheck()"></textarea>
+                <div style="font-size:0.72rem;color:#9ca3af;margin-top:3px;">Ctrl+Enter to search</div>
+            </div>
+            <div style="padding-top:22px;">
+                <button class="btn btn-primary btn-sm" id="scBtnPhone" onclick="runStatusCheck()">
+                    <i class="fas fa-search"></i> Check Status
+                </button>
+            </div>
+        </div>
+        <div id="scResult" style="display:none;margin-top:14px;padding:14px;border-radius:8px;background:#f8fafc;border:1px solid #e5e7eb;font-size:0.875rem;overflow-x:auto;"></div>
+    </div>
+
+    <div class="filter-card">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Date From</label>
+                <input type="date" id="fDateFrom">
+            </div>
+            <div class="filter-group">
+                <label>Date To</label>
+                <input type="date" id="fDateTo">
+            </div>
+            <div class="filter-group">
+                <label>Batch ID</label>
+                <input type="text" id="fBatchId" placeholder="BATCH-000001" style="min-width:170px;">
+            </div>
+            <div class="filter-group">
+                <label>Phone Number</label>
+                <input type="text" id="fPhone" placeholder="024XXXXXXX" style="min-width:160px;">
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select id="fStatus">
+                    <option value="">All Statuses</option>
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="PARTIAL">Partial</option>
+                    <option value="DELIVERED">Delivered</option>
+                    <option value="FAILED">Failed</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Per Page</label>
+                <select id="fPerPage">
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-primary btn-sm" onclick="applyFilters()"><i class="fas fa-search"></i> Search</button>
+                <button class="btn btn-outline btn-sm" onclick="clearFilters()"><i class="fas fa-times"></i> Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-card-header">
+            <span class="ttl"><i class="fas fa-layer-group"></i> Batches</span>
+            <span class="meta" id="batchMeta">Loading...</span>
+        </div>
+        <div class="scroll-wrap">
+            <table id="batchTable">
+                <thead>
+                    <tr>
+                        <th style="width:30px;"></th>
+                        <th>Batch ID</th>
+                        <th>Etopup Order #</th>
+                        <th>Dispatched At</th>
+                        <th>Orders</th>
+                        <th>Delivered</th>
+                        <th>Pending</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="batchBody">
+                    <tr><td colspan="10" class="empty-cell"><i class="fas fa-spinner fa-spin"></i>Loading batches...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination" style="display:none">
+            <span class="info" id="pagInfo"></span>
+            <div class="pag-btns" id="pagBtns"></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+<script>
+const API = '/api';
+let currentPage = 1;
+let expandedBatch = null;
+
+function tok() { return localStorage.getItem('adminToken') || localStorage.getItem('token') || sessionStorage.getItem('token'); }
+function ah()  { return { Authorization: 'Bearer ' + tok(), 'Content-Type': 'application/json' }; }
+
+async function boot() {
+    try {
+        const r = await fetch(API + '/auth/me', { headers: ah() });
+        if (!r.ok) { location.href = '/pages/login.html'; return; }
+        const d = await r.json();
+        const u = d.user || d;
+        if (u.role !== 'ADMIN') { location.href = '/pages/login.html'; return; }
+        document.getElementById('adminName').textContent = u.name || 'Admin';
+        document.getElementById('adminAv').textContent   = (u.name||'A')[0].toUpperCase();
+    } catch { location.href = '/pages/login.html'; }
+}
+
+function toast(msg, type) {
+    type = type || 'info';
+    const el = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    el.className = 'toast ' + type + ' show';
+    clearTimeout(el._t);
+    el._t = setTimeout(function(){ el.classList.remove('show'); }, 3500);
+}
+
+async function loadQueueStats() {
+    try {
+        const r = await fetch(API + '/topupgh/queue', { headers: ah() });
+        const d = await r.json();
+        if (!d.success) return;
+        document.getElementById('qCount').textContent = d.queuedCount != null ? d.queuedCount : '—';
+        document.getElementById('qAge').textContent   = d.ageMinutes > 0 ? d.ageMinutes + ' min ago' : '—';
+        document.getElementById('sQueued').textContent = d.queuedCount != null ? d.queuedCount : '—';
+        document.getElementById('sQueuedSub').textContent = d.queuedCount > 0
+            ? 'Oldest: ' + d.ageMinutes + ' min ago' : 'Queue is empty';
+        const el = document.getElementById('qStatus');
+        if (!d.queuedCount)          { el.textContent='Empty';         el.className='v'; }
+        else if (d.readyToDispatch)  { el.textContent='Ready';         el.className='v ready'; }
+        else                         { el.textContent='Accumulating';  el.className='v waiting'; }
+    } catch(e) {}
+}
+
+async function loadBalance() {
+    document.getElementById('sBalance').textContent = '...';
+    try {
+        const r = await fetch(API + '/topupgh/balance', { headers: ah() });
+        const d = await r.json();
+        document.getElementById('sBalance').textContent = d.success
+            ? 'GH\u20B5 ' + Number(d.balance).toFixed(2) : 'Error';
+    } catch { document.getElementById('sBalance').textContent = 'Error'; }
+}
+
+async function forceDispatch() {
+    if (!confirm('Dispatch all queued MTN orders to Etopup now?')) return;
+    const btn = document.getElementById('dispatchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Dispatching...';
+    try {
+        const r = await fetch(API + '/topupgh/queue/dispatch', { method:'POST', headers: ah() });
+        const d = await r.json();
+        if (d.success) {
+            toast(d.dispatched ? 'Dispatched ' + d.itemCount + ' order(s) in new batch' : 'Nothing in queue', 'success');
+            setTimeout(loadAll, 1500);
+        } else { toast(d.message || 'Dispatch failed', 'error'); }
+    } catch { toast('Request failed', 'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Dispatch Now'; }
+}
+
+function applyFilters() { loadBatches(1); }
+
+function clearFilters() {
+    ['fDateFrom','fDateTo','fBatchId','fPhone'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('fStatus').selectedIndex = 0;
+    loadBatches(1);
+}
+
+function buildQuery(page) {
+    var p = new URLSearchParams();
+    p.set('page', page);
+    p.set('per_page', document.getElementById('fPerPage').value);
+    var df  = document.getElementById('fDateFrom').value;
+    var dt  = document.getElementById('fDateTo').value;
+    var bid = document.getElementById('fBatchId').value.trim();
+    var ph  = document.getElementById('fPhone').value.trim();
+    var st  = document.getElementById('fStatus').value;
+    if (df)  p.set('date_from', df);
+    if (dt)  p.set('date_to', dt);
+    if (bid) p.set('batch_ref', bid);
+    if (ph)  p.set('phone', ph);
+    if (st)  p.set('status', st);
+    return p.toString();
+}
+
+async function loadBatches(page) {
+    page = page || 1;
+    currentPage = page;
+    expandedBatch = null;
+    document.getElementById('batchBody').innerHTML =
+            '<tr><td colspan="10" class="empty-cell"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+    try {
+        const r = await fetch(API + '/topupgh/batches?' + buildQuery(page), { headers: ah() });
+        const d = await r.json();
+        if (!d.success) {
+            document.getElementById('batchBody').innerHTML =
+                '<tr><td colspan="10" class="empty-cell"><i class="fas fa-exclamation-circle"></i><br>' + (d.message||'Error') + '</td></tr>';
+            return;
+        }
+        document.getElementById('sTotalBatches').textContent = d.pagination.total;
+        document.getElementById('batchMeta').textContent = d.pagination.total + ' batch(es) found';
+        renderBatches(d.batches);
+        renderPagination(d.pagination);
+        countDeliveredToday(d.batches);
+    } catch(e) {
+        document.getElementById('batchBody').innerHTML =
+            '<tr><td colspan="10" class="empty-cell"><i class="fas fa-wifi"></i><br>Could not connect</td></tr>';
+    }
+}
+
+function renderBatches(batches) {
+    var tbody = document.getElementById('batchBody');
+    if (!batches.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-cell"><i class="fas fa-layer-group"></i><br>No batches match your filters</td></tr>';
+        return;
+    }
+    tbody.innerHTML = batches.map(function(b){ return batchRow(b); }).join('');
+}
+
+function batchRow(b) {
+    var badge = statusBadge(b.status);
+    var pendingHtml = (b.pendingCount||0) > 0 ? '<span class="amber">' + b.pendingCount + '</span>' : '<span class="muted">0</span>';
+    var disSync = (b.status==='DELIVERED'||b.status==='FAILED') ? 'disabled' : '';
+    var actionBtn = b.status === 'FAILED'
+        ? '<button class="btn btn-xs" style="background:#dc2626;color:#fff;" onclick="requeueBatch(\'' + b.batchRef + '\',this)"><i class="fas fa-redo"></i> Re-queue</button>'
+        : '<button class="btn btn-green btn-xs" onclick="syncBatch(\'' + b.batchRef + '\',this)" ' + disSync + '><i class="fas fa-sync-alt"></i> Sync</button>';
+    return '<tr id="row-' + b.batchRef + '" class="batch-row" data-ref="' + b.batchRef + '">' +
+        '<td><button class="expand-btn" id="exp-' + b.batchRef + '" onclick="toggleExpand(\'' + b.batchRef + '\')"><i class="fas fa-chevron-right"></i></button></td>' +
+        '<td><span class="mono bold">' + b.batchRef + '</span></td>' +
+        '<td><span class="purple mono">' + (b.topupghOrderId||'—') + '</span></td>' +
+        '<td><span class="mono" style="font-size:0.8rem;">' + (b.sentAt ? fmt(b.sentAt) : '—') + '</span></td>' +
+        '<td class="bold">' + b.itemCount + '</td>' +
+        '<td class="green">' + (b.deliveredCount||0) + '</td>' +
+        '<td>' + pendingHtml + '</td>' +
+        '<td class="bold">GH\u20B5 ' + Number(b.totalAmount||0).toFixed(2) + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td>' + actionBtn + '</td>' +
+    '</tr>' +
+    '<tr id="detail-' + b.batchRef + '" class="detail-row" style="display:none;">' +
+        '<td colspan="10"><div class="detail-inner" id="detail-inner-' + b.batchRef + '"><div class="detail-orders-title">Loading orders...</div></div></td>' +
+    '</tr>';
+}
+
+async function toggleExpand(batchRef) {
+    var detailRow = document.getElementById('detail-' + batchRef);
+    var expBtn    = document.getElementById('exp-' + batchRef);
+    var bRow      = document.getElementById('row-' + batchRef);
+
+    if (expandedBatch && expandedBatch !== batchRef) {
+        document.getElementById('detail-' + expandedBatch).style.display = 'none';
+        document.getElementById('exp-' + expandedBatch).classList.remove('open');
+        document.getElementById('row-' + expandedBatch).classList.remove('expanded');
+    }
+
+    if (expandedBatch === batchRef) {
+        detailRow.style.display = 'none';
+        expBtn.classList.remove('open');
+        bRow.classList.remove('expanded');
+        expandedBatch = null;
+        return;
+    }
+
+    detailRow.style.display = 'table-row';
+    expBtn.classList.add('open');
+    bRow.classList.add('expanded');
+    expandedBatch = batchRef;
+
+    var inner = document.getElementById('detail-inner-' + batchRef);
+    inner.innerHTML = '<div class="detail-orders-title"><i class="fas fa-spinner fa-spin"></i> Loading orders...</div>';
+
+    try {
+        const r = await fetch(API + '/topupgh/batches/' + batchRef, { headers: ah() });
+        const d = await r.json();
+        if (!d.success) { inner.innerHTML = '<div class="detail-orders-title" style="color:#dc2626;">' + (d.message||'Error') + '</div>'; return; }
+        renderDetailInner(inner, d.batch);
+    } catch { inner.innerHTML = '<div class="detail-orders-title" style="color:#dc2626;">Failed to load</div>'; }
+}
+
+function renderDetailInner(container, batch) {
+    var items = batch.items || [];
+    var balanceHtml = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;background:#f8fafc;padding:10px 14px;border-radius:8px;font-size:0.82rem;">' +
+        '<span style="color:#6b7280;">Etopup Balance Flow:</span>' +
+        '<strong>GH\u20B5 ' + Number(batch.previousBalance||0).toFixed(2) + '</strong>' +
+        '<span style="color:#dc2626;font-weight:700;">\u2212 GH\u20B5 ' + Number(batch.walletDeducted||0).toFixed(2) + '</span>' +
+        '<span style="color:#9ca3af;">=</span>' +
+        '<strong style="color:#059669;">GH\u20B5 ' + Number(batch.newBalance||0).toFixed(2) + '</strong>' +
+        '<span style="color:#9ca3af;margin-left:10px;">Total charged: <strong>GH\u20B5 ' + Number(batch.totalAmount||0).toFixed(2) + '</strong></span>' +
+        '</div>';
+
+    var tableHtml;
+    if (!items.length) {
+        tableHtml = '<p style="color:#9ca3af;padding:10px 0;">No order items found.</p>';
+    } else {
+        var rows = items.map(function(it, i) {
+            var ds = (it.topupghDeliveryStatus||'').toLowerCase();
+            var dsColor = ds.indexOf('deliver')>=0 ? '#059669' : ds.indexOf('fail')>=0 ? '#dc2626' : '#d97706';
+            var dsLabel = it.topupghDeliveryStatus || 'Pending';
+            return '<tr>' +
+                '<td class="muted">' + (i+1) + '</td>' +
+                '<td><strong>' + it.recipientPhone + '</strong></td>' +
+                '<td>' + (it.bundleName||'—') + '</td>' +
+                '<td>' + (it.dataAmount||'—') + '</td>' +
+                '<td>GH\u20B5 ' + Number(it.unitPrice||0).toFixed(2) + '</td>' +
+                '<td class="mono muted">' + (it.topupghItemId||'—') + '</td>' +
+                '<td><span style="color:' + dsColor + ';font-weight:600;">' + dsLabel + '</span></td>' +
+                '<td class="muted">' + (it.topupghDeliveryDate ? fmt(it.topupghDeliveryDate) : '—') + '</td>' +
+                '<td class="mono" style="color:#3b82f6;">' + (it.orderRef||'—') + '</td>' +
+                '<td>' + (it.customerName||'—') + '</td>' +
+                '<td class="muted">' + (it.agentCode||'—') + '</td>' +
+                '<td>' + itemBadge(it.status) + '</td>' +
+            '</tr>';
+        }).join('');
+        tableHtml = '<table class="detail-table"><thead><tr>' +
+            '<th>#</th><th>Phone</th><th>Bundle</th><th>Data</th><th>Price</th>' +
+            '<th>Etopup Item ID</th><th>Delivery Status</th><th>Delivered At</th>' +
+            '<th>Order Ref</th><th>Customer</th><th>Agent Code</th><th>Order Status</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    container.innerHTML = '<div class="detail-orders-title"><i class="fas fa-shopping-cart"></i> Orders in Batch ' + batch.batchRef + '</div>' +
+        balanceHtml + '<div style="overflow-x:auto;">' + tableHtml + '</div>';
+}
+
+async function syncBatch(batchRef, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner spinner"></i>';
+    try {
+        const r = await fetch(API + '/topupgh/batches/' + batchRef + '/sync', { method:'POST', headers: ah() });
+        const d = await r.json();
+        if (d.success) {
+            toast('Synced ' + batchRef + ' \u2192 ' + d.status, 'success');
+            var wasExpanded = expandedBatch === batchRef;
+            await loadBatches(currentPage);
+            if (wasExpanded) toggleExpand(batchRef);
+        } else { toast(d.message || 'Sync failed', 'error'); }
+    } catch { toast('Sync request failed', 'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-sync-alt"></i> Sync'; }
+}
+
+async function requeueBatch(batchRef, btn) {
+    if (!confirm('Re-queue items from batch ' + batchRef + '?\n\nWARNING: If this batch failed due to a network error (not an API rejection), Etopup may have already processed these numbers. Check the Etopup dashboard for order ' + batchRef + ' before proceeding to avoid duplicate topups.')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner spinner"></i>';
+    try {
+        const r = await fetch(API + '/topupgh/batches/' + batchRef + '/requeue', { method:'POST', headers: ah() });
+        const d = await r.json();
+        if (d.success) {
+            toast(d.message || 'Items re-queued', 'success');
+            await loadBatches(currentPage);
+        } else { toast(d.message || 'Re-queue failed', 'error'); }
+    } catch { toast('Re-queue request failed', 'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-redo"></i> Re-queue'; }
+}
+
+function renderPagination(pg) {
+    var el = document.getElementById('pagination');
+    if (pg.total_pages <= 1) { el.style.display='none'; return; }
+    el.style.display = 'flex';
+    document.getElementById('pagInfo').textContent =
+        'Page ' + pg.current_page + ' of ' + pg.total_pages + ' (' + pg.total + ' batches)';
+    var html = '<button class="pag-btn" onclick="loadBatches(' + (pg.current_page-1) + ')" ' + (pg.current_page===1?'disabled':'') + '>\u2039 Prev</button>';
+    var s = Math.max(1, pg.current_page-2), e = Math.min(pg.total_pages, pg.current_page+2);
+    for (var i=s; i<=e; i++) html += '<button class="pag-btn ' + (i===pg.current_page?'active':'') + '" onclick="loadBatches(' + i + ')">' + i + '</button>';
+    html += '<button class="pag-btn" onclick="loadBatches(' + (pg.current_page+1) + ')" ' + (pg.current_page===pg.total_pages?'disabled':'') + '>Next \u203a</button>';
+    document.getElementById('pagBtns').innerHTML = html;
+}
+
+function countDeliveredToday(batches) {
+    var today = new Date().toDateString(), count = 0;
+    batches.forEach(function(b){ if (b.sentAt && new Date(b.sentAt).toDateString()===today) count += b.deliveredCount||0; });
+    document.getElementById('sDelivered').textContent = count;
+}
+
+function fmt(d) {
+    var dt = new Date(d);
+    return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+           dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function statusBadge(s) {
+    var m = { SUBMITTED:'b-submitted', PARTIAL:'b-partial', DELIVERED:'b-delivered', FAILED:'b-failed' };
+    return '<span class="badge ' + (m[s]||'b-pending') + '">' + (s||'—') + '</span>';
+}
+
+function itemBadge(s) {
+    var m = { COMPLETED:'b-delivered', FAILED:'b-failed', PROCESSING:'b-submitted', PENDING:'b-pending', CANCELLED:'b-failed' };
+    var l = { COMPLETED:'Delivered', FAILED:'Failed', PROCESSING:'Processing', PENDING:'Pending', CANCELLED:'Cancelled' };
+    return '<span class="badge ' + (m[s]||'b-pending') + '">' + (l[s]||s) + '</span>';
+}
+
+document.querySelectorAll('.filter-group input').forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key==='Enter') applyFilters(); });
+});
+
+var scMode = 'orderId';
+function scSetMode(mode) {
+    scMode = mode;
+    document.getElementById('scPanelOrderId').style.display = mode === 'orderId' ? 'flex' : 'none';
+    document.getElementById('scPanelPhone').style.display   = mode === 'phone'   ? 'flex' : 'none';
+    document.getElementById('scModeOrderId').style.background = mode === 'orderId' ? '#3b82f6' : 'white';
+    document.getElementById('scModeOrderId').style.color      = mode === 'orderId' ? 'white'   : '#374151';
+    document.getElementById('scModePhone').style.background   = mode === 'phone'   ? '#3b82f6' : 'white';
+    document.getElementById('scModePhone').style.color        = mode === 'phone'   ? 'white'   : '#374151';
+    document.getElementById('scResult').style.display = 'none';
+}
+
+async function runStatusCheck() {
+    if (scMode === 'orderId') {
+        await checkOrderStatus();
+    } else {
+        await checkPhoneStatus();
+    }
+}
+
+async function checkOrderStatus() {
+    var orderId = document.getElementById('scOrderId').value.trim();
+    if (!orderId) { toast('Enter an Etopup Order ID first', 'error'); return; }
+    var btn = document.getElementById('scBtn');
+    var res = document.getElementById('scResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Checking...';
+    res.style.display = 'none';
+    try {
+        const r = await fetch(API + '/topupgh/order-status/' + encodeURIComponent(orderId), { headers: ah() });
+        const d = await r.json();
+        if (!d.success) {
+            res.style.display = 'block';
+            res.innerHTML = '<div style="color:#dc2626;"><i class="fas fa-exclamation-circle"></i> ' + (d.message || 'Error fetching status') + '</div>';
+            return;
+        }
+        var data = d.data || {};
+        var rows = Object.entries(data).map(function(kv) {
+            var k = kv[0], v = kv[1];
+            if (v === null || v === undefined) v = '—';
+            if (typeof v === 'object') v = '<pre style="margin:0;white-space:pre-wrap;font-size:0.78rem;">' + JSON.stringify(v, null, 2) + '</pre>';
+            return '<tr><td style="padding:6px 10px;font-weight:600;color:#6b7280;white-space:nowrap;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.3px;">' + k + '</td>' +
+                   '<td style="padding:6px 10px;color:#1a1f36;">' + v + '</td></tr>';
+        }).join('');
+        res.style.display = 'block';
+        res.innerHTML = '<div style="font-size:0.78rem;font-weight:700;color:#3b82f6;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">' +
+            '<i class="fas fa-check-circle" style="margin-right:5px;"></i>Order #' + orderId + ' — Live Status from Etopup</div>' +
+            '<table style="width:100%;border-collapse:collapse;"><tbody>' + rows + '</tbody></table>';
+    } catch(e) {
+        res.style.display = 'block';
+        res.innerHTML = '<div style="color:#dc2626;"><i class="fas fa-wifi"></i> Request failed — check connection</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> Check Status';
+    }
+}
+
+async function checkPhoneStatus() {
+    var raw = document.getElementById('scPhones').value;
+    var phones = raw.split(/[\n,]+/).map(function(p){ return p.trim().replace(/\s+/g,''); }).filter(Boolean);
+    if (!phones.length) { toast('Enter at least one phone number', 'error'); return; }
+    var btn = document.getElementById('scBtnPhone');
+    var res = document.getElementById('scResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Checking...';
+    res.style.display = 'none';
+    try {
+        var qs = phones.map(function(p){ return 'phones=' + encodeURIComponent(p); }).join('&');
+        const r = await fetch(API + '/topupgh/phone-status?' + qs, { headers: ah() });
+        const d = await r.json();
+        if (!d.success) {
+            res.style.display = 'block';
+            res.innerHTML = '<div style="color:#dc2626;"><i class="fas fa-exclamation-circle"></i> ' + (d.message || 'Error') + '</div>';
+            return;
+        }
+        var items = d.items || [];
+        res.style.display = 'block';
+        if (!items.length) {
+            res.innerHTML = '<div style="color:#9ca3af;"><i class="fas fa-inbox"></i> No Etopup records found for those numbers</div>';
+            return;
+        }
+        var dsColor = function(s){ s=(s||'').toLowerCase(); return s.indexOf('deliver')>=0?'#059669':s.indexOf('fail')>=0?'#dc2626':'#d97706'; };
+        var rows = items.map(function(it) {
+            return '<tr>' +
+                '<td style="padding:7px 10px;font-weight:700;">' + it.recipientPhone + '</td>' +
+                '<td style="padding:7px 10px;">' + (it.bundleName||'—') + '</td>' +
+                '<td style="padding:7px 10px;">' + (it.dataAmount||'—') + '</td>' +
+                '<td style="padding:7px 10px;font-family:monospace;font-size:0.8rem;color:#7c3aed;">' + (it.batchRef||'—') + '</td>' +
+                '<td style="padding:7px 10px;font-size:0.78rem;color:#6b7280;">' + (it.sentAt ? fmt(it.sentAt) : '—') + '</td>' +
+                '<td style="padding:7px 10px;"><span style="font-weight:700;color:' + dsColor(it.topupghDeliveryStatus) + ';">' + (it.topupghDeliveryStatus||'Pending') + '</span></td>' +
+                '<td style="padding:7px 10px;font-size:0.78rem;color:#6b7280;">' + (it.topupghDeliveryDate ? fmt(it.topupghDeliveryDate) : '—') + '</td>' +
+                '<td style="padding:7px 10px;font-family:monospace;font-size:0.79rem;color:#3b82f6;">' + (it.orderRef||'—') + '</td>' +
+            '</tr>';
+        }).join('');
+        res.innerHTML = '<div style="font-size:0.78rem;font-weight:700;color:#3b82f6;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">' +
+            '<i class="fas fa-check-circle" style="margin-right:5px;"></i>' + items.length + ' record(s) found — Local DB status</div>' +
+            '<table style="width:100%;border-collapse:collapse;min-width:600px;">' +
+            '<thead><tr style="background:#f8fafc;">' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Phone</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Bundle</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Data</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Batch</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Dispatched</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Delivery Status</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Delivered At</th>' +
+            '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Order Ref</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>';
+    } catch(e) {
+        res.style.display = 'block';
+        res.innerHTML = '<div style="color:#dc2626;"><i class="fas fa-wifi"></i> Request failed</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> Check Status';
+    }
+}
+
+async function loadAll() { await Promise.all([loadBatches(1), loadQueueStats()]); }
+
+(async function(){
+    await boot();
+    loadAll();
+    loadBalance();
+})();
+</script>
+</body>
+</html>

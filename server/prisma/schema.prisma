@@ -594,6 +594,18 @@ model OrderItem {
   // Retry control
   retryCount        Int       @default(0)
   maxRetries        Int       @default(3)
+
+  // ============================================================
+  // TOPUPGH BATCH FIELDS
+  // ============================================================
+  // Set when item is routed to TopUpGH and waiting in queue
+  topupghQueuedAt     DateTime?   // When item entered the TopUpGH queue
+  // Set after batch is dispatched to TopUpGH
+  topupghBatchId      String?     // FK to TopUpGHBatch
+  // Set after delivery-status response matches this item
+  topupghItemId       String?     // e.g. "123456-1" from TopUpGH delivery response
+  topupghDeliveryStatus String?   // e.g. "Delivered", "Failed", "Pending"
+  topupghDeliveryDate  DateTime?  // When TopUpGH confirmed delivery
   
   // Timestamps
   createdAt       DateTime    @default(now())
@@ -602,14 +614,74 @@ model OrderItem {
   // Relations
   orderGroup      OrderGroup  @relation(fields: [orderGroupId], references: [id], onDelete: Cascade)
   bundle          Bundle      @relation("BundleOrderItems", fields: [bundleId], references: [id])
+  topupghBatch    TopUpGHBatch? @relation(fields: [topupghBatchId], references: [id])
   
   @@index([orderGroupId])
   @@index([bundleId])
   @@index([status])
   @@index([reference])
   @@index([externalReference])
+  @@index([topupghBatchId])
+  @@index([topupghQueuedAt])
   @@index([createdAt])
   @@map("order_items")
+}
+
+// ============================================================
+// TOPUPGH BATCH MODEL
+// ============================================================
+// One record per dispatch to the TopUpGH /orders/create endpoint.
+// Up to 300 MTN items per batch; minimum 5 before dispatching.
+
+enum TopUpGHBatchStatus {
+  SUBMITTED    // Sent to TopUpGH, awaiting delivery confirmation
+  PARTIAL      // Some items delivered, some still pending
+  DELIVERED    // All items confirmed delivered
+  FAILED       // API call failed; items NOT sent
+}
+
+model TopUpGHBatch {
+  id              String              @id @default(uuid())
+
+  // Internal sequential ID for display (BATCH-000001)
+  sequenceNum     Int                 @default(autoincrement())
+  batchRef        String?             @unique   // e.g. "BATCH-000001"
+
+  // TopUpGH side
+  topupghOrderId  Int?                          // order_id returned by TopUpGH API
+  status          TopUpGHBatchStatus  @default(SUBMITTED)
+
+  // Counts (from API response)
+  itemCount       Int                 @default(0)
+  itemsAdded      Int                 @default(0)
+  itemsSkipped    Int                 @default(0)
+
+  // Financials (from API response)
+  totalAmount     Float               @default(0)
+  previousBalance Float               @default(0)
+  walletDeducted  Float               @default(0)
+  newBalance      Float               @default(0)
+
+  // Raw API response for audit
+  rawResponse     Json?
+
+  // Timing
+  sentAt          DateTime?           // When we dispatched to TopUpGH
+  deliveryCheckedAt DateTime?         // Last time we polled delivery status
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  items           OrderItem[]
+
+  @@index([sequenceNum])
+  @@index([batchRef])
+  @@index([topupghOrderId])
+  @@index([status])
+  @@index([sentAt])
+  @@index([createdAt])
+  @@map("topupgh_batches")
 }
 
 // ============================================

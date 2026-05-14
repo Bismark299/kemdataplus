@@ -22,6 +22,15 @@
 const prisma = require('../lib/prisma');
 const walletService = require('./wallet.service');
 
+// TopUpGH batch queue — lazy-loaded to avoid circular deps at startup
+let topupghBatchService = null;
+function getTopUpGHBatchService() {
+  if (!topupghBatchService) {
+    try { topupghBatchService = require('./topupgh-batch.service'); } catch (e) { /* not available */ }
+  }
+  return topupghBatchService;
+}
+
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -354,6 +363,53 @@ const orderGroupService = {
     });
 
     console.log(`[OrderGroup] Order created successfully: ${result.orderGroup.displayId}`);
+
+    // ============================================================
+    // ETOPUP QUEUE: Route MTN items to the Etopup batch queue
+    // Only when:
+    //   1. No duplicate hold
+    //   2. etopupAPI + etopup_mtnAPI are both enabled
+    //   3. No other provider (MCBIS / CKGodsway) already handles MTN
+    //      — existing providers take priority; Etopup is the fallback
+    // ============================================================
+    if (!hasPotentialDuplicates) {
+      let etopupEnabled = true;
+      let etopupMtnEnabled = true;
+      let otherProviderHandlesMtn = false;
+      try {
+        const sc = require('../controllers/settings.controller');
+        const ss = sc && sc.getSiteSettings ? sc.getSiteSettings() : {};
+        if (ss.etopupAPI === false) etopupEnabled = false;
+        if (ss.etopup_mtnAPI === false) etopupMtnEnabled = false;
+        // Check if MCBIS or CKGodsway is handling MTN — they take priority
+        const mcbisHandlesMtn = ss.mcbisAPI === true && ss.mcbis_mtnAPI !== false;
+        const ckgHandlesMtn   = ss.ckgodswayAPI === true && ss.ckgodsway_mtnAPI !== false;
+        if (mcbisHandlesMtn || ckgHandlesMtn) otherProviderHandlesMtn = true;
+      } catch (e) { /* settings not available, default to enabled */ }
+
+      if (etopupEnabled && etopupMtnEnabled && !otherProviderHandlesMtn) {
+        const batchSvc = getTopUpGHBatchService();
+        if (batchSvc) {
+          const mtnItems = result.orderGroup.items.filter(
+            i => (i.network || '').toLowerCase() === 'mtn'
+          );
+          for (const item of mtnItems) {
+            batchSvc.queueItem(item.id).catch(err =>
+              console.error(`[OrderGroup] Failed to queue item ${item.id} for Etopup:`, err.message)
+            );
+          }
+          if (mtnItems.length > 0) {
+            console.log(`[OrderGroup] Queued ${mtnItems.length} MTN item(s) for Etopup`);
+          }
+        }
+      } else {
+        if (otherProviderHandlesMtn) {
+          console.log(`[OrderGroup] Etopup MTN queueing skipped — MCBIS/CKGodsway handles MTN`);
+        } else {
+          console.log(`[OrderGroup] Etopup MTN queueing skipped (etopupAPI=${etopupEnabled}, etopup_mtnAPI=${etopupMtnEnabled})`);
+        }
+      }
+    }
 
     // Build response with duplicate info if applicable
     const response = {
@@ -1034,9 +1090,11 @@ const orderGroupService = {
           });
         } else {
           // Update item status based on result
+          // Only pass externalReference on success — on failure it stays null
+          // so the retry button shows in the admin UI
           await this.updateItemStatus(item.id, {
             status: result.success ? 'PROCESSING' : 'FAILED',
-            externalReference: result.reference,
+            externalReference: result.success ? result.reference : undefined,
             failureReason: result.success ? null : result.error
           });
         }

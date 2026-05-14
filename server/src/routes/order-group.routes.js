@@ -1321,13 +1321,10 @@ router.post('/admin/item/:itemId/retry', authenticate, authorize('ADMIN'), async
       return res.status(400).json({ error: 'Only FAILED orders can be retried' });
     }
 
-    // Safety: only allow retry if the item was never confirmed received by provider
-    const safeToRetry = !item.externalReference && (
-      !item.failureReason ||
-      item.failureReason.includes('404') ||
-      item.failureReason.includes('never received') ||
-      item.failureReason.includes('network')
-    );
+    // Safety: only allow retry if the item was never confirmed received by provider.
+    // externalReference is only set on success, so FAILED items with no externalReference
+    // are safe to retry (order never made it to the provider).
+    const safeToRetry = !item.externalReference;
 
     if (!safeToRetry) {
       return res.status(400).json({

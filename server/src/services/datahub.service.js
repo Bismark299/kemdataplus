@@ -624,12 +624,13 @@ const datahubService = {
       console.log(`[DataHub] Storing API reference: ${result.reference}`);
       updateData = {
         status: newStatus,
-        // CRITICAL: Store the MCBIS API reference for status checks
-        // This is the reference returned by McbisSolution, NOT our internal ORD-xxx reference
-        externalReference: result.reference,
-        apiSentAt: new Date(),
         updatedAt: new Date(),
-        ...(result.success ? {} : { failureReason: result.error })
+        // Only set externalReference and apiSentAt on success — on failure both stay
+        // null so the retry button shows and processOrderGroup won't skip the item
+        ...(result.success
+          ? { externalReference: result.reference, apiSentAt: new Date() }
+          : { failureReason: result.error }
+        )
       };
     }
     

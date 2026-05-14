@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     navLinks.forEach(link => {
         link.addEventListener('click', function (e) {
+            if (this.classList.contains('nav-external')) return; // let real links navigate
             e.preventDefault();
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');

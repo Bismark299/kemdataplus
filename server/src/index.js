@@ -41,6 +41,7 @@ const datahubRoutes = require('./routes/datahub.routes');
 const ckgodswayRoutes = require('./routes/ckgodsway.routes');
 const paystackRoutes = require('./routes/paystack.routes');
 const profitPayoutRoutes = require('./routes/profit-payout.routes');
+const topupghRoutes     = require('./routes/topupgh.routes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -273,6 +274,7 @@ app.use('/api/ckgodsway', ckgodswayRoutes);
 app.use('/api/paystack', paystackRoutes);
 app.use('/api/profit-payouts', profitPayoutRoutes);
 app.use('/api/complaints', require('./routes/complaint.routes'));
+app.use('/api/topupgh',    topupghRoutes);
 
 // Public storefront route (no auth required)
 app.use('/api', storefrontRoutes);
@@ -351,6 +353,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   
   // Start profit payout scheduler (11:30 PM Ghana time)
   startProfitPayoutScheduler();
+
+  // Start TopUpGH batch queue scheduler
+  startTopUpGHScheduler();
 });
 
 // ============================================
@@ -431,6 +436,7 @@ const settingsController = require('./controllers/settings.controller');
 const datahubService = require('./services/datahub.service');
 const orderGroupService = require('./services/order-group.service');
 const profitScheduler = require('./services/profit-scheduler');
+const topupghBatchService = require('./services/topupgh-batch.service');
 
 let autoSyncInterval = null;
 const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
@@ -441,6 +447,15 @@ function startProfitPayoutScheduler() {
     profitScheduler.startScheduler();
   } catch (err) {
     console.error('[Server] Failed to start profit scheduler:', err.message);
+  }
+}
+
+// Start TopUpGH batch queue + delivery sync scheduler
+function startTopUpGHScheduler() {
+  try {
+    topupghBatchService.startScheduler();
+  } catch (err) {
+    console.error('[Server] Failed to start TopUpGH scheduler:', err.message);
   }
 }
 

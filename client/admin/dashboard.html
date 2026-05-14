@@ -4583,6 +4583,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="/admin/batches.html" class="nav-link nav-external" target="_self">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Etopup Batches</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link" id="navNetworks" data-section="networks">
                     <i class="fas fa-network-wired"></i>
                     <span>Networks</span>
@@ -7151,6 +7157,43 @@
                         </div>
                     </div>
 
+                    <!-- Etopup API Integration Card -->
+                    <div class="settings-card" style="border: 2px solid #f59e0b;">
+                        <div class="settings-section-title" style="color: #f59e0b;">
+                            <i class="fas fa-sim-card"></i> Etopup API (MTN)
+                        </div>
+                        <p style="color: #6b7280; margin-bottom: 15px; font-size: 0.9rem;">
+                            Routes MTN orders through the Etopup reseller API in batches of 5+.
+                        </p>
+
+                        <!-- Master Toggle -->
+                        <div class="master-toggle-row" style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                            <span class="master-toggle-label" style="font-weight: 600;"><i class="fas fa-power-off"></i> Etopup API (ON/OFF)</span>
+                            <div class="toggle-switch" id="toggleEtopupApi" data-site-setting="etopupAPI"></div>
+                        </div>
+
+                        <!-- Network Toggle (MTN only) -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="font-weight: 600; margin-bottom: 10px; color: #374151;"><i class="fas fa-network-wired"></i> Network Controls</div>
+                            <div class="settings-grid settings-grid-2">
+                                <div class="setting-card" style="border-left: 3px solid #f59e0b;">
+                                    <div class="setting-card-info">
+                                        <h4 style="color: #f59e0b;">MTN Orders</h4>
+                                        <p id="etopupMtnApiStatus">Queue MTN orders for Etopup batch dispatch</p>
+                                    </div>
+                                    <div class="toggle-switch active" id="toggleEtopupMtnAPI" data-site-setting="etopup_mtnAPI"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <a href="/admin/batches.html" target="_self" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                                <i class="fas fa-layer-group"></i> View Batches
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- MoMo Numbers Card -->
                     <div class="settings-card">
                         <div class="settings-section-title">Payment MoMo Numbers</div>
@@ -9061,6 +9104,9 @@
         
         navLinks.forEach(link => {
             link.addEventListener('click', function(e) {
+                if (this.classList.contains('nav-external')) return; // let real links navigate
+                const href = this.getAttribute('href');
+                if (href && href !== '#') return;
                 e.preventDefault();
                 const section = this.getAttribute('data-section') || 'dashboard';
                 navigateToSection(section);
@@ -13871,6 +13917,10 @@
                     toggleId = 'toggleMcbisAirtelTigoAPI';
                 } else if (key === 'mcbis_bigtimeAPI') {
                     toggleId = 'toggleMcbisBigtimeAPI';
+                } else if (key === 'etopupAPI') {
+                    toggleId = 'toggleEtopupApi';
+                } else if (key === 'etopup_mtnAPI') {
+                    toggleId = 'toggleEtopupMtnAPI';
                 } else {
                     toggleId = 'toggle' + key.charAt(0).toUpperCase() + key.slice(1);
                 }
@@ -13943,6 +13993,10 @@
             const momoClaimStatusEl = document.getElementById('momoClaimEnabledStatus');
             if (paystackStatusEl) paystackStatusEl.textContent = siteSettings.paystackEnabled !== false ? 'Agents can use Paystack for instant top-up' : 'Paystack is DISABLED';
             if (momoClaimStatusEl) momoClaimStatusEl.textContent = siteSettings.momoClaimEnabled !== false ? 'Agents can claim MoMo payments' : 'MoMo Claim is DISABLED';
+            
+            // Etopup statuses
+            const etopupMtnEl = document.getElementById('etopupMtnApiStatus');
+            if (etopupMtnEl) etopupMtnEl.textContent = siteSettings.etopup_mtnAPI !== false ? 'Queue MTN orders for Etopup batch dispatch' : 'MTN orders NOT queued for Etopup';
         }
         
         function setToggleState(elementId, state) {
@@ -13987,6 +14041,10 @@
                 toggleId = 'toggleMcbisAirtelTigoAPI';
             } else if (setting === 'mcbis_bigtimeAPI') {
                 toggleId = 'toggleMcbisBigtimeAPI';
+            } else if (setting === 'etopupAPI') {
+                toggleId = 'toggleEtopupApi';
+            } else if (setting === 'etopup_mtnAPI') {
+                toggleId = 'toggleEtopupMtnAPI';
             } else {
                 toggleId = 'toggle' + setting.charAt(0).toUpperCase() + setting.slice(1);
             }
@@ -14743,6 +14801,7 @@
         // Close sidebar when nav item clicked on mobile
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', () => {
+                if (link.classList.contains('nav-external')) return;
                 if (window.innerWidth <= 768) {
                     closeMobileSidebar();
                 }
