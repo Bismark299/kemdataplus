@@ -364,7 +364,7 @@ router.get('/phone-status', authenticate, authorize('ADMIN'), async (req, res, n
       const b = item.topupghBatch;
       if (!b || seenBatchIds.has(b.id)) continue;
       seenBatchIds.add(b.id);
-      if (b.status !== 'DELIVERED' && b.status !== 'FAILED' && b.topupghOrderId) {
+      if (b.topupghOrderId) {  // sync all batches with a known Etopup order ID, regardless of status
         try {
           await batchSvc.syncBatchDelivery(b.id);
           batchesSynced.push(b.batchRef);
@@ -412,6 +412,8 @@ router.get('/phone-status', authenticate, authorize('ADMIN'), async (req, res, n
 /**
  * GET /api/topupgh/order-status/:orderId
  * Query Etopup directly for the current status of a specific order.
+ * Calls both /orders/:id and /orders/:id/delivery-status and merges,
+ * handling multiple Etopup response shapes.
  */
 router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
@@ -419,8 +421,48 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
     if (!orderId || isNaN(orderId)) {
       return res.status(400).json({ success: false, message: 'Invalid order ID' });
     }
-    const result = await topupghSvc.getOrderStatus(orderId);
-    res.json({ success: true, data: result });
+
+    // Call both endpoints in parallel — neither is guaranteed to have all the data
+    const [orderResult, deliveryResult] = await Promise.allSettled([
+      topupghSvc.getOrderStatus(orderId),
+      topupghSvc.getDeliveryStatus(orderId)
+    ]);
+
+    const od = orderResult.status === 'fulfilled' ? orderResult.value : {};
+    const dd = deliveryResult.status === 'fulfilled' ? deliveryResult.value : {};
+
+    // Normalize order data — try multiple common response shapes
+    const order = od.order || od.data?.order || od.data || od;
+
+    // Normalize delivery items — try multiple shapes
+    const deliveryItems =
+      dd.delivery_status?.items ||
+      dd.items                  ||
+      dd.data?.items            ||
+      dd.orders                 ||
+      order.items               ||
+      [];
+
+    // Derive overall status from delivery items if the order object doesn't have it
+    let derivedStatus = order.status || null;
+    if (!derivedStatus && deliveryItems.length) {
+      const allDelivered = deliveryItems.every(i => (i.delivery_status || '').toLowerCase().includes('deliver'));
+      const anyFailed    = deliveryItems.some(i  => (i.delivery_status || '').toLowerCase().includes('fail'));
+      derivedStatus = allDelivered ? 'delivered' : anyFailed ? 'partial' : 'processing';
+    }
+
+    const normalized = {
+      order_id              : order.order_id || orderId,
+      status                : derivedStatus,
+      total_amount          : order.total_amount,
+      items_count           : order.items_count || order.items?.length || deliveryItems.length || undefined,
+      delivery_info         : order.delivery_info,
+      formatted_delivery_info: order.formatted_delivery_info,
+      items                 : deliveryItems
+    };
+
+    console.log(`[order-status] orderId=${orderId} status=${derivedStatus} items=${deliveryItems.length}`);
+    res.json({ success: true, data: normalized });
   } catch (err) {
     next(err);
   }
