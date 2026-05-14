@@ -46,7 +46,7 @@
         .admin-chip span { color: rgba(255,255,255,0.85); font-size: 0.82rem; }
 
         /* ===== PAGE WRAPPER ===== */
-        .page { padding: 24px 28px; max-width: 1400px; }
+        .page { padding: 24px 28px; width: 100%; max-width: 1400px; box-sizing: border-box; }
 
         /* ===== PAGE HEADER ===== */
         .page-header { margin-bottom: 22px; }
@@ -318,7 +318,7 @@
         }
         .logout-btn:hover { background: rgba(255,255,255,0.1); color: white; }
         /* Layout with sidebar */
-        .layout { margin-left: 240px; transition: margin-left 0.3s ease; min-height: 100vh; }
+        .layout { margin-left: 240px; transition: margin-left 0.3s ease; min-height: 100vh; display: flex; flex-direction: column; }
         .layout.sidebar-collapsed { margin-left: 70px; }
 
         @media (max-width: 900px) {
@@ -967,18 +967,22 @@ async function checkOrderStatus() {
         if (items.length) {
             var dsColor = function(s){ s=(s||'').toLowerCase(); return s.indexOf('deliver')>=0?'#059669':s.indexOf('fail')>=0?'#dc2626':'#d97706'; };
             var iRows = items.map(function(it, idx) {
-                var dt = (it.delivery_date && it.delivery_time) ? fmt(it.delivery_date + 'T' + it.delivery_time) : (it.delivery_date || '—');
-                return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+                var dt = (it.delivery_date && it.delivery_time)
+                    ? fmt(it.delivery_date + 'T' + it.delivery_time)
+                    : (it.delivery_date || '—');
+                // If key fields still blank, show raw field dump as tooltip/detail
+                var rawKeys = it._raw ? Object.keys(it._raw).map(function(k){ return k + '=' + JSON.stringify(it._raw[k]); }).join('  ') : '';
+                return '<tr style="border-bottom:1px solid #f1f5f9;" title="' + rawKeys.replace(/"/g,'&quot;') + '">' +
                     '<td style="padding:8px 10px;color:#6b7280;font-size:0.78rem;">' + (idx+1) + '</td>' +
                     '<td style="padding:8px 10px;font-weight:700;">' + (it.beneficiary_number || '—') + '</td>' +
                     '<td style="padding:8px 10px;text-transform:uppercase;font-size:0.8rem;">' + (it.network || '—') + '</td>' +
-                    '<td style="padding:8px 10px;">' + (it.data_size ? it.data_size + ' GB' : '—') + '</td>' +
-                    '<td style="padding:8px 10px;font-weight:700;color:' + dsColor(it.delivery_status) + ';text-transform:capitalize;">' + (it.delivery_status || 'Pending') + '</td>' +
+                    '<td style="padding:8px 10px;">' + (it.data_size !== undefined && it.data_size !== null ? it.data_size + ' GB' : '—') + '</td>' +
+                    '<td style="padding:8px 10px;font-weight:700;color:' + dsColor(it.delivery_status) + ';text-transform:capitalize;">' + (it.delivery_status || '—') + '</td>' +
                     '<td style="padding:8px 10px;font-size:0.78rem;color:#6b7280;">' + dt + '</td>' +
                     '<td style="padding:8px 10px;font-family:monospace;font-size:0.75rem;color:#7c3aed;">' + (it.item_id || '—') + '</td>' +
                 '</tr>';
             }).join('');
-            itemsHtml = '<div style="font-size:0.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Order Items (' + items.length + ')</div>' +
+            itemsHtml = '<div style="font-size:0.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Order Items (' + items.length + ') <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">— hover a row to see raw API fields</span></div>' +
                 '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">' +
                 '<thead><tr style="background:#f8fafc;">' +
                 '<th style="padding:7px 10px;text-align:left;font-size:0.7rem;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">#</th>' +

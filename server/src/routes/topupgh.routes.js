@@ -434,14 +434,30 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
     // Normalize order data — try multiple common response shapes
     const order = od.order || od.data?.order || od.data || od;
 
+    // Log raw responses so we can verify actual field names from Etopup
+    console.log(`[order-status] raw orderResult:`, JSON.stringify(od).slice(0, 800));
+    console.log(`[order-status] raw deliveryResult:`, JSON.stringify(dd).slice(0, 800));
+
     // Normalize delivery items — try multiple shapes
-    const deliveryItems =
+    const rawItems =
       dd.delivery_status?.items ||
       dd.items                  ||
       dd.data?.items            ||
       dd.orders                 ||
       order.items               ||
       [];
+
+    // Normalize individual item fields — Etopup uses _beneficiary_number / _data_size (leading underscore)
+    const deliveryItems = rawItems.map(it => ({
+      beneficiary_number : it.beneficiary_number || it._beneficiary_number || it.phone || it.number,
+      network            : it.network            || it.network_name || it.provider,
+      data_size          : it.data_size          || it._data_size   || it.amount || it.size,
+      delivery_status    : it.delivery_status    || it.status       || it.delivery,
+      delivery_date      : it.delivery_date      || it.date         || (it.delivered_at ? it.delivered_at.split('T')[0] : null),
+      delivery_time      : it.delivery_time      || it.time         || (it.delivered_at ? it.delivered_at.split('T')[1]?.slice(0,8) : null),
+      item_id            : it.item_id            || it.id           || it._id,
+      _raw               : it   // pass through all original fields so client can inspect
+    }));
 
     // Derive overall status from delivery items if the order object doesn't have it
     let derivedStatus = order.status || null;
@@ -452,13 +468,13 @@ router.get('/order-status/:orderId', authenticate, authorize('ADMIN'), async (re
     }
 
     const normalized = {
-      order_id              : order.order_id || orderId,
-      status                : derivedStatus,
-      total_amount          : order.total_amount,
-      items_count           : order.items_count || order.items?.length || deliveryItems.length || undefined,
-      delivery_info         : order.delivery_info,
+      order_id               : order.order_id || orderId,
+      status                 : derivedStatus,
+      total_amount           : order.total_amount,
+      items_count            : order.items_count || rawItems.length || undefined,
+      delivery_info          : order.delivery_info,
       formatted_delivery_info: order.formatted_delivery_info,
-      items                 : deliveryItems
+      items                  : deliveryItems
     };
 
     console.log(`[order-status] orderId=${orderId} status=${derivedStatus} items=${deliveryItems.length}`);
