@@ -108,6 +108,24 @@ async function runDispatch() {
       return;
     }
 
+    if (shouldForce && !hasMinimum) {
+      // Max wait reached but still not enough items for Etopup's minimum-5 requirement.
+      // Dispatching would just fail. Mark items as FAILED so admin can review and retry
+      // them manually (e.g. route through a different provider or wait for more orders).
+      console.warn(
+        `[TopUpGH Dispatch] MAX_WAIT_MINUTES reached with only ${queuedItems.length} item(s) — ` +
+        `not enough to meet Etopup minimum of ${CONFIG.MIN_BATCH_SIZE}. Marking as FAILED.`
+      );
+      await prisma.orderItem.updateMany({
+        where: { id: { in: queuedItems.map(i => i.id) } },
+        data: {
+          status        : 'FAILED',
+          failureReason : `Etopup queue timeout: waited ${Math.round(ageMinutes)} min but only ${queuedItems.length} item(s) queued (min ${CONFIG.MIN_BATCH_SIZE} required). Admin review needed.`
+        }
+      });
+      return;
+    }
+
     if (shouldForce) {
       console.log(`[TopUpGH Dispatch] Force-dispatching: oldest item is ${ageMinutes.toFixed(1)} min old`);
     }
@@ -263,7 +281,23 @@ async function syncBatchDelivery(batchId) {
   try {
     console.log(`[TopUpGH Sync] Checking delivery for batch ${batch.batchRef} (TopUpGH order: ${batch.topupghOrderId})`);
     const response = await topupghSvc.getDeliveryStatus(batch.topupghOrderId);
-    await _applyDeliveryStatus(batch, response.delivery_status?.items || []);
+
+    // Log the full raw response so we can verify the structure
+    console.log(`[TopUpGH Sync] Raw delivery response for ${batch.batchRef}:`, JSON.stringify(response));
+
+    // Support multiple response shapes from the Etopup API
+    const apiItems =
+      response.delivery_status?.items ||   // { delivery_status: { items: [...] } }
+      response.items                  ||   // { items: [...] }
+      response.data?.items            ||   // { data: { items: [...] } }
+      response.orders                 ||   // { orders: [...] }
+      [];
+
+    if (!apiItems.length) {
+      console.log(`[TopUpGH Sync] No delivery items in response for batch ${batch.batchRef}. Full response keys: ${Object.keys(response).join(', ')}`);
+    }
+
+    await _applyDeliveryStatus(batch, apiItems);
 
     await prisma.topUpGHBatch.update({
       where : { id: batchId },
