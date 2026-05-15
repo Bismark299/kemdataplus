@@ -1455,6 +1455,7 @@ const orderGroupService = {
    * - Have NO externalReference (never sent to API)
    * - Are older than 1 minute (to avoid interfering with active orders)
    * - Are newer than 24 hours (don't retry very old orders)
+   * Also queues MTN items to Etopup when etopup is enabled and MCBIS/CKGodsway don't handle MTN.
    */
   async retryStuckPendingOrders() {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -1502,7 +1503,50 @@ const orderGroupService = {
         
         // Process the order items (only PENDING items with apiSentAt=null will be claimed)
         const result = await this.processOrderItems(orderGroup.id);
-        
+
+        // Also queue MTN items to Etopup if etopup handles MTN and MCBIS/CKGodsway don't.
+        // processOrderItems skips items when no MCBIS/CKGodsway provider is found — those
+        // items stay PENDING and must be routed here instead.
+        try {
+          const sc = require('../controllers/settings.controller');
+          const ss = sc && sc.getSiteSettings ? sc.getSiteSettings() : {};
+          const etopupEnabled    = ss.etopupAPI !== false;
+          const etopupMtnEnabled = ss.etopup_mtnAPI !== false;
+          const mcbisHandlesMtn  = ss.mcbisAPI === true && ss.mcbis_mtnAPI !== false;
+          const ckgHandlesMtn    = ss.ckgodswayAPI === true && ss.ckgodsway_mtnAPI !== false;
+
+          if (etopupEnabled && etopupMtnEnabled && !mcbisHandlesMtn && !ckgHandlesMtn) {
+            const batchSvc = getTopUpGHBatchService();
+            if (batchSvc) {
+              // Only pick items that are still PENDING and not yet queued to etopup
+              const unqueued = await prisma.orderItem.findMany({
+                where: {
+                  orderGroupId   : orderGroup.id,
+                  status         : 'PENDING',
+                  externalReference : null,
+                  topupghQueuedAt   : null,
+                  apiSentAt         : null
+                },
+                include: { bundle: { select: { network: true } } }
+              });
+              const mtnItems = unqueued.filter(
+                i => (i.bundle?.network || '').toLowerCase() === 'mtn'
+              );
+              for (const item of mtnItems) {
+                await batchSvc.queueItem(item.id).catch(err =>
+                  console.error(`[AutoRetry] Failed to queue item ${item.id} for Etopup:`, err.message)
+                );
+              }
+              if (mtnItems.length > 0) {
+                console.log(`[AutoRetry] Queued ${mtnItems.length} MTN item(s) for Etopup from ${orderGroup.displayId}`);
+                result.processed += mtnItems.length;
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`[AutoRetry] Etopup queue error for ${orderGroup.displayId}:`, e.message);
+        }
+
         retriedCount++;
         if (result.processed > 0) {
           successCount++;

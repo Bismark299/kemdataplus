@@ -21,7 +21,7 @@ const topupghSvc   = require('./topupgh.service');
 // -------------------------------------------------------
 const CONFIG = {
   MIN_BATCH_SIZE       : 5,        // Don't dispatch until we have this many items
-  MAX_BATCH_SIZE       : 200,      // Safety cap per dispatch call
+  MAX_BATCH_SIZE       : 10,       // Max items per batch sent to Etopup
   MAX_WAIT_MINUTES     : 30,       // Force-dispatch even if < MIN_BATCH_SIZE after this wait
   DISPATCH_INTERVAL_MS : 5 * 60 * 1000,  // How often the scheduler runs (5 min)
   SYNC_INTERVAL_MS     : 15 * 60 * 1000, // How often to poll delivery status (15 min)
