@@ -285,23 +285,56 @@ async function syncBatchDelivery(batchId) {
     // Log the full raw response so we can verify the structure
     console.log(`[TopUpGH Sync] Raw delivery response for ${batch.batchRef}:`, JSON.stringify(response));
 
-    // Support multiple response shapes from the Etopup API
-    const apiItems =
-      response.delivery_status?.items ||   // { delivery_status: { items: [...] } }
-      response.items                  ||   // { items: [...] }
-      response.data?.items            ||   // { data: { items: [...] } }
-      response.orders                 ||   // { orders: [...] }
+    // Support multiple response shapes from the Etopup API:
+    //  { delivery_status: { items: [...] } }
+    //  { delivery_status: [...] }          ← delivery_status is the array itself
+    //  { order: { items: [...] } }         ← matches webhook payload shape
+    //  { items: [...] }
+    //  { data: { items: [...] } }
+    //  { orders: [...] }
+    //  { added_items: [...] }              ← same key used in create response
+    let apiItems =
+      (Array.isArray(response.delivery_status) ? response.delivery_status : null) ||
+      response.delivery_status?.items ||
+      response.order?.items           ||
+      response.items                  ||
+      response.data?.items            ||
+      response.orders                 ||
+      response.added_items            ||
       [];
 
+    // If still empty, fall back to the plain order-status endpoint which definitely exists
     if (!apiItems.length) {
-      console.log(`[TopUpGH Sync] No delivery items in response for batch ${batch.batchRef}. Full response keys: ${Object.keys(response).join(', ')}`);
+      console.log(`[TopUpGH Sync] delivery-status endpoint returned no items for batch ${batch.batchRef} (keys: ${Object.keys(response).join(', ')}). Trying getOrderStatus fallback...`);
+      try {
+        const orderResp = await topupghSvc.getOrderStatus(batch.topupghOrderId);
+        console.log(`[TopUpGH Sync] getOrderStatus response for ${batch.batchRef}:`, JSON.stringify(orderResp));
+        apiItems =
+          (Array.isArray(orderResp.delivery_status) ? orderResp.delivery_status : null) ||
+          orderResp.delivery_status?.items ||
+          orderResp.order?.items           ||
+          orderResp.items                  ||
+          orderResp.data?.items            ||
+          orderResp.added_items            ||
+          [];
+      } catch (fallbackErr) {
+        console.error(`[TopUpGH Sync] getOrderStatus fallback also failed for ${batch.batchRef}:`, fallbackErr.message);
+      }
+    }
+
+    if (!apiItems.length) {
+      console.log(`[TopUpGH Sync] No delivery items found for batch ${batch.batchRef} after both endpoints — order may still be processing`);
     }
 
     await _applyDeliveryStatus(batch, apiItems);
 
+    // Persist raw delivery response into the batch record for debugging
     await prisma.topUpGHBatch.update({
       where : { id: batchId },
-      data  : { deliveryCheckedAt: new Date() }
+      data  : {
+        deliveryCheckedAt : new Date(),
+        rawResponse       : { ...((batch.rawResponse) || {}), lastDeliveryCheck: response }
+      }
     });
   } catch (err) {
     console.error(`[TopUpGH Sync] Error syncing batch ${batch.batchRef}:`, err.message);
@@ -355,12 +388,16 @@ async function _applyDeliveryStatus(batch, apiItems) {
 
   for (const apiItem of apiItems) {
     // Etopup uses beneficiary_number in responses; _beneficiary_number in create payloads
-    const phone          = apiItem.beneficiary_number || apiItem._beneficiary_number;
-    const deliveryStatus = apiItem.delivery_status;
-    const topupghItemId  = apiItem.item_id;
+    // Also handle 'phone', 'number', 'recipient' as field name variants
+    const phone = apiItem.beneficiary_number || apiItem._beneficiary_number ||
+                  apiItem.phone || apiItem.number || apiItem.recipient;
+    // delivery_status may come as 'status', 'delivery_status', or 'deliveryStatus'
+    const deliveryStatus = apiItem.delivery_status || apiItem.status || apiItem.deliveryStatus;
+    // item_id may be number or string
+    const topupghItemId  = apiItem.item_id != null ? String(apiItem.item_id) : null;
     const deliveryDate   = apiItem.delivery_date && apiItem.delivery_time
       ? new Date(`${apiItem.delivery_date}T${apiItem.delivery_time}`)
-      : null;
+      : (apiItem.deliveredAt ? new Date(apiItem.deliveredAt) : null);
 
     // Normalize both sides — handles 0XXXXXXXXX vs 233XXXXXXXXX mismatch
     const phoneKey     = _normalizePhone(phone);
@@ -371,8 +408,8 @@ async function _applyDeliveryStatus(batch, apiItems) {
       continue;
     }
 
-    const isDelivered = (deliveryStatus || '').toLowerCase().includes('deliver');
-    const isFailed    = (deliveryStatus || '').toLowerCase().includes('fail');
+    const isDelivered = /deliver|success|sent|complet/i.test(deliveryStatus || '');
+    const isFailed    = /fail|error|reject/i.test(deliveryStatus || '');
 
     await prisma.orderItem.update({
       where : { id: internalItem.id },
