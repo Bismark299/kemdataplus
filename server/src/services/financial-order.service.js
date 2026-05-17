@@ -933,7 +933,7 @@ const financialOrderService = {
       };
     }
 
-    // Check if already credited
+    // Fast path: already credited (avoids acquiring DB lock when clearly done)
     if (storefrontOrder.profitCredited) {
       return { 
         credited: false, 
@@ -953,15 +953,19 @@ const financialOrderService = {
     const agentProfit = storefrontOrder.ownerProfit;
     const owner = storefrontOrder.storefront.owner;
 
+    // ATOMIC CLAIM — prevents double-crediting under concurrent load.
+    // Only one caller can flip profitCredited from false → true; the other gets count=0.
+    const claimed = await prisma.storefrontOrder.updateMany({
+      where: { id: storefrontOrderId, profitCredited: false },
+      data:  { profitCredited: true, profitCreditedAt: new Date() }
+    });
+    if (claimed.count === 0) {
+      // Lost the race — another concurrent request already claimed this credit
+      return { credited: false, reason: 'Profit already credited' };
+    }
+
     if (agentProfit <= 0) {
-      // Mark as credited even if zero profit
-      await prisma.storefrontOrder.update({
-        where: { id: storefrontOrderId },
-        data: {
-          profitCredited: true,
-          profitCreditedAt: new Date()
-        }
-      });
+      // profitCredited flag already set by atomic claim above
       return { 
         credited: true, 
         amount: 0, 
@@ -985,15 +989,7 @@ const financialOrderService = {
           description: `Store profit - ${storefrontOrder.bundle.name} to ${storefrontOrder.customerPhone}`
         });
 
-        // Mark storefront order as profit recorded (pending)
-        await prisma.storefrontOrder.update({
-          where: { id: storefrontOrderId },
-          data: {
-            profitCredited: true, // Mark as handled (will be credited at batch time)
-            profitCreditedAt: new Date()
-          }
-        });
-
+        // profitCredited flag already set by atomic claim above
         console.log(`[Financial] 📋 Agent profit queued for ${payoutSettings.mode} payout: GHS ${agentProfit.toFixed(2)} to ${owner.name}`);
         
         return {
@@ -1042,14 +1038,7 @@ const financialOrderService = {
         }
       });
 
-      // Mark storefront order as profit credited
-      await tx.storefrontOrder.update({
-        where: { id: storefrontOrderId },
-        data: {
-          profitCredited: true,
-          profitCreditedAt: new Date()
-        }
-      });
+      // profitCredited flag already set by atomic claim before the transaction
 
       // Create wallet ledger entry
       const runningBalance = wallet.balance + agentProfit;
