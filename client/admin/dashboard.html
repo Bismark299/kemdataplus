@@ -11586,6 +11586,7 @@
 
         // ========== HISTORY SECTION ==========
         let historyData = [];
+        let historyOrdersCache = [];
         let historyPerPage = 100;
         let historyCurrentPage = 1;
         
@@ -11597,12 +11598,13 @@
             if (dateFromInput && !dateFromInput.value) dateFromInput.value = today;
             if (dateToInput && !dateToInput.value) dateToInput.value = today;
             
-            // Fetch ALL orders for history
+            // Fetch ALL orders for history (no date filter, high limit)
             try {
-                const res = await adminFetch('/api/order-groups/admin/all?compact=true');
+                const res = await adminFetch('/api/order-groups/admin/all?compact=true&limit=100000');
                 if (res.ok) {
                     const data = await res.json();
-                    ordersCache = data.orders || [];
+                    // Use a separate variable so we don't overwrite the main orders cache
+                    historyOrdersCache = data.orders || [];
                 }
             } catch (err) {
                 console.error('Failed to fetch orders for history:', err);
@@ -11615,7 +11617,7 @@
         }
         
         function loadHistoryData() {
-            const orders = [...ordersCache];
+            const orders = [...historyOrdersCache];
             // Sort orders by date descending (newest first)
             orders.sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp));
             const totalOrders = orders.length;
