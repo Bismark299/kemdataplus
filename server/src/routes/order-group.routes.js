@@ -1416,4 +1416,74 @@ router.post('/admin/item/:itemId/retry', authenticate, authorize('ADMIN'), async
   }
 });
 
+/**
+ * DELETE /api/admin/order-groups/:id/delete-duplicate
+ * Hard-delete a DUPLICATE_HOLD order with NO refund and NO supplier call (admin)
+ */
+router.delete('/admin/:id/delete-duplicate', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+
+    const orderGroup = await prisma.orderGroup.findFirst({
+      where: {
+        OR: [
+          { id: orderId },
+          { displayId: orderId }
+        ]
+      },
+      include: { items: true }
+    });
+
+    if (!orderGroup) {
+      // Also try legacy Order table
+      const legacyOrder = await prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: orderId },
+            { reference: orderId }
+          ]
+        }
+      });
+
+      if (!legacyOrder) {
+        return res.status(404).json({ error: 'Order not found', code: 'NOT_FOUND' });
+      }
+
+      await prisma.order.delete({ where: { id: legacyOrder.id } });
+
+      console.log(`[Admin] Hard-deleted legacy duplicate order ${orderId} (no refund)`);
+      return res.json({ success: true, message: `Order ${orderId} deleted.` });
+    }
+
+    // Delete all items in the group
+    await prisma.orderItem.deleteMany({ where: { orderGroupId: orderGroup.id } });
+
+    // Delete the order group itself
+    await prisma.orderGroup.delete({ where: { id: orderGroup.id } });
+
+    console.log(`[Admin] Hard-deleted duplicate OrderGroup ${orderGroup.displayId} (no refund, no supplier)`);
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        tenantId: orderGroup.tenantId,
+        action: 'ORDER_DUPLICATE_DELETED',
+        entityType: 'OrderGroup',
+        entityId: orderGroup.id,
+        newValues: {
+          displayId: orderGroup.displayId,
+          deletedBy: req.user.email,
+          itemCount: orderGroup.items.length,
+          reason: 'Admin hard-delete: no refund, no supplier'
+        }
+      }
+    }).catch(() => {}); // Non-fatal
+
+    res.json({ success: true, message: `Order ${orderGroup.displayId} deleted.` });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

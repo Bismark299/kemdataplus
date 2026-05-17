@@ -10960,12 +10960,41 @@
                             <button onclick="rejectDuplicateOrder('${order.displayId || order.id}', ${order.totalAmount || 0})" class="btn-action reject" title="Reject and refund" style="background:#ef4444;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
                                 <i class="fas fa-times"></i> Reject
                             </button>
+                            <button onclick="deleteDuplicateOrder('${order.displayId || order.id}')" class="btn-action" title="Delete (no refund, no supplier call)" style="background:#6b7280;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
                         </div>
                     </td>
                 </tr>
             `}).join('');
         }
         
+        async function deleteDuplicateOrder(orderId) {
+            const confirmed = await showConfirmModal({
+                title: 'Delete Order',
+                message: `Permanently delete order ${orderId}?\n\nThis will NOT refund the wallet and will NOT send to any supplier. The order record will be removed entirely.`,
+                confirmText: 'Delete',
+                type: 'danger'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await adminFetch(`/api/order-groups/admin/${orderId}/delete-duplicate`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to delete order');
+                }
+
+                showToast(`Order ${orderId} deleted.`, 'success');
+                loadDuplicateOrders();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
         async function releaseDuplicateOrder(orderId) {
             const confirmed = await showConfirmModal({
                 title: 'Release Order',
@@ -11597,19 +11626,29 @@
             const dateToInput = document.getElementById('filterDateTo');
             if (dateFromInput && !dateFromInput.value) dateFromInput.value = today;
             if (dateToInput && !dateToInput.value) dateToInput.value = today;
-            
-            // Fetch ALL orders for history (no date filter, high limit)
+
+            await fetchHistoryOrders();
+        }
+
+        // Fetch history orders from server using the current date range
+        async function fetchHistoryOrders() {
+            const dateFrom = document.getElementById('filterDateFrom')?.value || '';
+            const dateTo   = document.getElementById('filterDateTo')?.value   || '';
+
+            const params = new URLSearchParams({ compact: 'true', limit: '10000' });
+            if (dateFrom) params.set('dateFrom', dateFrom);
+            if (dateTo)   params.set('dateTo',   dateTo);
+
             try {
-                const res = await adminFetch('/api/order-groups/admin/all?compact=true&limit=100000');
+                const res = await adminFetch('/api/order-groups/admin/all?' + params.toString());
                 if (res.ok) {
                     const data = await res.json();
-                    // Use a separate variable so we don't overwrite the main orders cache
                     historyOrdersCache = data.orders || [];
                 }
             } catch (err) {
                 console.error('Failed to fetch orders for history:', err);
             }
-            
+
             loadHistoryData();
             populateHistoryFilters();
             updateHistoryStats();
@@ -11706,8 +11745,6 @@
         }
         
         function getFilteredHistoryData() {
-            const dateFrom = document.getElementById('filterDateFrom')?.value || '';
-            const dateTo = document.getElementById('filterDateTo')?.value || '';
             const orderNo = document.getElementById('filterOrderNoModal')?.value?.trim() || '';
             const phone = document.getElementById('filterPhoneModal')?.value?.trim() || '';
             const status = document.getElementById('filterStatusHistory')?.value || '';
@@ -11715,19 +11752,8 @@
             const agent = document.getElementById('filterAgentHistory')?.value || '';
             const network = document.getElementById('filterNetworkHistory')?.value || '';
             
+            // Date range is handled server-side; historyData already contains only the requested range
             let filtered = [...historyData];
-            
-            // Date range filter - use UTC dates for consistent comparison
-            if (dateFrom) {
-                // Parse as UTC midnight (dateFrom is YYYY-MM-DD)
-                const fromDate = new Date(dateFrom + 'T00:00:00.000Z');
-                filtered = filtered.filter(h => new Date(h.date) >= fromDate);
-            }
-            if (dateTo) {
-                // Parse as UTC end of day
-                const toDate = new Date(dateTo + 'T23:59:59.999Z');
-                filtered = filtered.filter(h => new Date(h.date) <= toDate);
-            }
             
             // Order number filter
             if (orderNo) {
@@ -11772,6 +11798,12 @@
             updateHistoryStats();
             renderHistoryTable();
         }
+
+        // Called when date range inputs change — re-fetches from server
+        async function filterHistoryByDate() {
+            historyCurrentPage = 1;
+            await fetchHistoryOrders();
+        }
         
         // Toggle filter visibility
         function toggleHistoryFilters() {
@@ -11789,26 +11821,31 @@
         }
         
         function clearHistoryFilters() {
-            document.getElementById('filterDateFrom').value = '';
-            document.getElementById('filterDateTo').value = '';
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('filterDateFrom').value = today;
+            document.getElementById('filterDateTo').value = today;
             document.getElementById('filterOrderNoModal').value = '';
             document.getElementById('filterPhoneModal').value = '';
             document.getElementById('filterStatusHistory').value = '';
             document.getElementById('filterPaymentHistory').value = '';
             document.getElementById('filterAgentHistory').value = '';
             document.getElementById('filterNetworkHistory').value = '';
-            filterHistory();
+            filterHistoryByDate(); // re-fetch with today's date
         }
         
         // Add event listeners for filter inputs
         document.addEventListener('DOMContentLoaded', function() {
-            const filterInputs = ['filterDateFrom', 'filterDateTo', 'filterOrderNoModal', 'filterPhoneModal', 'filterStatusHistory', 'filterPaymentHistory', 'filterAgentHistory', 'filterNetworkHistory'];
-            filterInputs.forEach(id => {
+            // Date inputs re-fetch from server
+            ['filterDateFrom', 'filterDateTo'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', filterHistoryByDate);
+            });
+            // Other inputs filter locally (fast)
+            ['filterOrderNoModal', 'filterPhoneModal', 'filterStatusHistory', 'filterPaymentHistory', 'filterAgentHistory', 'filterNetworkHistory'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', filterHistory);
                     if (el.tagName === 'INPUT' && el.type === 'text') {
-                        // Use 'input' event for instant filtering on typing AND pasting
                         el.addEventListener('input', filterHistory);
                     }
                 }
