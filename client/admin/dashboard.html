@@ -7976,7 +7976,7 @@
                     throw new Error('Failed after retries');
                 };
                 
-                const res = await fetchWithRetry('/api/order-groups/admin/all?compact=true');
+                const res = await fetchWithRetry('/api/order-groups/admin/all?compact=true' + buildOrdersQueryParams());
                 if (!res.ok) throw new Error('Failed to fetch orders');
                 const data = await res.json();
                 ordersCache = data.orders || [];
@@ -8197,6 +8197,27 @@
         // Apply filters to orders
         // Orders cache for filtering
         let ordersCache = [];
+
+        // Build query params from current filter UI state for server-side filtering
+        function buildOrdersQueryParams() {
+            const params = new URLSearchParams();
+            const date = document.getElementById('filterDate')?.value || '';
+            const status = document.getElementById('filterStatus')?.value || '';
+            const network = document.getElementById('filterNetwork')?.value || '';
+            const phone = document.getElementById('filterPhoneMain')?.value || '';
+            const search = document.getElementById('filterAgentCode')?.value || '';
+            const orderNo = document.getElementById('filterOrderNoMain')?.value || '';
+            if (date)    params.set('date', date);
+            if (status)  params.set('status', status);
+            if (network) params.set('network', network);
+            if (phone && /^\d+$/.test(phone)) params.set('phone', phone);
+            if (search)  params.set('search', search);
+            if (orderNo) params.set('search', orderNo);   // reuse search for order no
+            // Always request enough rows; server filters bring count down
+            params.set('limit', '5000');
+            const qs = params.toString();
+            return qs ? '&' + qs : '';
+        }
         async function calculateReportStats() {
             try {
                 // Fetch all orders for accurate report stats (no 5000 limit)
@@ -8298,14 +8319,23 @@
         
         // Add filter event listeners
         function initFilterListeners() {
-            const filterInputs = ['filterDate', 'filterOrderNoMain', 'filterAgentCode', 'filterPhoneMain', 'filterNetwork', 'filterStatus', 'filterPayment'];
-            
-            filterInputs.forEach(id => {
+            // Filters that require a server re-fetch (they narrow the dataset beyond what's cached)
+            const serverFilters = ['filterDate', 'filterStatus', 'filterNetwork'];
+            // Filters that can be applied client-side on the cached dataset
+            const clientFilters = ['filterOrderNoMain', 'filterAgentCode', 'filterPhoneMain', 'filterPayment'];
+
+            serverFilters.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', () => loadStats());
+                }
+            });
+
+            clientFilters.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', applyFilters);
                     if (el.tagName === 'INPUT' && el.type !== 'date') {
-                        // Use 'input' event for instant filtering on typing AND pasting
                         el.addEventListener('input', debounce(applyFilters, 300));
                     }
                 }

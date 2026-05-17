@@ -317,20 +317,61 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    // Default to 5000 orders if no limit specified
-    const limit = Math.max(1, parseInt(req.query.limit) || 5000);
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 500, 100000));
     const compact = req.query.compact === 'true';
 
-    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit})`);
+    // Server-side filters
+    const dateParam  = req.query.date   || '';   // YYYY-MM-DD
+    const status     = req.query.status || '';
+    const network    = req.query.network || '';
+    const phone      = req.query.phone  || '';
+    const search     = req.query.search || '';   // agent code / name / order no
+
+    // Build date range filter
+    const dateWhere = {};
+    if (dateParam) {
+      const start = new Date(dateParam + 'T00:00:00.000Z');
+      const end   = new Date(dateParam + 'T23:59:59.999Z');
+      dateWhere.createdAt = { gte: start, lte: end };
+    }
+
+    // Build OrderGroup where clause
+    const ogWhere = { ...dateWhere };
+    if (search) {
+      ogWhere.user = {
+        OR: [
+          { name:      { contains: search, mode: 'insensitive' } },
+          { agentCode: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    // Build legacy Order where clause
+    const orderWhere = { ...dateWhere };
+    if (status)  orderWhere.status = status;
+    if (phone)   orderWhere.recipientPhone = { contains: phone };
+    if (network) orderWhere.bundle = { network: { contains: network, mode: 'insensitive' } };
+    if (search)  {
+      orderWhere.user = {
+        OR: [
+          { name:      { contains: search, mode: 'insensitive' } },
+          { agentCode: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit}, date: ${dateParam || 'all'}, status: ${status || 'all'}, network: ${network || 'all'})`);
 
     // Fetch both OrderGroups AND legacy Orders
     const [orderGroups, legacyOrders] = await Promise.all([
       prisma.orderGroup.findMany({
+        where: ogWhere,
         include: {
           user: {
-            select: { id: true, name: true, email: true, phone: true, role: true }
+            select: { id: true, name: true, email: true, phone: true, role: true, agentCode: true }
           },
           items: {
+            where: status ? { status } : undefined,
             include: {
               bundle: {
                 select: { id: true, name: true, network: true, dataAmount: true }
@@ -344,9 +385,10 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
       }),
       // Fetch legacy orders
       prisma.order.findMany({
+        where: orderWhere,
         include: {
           user: {
-            select: { id: true, name: true, email: true, phone: true, role: true }
+            select: { id: true, name: true, email: true, phone: true, role: true, agentCode: true }
           },
           bundle: {
             select: { id: true, name: true, network: true, dataAmount: true }
@@ -476,7 +518,8 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
 
     res.json({
       orders: limitedOrders,
-      total: limitedOrders.length
+      total: limitedOrders.length,
+      filtered: !!(dateParam || status || network || phone || search)
     });
 
   } catch (error) {
