@@ -321,18 +321,24 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     const compact = req.query.compact === 'true';
 
     // Server-side filters
-    const dateParam  = req.query.date   || '';   // YYYY-MM-DD
-    const status     = req.query.status || '';
-    const network    = req.query.network || '';
-    const phone      = req.query.phone  || '';
-    const search     = req.query.search || '';   // agent code / name / order no
+    const dateParam  = req.query.date     || '';   // YYYY-MM-DD  (single day)
+    const dateFrom   = req.query.dateFrom || '';   // YYYY-MM-DD  (range start)
+    const dateTo     = req.query.dateTo   || '';   // YYYY-MM-DD  (range end)
+    const status     = (req.query.status  || '').toUpperCase();  // normalise to DB enum case
+    const network    = req.query.network  || '';
+    const phone      = req.query.phone    || '';
+    const search     = req.query.search   || '';   // agent code / name / order no
 
-    // Build date range filter
+    // Build date range filter (single date takes priority over range)
     const dateWhere = {};
     if (dateParam) {
       const start = new Date(dateParam + 'T00:00:00.000Z');
       const end   = new Date(dateParam + 'T23:59:59.999Z');
       dateWhere.createdAt = { gte: start, lte: end };
+    } else if (dateFrom || dateTo) {
+      dateWhere.createdAt = {};
+      if (dateFrom) dateWhere.createdAt.gte = new Date(dateFrom + 'T00:00:00.000Z');
+      if (dateTo)   dateWhere.createdAt.lte = new Date(dateTo   + 'T23:59:59.999Z');
     }
 
     // Build OrderGroup where clause
@@ -360,7 +366,7 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
       };
     }
 
-    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit}, date: ${dateParam || 'all'}, status: ${status || 'all'}, network: ${network || 'all'})`);
+    console.log(`[OrderGroup] Admin fetching orders (limit: ${limit}, date: ${dateParam || dateFrom && `${dateFrom}→${dateTo}` || 'all'}, status: ${status || 'all'}, network: ${network || 'all'})`);
 
     // Fetch both OrderGroups AND legacy Orders
     const [orderGroups, legacyOrders] = await Promise.all([
@@ -371,7 +377,7 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
             select: { id: true, name: true, email: true, phone: true, role: true, agentCode: true }
           },
           items: {
-            where: status ? { status } : undefined,
+            ...(status ? { where: { status } } : {}),
             include: {
               bundle: {
                 select: { id: true, name: true, network: true, dataAmount: true }
