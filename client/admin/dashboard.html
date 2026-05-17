@@ -13139,8 +13139,19 @@
         // ========== REPORTS SECTION ==========
         let currentReportPeriod = 'today';
         let currentReportTab = 'sales';
-        
-        function loadReportsSection() {
+        let reportOrdersCache = [];
+
+        async function loadReportsSection() {
+            try {
+                // Fetch ALL orders so month/year filters are never cut off by the main cache limit
+                const res = await adminFetch('/api/order-groups/admin/all?compact=true&limit=100000');
+                if (res.ok) {
+                    const data = await res.json();
+                    reportOrdersCache = data.orders || [];
+                }
+            } catch (err) {
+                console.error('Failed to fetch orders for reports:', err);
+            }
             calculateReportStats();
             renderSalesReport();
             renderUserReport();
@@ -13187,7 +13198,8 @@
         }
         
         function getFilteredOrders() {
-            const orders = [...ordersCache];
+            // Use the dedicated full-fetch cache so period filters (month/year) aren't clipped
+            const orders = [...(reportOrdersCache.length ? reportOrdersCache : ordersCache)];
             const now = new Date();
             let startDate;
             
