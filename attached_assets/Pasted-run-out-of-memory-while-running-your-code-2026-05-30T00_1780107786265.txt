@@ -1,0 +1,51 @@
+run out of memory while running your code
+2026-05-30T00:18:29.85318985Z     "status": "success",
+2026-05-30T00:18:29.8531942Z     "order": {
+2026-05-30T00:18:29.85319863Z       "reference": "KEM1780100157495I32XT3",
+2026-05-30T00:18:29.85320268Z       "status": "processing",
+2026-05-30T00:18:29.85320668Z       "amount": 1,
+2026-05-30T00:18:29.85320918Z       "recipient": "0592668381"
+2026-05-30T00:18:29.853211571Z     }
+2026-05-30T00:18:29.853214051Z   }
+2026-05-30T00:18:29.85321654Z }
+2026-05-30T00:18:29.853219051Z [DataHub] Extracted order status: processing
+2026-05-30T00:18:29.853221661Z [DataHub] API returned status: processing
+2026-05-30T00:18:29.853224131Z [DataHub] Normalized API status: 'processing'
+2026-05-30T00:18:29.853226561Z [DataHub] Current DB status: 'PROCESSING'
+2026-05-30T00:18:29.853241011Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-05-30T00:18:29.853243781Z [DataHub] Order status unchanged (PROCESSING)
+2026-05-30T00:18:38.612796479Z [OrderGroup] Fetched 58006 order groups, 32044 legacy orders
+2026-05-30T00:18:44.601479952Z ==> Running 'npm start'
+2026-05-30T00:18:45.250458067Z 
+2026-05-30T00:18:45.250481508Z > kemdataplus-server@1.0.0 start
+2026-05-30T00:18:45.250487098Z > node src/index.js
+2026-05-30T00:18:45.250490308Z 
+2026-05-30T00:18:45.995484378Z 🚀 KemDataplus Server running on port 10000
+2026-05-30T00:18:45.995735724Z 📚 API available at /api
+2026-05-30T00:18:45.995744174Z 🌐 Environment: production
+2026-05-30T00:18:45.996209816Z 🔄 Auto-sync initialized (every 30s)
+2026-05-30T00:18:45.996482383Z [StuckChecker] Starting background checker (every 5 minutes)
+2026-05-30T00:18:45.996595795Z [Scheduler] Weekly MoMo payouts set to ADMIN MANUAL mode
+2026-05-30T00:18:45.996617916Z [Scheduler] Payout schedule: friday at 19:30 Ghana time
+2026-05-30T00:18:45.996663957Z [Scheduler] Minimum payout: GH₵10
+2026-05-30T00:18:45.996675697Z [Scheduler] Admin must trigger payouts from dashboard
+2026-05-30T00:18:45.996854932Z [TopUpGH Scheduler] Starting — dispatch every 5 min, sync every 15 min
+2026-05-30T00:18:46.107545442Z ✅ Database trigger cleanup complete
+2026-05-30T00:18:48.845090759Z 172.71.151.97 - - [30/May/2026:00:18:48 +0000] "GET /api/wallet/deposits?status=pending&_t=1780100327809 HTTP/1.1" 200 387 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:18:49.273538334Z 172.71.146.130 - - [30/May/2026:00:18:49 +0000] "GET /api/complaints/admin/stats?_t=1780100328251 HTTP/1.1" 200 73 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:19:05.024540104Z [Paystack] Top-up breakdown - Subtotal: 5, Fee: 0.1, Total: 5.1
+2026-05-30T00:19:05.024950434Z [Paystack] POST /transaction/initialize
+2026-05-30T00:19:05.610261617Z [Paystack] Payment initialized: KDP_dc0d0c21_1780100345024 for 5.1 GHS (credit: 5, fee: 0.1)
+2026-05-30T00:19:05.610305168Z [Paystack] Initialize result: {"success":true,"reference":"KDP_dc0d0c21_1780100345024","authorizationUrl":"https://checkout.paystack.com/ho177nedlih7elf","accessCode":"ho177nedlih7elf"}
+2026-05-30T00:19:05.610958224Z 172.71.146.130 - - [30/May/2026:00:19:05 +0000] "POST /api/paystack/initialize HTTP/1.1" 200 155 "https://kemdataplus.onrender.com/pages/wallet.html" "Mozilla/5.0 (Linux; U; Android 8.1.0; en-nz; INE-LX1 Build/HUAWEIINE-LX1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Mobile Safari/537.36 PHX/21.2"
+2026-05-30T00:19:16.000067004Z [TopUpGH Dispatch] Running dispatch check...
+2026-05-30T00:19:16.005433568Z [TopUpGH Dispatch] 2 item(s) in queue
+2026-05-30T00:19:16.005489549Z [TopUpGH Dispatch] Only 2/5 items. Oldest is 19.8 min old (max wait: 30 min). Holding.
+2026-05-30T00:19:18.933038318Z 172.71.151.97 - - [30/May/2026:00:19:18 +0000] "GET /api/wallet/deposits?status=pending&_t=1780100357814 HTTP/1.1" 200 387 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:19:18.942119044Z 172.68.184.236 - - [30/May/2026:00:19:18 +0000] "GET /api/admin/alerts/counts?_t=1780100357814 HTTP/1.1" 200 57 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:19:18.976270652Z 172.68.184.236 - - [30/May/2026:00:19:18 +0000] "GET /api/admin/dashboard-stats?date=2026-05-29&_t=1780100357816 HTTP/1.1" 200 534 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:19:19.334962364Z 172.68.184.236 - - [30/May/2026:00:19:19 +0000] "GET /api/complaints/admin/stats?_t=1780100358320 HTTP/1.1" 200 73 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:19:19.394848602Z [OrderGroup] Admin fetching orders (limit: 5000, date: 2026-05-29, status: all, network: all)
+2026-05-30T00:19:19.522542465Z [OrderGroup] Fetched 679 order groups, 425 legacy orders
+2026-05-30T00:19:19.553707239Z 172.71.146.130 - - [30/May/2026:00:19:19 +0000] "GET /api/order-groups/admin/all?compact=true&date=2026-05-29&limit=5000&_t=1780100358384 HTTP/1.1" 200 - "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-05-30T00:19:36.840414713Z 172.71.146.130 - - [30/May/2026:00:19:36 +0000] "GET /api/order-groups/last-delivery HTTP/1.1" 304 - "https://kemdataplus.onrender.com/public/dashboard.html" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Mobile/15E148 Safari/604.1"

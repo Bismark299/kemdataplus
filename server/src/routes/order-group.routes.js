@@ -317,7 +317,8 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
  */
 router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 500, 100000));
+    // Hard cap at 5 000 rows — loading 50 k+ records with nested relations causes OOM
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 500, 5000));
     const compact = req.query.compact === 'true';
 
     // Server-side filters
@@ -329,7 +330,9 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     const phone      = req.query.phone    || '';
     const search     = req.query.search   || '';   // agent code / name / order no
 
-    // Build date range filter (single date takes priority over range)
+    // Build date range filter (single date takes priority over range).
+    // When NO date filter is provided at all, default to the last 7 days so we
+    // never accidentally load the entire order history into memory.
     const dateWhere = {};
     if (dateParam) {
       const start = new Date(dateParam + 'T00:00:00.000Z');
@@ -339,6 +342,11 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
       dateWhere.createdAt = {};
       if (dateFrom) dateWhere.createdAt.gte = new Date(dateFrom + 'T00:00:00.000Z');
       if (dateTo)   dateWhere.createdAt.lte = new Date(dateTo   + 'T23:59:59.999Z');
+    } else {
+      // Safety default: last 7 days
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+      dateWhere.createdAt = { gte: sevenDaysAgo };
     }
 
     // Build OrderGroup where clause
