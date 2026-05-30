@@ -440,6 +440,7 @@ const topupghBatchService = require('./services/topupgh-batch.service');
 
 let autoSyncInterval = null;
 const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
+let autoSyncRunning = false; // guard: prevent overlapping cycles
 
 // Start profit payout scheduler
 function startProfitPayoutScheduler() {
@@ -467,6 +468,12 @@ function startAutoSync() {
   
   // Check settings and start if enabled
   const checkAndSync = async () => {
+    // Skip this tick if the previous cycle hasn't finished yet
+    if (autoSyncRunning) {
+      console.log('[AutoSync] Previous cycle still running — skipping this tick');
+      return;
+    }
+    autoSyncRunning = true;
     try {
       const siteSettings = settingsController.getSiteSettings();
       
@@ -545,6 +552,8 @@ function startAutoSync() {
       
     } catch (error) {
       console.error(`[AutoSync] Error:`, error.message);
+    } finally {
+      autoSyncRunning = false;
     }
   };
   

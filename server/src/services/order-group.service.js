@@ -1600,7 +1600,8 @@ const orderGroupService = {
           status: { in: ['PROCESSING', 'PENDING'] },
           externalReference: { startsWith: 'CK-' }
         },
-        orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
+        // Always oldest-first so long-waiting orders are never starved by newer ones
+        orderBy: { createdAt: 'asc' }
       };
       if (!catchUp) ckQuery.take = 50;
       const ckItems = await prisma.orderItem.findMany(ckQuery);
@@ -1615,9 +1616,13 @@ const orderGroupService = {
           externalReference: { not: null },
           NOT: { externalReference: { startsWith: 'CK-' } }
         },
-        orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
+        // Always oldest-first so long-waiting orders are never starved by newer ones
+        orderBy: { createdAt: 'asc' }
       };
-      if (!catchUp) mcbisQuery.take = 20; // reduced from 50 to limit API call rate
+      // 50 items × 400 ms = 20 s — comfortably within one 30 s cycle.
+      // Overlap between cycles is blocked by the autoSyncRunning guard in index.js,
+      // so we no longer need to keep this artificially small.
+      if (!catchUp) mcbisQuery.take = 50;
       const mcbisItems = await prisma.orderItem.findMany(mcbisQuery);
       console.log(`[Sync] MCBIS: ${mcbisItems.length} items to sync`);
       items.push(...mcbisItems);
