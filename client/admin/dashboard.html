@@ -6915,6 +6915,13 @@
                                 </div>
                                 <div class="toggle-switch active" id="toggleMomoClaimEnabled" data-site-setting="momoClaimEnabled"></div>
                             </div>
+                            <div class="setting-card" style="border-left: 3px solid #6366f1;">
+                                <div class="setting-card-info">
+                                    <h4 style="color: #6366f1;"><i class="fas fa-paper-plane"></i> Paystack Withdrawal</h4>
+                                    <p id="paystackWithdrawalStatus">Withdrawals are sent automatically via Paystack</p>
+                                </div>
+                                <div class="toggle-switch active" id="togglePaystackWithdrawal" data-site-setting="paystackWithdrawal"></div>
+                            </div>
                         </div>
 
                         <!-- Other Settings -->
@@ -13941,7 +13948,8 @@
             newRegistration: true,
             websiteUpdate: false,
             paystackEnabled: true,
-            momoClaimEnabled: true
+            momoClaimEnabled: true,
+            paystackWithdrawal: true
         };
         
         // Flag to track if settings have been loaded from API (prevents overwriting server settings with defaults)
@@ -14074,6 +14082,8 @@
             const momoClaimStatusEl = document.getElementById('momoClaimEnabledStatus');
             if (paystackStatusEl) paystackStatusEl.textContent = siteSettings.paystackEnabled !== false ? 'Agents can use Paystack for instant top-up' : 'Paystack is DISABLED';
             if (momoClaimStatusEl) momoClaimStatusEl.textContent = siteSettings.momoClaimEnabled !== false ? 'Agents can claim MoMo payments' : 'MoMo Claim is DISABLED';
+            const paystackWithdrawalStatusEl = document.getElementById('paystackWithdrawalStatus');
+            if (paystackWithdrawalStatusEl) paystackWithdrawalStatusEl.textContent = siteSettings.paystackWithdrawal !== false ? 'Withdrawals are sent automatically via Paystack' : 'Withdrawals are MANUAL — admin must process them';
             
             // Etopup statuses
             const etopupMtnEl = document.getElementById('etopupMtnApiStatus');

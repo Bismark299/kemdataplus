@@ -633,6 +633,24 @@ const profitPayoutService = {
 
     // AUTO-PROCESS: Check Paystack balance and auto-send if sufficient
     try {
+      // Respect the paystackWithdrawal toggle — if disabled, queue for manual processing
+      let paystackWithdrawalEnabled = true;
+      try {
+        const settingsPath = path.join(__dirname, '../../settings.json');
+        const settingsRaw = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        paystackWithdrawalEnabled = settingsRaw.siteSettings?.paystackWithdrawal !== false;
+      } catch (e) { /* default to enabled */ }
+
+      if (!paystackWithdrawalEnabled) {
+        console.log(`[Payout] Paystack withdrawal disabled in settings. ${reference} queued for manual processing.`);
+        return {
+          success: true,
+          payout,
+          autoProcessed: false,
+          message: `Withdrawal request of GH₵${amount.toFixed(2)} submitted. Awaiting manual approval.`
+        };
+      }
+
       const paystackBalance = await checkPaystackBalance();
       if (paystackBalance >= netAmount) {
         console.log(`[Payout] Auto-processing ${reference}: Paystack balance GH₵${paystackBalance.toFixed(2)} >= net GH₵${netAmount.toFixed(2)}`);
