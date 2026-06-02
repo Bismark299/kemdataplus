@@ -416,7 +416,7 @@ const profitPayoutService = {
     // Serializable isolation prevents concurrent withdrawals from reading stale balances
     const result = await prisma.$transaction(async (tx) => {
       // Check available earnings INSIDE transaction
-      const [pendingProfits, pendingWithdrawals] = await Promise.all([
+      const [pendingProfits, pendingWithdrawals, adminAdjustments] = await Promise.all([
         tx.pendingProfit.aggregate({
           where: { userId, status: 'PENDING' },
           _sum: { amount: true }
@@ -427,14 +427,19 @@ const profitPayoutService = {
             status: { in: ['PENDING', 'RESERVED', 'PROCESSING'] }
           },
           _sum: { amount: true }
+        }),
+        tx.adminProfitAdjustment.aggregate({
+          where: { userId },
+          _sum: { amount: true }
         })
       ]);
 
       const totalPending = pendingProfits._sum.amount || 0;
       const alreadyRequested = pendingWithdrawals._sum.amount || 0;
-      const available = Math.max(0, totalPending - alreadyRequested);
+      const adminAdjustment = adminAdjustments._sum.amount || 0;
+      const available = Math.max(0, totalPending - alreadyRequested + adminAdjustment);
       
-      console.log('[requestWithdrawal] Available earnings:', { totalPending, alreadyRequested, available });
+      console.log('[requestWithdrawal] Available earnings:', { totalPending, alreadyRequested, adminAdjustment, available });
       
       if (amount > available) {
         throw new Error(`Insufficient earnings. Available: GH₵${available.toFixed(2)}`);
@@ -674,7 +679,7 @@ const profitPayoutService = {
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
     const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
 
-    const [pendingProfits, todayProfits, completedWithdrawals, usersWithProfits] = await Promise.all([
+    const [pendingProfits, todayProfits, completedWithdrawals, usersWithProfits, allAdjustments] = await Promise.all([
       prisma.pendingProfit.aggregate({
         where: { status: 'PENDING' },
         _sum: { amount: true },
@@ -697,12 +702,20 @@ const profitPayoutService = {
       prisma.pendingProfit.groupBy({
         by: ['userId'],
         where: { status: 'PENDING' }
+      }),
+      // Total net admin adjustments across all agents
+      prisma.adminProfitAdjustment.aggregate({
+        _sum: { amount: true }
       })
     ]);
 
+    const rawPending = pendingProfits._sum.amount || 0;
+    const netAdjustment = allAdjustments._sum.amount || 0;
+    const adjustedPending = Math.max(0, rawPending + netAdjustment);
+
     return {
       pending: {
-        amount: pendingProfits._sum.amount || 0,
+        amount: adjustedPending,
         count: pendingProfits._count || 0,
         userCount: usersWithProfits.length
       },
