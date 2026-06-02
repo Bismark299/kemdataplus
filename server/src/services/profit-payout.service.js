@@ -240,6 +240,58 @@ const profitPayoutService = {
   },
 
   /**
+   * Settle a negative admin adjustment directly into PendingProfit rows.
+   * Cancels oldest PENDING profit records up to the deduction amount.
+   * If the deduction exceeds available pending profits, cancels all it can
+   * and returns the shortfall (what couldn't be deducted).
+   */
+  async settleDeductionIntoPendingProfits(userId, deductionAmount, note = 'Admin deduction') {
+    const profits = await prisma.pendingProfit.findMany({
+      where: { userId, status: 'PENDING' },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    let remaining = deductionAmount;
+    const ops = [];
+
+    for (const profit of profits) {
+      if (remaining <= 0) break;
+
+      if (profit.amount <= remaining) {
+        ops.push({ id: profit.id, action: 'cancel' });
+        remaining -= profit.amount;
+      } else {
+        // Partially reduce this record
+        ops.push({ id: profit.id, action: 'reduce', newAmount: profit.amount - remaining });
+        remaining = 0;
+      }
+    }
+
+    const actualCancelled = deductionAmount - remaining;
+
+    if (ops.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const op of ops) {
+          if (op.action === 'cancel') {
+            await tx.pendingProfit.update({
+              where: { id: op.id },
+              data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: note }
+            });
+          } else {
+            await tx.pendingProfit.update({
+              where: { id: op.id },
+              data: { amount: op.newAmount }
+            });
+          }
+        }
+      });
+    }
+
+    console.log(`[Adjustment] Settled GH₵${actualCancelled.toFixed(2)} from PendingProfit for user ${userId}. Shortfall: GH₵${remaining.toFixed(2)}`);
+    return { actualCancelled, shortfall: remaining };
+  },
+
+  /**
    * Cancel pending profit (on refund)
    */
   async cancelPendingProfit(orderId, reason = 'Order refunded') {

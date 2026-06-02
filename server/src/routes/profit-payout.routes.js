@@ -458,20 +458,62 @@ router.post('/admin/agent-adjustment', authenticate, authorize('ADMIN'), async (
     if (isNaN(numAmount) || numAmount === 0) {
       return res.status(400).json({ error: 'amount must be a non-zero number' });
     }
-    // Verify user exists
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const adjustment = await prisma.adminProfitAdjustment.create({
-      data: {
-        userId,
-        amount: numAmount,
-        note: note || null,
-        createdBy: req.user.name || req.user.email || req.user.id
-      }
-    });
+    const adminName = req.user.name || req.user.email || req.user.id;
 
-    res.json({ success: true, adjustment });
+    if (numAmount < 0) {
+      // Negative: cancel oldest PendingProfit records up to the deduction amount
+      const deductionAmount = Math.abs(numAmount);
+      const settled = await profitPayoutService.settleDeductionIntoPendingProfits(
+        userId, deductionAmount, note || 'Admin deduction'
+      );
+
+      // Store an audit record with amount=0 (already settled into PendingProfit rows)
+      const adjustment = await prisma.adminProfitAdjustment.create({
+        data: {
+          userId,
+          amount: 0,
+          note: `SETTLED: -GH₵${deductionAmount.toFixed(2)} cancelled from pending profits (GH₵${settled.actualCancelled.toFixed(2)} applied, GH₵${settled.shortfall.toFixed(2)} shortfall). Reason: ${note || 'Admin deduction'}`,
+          createdBy: adminName
+        }
+      });
+
+      res.json({
+        success: true,
+        adjustment,
+        settled,
+        message: `GH₵${settled.actualCancelled.toFixed(2)} deducted from pending profits.${settled.shortfall > 0 ? ` GH₵${settled.shortfall.toFixed(2)} could not be deducted (insufficient pending profits).` : ''}`
+      });
+    } else {
+      // Positive: create a real PendingProfit record so it shows up immediately
+      const pendingProfit = await prisma.pendingProfit.create({
+        data: {
+          userId,
+          amount: numAmount,
+          description: note || 'Admin profit addition',
+          status: 'PENDING'
+        }
+      });
+
+      // Store an audit record with amount=0 (already settled into PendingProfit)
+      const adjustment = await prisma.adminProfitAdjustment.create({
+        data: {
+          userId,
+          amount: 0,
+          note: `SETTLED: +GH₵${numAmount.toFixed(2)} added as pending profit. Reason: ${note || 'Admin addition'}`,
+          createdBy: adminName
+        }
+      });
+
+      res.json({
+        success: true,
+        adjustment,
+        pendingProfit,
+        message: `GH₵${numAmount.toFixed(2)} added to pending profits.`
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -488,6 +530,72 @@ router.get('/admin/agent-adjustments/:userId', authenticate, authorize('ADMIN'),
       orderBy: { createdAt: 'desc' }
     });
     res.json({ adjustments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/profit-payouts/admin/reconcile-adjustments
+ * One-time reconciliation: settles any legacy AdminProfitAdjustment records
+ * that were created as virtual overlays (non-zero amount) by cancelling or
+ * creating matching PendingProfit rows, then zeroing them out.
+ * Safe to call multiple times — only acts on non-zero adjustment records.
+ */
+router.post('/admin/reconcile-adjustments', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    // Get all legacy adjustment records that still carry a non-zero amount
+    const legacyAdjustments = await prisma.adminProfitAdjustment.findMany({
+      where: { amount: { not: 0 } },
+      include: { user: { select: { id: true, name: true } } }
+    });
+
+    if (legacyAdjustments.length === 0) {
+      return res.json({ success: true, message: 'Nothing to reconcile — all adjustments already settled.', results: [] });
+    }
+
+    // Group by userId and sum net amount
+    const byUser = {};
+    for (const adj of legacyAdjustments) {
+      byUser[adj.userId] = byUser[adj.userId] || { name: adj.user?.name, net: 0 };
+      byUser[adj.userId].net += adj.amount;
+    }
+
+    const results = [];
+
+    for (const [userId, { name, net }] of Object.entries(byUser)) {
+      if (net < 0) {
+        // Settle deduction by cancelling PendingProfit rows
+        const settled = await profitPayoutService.settleDeductionIntoPendingProfits(
+          userId, Math.abs(net), 'Reconciled from legacy admin adjustment'
+        );
+        results.push({ userId, name, netAdjustment: net, action: 'deducted', ...settled });
+
+      } else if (net > 0) {
+        // Settle addition by creating a PendingProfit row
+        await prisma.pendingProfit.create({
+          data: {
+            userId,
+            amount: net,
+            description: 'Reconciled from legacy admin adjustment',
+            status: 'PENDING'
+          }
+        });
+        results.push({ userId, name, netAdjustment: net, action: 'added' });
+      }
+
+      // Zero out all non-zero adjustment records for this user (now settled into PendingProfit)
+      await prisma.adminProfitAdjustment.updateMany({
+        where: { userId, amount: { not: 0 } },
+        data: { amount: 0 }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Reconciled ${results.length} agent(s). Legacy adjustments are now settled into pending profit records.`,
+      results
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
