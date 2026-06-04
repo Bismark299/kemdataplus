@@ -588,6 +588,96 @@ router.get('/bundles/available', authenticate, async (req, res, next) => {
 // ============================================
 
 /**
+ * GET /api/storefronts/admin/stuck-orders
+ * List all paid storefront orders that were never fulfilled (admin only)
+ */
+router.get('/admin/stuck-orders', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const orders = await prisma.storefrontOrder.findMany({
+      where: {
+        paymentStatus: 'PAID',
+        orderId: null,
+        status: { in: ['PENDING', 'DUPLICATE_HOLD'] },
+        paystackReference: { not: null }
+      },
+      include: {
+        bundle: { select: { name: true, network: true, dataAmount: true } },
+        storefront: { select: { name: true, slug: true, owner: { select: { name: true } } } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ total: orders.length, orders });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/storefronts/admin/recover-stuck
+ * Re-run completePaystackOrder for all stuck paid orders (admin only)
+ * Optionally pass { ids: [...] } to recover specific orders only
+ */
+router.post('/admin/recover-stuck', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { ids } = req.body; // optional: array of storefrontOrder IDs
+
+    const whereClause = {
+      paymentStatus: 'PAID',
+      orderId: null,
+      status: { in: ['PENDING', 'DUPLICATE_HOLD'] },
+      paystackReference: { not: null }
+    };
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      whereClause.id = { in: ids };
+    }
+
+    const stuckOrders = await prisma.storefrontOrder.findMany({
+      where: whereClause,
+      include: { bundle: { select: { name: true } } },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    console.log(`[Admin] Recovering ${stuckOrders.length} stuck storefront orders`);
+
+    const results = [];
+    for (const order of stuckOrders) {
+      try {
+        const result = await storefrontService.completePaystackOrder(order.id, order.paystackReference);
+        results.push({
+          id: order.id,
+          reference: order.paystackReference,
+          phone: order.paymentPhone || order.customerPhone,
+          bundle: order.bundle?.name,
+          amount: order.amount,
+          status: 'recovered',
+          orderId: result?.orderId
+        });
+        console.log(`[Admin] Recovered ${order.paystackReference} → orderId ${result?.orderId}`);
+      } catch (err) {
+        results.push({
+          id: order.id,
+          reference: order.paystackReference,
+          phone: order.paymentPhone || order.customerPhone,
+          bundle: order.bundle?.name,
+          amount: order.amount,
+          status: 'failed',
+          error: err.message
+        });
+        console.error(`[Admin] Failed to recover ${order.paystackReference}:`, err.message);
+      }
+    }
+
+    const recovered = results.filter(r => r.status === 'recovered').length;
+    const failed = results.filter(r => r.status === 'failed').length;
+
+    res.json({ total: stuckOrders.length, recovered, failed, results });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/storefronts/admin/all
  * Get all storefronts (admin only)
  */

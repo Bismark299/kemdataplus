@@ -7291,6 +7291,9 @@
                     <button class="storefront-tab" data-tab="uncredited" style="padding: 10px 20px; border: none; background: #e5e7eb; color: #374151; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600;">
                         <i class="fas fa-exclamation-triangle"></i> Uncredited <span id="uncreditedBadge" style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 5px;">0</span>
                     </button>
+                    <button class="storefront-tab" data-tab="stuck" style="padding: 10px 20px; border: none; background: #e5e7eb; color: #374151; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-exclamation-circle" style="color: #dc2626;"></i> Stuck Orders <span id="stuckOrdersBadge" style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 5px;">0</span>
+                    </button>
                 </div>
 
                 <!-- Stores Tab Content -->
@@ -7385,6 +7388,46 @@
                         </table>
                     </div>
                     <div id="ordersPagination" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;"></div>
+                </div>
+
+                <!-- Stuck Orders Tab Content -->
+                <div id="stuckTabContent" class="tab-content" style="display: none;">
+                    <div style="background: #fef2f2; border: 1px solid #dc2626; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px;">
+                        <i class="fas fa-exclamation-circle" style="color: #dc2626; font-size: 1.2rem; margin-top: 2px;"></i>
+                        <div style="flex: 1;">
+                            <strong style="color: #991b1b;">Paid but Unfulfilled Orders</strong>
+                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: #7f1d1d;">These customers paid via Paystack but their order was never processed (due to a verification error or duplicate hold). Click <strong>Recover All</strong> to re-run the completion flow for all of them, or recover them one at a time.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                            <button onclick="loadStuckOrders()" style="padding: 8px 14px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button onclick="recoverAllStuckOrders()" id="recoverAllBtn" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-wrench"></i> Recover All
+                            </button>
+                        </div>
+                    </div>
+                    <div id="stuckRecoverResult" style="display: none; margin-bottom: 16px;"></div>
+                    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #fef2f2; border-bottom: 2px solid #dc2626;">
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #991b1b;">Reference</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #991b1b;">Store</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #991b1b;">Agent</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #991b1b;">Bundle</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #991b1b;">Phone</th>
+                                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #991b1b;">Amount</th>
+                                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #991b1b;">Status</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #991b1b;">Date</th>
+                                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #991b1b;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stuckOrdersTableBody">
+                                <tr><td colspan="9" style="padding: 40px; text-align: center; color: #6b7280;">Click "Refresh" to load stuck orders</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Uncredited Tab Content -->
@@ -15039,6 +15082,13 @@
             ]);
             setupStorefrontTabHandlers();
             setupStorefrontEventHandlers();
+            // Pre-load stuck orders count for the badge
+            try {
+                const res = await adminFetch('/api/storefronts/admin/stuck-orders');
+                const data = await res.json();
+                const badge = document.getElementById('stuckOrdersBadge');
+                if (badge) badge.textContent = data.total || 0;
+            } catch (e) { /* non-critical */ }
         }
 
         async function loadStorefronts(page = storesCurrentPage) {
@@ -15396,6 +15446,8 @@
             document.getElementById('storesTabContent').style.display = tabName === 'stores' ? 'block' : 'none';
             document.getElementById('ordersTabContent').style.display = tabName === 'orders' ? 'block' : 'none';
             document.getElementById('uncreditedTabContent').style.display = tabName === 'uncredited' ? 'block' : 'none';
+            document.getElementById('stuckTabContent').style.display = tabName === 'stuck' ? 'block' : 'none';
+            if (tabName === 'stuck') loadStuckOrders();
         }
 
         function setupStorefrontEventHandlers() {
@@ -15419,6 +15471,89 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(() => func.apply(this, args), wait);
             };
+        }
+
+        async function loadStuckOrders() {
+            const tbody = document.getElementById('stuckOrdersTableBody');
+            tbody.innerHTML = '<tr><td colspan="9" style="padding: 30px; text-align: center; color: #6b7280;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+            try {
+                const res = await adminFetch('/api/storefronts/admin/stuck-orders');
+                const data = await res.json();
+                const badge = document.getElementById('stuckOrdersBadge');
+                if (badge) badge.textContent = data.total || 0;
+                if (!data.orders || data.orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="padding: 40px; text-align: center; color: #16a34a;"><i class="fas fa-check-circle"></i> No stuck orders found</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.orders.map(o => `
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 10px 12px; font-size: 0.78rem; font-family: monospace; color: #6b7280;">${o.paystackReference || '-'}</td>
+                        <td style="padding: 10px 12px; font-size: 0.85rem;">${o.storefront?.name || '-'}</td>
+                        <td style="padding: 10px 12px; font-size: 0.85rem;">${o.storefront?.owner?.name || '-'}</td>
+                        <td style="padding: 10px 12px; font-size: 0.85rem;">${o.bundle?.name || '-'}</td>
+                        <td style="padding: 10px 12px; font-size: 0.85rem;">${o.paymentPhone || o.customerPhone || '-'}</td>
+                        <td style="padding: 10px 12px; text-align: right; font-weight: 600;">GH₵${parseFloat(o.amount || 0).toFixed(2)}</td>
+                        <td style="padding: 10px 12px; text-align: center;">
+                            <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${o.status === 'DUPLICATE_HOLD' ? '#fef3c7' : '#fef2f2'}; color: ${o.status === 'DUPLICATE_HOLD' ? '#92400e' : '#991b1b'};">${o.status}</span>
+                        </td>
+                        <td style="padding: 10px 12px; font-size: 0.8rem; color: #6b7280;">${new Date(o.createdAt).toLocaleDateString()}</td>
+                        <td style="padding: 10px 12px; text-align: center;">
+                            <button onclick="recoverSingleOrder('${o.id}', this)" style="padding: 5px 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                                <i class="fas fa-wrench"></i> Recover
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="9" style="padding: 30px; text-align: center; color: #dc2626;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function recoverAllStuckOrders() {
+            if (!confirm(`This will re-process all stuck paid orders and send data bundles to customers. Continue?`)) return;
+            const btn = document.getElementById('recoverAllBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recovering...';
+            const resultEl = document.getElementById('stuckRecoverResult');
+            resultEl.style.display = 'none';
+            try {
+                const res = await adminFetch('/api/storefronts/admin/recover-stuck', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                const data = await res.json();
+                const color = data.failed === 0 ? '#16a34a' : '#f59e0b';
+                resultEl.style.display = 'block';
+                resultEl.innerHTML = `<div style="background: #f0fdf4; border: 1px solid ${color}; border-radius: 8px; padding: 12px 16px; font-size: 0.9rem;">
+                    <strong>Recovery complete:</strong> ${data.recovered} recovered, ${data.failed} failed out of ${data.total} orders.
+                    ${data.failed > 0 ? `<br><span style="color:#b45309;">Some orders failed — check server logs for details.</span>` : ''}
+                </div>`;
+                await loadStuckOrders();
+            } catch (err) {
+                resultEl.style.display = 'block';
+                resultEl.innerHTML = `<div style="background: #fef2f2; border: 1px solid #dc2626; border-radius: 8px; padding: 12px 16px; color: #991b1b;">Error: ${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-wrench"></i> Recover All';
+            }
+        }
+
+        async function recoverSingleOrder(id, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const res = await adminFetch('/api/storefronts/admin/recover-stuck', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) });
+                const data = await res.json();
+                if (data.recovered > 0) {
+                    btn.style.background = '#16a34a';
+                    btn.innerHTML = '<i class="fas fa-check"></i> Done';
+                    setTimeout(() => loadStuckOrders(), 800);
+                } else {
+                    btn.style.background = '#dc2626';
+                    btn.innerHTML = 'Failed';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                btn.innerHTML = 'Error';
+                btn.disabled = false;
+            }
         }
 
         function clearOrderDateFilters() {
