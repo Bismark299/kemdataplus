@@ -588,6 +588,30 @@ router.get('/bundles/available', authenticate, async (req, res, next) => {
 // ============================================
 
 /**
+ * DELETE /api/storefronts/admin/stuck-orders/:id
+ * Permanently delete a single stuck storefront order (admin only)
+ */
+router.delete('/admin/stuck-orders/:id', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const order = await prisma.storefrontOrder.findFirst({
+      where: {
+        id,
+        paymentStatus: 'PAID',
+        orderId: null,
+        status: { in: ['PENDING', 'DUPLICATE_HOLD'] }
+      }
+    });
+    if (!order) return res.status(404).json({ error: 'Stuck order not found' });
+    await prisma.storefrontOrder.delete({ where: { id } });
+    console.log(`[Admin] Deleted stuck storefront order ${id} (ref: ${order.paystackReference})`);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/storefronts/admin/stuck-orders
  * List all paid storefront orders that were never fulfilled (admin only)
  */

@@ -15497,9 +15497,12 @@
                             <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${o.status === 'DUPLICATE_HOLD' ? '#fef3c7' : '#fef2f2'}; color: ${o.status === 'DUPLICATE_HOLD' ? '#92400e' : '#991b1b'};">${o.status}</span>
                         </td>
                         <td style="padding: 10px 12px; font-size: 0.8rem; color: #6b7280;">${new Date(o.createdAt).toLocaleDateString()}</td>
-                        <td style="padding: 10px 12px; text-align: center;">
-                            <button onclick="recoverSingleOrder('${o.id}', this)" style="padding: 5px 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                        <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
+                            <button onclick="recoverSingleOrder('${o.id}', this)" style="padding: 5px 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-right: 4px;">
                                 <i class="fas fa-wrench"></i> Recover
+                            </button>
+                            <button onclick="deleteStuckOrder('${o.id}', this)" style="padding: 5px 10px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
+                                <i class="fas fa-trash"></i> Delete
                             </button>
                         </td>
                     </tr>
@@ -15553,6 +15556,29 @@
             } catch (err) {
                 btn.innerHTML = 'Error';
                 btn.disabled = false;
+            }
+        }
+
+        async function deleteStuckOrder(id, btn) {
+            if (!confirm('Permanently delete this order? This cannot be undone.')) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const res = await adminFetch(`/api/storefronts/admin/stuck-orders/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    btn.closest('tr').remove();
+                    const badge = document.getElementById('stuckOrdersBadge');
+                    if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent || '0') - 1);
+                } else {
+                    const data = await res.json();
+                    alert('Delete failed: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
             }
         }
 
