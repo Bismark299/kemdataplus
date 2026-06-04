@@ -612,6 +612,37 @@ router.delete('/admin/stuck-orders/:id', authenticate, authorize('ADMIN'), async
 });
 
 /**
+ * POST /api/storefronts/admin/complete-order/:id
+ * Manually mark a PROCESSING storefront order as COMPLETED and credit agent profit (admin only)
+ */
+router.post('/admin/complete-order/:id', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const order = await prisma.storefrontOrder.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status === 'COMPLETED') return res.json({ success: true, message: 'Already completed' });
+    if (!['PROCESSING', 'PENDING'].includes(order.status)) {
+      return res.status(400).json({ error: `Cannot complete order in status: ${order.status}` });
+    }
+
+    // Mark order as COMPLETED
+    await prisma.storefrontOrder.update({
+      where: { id },
+      data: { status: 'COMPLETED' }
+    });
+
+    // Credit agent profit using the existing idempotent logic
+    const financialOrderService = require('../services/financial-order.service');
+    const creditResult = await financialOrderService.creditAgentProfit(id);
+
+    console.log(`[Admin] Manually completed storefront order ${id}, profit credit: ${JSON.stringify(creditResult)}`);
+    res.json({ success: true, creditResult });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/storefronts/admin/stuck-orders
  * List all paid storefront orders that were never fulfilled (admin only)
  */

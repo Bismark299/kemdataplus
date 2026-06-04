@@ -15322,6 +15322,9 @@
                     </td>
                     <td style="padding: 12px; text-align: center;">
                         ${getOrderStatusBadge(order.status)}
+                        ${order.status === 'PROCESSING' && !order.profitCredited
+                            ? `<div style="margin-top: 5px;"><button onclick="markStorefrontOrderComplete('${order.id}', this)" style="padding: 4px 9px; background: #16a34a; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.72rem;"><i class="fas fa-check"></i> Mark Complete</button></div>`
+                            : ''}
                     </td>
                     <td style="padding: 12px; text-align: center;">
                         ${order.profitCredited 
@@ -15355,12 +15358,21 @@
                 container.innerHTML = '';
                 return;
             }
-            
-            let html = '';
-            for (let i = 1; i <= pagination.pages; i++) {
-                html += `<button onclick="loadStorefrontOrders(${i})" style="padding: 8px 14px; border: 1px solid ${i === pagination.page ? '#3b82f6' : '#e5e7eb'}; background: ${i === pagination.page ? '#3b82f6' : 'white'}; color: ${i === pagination.page ? 'white' : '#374151'}; border-radius: 6px; cursor: pointer;">${i}</button>`;
+            const p = pagination.page;
+            const total = pagination.pages;
+            const btnStyle = (active) => `padding: 7px 13px; border: 1px solid ${active ? '#3b82f6' : '#e5e7eb'}; background: ${active ? '#3b82f6' : 'white'}; color: ${active ? 'white' : '#374151'}; border-radius: 6px; cursor: pointer; font-size: 0.85rem;`;
+            const ellipsis = `<span style="padding: 7px 6px; color: #9ca3af; font-size: 0.85rem;">…</span>`;
+            let pages = new Set([1, total, p - 1, p, p + 1, p - 2, p + 2].filter(x => x >= 1 && x <= total));
+            pages = Array.from(pages).sort((a, b) => a - b);
+            let html = `<button onclick="loadStorefrontOrders(${Math.max(1, p - 1)})" ${p === 1 ? 'disabled' : ''} style="${btnStyle(false)} opacity: ${p === 1 ? '0.4' : '1'};"><i class="fas fa-chevron-left"></i></button>`;
+            let prev = 0;
+            for (const pg of pages) {
+                if (prev && pg - prev > 1) html += ellipsis;
+                html += `<button onclick="loadStorefrontOrders(${pg})" style="${btnStyle(pg === p)}">${pg}</button>`;
+                prev = pg;
             }
-            container.innerHTML = html;
+            html += `<button onclick="loadStorefrontOrders(${Math.min(total, p + 1)})" ${p === total ? 'disabled' : ''} style="${btnStyle(false)} opacity: ${p === total ? '0.4' : '1'};"><i class="fas fa-chevron-right"></i></button>`;
+            container.innerHTML = `<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;">${html}</div>`;
         }
 
         async function loadStorefrontProfits() {
@@ -15556,6 +15568,31 @@
             } catch (err) {
                 btn.innerHTML = 'Error';
                 btn.disabled = false;
+            }
+        }
+
+        async function markStorefrontOrderComplete(id, btn) {
+            if (!confirm('Mark this order as COMPLETED and credit the agent\'s profit now?')) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const res = await adminFetch(`/api/storefronts/admin/complete-order/${id}`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    btn.closest('tr').querySelector('[class*="badge"], span').outerHTML =
+                        '<span style="background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 600;">COMPLETED</span>';
+                    btn.closest('div').remove();
+                    // Refresh the table row to reflect profit credited
+                    await loadStorefrontOrders(storefrontOrdersPage);
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Mark Complete';
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Mark Complete';
             }
         }
 
