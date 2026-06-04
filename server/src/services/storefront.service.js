@@ -1224,7 +1224,7 @@ const storefrontService = {
         where: { id: storefrontOrderId },
         data: { 
           orderId: order.id,
-          status: hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PROCESSING', // Held or being processed
+          status: 'PROCESSING',
           paymentStatus: 'PAID',
           paystackReference
         }
@@ -1250,12 +1250,9 @@ const storefrontService = {
         recipientPhone: recipientPhone, // Alias for auto-process
         amount: storefrontOrder.amount,
         agentProfit: storefrontOrder.ownerProfit,
-        status: hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PROCESSING',
-        duplicateHold: hasPotentialDuplicates,
-        duplicateInfo: hasPotentialDuplicates ? recentDuplicateOrders.map(d => ({
-          orderId: d.orderGroup?.displayId,
-          createdAt: d.createdAt
-        })) : null
+        status: 'PROCESSING',
+        duplicateHold: false,
+        duplicateInfo: null
       };
     });
     
