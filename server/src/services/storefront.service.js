@@ -1160,31 +1160,8 @@ const storefrontService = {
       // Recipient phone = paymentPhone (where data goes) or fallback to customerPhone
       const recipientPhone = storefrontOrder.paymentPhone || storefrontOrder.customerPhone;
 
-      // ============================================================
-      // DUPLICATE DETECTION: Check for same bundle+phone within 10 minutes
-      // If found, hold for admin review instead of auto-processing
-      // ============================================================
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      const recentDuplicateOrders = await tx.orderItem.findMany({
-        where: {
-          bundleId: bundle.id,
-          recipientPhone: recipientPhone,
-          createdAt: { gte: tenMinutesAgo },
-          status: { in: ['PENDING', 'PROCESSING', 'COMPLETED'] }
-        },
-        include: {
-          orderGroup: { select: { displayId: true, createdAt: true } }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5
-      });
-      
-      const hasPotentialDuplicates = recentDuplicateOrders.length > 0;
-      const orderStatus = hasPotentialDuplicates ? 'DUPLICATE_HOLD' : 'PENDING';
-      
-      if (hasPotentialDuplicates) {
-        console.log(`[Storefront] ⚠️ DUPLICATE_HOLD: Found ${recentDuplicateOrders.length} similar order(s) in last 10 mins - order will be held`);
-      }
+      // Store orders are exempt from the duplicate guard — always process immediately
+      const orderStatus = 'PENDING';
 
       // Create OrderGroup for global ID system
       const orderGroup = await tx.orderGroup.create({
