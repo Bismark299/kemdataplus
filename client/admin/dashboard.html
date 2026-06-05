@@ -11277,8 +11277,8 @@
                 
                 const result = await res.json();
                 showToast(result.message || `Bulk transfer complete: ${result.processed} paid, GH₵${result.totalAmount?.toFixed(2)}`, 'success');
-                loadProfitPayouts();
-                loadWithdrawalRequests();
+                await loadProfitPayouts();
+                await loadWithdrawalRequests();
             } catch (err) {
                 showToast(err.message, 'error');
             }
@@ -11509,9 +11509,9 @@
                     : (result.message || 'Withdrawal processed successfully');
                 showToast(successMsg, 'success');
                 
-                loadWithdrawalRequests();
-                loadProfitPayouts(); // Refresh profits too
-                refreshPaystackBalance(); // Update header balance
+                await loadWithdrawalRequests();
+                await loadProfitPayouts();
+                refreshPaystackBalance();
             } catch (err) {
                 showToast(err.message, 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
@@ -11543,7 +11543,7 @@
                 }
                 
                 showToast('Withdrawal request rejected', 'success');
-                loadWithdrawalRequests();
+                await loadWithdrawalRequests();
             } catch (err) {
                 showToast(err.message, 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
@@ -11589,8 +11589,8 @@
                 const result = await res.json();
                 showToast(`✅ Manual payment recorded! GH₵ ${result.amount?.toFixed(2) || amount.toFixed(2)} paid to ${result.agentName || agentName}`, 'success');
                 
-                loadWithdrawalRequests();
-                loadProfitPayouts();
+                await loadWithdrawalRequests();
+                await loadProfitPayouts();
             } catch (err) {
                 showToast(err.message, 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
@@ -11622,9 +11622,7 @@
                 }
                 
                 showToast('Withdrawal marked as completed', 'success');
-                loadWithdrawalRequests();
-                
-                // Check for and refresh alerts since this was a stuck payout
+                await loadWithdrawalRequests();
                 updateAlertCounts();
             } catch (err) {
                 showToast(err.message, 'error');
@@ -11661,9 +11659,7 @@
                 }
                 
                 showToast('Withdrawal cancelled - user can request again', 'success');
-                loadWithdrawalRequests();
-                
-                // Refresh alerts since this was likely a stuck payout
+                await loadWithdrawalRequests();
                 updateAlertCounts();
             } catch (err) {
                 showToast(err.message, 'error');
