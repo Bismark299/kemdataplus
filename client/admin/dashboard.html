@@ -9907,7 +9907,7 @@
                 if (!skipRender) renderUsersTable();
             } catch (err) {
                 showToast('Error loading users: ' + err.message, 'error');
-                usersData = [];
+                // DO NOT reset usersData to [] — keep existing data so the select and actions still work
                 updateUsersStats();
                 await updateWalletStats();
                 if (!skipRender) renderUsersTable();
@@ -10594,8 +10594,9 @@
             document.getElementById('verifyClaimModal').classList.remove('active');
         }
         
+        let isVerifyingClaim = false;
         async function submitClaimVerification() {
-            if (!currentVerifyClaimId) return;
+            if (!currentVerifyClaimId || isVerifyingClaim) return;
             
             const transactionId = document.getElementById('verifyTransactionId').value.trim();
             const amount = parseFloat(document.getElementById('verifyAmount').value);
@@ -10609,6 +10610,10 @@
                 showToast('Please enter a valid amount', 'error');
                 return;
             }
+            
+            const verifyBtn = document.querySelector('#verifyClaimModal .btn-fund:last-child');
+            isVerifyingClaim = true;
+            if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...'; }
             
             try {
                 const res = await adminFetch(`/api/wallet/deposit/${currentVerifyClaimId}/confirm`, {
@@ -10631,6 +10636,9 @@
                 showToast('Claim verified and approved! Funds credited to user.', 'success');
             } catch (err) {
                 showToast('Verification Failed: ' + err.message, 'error');
+                if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> Verify & Approve'; }
+            } finally {
+                isVerifyingClaim = false;
             }
         }
         
@@ -11039,7 +11047,7 @@
                 }
 
                 showToast(`Order ${orderId} deleted.`, 'success');
-                loadDuplicateOrders();
+                await loadDuplicateOrders();
             } catch (err) {
                 showToast(err.message, 'error');
             }
@@ -11066,7 +11074,7 @@
                 
                 const result = await res.json();
                 showToast(`Order ${orderId} released! ${result.processed || 0} items processing.`, 'success');
-                loadDuplicateOrders(); // Refresh
+                await loadDuplicateOrders();
             } catch (err) {
                 showToast(err.message, 'error');
             }
@@ -11095,7 +11103,7 @@
                 
                 const result = await res.json();
                 showToast(`Order ${orderId} rejected. ${result.refunded ? `Refunded GH₵${result.refundAmount}` : 'Cancelled.'}`, 'success');
-                loadDuplicateOrders(); // Refresh
+                await loadDuplicateOrders();
             } catch (err) {
                 showToast(err.message, 'error');
             }
