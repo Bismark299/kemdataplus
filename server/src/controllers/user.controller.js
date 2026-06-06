@@ -139,6 +139,8 @@ const userController = {
             isActive: true,
             agentCode: true,
             createdAt: true,
+            lockedUntil: true,
+            failedLoginAttempts: true,
             wallet: {
               select: { 
                 balance: true,
@@ -333,6 +335,22 @@ const userController = {
   },
 
   // Deactivate user (admin)
+  async unlockUser(req, res, next) {
+    try {
+      const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      await prisma.user.update({
+        where: { id: req.params.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
+      });
+
+      res.json({ message: 'Account unlocked successfully' });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async deactivateUser(req, res, next) {
     try {
       // Prevent admin from deactivating themselves

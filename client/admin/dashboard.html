@@ -9317,6 +9317,10 @@
                                 <button class="user-action-btn" data-action="reset-password" data-id="${user.id}" title="Reset Password" style="background: #fef2f2; color: #dc2626;">
                                     <i class="fas fa-key"></i>
                                 </button>
+                                ${user.lockedUntil && new Date(user.lockedUntil) > new Date() ? `
+                                <button class="user-action-btn" data-action="unlock-account" data-id="${user.id}" title="Unlock Account (locked due to failed logins)" style="background: #fef3c7; color: #d97706;">
+                                    <i class="fas fa-lock"></i>
+                                </button>` : ''}
                                 <button class="user-action-btn delete" data-action="delete-user" data-id="${user.id}" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -9567,6 +9571,31 @@
             }
         }
         
+        async function unlockUserAccount(userId) {
+            const user = usersData.find(u => u.id === userId);
+            if (!user) return;
+
+            const confirmed = await showConfirmModal({
+                title: 'Unlock Account',
+                message: `Unlock "${user.name}"? This will clear the login lockout and allow them to log in immediately.`,
+                confirmText: 'Unlock',
+                type: 'warning'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await adminFetch(`/api/users/${userId}/unlock`, { method: 'POST' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to unlock account');
+                }
+                showToast(`${user.name}'s account has been unlocked.`, 'success');
+                await initUsersData();
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
         async function deleteUser(userId) {
             const user = usersData.find(u => u.id === userId);
             if (!user) return;
@@ -14810,6 +14839,7 @@
             else if (action === 'change-role') openChangeRoleModal(id);
             else if (action === 'quick-fund') quickFundUser(id);
             else if (action === 'reset-password') openResetPasswordModal(id);
+            else if (action === 'unlock-account') unlockUserAccount(id);
             else if (action === 'delete-user') deleteUser(id);
         });
 

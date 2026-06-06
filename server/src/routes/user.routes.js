@@ -22,6 +22,9 @@ router.put('/:id', authenticate, authorize('ADMIN'), userController.updateUser);
 // PUT /api/users/:id/reset-password - Reset user password (admin only)
 router.put('/:id/reset-password', authenticate, authorize('ADMIN'), userController.resetUserPassword);
 
+// POST /api/users/:id/unlock - Unlock locked account (admin only)
+router.post('/:id/unlock', authenticate, authorize('ADMIN'), userController.unlockUser);
+
 // DELETE /api/users/:id - Deactivate user (admin only)
 router.delete('/:id', authenticate, authorize('ADMIN'), userController.deactivateUser);
 
