@@ -167,17 +167,17 @@ router.post('/sync-item/:itemId', authenticate, authorize('ADMIN'), async (req, 
  * Sync all pending orders (Admin only)
  * Now syncs BOTH legacy Order table AND new OrderItem table
  */
-let syncAllRunning = false;
+const syncState = require('../lib/sync-state');
 
 router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res) => {
-  if (syncAllRunning) {
+  if (syncState.syncAllRunning) {
     return res.json({ success: true, background: true, message: 'Sync already in progress — check back in a moment.' });
   }
 
   // Respond immediately so the browser never times out
   res.json({ success: true, background: true, message: 'Full catch-up sync started in background. Orders will update over the next minute.' });
 
-  syncAllRunning = true;
+  syncState.syncAllRunning = true;
   setImmediate(async () => {
     try {
       const settingsController = require('../controllers/settings.controller');
@@ -196,7 +196,7 @@ router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res) => {
     } catch (err) {
       console.error('[SyncAll] Error during catch-up sync:', err.message);
     } finally {
-      syncAllRunning = false;
+      syncState.syncAllRunning = false;
     }
   });
 });

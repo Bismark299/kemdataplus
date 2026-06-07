@@ -470,12 +470,20 @@ function startAutoSync() {
   if (autoSyncInterval) {
     clearInterval(autoSyncInterval);
   }
-  
+
+  const syncState = require('./lib/sync-state');
+
   // Check settings and start if enabled
   const checkAndSync = async () => {
     // Skip this tick if the previous cycle hasn't finished yet
     if (autoSyncRunning) {
       console.log('[AutoSync] Previous cycle still running — skipping this tick');
+      return;
+    }
+    // Skip this tick if an admin-triggered Sync All is running —
+    // both hitting MCBIS at the same time causes rate-limit collisions
+    if (syncState.syncAllRunning) {
+      console.log('[AutoSync] Sync All in progress — yielding this tick to avoid rate-limit collision');
       return;
     }
     autoSyncRunning = true;
