@@ -169,19 +169,25 @@ router.post('/sync-item/:itemId', authenticate, authorize('ADMIN'), async (req, 
  */
 router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    // Run legacy Order sync and new OrderItem sync in parallel (MCBIS only)
-    const [legacyResult, itemResult] = await Promise.all([
+    const settingsController = require('../controllers/settings.controller');
+    const siteSettings = settingsController.getSiteSettings();
+    const ckgodswayEnabled = !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI);
+
+    // Run all three passes that auto-sync runs, so the button is equivalent to forcing a cycle now
+    const [legacyResult, itemResult, retryResult] = await Promise.all([
       datahubService.syncAllPendingOrders(),
-      orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled: false })
+      orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled }),
+      orderGroupService.retryStuckPendingOrders()
     ]);
-    
+
     res.json({
       success: true,
-      synced: (itemResult.completed || 0),
-      checked: (legacyResult.synced || 0) + (itemResult.total || 0),
+      synced:    (itemResult.completed || 0),
+      checked:   (legacyResult.synced  || 0) + (itemResult.total || 0),
       completed: (itemResult.completed || 0),
-      failed: (itemResult.failed || 0),
-      unchanged: (legacyResult.synced || 0) + (itemResult.unchanged || 0)
+      failed:    (itemResult.failed    || 0),
+      unchanged: (legacyResult.synced  || 0) + (itemResult.unchanged || 0),
+      retried:   (retryResult?.retried || 0)
     });
   } catch (error) {
     next(error);

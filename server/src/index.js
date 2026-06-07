@@ -347,9 +347,14 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   // ONE-TIME CLEANUP: Remove database triggers that were causing order processing failures
   // These triggers blocked all order.update({status}) calls in production
   cleanupDatabaseTriggers().catch(err => console.error('Trigger cleanup error:', err.message));
-  
-  // Start auto-sync background job
-  startAutoSync();
+
+  // Load persisted settings from DB before starting auto-sync
+  settingsController.initSettings()
+    .then(() => startAutoSync())
+    .catch(err => {
+      console.error('[Settings] initSettings failed, starting auto-sync with defaults:', err.message);
+      startAutoSync();
+    });
   
   // Start profit payout scheduler (11:30 PM Ghana time)
   startProfitPayoutScheduler();
