@@ -14671,21 +14671,23 @@
         });
 
         async function syncAllMcbisOrders() {
-            showToast('Syncing all pending orders...', 'info');
+            showToast('Starting full catch-up sync...', 'info');
             try {
                 const res = await adminFetch('/api/datahub/sync-all', { method: 'POST' });
                 const data = await res.json();
                 
-                const completed = data.completed || 0;
-                const checked = data.checked || data.synced || 0;
-                if (completed > 0) {
-                    showToast(`✅ ${completed} order(s) completed! (${checked} checked)`, 'success');
+                if (data.background) {
+                    showToast('Sync running in background — orders will update over the next minute. Refresh to see changes.', 'success');
                 } else {
-                    showToast(`Checked ${checked} orders — no status changes`, 'info');
+                    const completed = data.completed || 0;
+                    const checked = data.checked || data.synced || 0;
+                    if (completed > 0) {
+                        showToast(`✅ ${completed} order(s) completed! (${checked} checked)`, 'success');
+                    } else {
+                        showToast(`Checked ${checked} orders — no status changes`, 'info');
+                    }
+                    await loadStats();
                 }
-                
-                // Refresh orders table
-                await loadStats();
             } catch (err) {
                 showToast('Sync error: ' + err.message, 'error');
             }

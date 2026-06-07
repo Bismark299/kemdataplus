@@ -167,31 +167,38 @@ router.post('/sync-item/:itemId', authenticate, authorize('ADMIN'), async (req, 
  * Sync all pending orders (Admin only)
  * Now syncs BOTH legacy Order table AND new OrderItem table
  */
-router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res, next) => {
-  try {
-    const settingsController = require('../controllers/settings.controller');
-    const siteSettings = settingsController.getSiteSettings();
-    const ckgodswayEnabled = !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI);
+let syncAllRunning = false;
 
-    // Run all three passes that auto-sync runs, so the button is equivalent to forcing a cycle now
-    const [legacyResult, itemResult, retryResult] = await Promise.all([
-      datahubService.syncAllPendingOrders(),
-      orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled }),
-      orderGroupService.retryStuckPendingOrders()
-    ]);
-
-    res.json({
-      success: true,
-      synced:    (itemResult.completed || 0),
-      checked:   (legacyResult.synced  || 0) + (itemResult.total || 0),
-      completed: (itemResult.completed || 0),
-      failed:    (itemResult.failed    || 0),
-      unchanged: (legacyResult.synced  || 0) + (itemResult.unchanged || 0),
-      retried:   (retryResult?.retried || 0)
-    });
-  } catch (error) {
-    next(error);
+router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res) => {
+  if (syncAllRunning) {
+    return res.json({ success: true, background: true, message: 'Sync already in progress — check back in a moment.' });
   }
+
+  // Respond immediately so the browser never times out
+  res.json({ success: true, background: true, message: 'Full catch-up sync started in background. Orders will update over the next minute.' });
+
+  syncAllRunning = true;
+  setImmediate(async () => {
+    try {
+      const settingsController = require('../controllers/settings.controller');
+      const siteSettings = settingsController.getSiteSettings();
+      const ckgodswayEnabled = !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI);
+
+      console.log('[SyncAll] Admin-triggered full catch-up sync started');
+
+      // Run all three passes sequentially (not parallel) so rate-limit detection
+      // in pass 1 doesn't get masked by pass 2 still running
+      const legacyResult = await datahubService.syncAllPendingOrders({ catchUp: true });
+      const itemResult   = await orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled, catchUp: true });
+      const retryResult  = await orderGroupService.retryStuckPendingOrders();
+
+      console.log(`[SyncAll] Done — legacy: ${legacyResult.synced} checked, items: ${itemResult.completed} completed / ${itemResult.failed} failed / ${itemResult.unchanged} unchanged, retried: ${retryResult?.retried || 0}`);
+    } catch (err) {
+      console.error('[SyncAll] Error during catch-up sync:', err.message);
+    } finally {
+      syncAllRunning = false;
+    }
+  });
 });
 
 /**
