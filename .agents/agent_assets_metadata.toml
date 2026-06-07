@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "u_q9G5vz9kIk335ZySmzM"
+uri = "file://docs/profit-payout.md"
+type = "text"
+title = "Profit Payout System — Full Documentation"
