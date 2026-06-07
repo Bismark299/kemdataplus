@@ -1,0 +1,50 @@
+2026-06-07T22:54:10.100726128Z clientIP="74.244.119.252" requestID="3dedf4f7-b117-4402" responseTimeMS=4 responseBytes=1574 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:10.573862654Z clientIP="74.244.119.252" requestID="b17cdde2-22d7-4182" responseTimeMS=5 responseBytes=1573 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:10.754778385Z clientIP="74.244.119.252" requestID="c5c9d5cf-d9ec-47f4" responseTimeMS=243 responseBytes=1792 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:10.798473443Z clientIP="74.244.119.252" requestID="38ab5581-ec5b-4f5b" responseTimeMS=287 responseBytes=1771 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:11.581854018Z clientIP="74.244.119.252" requestID="ec65d86a-4ff9-4e5a" responseTimeMS=688 responseBytes=1762 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:11.583208587Z 172.71.150.215 - - [07/Jun/2026:22:54:11 +0000] "GET /api/complaints/admin/stats?_t=1780872850054 HTTP/1.1" 200 73 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:11.583651316Z clientIP="74.244.119.252" requestID="c77a9202-dff7-4fdb" responseTimeMS=1096 responseBytes=100753 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:11.586533751Z 172.71.150.214 - - [07/Jun/2026:22:54:11 +0000] "GET /api/users?limit=5000&_t=1780872849635 HTTP/1.1" 200 - "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:11.613468315Z clientIP="74.244.119.252" requestID="c90908f0-e8fb-40b0" responseTimeMS=521 responseBytes=1958 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:11.615414607Z 172.68.247.134 - - [07/Jun/2026:22:54:11 +0000] "GET /api/admin/dashboard-stats?_t=1780872849635 HTTP/1.1" 200 549 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:12.115306705Z [OrderGroup] Admin fetching orders (limit: 5000, date: all, status: all, network: all)
+2026-06-07T22:54:13.057373411Z [OrderGroup] Fetched 5000 order groups, 3837 legacy orders
+2026-06-07T22:54:13.196803804Z 172.71.150.214 - - [07/Jun/2026:22:54:13 +0000] "GET /api/order-groups/admin/all?compact=true&limit=5000&_t=1780872851250 HTTP/1.1" 200 - "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:13.217866978Z clientIP="74.244.119.252" requestID="ed764351-4c35-470c" responseTimeMS=1106 responseBytes=488633 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:13.26113732Z clientIP="74.244.119.252" requestID="234e9e13-3fb9-4a88" responseTimeMS=695 responseBytes=8021 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:13.264022072Z 172.71.150.214 - - [07/Jun/2026:22:54:13 +0000] "GET /api/wallet/transactions/all?page=1&limit=100&_t=1780872851736 HTTP/1.1" 200 - "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0"
+2026-06-07T22:54:14.308264055Z clientIP="154.161.129.72" requestID="5904cc85-9f3e-4af7" responseTimeMS=2 responseBytes=1574 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1"
+2026-06-07T22:54:14.310529424Z 172.70.190.156 - - [07/Jun/2026:22:54:14 +0000] "GET /public/css/dashboard.css HTTP/1.1" 304 - "https://kemdataplus.onrender.com/pages/mystore.html" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1"
+2026-06-07T22:54:14.411424495Z [AutoSync] Running... (MCBIS AutoSync: ON, CKGodsway AutoSync: ON)
+2026-06-07T22:54:14.418533106Z [DataHub] Found 30 orders with API references to sync
+2026-06-07T22:54:14.418554387Z [Sync] Starting sync of all processing OrderItems... (MCBIS: ON, CKGodsway: ON)
+2026-06-07T22:54:14.41862248Z [DataHub] MCBIS rate-limited — stopping legacy sync cycle after 0 order(s)
+2026-06-07T22:54:14.421310323Z [Sync] CK-Godsway: 4 items to sync
+2026-06-07T22:54:14.42610913Z [Sync] MCBIS: 50 items to sync
+2026-06-07T22:54:14.42914579Z [Sync] Total: 54 items to sync
+2026-06-07T22:54:14.433768998Z [Sync] Checking status for item ORD-031151-01, externalRef: CK-manual_ORD-2147770032_1776154491990
+2026-06-07T22:54:14.435008119Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2147770032_1776154491990
+2026-06-07T22:54:14.829882602Z clientIP="154.161.129.72" requestID="433d99aa-6c8a-42a5" responseTimeMS=1 responseBytes=1574 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1"
+2026-06-07T22:54:14.830102087Z clientIP="154.161.129.72" requestID="883ca500-daa8-48b7" responseTimeMS=1 responseBytes=1576 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1"
+2026-06-07T22:54:14.830208999Z 172.70.190.156 - - [07/Jun/2026:22:54:14 +0000] "GET /public/js/session-timeout.js HTTP/1.1" 304 - "https://kemdataplus.onrender.com/pages/mystore.html" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1"
+2026-06-07T22:54:14.830566016Z 172.70.190.157 - - [07/Jun/2026:22:54:14 +0000] "GET /public/img/kem.png HTTP/1.1" 304 - "https://kemdataplus.onrender.com/pages/mystore.html" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1"
+2026-06-07T22:54:14.958147574Z [CKGodsway] Response status: 200
+2026-06-07T22:54:14.958889481Z [Sync] API returned status: refunded (provider: CKGODSWAY)
+2026-06-07T22:54:15.361802691Z [Sync] Checking status for item ORD-031657-01, externalRef: CK-manual_ORD-2147776825_1776199114571
+2026-06-07T22:54:15.361841043Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2147776825_1776199114571
+2026-06-07T22:54:15.907588364Z [CKGodsway] Response status: 200
+2026-06-07T22:54:15.908303449Z [Sync] API returned status: refunded (provider: CKGODSWAY)
+2026-06-07T22:54:16.311346435Z [Sync] Checking status for item ORD-061016-01, externalRef: CK-manual_ORD-2148165424_1780073153087
+2026-06-07T22:54:16.311510743Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148165424_1780073153087
+2026-06-07T22:54:16.592341887Z [CKGodsway] Response status: 200
+2026-06-07T22:54:16.5932214Z [Sync] API returned status: processing (provider: CKGODSWAY)
+2026-06-07T22:54:16.998927138Z [Sync] Checking status for item ORD-066744-01, externalRef: CK-manual_ORD-2148240363_1780748487372
+2026-06-07T22:54:16.998949069Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148240363_1780748487372
+2026-06-07T22:54:17.543516081Z [CKGodsway] Response status: 404
+2026-06-07T22:54:17.544274689Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148240363_1780748487372
+2026-06-07T22:54:17.544288459Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148240363_1780748487372
+2026-06-07T22:54:17.946963997Z [Sync] Checking status for item ORD-012457-01, externalRef: KEM1773186583095GGF4K5
+2026-06-07T22:54:17.946996619Z [Sync] MCBIS rate-limit detected — stopping cycle early after 5 item(s)
+2026-06-07T22:54:17.94700716Z [Sync] Complete: 0 completed, 0 failed, 4 unchanged
+2026-06-07T22:54:17.94701779Z [AutoSync] OrderItems: 0 completed, 0 failed, 4 unchanged
