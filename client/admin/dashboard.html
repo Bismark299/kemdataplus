@@ -15769,7 +15769,7 @@
                                     ${store.owner?.wallet?.isFrozen ? '<span style="color: #ef4444; margin-left: 10px;"><i class="fas fa-snowflake"></i> FROZEN</span>' : ''}
                                 </div>
                                 <div style="text-align: right; margin-top: 20px;">
-                                    <a href="/store/${store.slug}" target="_blank" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+                                    <a href="${window._storeDomain ? 'https://'+window._storeDomain+'/'+store.slug : '/store/'+store.slug}" target="_blank" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
                                         <i class="fas fa-external-link-alt"></i> Visit Store
                                     </a>
                                 </div>

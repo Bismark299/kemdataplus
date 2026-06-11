@@ -154,7 +154,8 @@ const settingsController = {
         momoClaimEnabled: settings.siteSettings?.momoClaimEnabled !== false,
         newRegistration: settings.siteSettings?.newRegistration !== false,
         maxExcelUpload:  settings.adminSettings?.maxExcelUpload || 50,
-        maxBulkUpload:   settings.adminSettings?.maxBulkUpload || 50
+        maxBulkUpload:   settings.adminSettings?.maxBulkUpload || 50,
+        storeDomain:     process.env.STORE_DOMAIN || null
       });
     } catch (err) {
       console.error('Error reading public settings:', err);

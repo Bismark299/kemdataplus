@@ -13,6 +13,9 @@ JWT_SECRET = "b4b0017c7fcbef5ac07d30b464115e9619e2af8e3cefa3d86eb61f93c3d983ad9c
 NODE_ENV = "development"
 PORT = "5000"
 
+[userenv.production]
+STORE_DOMAIN = "kemplus.store"
+
 [workflows]
 runButton = "Project"
 

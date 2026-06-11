@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KemPlus Store</title>
+  <link rel="shortcut icon" type="image/x-icon" href="/img/favicon.ico">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 56px 48px;
+      text-align: center;
+      max-width: 440px;
+      width: 90%;
+      backdrop-filter: blur(12px);
+    }
+    .icon {
+      width: 72px;
+      height: 72px;
+      background: rgba(59,130,246,0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      font-size: 2rem;
+    }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: #f1f5f9;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    .hint {
+      margin-top: 32px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.25);
+      border-radius: 10px;
+      padding: 16px 20px;
+      color: #93c5fd;
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🛍️</div>
+    <h1>Store Not Found</h1>
+    <p>This link does not point to a specific store. Please contact your store owner to get the correct store link.</p>
+    <div class="hint">
+      A valid store link looks like:<br>
+      <strong>kemplus.store/storename</strong>
+    </div>
+  </div>
+</body>
+</html>

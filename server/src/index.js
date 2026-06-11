@@ -245,6 +245,38 @@ app.use('/api/paystack/webhook', express.raw({ type: 'application/json' }), asyn
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ── Store domain routing ──────────────────────────────────────────────────────
+// Requests arriving on STORE_DOMAIN (e.g. kemplus.store) are handled here.
+// /:slug          → rewrite internally to /store/:slug so store.html is served
+// /               → serve the landing page
+// /admin, /pages  → blocked (404) — admin must stay on the main domain
+// Everything else (API calls, static assets) → pass through normally
+const STORE_DOMAIN = process.env.STORE_DOMAIN; // e.g. 'kemplus.store'
+if (STORE_DOMAIN) {
+  app.use((req, res, next) => {
+    if (req.hostname !== STORE_DOMAIN) return next();
+    const rawPath = req.path;
+    // Block admin and pages routes on the store domain
+    if (rawPath.startsWith('/admin') || rawPath.startsWith('/pages')) {
+      return res.status(404).send('Not found');
+    }
+    // Pass through API calls and static asset requests unchanged
+    if (rawPath.startsWith('/api') || rawPath.match(/\.(css|js|png|jpg|jpeg|ico|svg|gif|webp|woff|woff2|ttf|eot|json|xml|txt|webmanifest)$/i)) {
+      return next();
+    }
+    // Bare domain root → landing page
+    if (rawPath === '/' || rawPath === '') {
+      return res.sendFile(path.join(__dirname, '../../client/public/store-landing.html'));
+    }
+    // /:slug → serve store page (rewrite so existing /store/:slug route handles it)
+    const parts = rawPath.split('/').filter(Boolean);
+    if (parts.length >= 1) {
+      req.url = `/store/${parts[0]}`;
+    }
+    next();
+  });
+}
+
 // Serve static files (frontend)
 // Serve client/public files at root level for main dashboard
 app.use('/css', express.static(path.join(__dirname, '../../client/public/css')));
