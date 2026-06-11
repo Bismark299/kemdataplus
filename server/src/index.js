@@ -143,7 +143,9 @@ const allowedOrigins = isProduction
       'https://kemdataplus.onrender.com',
       'https://kemdataplus.com',
       'https://www.kemdataplus.com',
-      process.env.FRONTEND_URL
+      process.env.FRONTEND_URL,
+      process.env.STORE_DOMAIN ? `https://${process.env.STORE_DOMAIN}` : null,
+      process.env.STORE_DOMAIN ? `https://www.${process.env.STORE_DOMAIN}` : null
     ].filter(Boolean)
   : ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080', 'http://127.0.0.1:3000'];
 
