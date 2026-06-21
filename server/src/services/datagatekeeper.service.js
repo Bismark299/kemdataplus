@@ -174,13 +174,22 @@ const dataGatekeeperService = {
    * @param {number} params.amount      - data size in GB (e.g. 5)
    * @param {string} params.orderId     - internal order reference
    */
+  /** Returns true if the API key is configured */
+  isConfigured() {
+    return !!getApiKey();
+  },
+
   async placeOrder({ network, phone, amount, orderId }) {
     try {
-      // Guard: no API key = not configured yet — treat as retriable (keep order PENDING)
+      // Guard: no API key = config error, NOT a network error.
+      // networkError:false means processOrderItems will mark the order FAILED (visible to admin)
+      // rather than looping in PENDING with infinite retries.
       if (!getApiKey()) {
-        const e = new Error('DATAGATEKEEPER_API_KEY not set on this server — add it to environment variables');
-        e.networkError = true;
-        throw e;
+        return {
+          success: false,
+          error: 'DATAGATEKEEPER_API_KEY not set on this server — add it to Render environment variables',
+          networkError: false
+        };
       }
 
       // Normalise phone number to 10-digit local format

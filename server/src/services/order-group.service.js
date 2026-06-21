@@ -884,6 +884,11 @@ const orderGroupService = {
             continue;
           }
         }
+        // Skip DataGatekeeper if API key is not configured — fall through to next provider
+        if (p.name === 'DATAGATEKEEPER' && p.service.isConfigured && !p.service.isConfigured()) {
+          console.log(`[OrderGroup] DATAGATEKEEPER: skipped — DATAGATEKEEPER_API_KEY not set (falling through to next provider)`);
+          continue;
+        }
         console.log(`[OrderGroup] ${network} → ${p.name}`);
         return { name: p.name, service: p.service };
       }
