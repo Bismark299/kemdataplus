@@ -1637,39 +1637,89 @@ const orderGroupService = {
     const { mcbisEnabled = true, ckgodswayEnabled = true, datagatekeeperEnabled = true, catchUp = false } = options;
     
     console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'}, DataGatekeeper: ${datagatekeeperEnabled ? 'ON' : 'OFF'}${catchUp ? ', CATCH-UP mode' : ''})`);
-    
-    // Fetch each provider's items separately so one provider can't starve the other
-    let items = [];
 
+    const results = [];
+    let completed = 0;
+    let failed = 0;
+    let unchanged = 0;
+
+    // ── DataGatekeeper sync ────────────────────────────────────────────────
+    // Rate limit: 60 req/min. Cap at 20 items × 1100ms delay = 22s per cycle
+    // = max ~27 DGK calls/min. Abort immediately on 429.
     if (datagatekeeperEnabled) {
-      const dgQuery = {
-        where: {
-          status: { in: ['PROCESSING', 'PENDING'] },
-          externalReference: { startsWith: 'DGK-' }
-        },
-        orderBy: { createdAt: 'asc' }
-      };
-      if (!catchUp) dgQuery.take = 50;
-      const dgItems = await prisma.orderItem.findMany(dgQuery);
-      console.log(`[Sync] DataGatekeeper: ${dgItems.length} items to sync`);
-      items.push(...dgItems);
+      const dataGatekeeperService = require('./datagatekeeper.service');
+
+      // Skip entire DGK sync if already in cooldown from a previous 429
+      if (dataGatekeeperService.isRateLimited()) {
+        console.warn('[Sync] DataGatekeeper rate-limit cooldown active — skipping DGK sync this cycle');
+      } else {
+        const dgQuery = {
+          where: {
+            status: { in: ['PROCESSING', 'PENDING'] },
+            externalReference: { startsWith: 'DGK-' }
+          },
+          orderBy: { createdAt: 'asc' }
+        };
+        // 20 items × 1100ms = 22s — well within the 30s cycle and 60 req/min cap
+        if (!catchUp) dgQuery.take = 20;
+        const dgItems = await prisma.orderItem.findMany(dgQuery);
+        console.log(`[Sync] DataGatekeeper: ${dgItems.length} items to sync`);
+
+        for (const item of dgItems) {
+          try {
+            const result = await this.syncOrderItemStatus(item.id);
+            results.push({ itemId: item.id, reference: item.reference, ...result });
+
+            if (!result.success && result.error && result.error.includes('rate-limit')) {
+              console.warn(`[Sync] DGK rate-limit hit — stopping DGK sync after ${results.length} item(s)`);
+              break;
+            }
+
+            if (result.statusChanged) {
+              if (result.newStatus === 'COMPLETED') completed++;
+              else if (result.newStatus === 'FAILED') failed++;
+            } else {
+              unchanged++;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1100));
+          } catch (error) {
+            results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
+          }
+        }
+      }
     }
 
+    // ── CK-Godsway sync ───────────────────────────────────────────────────
     if (ckgodswayEnabled) {
       const ckQuery = {
         where: {
           status: { in: ['PROCESSING', 'PENDING'] },
           externalReference: { startsWith: 'CK-' }
         },
-        // Always oldest-first so long-waiting orders are never starved by newer ones
         orderBy: { createdAt: 'asc' }
       };
       if (!catchUp) ckQuery.take = 50;
       const ckItems = await prisma.orderItem.findMany(ckQuery);
       console.log(`[Sync] CK-Godsway: ${ckItems.length} items to sync`);
-      items.push(...ckItems);
+
+      for (const item of ckItems) {
+        try {
+          const result = await this.syncOrderItemStatus(item.id);
+          results.push({ itemId: item.id, reference: item.reference, ...result });
+          if (result.statusChanged) {
+            if (result.newStatus === 'COMPLETED') completed++;
+            else if (result.newStatus === 'FAILED') failed++;
+          } else {
+            unchanged++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } catch (error) {
+          results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
+        }
+      }
     }
 
+    // ── MCBIS sync ────────────────────────────────────────────────────────
     if (mcbisEnabled) {
       const mcbisQuery = {
         where: {
@@ -1680,49 +1730,36 @@ const orderGroupService = {
             { externalReference: { startsWith: 'DGK-' } }
           ]
         },
-        // Always oldest-first so long-waiting orders are never starved by newer ones
         orderBy: { createdAt: 'asc' }
       };
-      // 50 items × 400 ms = 20 s — comfortably within one 30 s cycle.
-      // Overlap between cycles is blocked by the autoSyncRunning guard in index.js,
-      // so we no longer need to keep this artificially small.
       if (!catchUp) mcbisQuery.take = 50;
       const mcbisItems = await prisma.orderItem.findMany(mcbisQuery);
       console.log(`[Sync] MCBIS: ${mcbisItems.length} items to sync`);
-      items.push(...mcbisItems);
-    }
 
-    console.log(`[Sync] Total: ${items.length} items to sync`);
+      for (const item of mcbisItems) {
+        try {
+          const result = await this.syncOrderItemStatus(item.id);
+          results.push({ itemId: item.id, reference: item.reference, ...result });
 
-    const results = [];
-    let completed = 0;
-    let failed = 0;
-    let unchanged = 0;
+          if (!result.success && result.error && result.error.includes('rate-limited')) {
+            console.warn(`[Sync] MCBIS rate-limit detected — stopping cycle early after ${results.length} item(s)`);
+            break;
+          }
 
-    for (const item of items) {
-      try {
-        const result = await this.syncOrderItemStatus(item.id);
-        results.push({ itemId: item.id, reference: item.reference, ...result });
-
-        // If MCBIS rate-limited us, abort remaining items immediately
-        if (!result.success && result.error && result.error.includes('rate-limited')) {
-          console.warn(`[Sync] MCBIS rate-limit detected — stopping cycle early after ${results.length} item(s)`);
-          break;
+          if (result.statusChanged) {
+            if (result.newStatus === 'COMPLETED') completed++;
+            else if (result.newStatus === 'FAILED') failed++;
+          } else {
+            unchanged++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } catch (error) {
+          results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
         }
-
-        if (result.statusChanged) {
-          if (result.newStatus === 'COMPLETED') completed++;
-          else if (result.newStatus === 'FAILED') failed++;
-        } else {
-          unchanged++;
-        }
-        
-        // Delay between calls — 400ms keeps total cycle well under MCBIS rate limits
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } catch (error) {
-        results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
       }
     }
+
+    console.log(`[Sync] Total: ${results.length} items synced`);
 
     console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged`);
 
