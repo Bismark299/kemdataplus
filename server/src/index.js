@@ -533,21 +533,21 @@ function startAutoSync() {
       // Check which APIs are active
       const mcbisActive = siteSettings.mcbisAPI;
       const ckgodswayActive = siteSettings.ckgodswayAPI;
+      const datagatekeeperActive = siteSettings.datagatekeeperAPI;
       
-      // Skip if no auto-sync is enabled
-      if (!mcbisAutoSyncEnabled && !ckgodswayAutoSyncEnabled) {
-        return; // All auto-syncs disabled
-      }
-      
-      // Skip if no API is enabled
-      if (!mcbisActive && !ckgodswayActive) {
+      // Skip entirely if no API is enabled at all
+      if (!mcbisActive && !ckgodswayActive && !datagatekeeperActive) {
         return; // No API enabled
       }
+      
+      // If only DGK is active (MCBIS/CKGodsway auto-syncs off), still allow
+      // retryStuckPendingOrders to run — skip only the status-sync steps below.
+      const anyAutoSyncEnabled = mcbisAutoSyncEnabled || ckgodswayAutoSyncEnabled;
       
       const mcbisShouldSync = mcbisAutoSyncEnabled && mcbisActive;
       const ckgodswayShouldSync = ckgodswayAutoSyncEnabled && ckgodswayActive;
       
-      console.log(`[AutoSync] Running... (MCBIS AutoSync: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway AutoSync: ${ckgodswayShouldSync ? 'ON' : 'OFF'})`);
+      console.log(`[AutoSync] Running... (MCBIS AutoSync: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway AutoSync: ${ckgodswayShouldSync ? 'ON' : 'OFF'}, DGK: ${datagatekeeperActive ? 'ON' : 'OFF'})`);
       
       let totalSynced = 0;
       let totalCompleted = 0;

@@ -1490,7 +1490,7 @@ const orderGroupService = {
    * Also queues MTN items to Etopup when etopup is enabled and MCBIS/CKGodsway don't handle MTN.
    */
   async retryStuckPendingOrders() {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     // Find stuck PENDING OrderGroups where items were NEVER sent to API
@@ -1501,7 +1501,7 @@ const orderGroupService = {
         status: 'PENDING',
         createdAt: {
           gte: twentyFourHoursAgo,  // Not older than 24 hours
-          lte: fiveMinutesAgo       // At least 5 minutes old (give instant auto-process time)
+          lte: oneMinuteAgo         // At least 1 minute old (give inline dispatch time)
         },
         items: {
           some: {
