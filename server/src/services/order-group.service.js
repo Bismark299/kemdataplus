@@ -1087,15 +1087,24 @@ const orderGroupService = {
         // ============ NETWORK ERROR: RESET SO ORDER CAN RETRY ============
         // DataGatekeeper: on timeout/network error, reset apiSentAt so the next
         // processOrderItems call (or admin retry) picks it up again.
+        // Also fire an immediate background retry after 5s — don't wait 30s for auto-sync.
         if (!result.success && result.networkError && apiProvider === 'DATAGATEKEEPER') {
           console.log(`[OrderGroup] DataGatekeeper network error for ${item.reference} — resetting for retry: ${result.error}`);
           await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } });
+          // Immediate background retry — fire after 5s so we don't wait for the 30s cycle
+          const retryOrderGroupId = item.orderGroupId;
+          const retryRef = item.reference;
+          setTimeout(() => {
+            this.processOrderItems(retryOrderGroupId).catch(err =>
+              console.error(`[OrderGroup] DGK background retry failed for ${retryRef}:`, err.message)
+            );
+          }, 5000);
           skipped++;
           results.push({
             itemId: item.id,
             reference: item.reference,
             skipped: true,
-            reason: `DataGatekeeper unreachable — will retry: ${result.error}`
+            reason: `DataGatekeeper unreachable — retrying in 5s: ${result.error}`
           });
           continue;
         }
@@ -1490,18 +1499,19 @@ const orderGroupService = {
    * Also queues MTN items to Etopup when etopup is enabled and MCBIS/CKGodsway don't handle MTN.
    */
   async retryStuckPendingOrders() {
-    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+    const fifteenSecondsAgo = new Date(Date.now() - 15 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     // Find stuck PENDING OrderGroups where items were NEVER sent to API
     // CRITICAL: Only pick items with apiSentAt IS NULL — never reset apiSentAt!
     // If apiSentAt is set, the order was already claimed and may be in-flight.
+    // Atomic lock in processOrderItems prevents any race conditions — 15s is enough.
     const stuckOrderGroups = await prisma.orderGroup.findMany({
       where: {
         status: 'PENDING',
         createdAt: {
-          gte: twentyFourHoursAgo,  // Not older than 24 hours
-          lte: oneMinuteAgo         // At least 1 minute old (give inline dispatch time)
+          gte: twentyFourHoursAgo,    // Not older than 24 hours
+          lte: fifteenSecondsAgo      // At least 15 seconds old (give inline dispatch time)
         },
         items: {
           some: {
