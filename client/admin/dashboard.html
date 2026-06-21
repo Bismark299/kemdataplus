@@ -14837,6 +14837,70 @@
             }
         }
 
+        async function diagnoseDGK() {
+            showToast('Running DataGatekeeper diagnostics...', 'info');
+            const box = document.getElementById('dgkDiagnoseReport');
+            try {
+                const res = await adminFetch('/api/datagatekeeper/diagnose');
+                const d = await res.json();
+                if (!box) return;
+
+                const routingRows = (d.mtnRouting || []).map(r =>
+                    `<div style="margin:2px 0; color:${r.selected ? '#059669' : '#dc2626'}">
+                        <strong>${r.provider}</strong>: ${r.reason}
+                    </div>`
+                ).join('');
+
+                box.innerHTML = `
+                    <div style="font-weight:700; margin-bottom:8px; color:#0284c7;">🔍 DataGatekeeper Diagnostics</div>
+                    <div style="margin-bottom:6px">
+                        <strong>API Key on server:</strong>
+                        <span style="color:${d.apiKeyConfigured ? '#059669' : '#dc2626'}">
+                            ${d.apiKeyConfigured ? '✅ SET' : '❌ NOT SET — add DATAGATEKEEPER_API_KEY to Render environment variables'}
+                        </span>
+                    </div>
+                    <div style="margin-bottom:6px">
+                        <strong>Settings (live from DB):</strong><br>
+                        &nbsp;datagatekeeperAPI = <code>${d.settings?.datagatekeeperAPI}</code> &nbsp;|&nbsp;
+                        datagatekeeper_mtnAPI = <code>${d.settings?.datagatekeeper_mtnAPI}</code>
+                    </div>
+                    <div style="margin-bottom:8px">
+                        <strong>MTN Provider Routing:</strong><br>${routingRows}
+                    </div>
+                    <div style="margin-bottom:8px">
+                        <strong>Orders:</strong>
+                        Pending unprocessed: <strong>${d.orders?.pendingUnprocessed}</strong> |
+                        Stuck/claimed: <strong>${d.orders?.stuckClaimed}</strong> |
+                        Processing at DGK: <strong>${d.orders?.processingAtDGK}</strong>
+                    </div>
+                    <div style="font-weight:700; padding:6px 10px; border-radius:5px;
+                        background:${d.mtnProvider === 'DATAGATEKEEPER' ? '#d1fae5' : '#fee2e2'};
+                        color:${d.mtnProvider === 'DATAGATEKEEPER' ? '#065f46' : '#991b1b'}">
+                        ${d.verdict}
+                    </div>`;
+                box.style.display = 'block';
+            } catch (err) {
+                if (box) { box.innerHTML = `<span style="color:red">Error: ${err.message}</span>`; box.style.display = 'block'; }
+                showToast('Diagnose error: ' + err.message, 'error');
+            }
+        }
+
+        async function dispatchPendingToDGK() {
+            if (!confirm('Force-dispatch all pending orders to DataGatekeeper now?')) return;
+            showToast('Dispatching pending orders...', 'info');
+            try {
+                const res = await adminFetch('/api/datagatekeeper/dispatch-pending', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✅ Dispatched ${data.dispatched} order item(s) across ${data.groupsProcessed} group(s)`, 'success');
+                } else {
+                    showToast('❌ ' + (data.error || 'Dispatch failed'), 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
         function loadCkgodswaySettings() {
             if (adminSettings.ckgodswayApiUrl) {
                 document.getElementById('ckgodswayApiUrl').value = adminSettings.ckgodswayApiUrl;
