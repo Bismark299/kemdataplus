@@ -69,12 +69,31 @@ async function makeRequest(endpoint, options = {}, timeoutMs = 15000) {
   return data;
 }
 
-// Bundle cache — refreshed every 10 minutes to avoid hammering the API
+// Static bundle ID map — confirmed from GET /bundles on 2026-06-21
+// Keyed by GB size (number). No live API call needed for these sizes.
+const STATIC_BUNDLE_MAP = {
+  1:  1,
+  2:  2,
+  3:  3,
+  4:  4,
+  5:  5,
+  6:  6,
+  8:  7,
+  10: 8,
+  15: 9,
+  20: 30,
+  25: 12,
+  30: 11,
+  40: 13,
+  50: 14
+};
+
+// Live bundle cache — only used as fallback for sizes not in STATIC_BUNDLE_MAP
 let bundleCache = null;
 let bundleCacheAt = 0;
 const BUNDLE_CACHE_TTL = 10 * 60 * 1000;
 
-async function getBundles(network = 'mtn') {
+async function getBundlesLive(network = 'mtn') {
   const now = Date.now();
   if (bundleCache && now - bundleCacheAt < BUNDLE_CACHE_TTL) {
     return bundleCache;
@@ -85,29 +104,41 @@ async function getBundles(network = 'mtn') {
   return bundleCache;
 }
 
-// Find a bundle by dataAmount (e.g. "5GB" → matches bundle with dataAmount "5GB")
+// Find a bundle ID by GB size — static map first, live API as fallback
 async function findBundleId(network, dataAmountStr) {
+  // Extract numeric GB value from strings like "5GB", "5 GB", "5gb", "5"
+  const match = (dataAmountStr || '').match(/(\d+(\.\d+)?)/);
+  const targetGB = match ? parseFloat(match[1]) : null;
+
+  if (targetGB === null) {
+    console.error(`[DataGatekeeper] Could not parse GB from: "${dataAmountStr}"`);
+    return null;
+  }
+
+  // 1. Try static map (instant — no API call)
+  if (STATIC_BUNDLE_MAP[targetGB] !== undefined) {
+    console.log(`[DataGatekeeper] Bundle ID ${STATIC_BUNDLE_MAP[targetGB]} for ${targetGB}GB (static map)`);
+    return STATIC_BUNDLE_MAP[targetGB];
+  }
+
+  // 2. Fallback: live lookup for unknown sizes
+  console.log(`[DataGatekeeper] ${targetGB}GB not in static map — fetching live bundles`);
   try {
-    const bundles = await getBundles(network.toLowerCase());
-    if (!bundles.length) return null;
-
-    // Extract numeric GB from string like "5GB", "5 GB", "5gb"
-    const match = (dataAmountStr || '').match(/(\d+(\.\d+)?)/);
-    const targetGB = match ? parseFloat(match[1]) : null;
-
-    if (targetGB === null) return null;
-
-    // Try exact dataAmount match first
-    const exact = bundles.find(b => {
+    const bundles = await getBundlesLive(network.toLowerCase());
+    const found = bundles.find(b => {
       const bMatch = (b.dataAmount || '').match(/(\d+(\.\d+)?)/);
       return bMatch && parseFloat(bMatch[1]) === targetGB;
     });
-
-    return exact ? exact.id : null;
+    if (found) {
+      console.log(`[DataGatekeeper] Bundle ID ${found.id} for ${targetGB}GB (live lookup)`);
+      return found.id;
+    }
   } catch (e) {
-    console.error('[DataGatekeeper] findBundleId error:', e.message);
-    return null;
+    console.error('[DataGatekeeper] Live bundle lookup error:', e.message);
   }
+
+  console.error(`[DataGatekeeper] No bundle found for ${targetGB}GB on ${network}`);
+  return null;
 }
 
 const dataGatekeeperService = {
