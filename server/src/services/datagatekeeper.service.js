@@ -141,7 +141,15 @@ async function findBundleId(network, dataAmountStr) {
   return null;
 }
 
+// In-memory balance cache — updated after each order so pre-order check is instant
+let lastKnownBalance = null;
+
 const dataGatekeeperService = {
+  /** Return last known balance without a live API call */
+  getLastKnownBalance() {
+    return lastKnownBalance;
+  },
+
   /**
    * Get wallet balance via GET /account
    */
@@ -196,6 +204,9 @@ const dataGatekeeperService = {
 
       const extRef = `DGK-${data.orderId}`;
       const newBalance = data.walletBalance ? parseFloat(data.walletBalance) : undefined;
+
+      // Cache balance so next order's pre-check is instant (no live API call)
+      if (newBalance !== undefined) lastKnownBalance = newBalance;
 
       console.log(`[DataGatekeeper] Order placed: orderId=${data.orderId}, status=${data.status}, balance=${newBalance}`);
 

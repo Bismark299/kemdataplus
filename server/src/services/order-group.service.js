@@ -921,14 +921,12 @@ const orderGroupService = {
       if (providerBalances[providerName] !== undefined) return providerBalances[providerName];
       
       if (providerName === 'DATAGATEKEEPER') {
-        try {
-          const balanceResult = await service.getWalletBalance();
-          providerBalances[providerName] = balanceResult.success ? balanceResult.balance : Infinity;
-          console.log(`[OrderGroup] DataGatekeeper wallet balance: ${providerBalances[providerName]} GHS`);
-        } catch (e) {
-          providerBalances[providerName] = Infinity;
-          console.log(`[OrderGroup] Could not fetch DataGatekeeper balance (proceeding anyway): ${e.message}`);
-        }
+        // Skip live balance fetch — DGK API cold-start would delay every first order.
+        // Balance is updated from each placeOrder response (walletBalance field).
+        // The API will reject the order naturally if balance is truly insufficient.
+        const cached = dataGatekeeperService.getLastKnownBalance();
+        providerBalances[providerName] = cached !== null ? cached : Infinity;
+        console.log(`[OrderGroup] DataGatekeeper balance: ${cached !== null ? `GHS ${cached}` : 'unknown (using cached)'}`);
       } else if (providerName === 'CKGODSWAY') {
         // CK-Godsway has no balance endpoint - bypass check
         providerBalances[providerName] = Infinity;
