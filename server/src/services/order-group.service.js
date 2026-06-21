@@ -1759,13 +1759,11 @@ const orderGroupService = {
       }
     }
 
-    console.log(`[Sync] Total: ${results.length} items synced`);
-
-    console.log(`[Sync] Complete: ${completed} completed, ${failed} failed, ${unchanged} unchanged`);
+    console.log(`[Sync] Complete: ${results.length} synced — ${completed} completed, ${failed} failed, ${unchanged} unchanged`);
 
     return {
       success: true,
-      total: items.length,
+      total: results.length,
       completed,
       failed,
       unchanged,
