@@ -1086,6 +1086,22 @@ const orderGroupService = {
           continue;
         }
 
+        // ============ NETWORK ERROR: RESET SO ORDER CAN RETRY ============
+        // DataGatekeeper: on timeout/network error, reset apiSentAt so the next
+        // processOrderItems call (or admin retry) picks it up again.
+        if (!result.success && result.networkError && apiProvider === 'DATAGATEKEEPER') {
+          console.log(`[OrderGroup] DataGatekeeper network error for ${item.reference} — resetting for retry: ${result.error}`);
+          await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } });
+          skipped++;
+          results.push({
+            itemId: item.id,
+            reference: item.reference,
+            skipped: true,
+            reason: `DataGatekeeper unreachable — will retry: ${result.error}`
+          });
+          continue;
+        }
+
         // ============ NETWORK ERROR: MARK PROCESSING, LET AUTO-SYNC VERIFY ============
         // If we got a network/timeout error, MCBIS may have already received and processed
         // the order despite no response. Store the reference and mark PROCESSING so that

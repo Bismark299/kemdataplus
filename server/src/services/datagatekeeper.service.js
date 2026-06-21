@@ -23,9 +23,13 @@ function getApiKey() {
   return process.env.DATAGATEKEEPER_API_KEY || '';
 }
 
-async function makeRequest(endpoint, options = {}) {
+async function makeRequest(endpoint, options = {}, timeoutMs = 15000) {
   const apiKey = getApiKey();
   const url = `${BASE_URL}${endpoint}`;
+
+  if (!apiKey) {
+    throw new Error('DATAGATEKEEPER_API_KEY not set — add it to your environment variables');
+  }
 
   const headers = {
     'X-API-Key': apiKey,
@@ -35,7 +39,25 @@ async function makeRequest(endpoint, options = {}) {
 
   console.log(`[DataGatekeeper] ${options.method || 'GET'} ${url}`);
 
-  const response = await fetch(url, { ...options, headers });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(url, { ...options, headers, signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      const e = new Error('Request timed out (Data Gatekeeper API may be cold-starting — will retry)');
+      e.networkError = true;
+      throw e;
+    }
+    const e = new Error(`Network error: ${err.message}`);
+    e.networkError = true;
+    throw e;
+  }
+  clearTimeout(timer);
+
   console.log(`[DataGatekeeper] Status: ${response.status}`);
 
   const data = await response.json();
@@ -115,6 +137,13 @@ const dataGatekeeperService = {
    */
   async placeOrder({ network, phone, amount, orderId }) {
     try {
+      // Guard: no API key = not configured yet — treat as retriable (keep order PENDING)
+      if (!getApiKey()) {
+        const e = new Error('DATAGATEKEEPER_API_KEY not set on this server — add it to environment variables');
+        e.networkError = true;
+        throw e;
+      }
+
       // Normalise phone number to 10-digit local format
       let phoneNumber = (phone || '').replace(/\s+/g, '');
       if (phoneNumber.startsWith('+233')) phoneNumber = '0' + phoneNumber.slice(4);
@@ -147,7 +176,7 @@ const dataGatekeeperService = {
       };
     } catch (error) {
       console.error('[DataGatekeeper] placeOrder error:', error.message);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, networkError: !!error.networkError };
     }
   },
 
