@@ -7018,6 +7018,12 @@
                             <button type="button" class="btn-fund" onclick="checkDatagatekeeperBalance()" style="background: #047857;">
                                 <i class="fas fa-wallet"></i> Check Balance
                             </button>
+                            <button type="button" class="btn-fund" onclick="diagnoseDGK()" style="background: #0284c7;">
+                                <i class="fas fa-stethoscope"></i> Diagnose Routing
+                            </button>
+                            <button type="button" class="btn-fund" onclick="dispatchPendingToDGK()" style="background: #7c3aed;">
+                                <i class="fas fa-bolt"></i> Force Dispatch Pending
+                            </button>
                         </div>
 
                         <!-- Balance Display -->
@@ -7025,6 +7031,9 @@
                             <div style="font-size: 0.85rem; opacity: 0.9;">Data Gatekeeper Wallet Balance</div>
                             <div style="font-size: 1.8rem; font-weight: 700;" id="datagatekeeperBalanceAmount">GHS 0.00</div>
                         </div>
+
+                        <!-- Diagnose Report -->
+                        <div id="dgkDiagnoseReport" style="display: none; margin-top: 15px; padding: 15px; background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; font-size: 0.85rem;"></div>
                     </div>
 
                     <!-- CK-Godsway API Integration Card -->
