@@ -39,6 +39,7 @@ const momoRoutes = require('./routes/momo.routes');
 const storeCustomerRoutes = require('./routes/store-customer.routes');
 const datahubRoutes = require('./routes/datahub.routes');
 const ckgodswayRoutes = require('./routes/ckgodsway.routes');
+const dataGatekeeperRoutes = require('./routes/datagatekeeper.routes');
 const paystackRoutes = require('./routes/paystack.routes');
 const profitPayoutRoutes = require('./routes/profit-payout.routes');
 const topupghRoutes     = require('./routes/topupgh.routes');
@@ -305,6 +306,7 @@ app.use('/api/momo', momoRoutes);
 app.use('/api/store-customer', storeCustomerRoutes);
 app.use('/api/datahub', datahubRoutes);
 app.use('/api/ckgodsway', ckgodswayRoutes);
+app.use('/api/datagatekeeper', dataGatekeeperRoutes);
 app.use('/api/paystack', paystackRoutes);
 app.use('/api/profit-payouts', profitPayoutRoutes);
 app.use('/api/complaints', require('./routes/complaint.routes'));
@@ -569,7 +571,8 @@ function startAutoSync() {
       try {
         const itemResult = await orderGroupService.syncAllProcessingItems({
           mcbisEnabled: mcbisShouldSync,
-          ckgodswayEnabled: ckgodswayShouldSync
+          ckgodswayEnabled: ckgodswayShouldSync,
+          datagatekeeperEnabled: true
         });
         if (itemResult.total > 0) {
           console.log(`[AutoSync] OrderItems: ${itemResult.completed} completed, ${itemResult.failed} failed, ${itemResult.unchanged} unchanged`);

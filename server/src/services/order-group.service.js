@@ -829,6 +829,7 @@ const orderGroupService = {
   async processOrderItems(orderGroupId) {
     const datahubService = require('./datahub.service');
     const ckgodswayService = require('./ckgodsway.service');
+    const dataGatekeeperService = require('./datagatekeeper.service');
     const settingsController = require('../controllers/settings.controller');
     const fs = require('fs');
     const path = require('path');
@@ -858,6 +859,7 @@ const orderGroupService = {
     const isTruthy = (val) => val === true || val === 'true' || val === 1;
     
     const PROVIDERS = [
+      { key: 'datagatekeeperAPI', name: 'DATAGATEKEEPER', prefix: 'datagatekeeper', service: dataGatekeeperService },
       { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
       { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: datahubService }
     ];
@@ -918,7 +920,16 @@ const orderGroupService = {
     async function getProviderBalance(providerName, service) {
       if (providerBalances[providerName] !== undefined) return providerBalances[providerName];
       
-      if (providerName === 'CKGODSWAY') {
+      if (providerName === 'DATAGATEKEEPER') {
+        try {
+          const balanceResult = await service.getWalletBalance();
+          providerBalances[providerName] = balanceResult.success ? balanceResult.balance : Infinity;
+          console.log(`[OrderGroup] DataGatekeeper wallet balance: ${providerBalances[providerName]} GHS`);
+        } catch (e) {
+          providerBalances[providerName] = Infinity;
+          console.log(`[OrderGroup] Could not fetch DataGatekeeper balance (proceeding anyway): ${e.message}`);
+        }
+      } else if (providerName === 'CKGODSWAY') {
         // CK-Godsway has no balance endpoint - bypass check
         providerBalances[providerName] = Infinity;
         console.log(`[OrderGroup] CK-Godsway: No balance endpoint, skipping balance check`);
@@ -1275,8 +1286,15 @@ const orderGroupService = {
       const ref = item.externalReference || '';
       const datahubService = require('./datahub.service');
       const ckgodswayService = require('./ckgodsway.service');
+      const dataGatekeeperService = require('./datagatekeeper.service');
       
-      if (ref.startsWith('CK-')) {
+      if (ref.startsWith('DGK-')) {
+        // Data Gatekeeper order
+        const dgResult = await dataGatekeeperService.checkOrderStatus(ref);
+        apiResult = dgResult.success
+          ? { success: true, status: dgResult.status, provider: 'DATAGATEKEEPER' }
+          : { success: false, error: dgResult.error };
+      } else if (ref.startsWith('CK-')) {
         // CK-Godsway order
         const ckResult = await ckgodswayService.checkOrderStatus(ref);
         apiResult = ckResult.success
@@ -1587,12 +1605,26 @@ const orderGroupService = {
    * @param {boolean} options.catchUp - When true: no row cap, oldest-first (use on re-enable)
    */
   async syncAllProcessingItems(options = {}) {
-    const { mcbisEnabled = true, ckgodswayEnabled = true, catchUp = false } = options;
+    const { mcbisEnabled = true, ckgodswayEnabled = true, datagatekeeperEnabled = true, catchUp = false } = options;
     
-    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'}${catchUp ? ', CATCH-UP mode' : ''})`);
+    console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'}, DataGatekeeper: ${datagatekeeperEnabled ? 'ON' : 'OFF'}${catchUp ? ', CATCH-UP mode' : ''})`);
     
     // Fetch each provider's items separately so one provider can't starve the other
     let items = [];
+
+    if (datagatekeeperEnabled) {
+      const dgQuery = {
+        where: {
+          status: { in: ['PROCESSING', 'PENDING'] },
+          externalReference: { startsWith: 'DGK-' }
+        },
+        orderBy: { createdAt: 'asc' }
+      };
+      if (!catchUp) dgQuery.take = 50;
+      const dgItems = await prisma.orderItem.findMany(dgQuery);
+      console.log(`[Sync] DataGatekeeper: ${dgItems.length} items to sync`);
+      items.push(...dgItems);
+    }
 
     if (ckgodswayEnabled) {
       const ckQuery = {
@@ -1614,7 +1646,10 @@ const orderGroupService = {
         where: {
           status: { in: ['PROCESSING', 'PENDING'] },
           externalReference: { not: null },
-          NOT: { externalReference: { startsWith: 'CK-' } }
+          NOT: [
+            { externalReference: { startsWith: 'CK-' } },
+            { externalReference: { startsWith: 'DGK-' } }
+          ]
         },
         // Always oldest-first so long-waiting orders are never starved by newer ones
         orderBy: { createdAt: 'asc' }

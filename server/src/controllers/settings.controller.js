@@ -188,8 +188,9 @@ const settingsController = {
             const datahubService    = require('../services/datahub.service');
             await Promise.all([
               orderGroupService.syncAllProcessingItems({
-                mcbisEnabled:     !!(siteSettings.mcbisAutoSync     && siteSettings.mcbisAPI),
-                ckgodswayEnabled: !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI),
+                mcbisEnabled:          !!(siteSettings.mcbisAutoSync     && siteSettings.mcbisAPI),
+                ckgodswayEnabled:      !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI),
+                datagatekeeperEnabled: !!(siteSettings.datagatekeeperAPI),
                 catchUp: true
               }),
               mcbisToggledOn && siteSettings.mcbisAPI
