@@ -4846,7 +4846,11 @@
                     <button class="btn-action btn-cancel" id="bulkCancelBtn">
                         <i class="fas fa-times"></i> Cancel & Refund
                     </button>
+                    <button class="btn-action" onclick="reconcileStorefrontOrders()" style="background: #b91c1c;" title="Works for all networks/providers (MTN, Telecel, AirtelTigo, AT-BigTime) — fixes orders that are completed here but still show as pending on the storefront/customer tracking page.">
+                        <i class="fas fa-link"></i> Fix Stuck Store Orders
+                    </button>
                 </div>
+                <div id="reconcileStorefrontResult" style="display:none; margin-top:15px; padding:15px; background:#fef3c7; border-radius:8px; font-size:0.85rem; white-space:pre-wrap;"></div>
             </div>
 
             <!-- Orders Table -->
@@ -7024,11 +7028,7 @@
                             <button type="button" class="btn-fund" onclick="dispatchPendingToDGK()" style="background: #7c3aed;">
                                 <i class="fas fa-bolt"></i> Force Dispatch Pending
                             </button>
-                            <button type="button" class="btn-fund" onclick="reconcileStorefrontOrders()" style="background: #b91c1c;">
-                                <i class="fas fa-link"></i> Fix Stuck Store Orders
-                            </button>
                         </div>
-                        <div id="reconcileStorefrontResult" style="display:none; margin-top:15px; padding:15px; background:#fef3c7; border-radius:8px; font-size:0.85rem; white-space:pre-wrap;"></div>
 
                         <!-- Balance Display -->
                         <div id="datagatekeeperBalanceDisplay" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #059669, #047857); border-radius: 8px; color: white;">
