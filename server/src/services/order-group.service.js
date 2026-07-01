@@ -772,7 +772,70 @@ const orderGroupService = {
     // Recalculate group status
     await this.recalculateGroupStatus(item.orderGroupId);
 
+    // ============================================================
+    // SYNC: Propagate status to legacy Order + StorefrontOrder
+    // ============================================================
+    // This is the single choke point for ALL automated fulfillment
+    // status changes (CKGodsway/DataGatekeeper/MCBIS). Without this,
+    // the storefront customer-facing page (which reads the legacy
+    // Order/StorefrontOrder rows) never learns that fulfillment
+    // succeeded or failed, and stays stuck on PENDING/PROCESSING
+    // forever even after the admin dashboard shows the true status.
+    try {
+      await this.syncLegacyOrderStatus(item, status);
+    } catch (syncErr) {
+      console.error(`[OrderGroup] Legacy sync failed for ${item.reference}:`, syncErr.message);
+    }
+
     return item;
+  },
+
+  /**
+   * Sync an OrderItem's status change back to the legacy Order table
+   * and (via storefrontOrderId) the StorefrontOrder table, so the
+   * storefront customer-facing pages reflect the real fulfillment status.
+   */
+  async syncLegacyOrderStatus(item, status) {
+    // OrderItem reference is like ORD-000013-01, Order reference is ORD-000013
+    const orderRef = item.reference?.replace(/-\d+$/, '');
+    if (!orderRef) return;
+
+    const order = await prisma.order.findFirst({ where: { reference: orderRef } });
+    if (!order) return;
+
+    // Don't move a legacy Order backwards once it's in a terminal state
+    if (order.status === 'COMPLETED') return;
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status,
+        processedAt: status === 'COMPLETED' ? new Date() : order.processedAt,
+        failureReason: status === 'FAILED' ? item.failureReason : order.failureReason
+      }
+    });
+    console.log(`[OrderGroup] Synced legacy Order ${order.reference} to ${status}`);
+
+    if (!order.storefrontOrderId) return;
+
+    const storefrontOrder = await prisma.storefrontOrder.findUnique({ where: { id: order.storefrontOrderId } });
+    if (!storefrontOrder || storefrontOrder.status === 'COMPLETED') return;
+
+    await prisma.storefrontOrder.update({
+      where: { id: order.storefrontOrderId },
+      data: { status }
+    });
+    console.log(`[OrderGroup] Synced StorefrontOrder ${order.storefrontOrderId} to ${status}`);
+
+    if (status === 'COMPLETED') {
+      try {
+        const financialOrderService = require('./financial-order.service');
+        const profitResult = await financialOrderService.creditAgentProfit(order.storefrontOrderId);
+        console.log(`[OrderGroup] Auto-complete profit credit:`, profitResult);
+      } catch (profitErr) {
+        console.error(`[OrderGroup] Auto-complete profit credit failed:`, profitErr.message);
+      }
+    }
   },
 
   /**

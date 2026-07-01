@@ -1254,19 +1254,41 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
       console.log(`[Admin] Completing PROCESSING orders for date: ${date}`);
     }
     
-    // Update all PROCESSING OrderItems to COMPLETED (with optional date filter)
-    const orderItemsResult = await prisma.orderItem.updateMany({
+    // Find PROCESSING OrderItems first so we can sync their legacy Order/StorefrontOrder
+    // by reference — NOT by assuming the legacy Order's status was already 'PROCESSING'.
+    // (Automated fulfillment historically never touched the legacy Order row, so it can
+    // still be sitting on PENDING even though the OrderItem is genuinely PROCESSING.)
+    const processingItems = await prisma.orderItem.findMany({
       where: { 
         status: 'PROCESSING',
         ...dateCondition
       },
+      select: { id: true, reference: true }
+    });
+
+    const orderItemsResult = await prisma.orderItem.updateMany({
+      where: { id: { in: processingItems.map(i => i.id) } },
       data: { 
         status: 'COMPLETED',
         processedAt: new Date()
       }
     });
     
-    // Update all PROCESSING legacy Orders to COMPLETED (with optional date filter)
+    // Sync each corresponding legacy Order (by reference) to COMPLETED, regardless of
+    // its current status, since it may be stuck on PENDING due to the historical sync gap.
+    let legacyOrdersSynced = 0;
+    for (const orderItem of processingItems) {
+      const orderRef = orderItem.reference?.replace(/-\d+$/, '');
+      if (!orderRef) continue;
+      const result = await prisma.order.updateMany({
+        where: { reference: orderRef, status: { not: 'COMPLETED' } },
+        data: { status: 'COMPLETED', processedAt: new Date() }
+      });
+      legacyOrdersSynced += result.count;
+    }
+
+    // Also directly complete any legacy PROCESSING Orders that have no matching OrderItem
+    // (older orders processed entirely through the legacy Order table).
     const legacyOrdersResult = await prisma.order.updateMany({
       where: { 
         status: 'PROCESSING',
@@ -1304,7 +1326,7 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
       });
     }
     
-    const totalCompleted = orderItemsResult.count + legacyOrdersResult.count;
+    const totalCompleted = orderItemsResult.count + legacyOrdersSynced + legacyOrdersResult.count;
     
     // Credit profits for all newly completed storefront orders
     let profitsCredited = 0;
@@ -1338,7 +1360,7 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
       console.error(`[Admin] Bulk profit credit error:`, profitErr.message);
     }
     
-    console.log(`[Admin] Completed ${totalCompleted} processing orders (${orderItemsResult.count} items, ${legacyOrdersResult.count} legacy)${date ? ` for ${date}` : ''}`);
+    console.log(`[Admin] Completed ${totalCompleted} processing orders (${orderItemsResult.count} items, ${legacyOrdersSynced} legacy synced-by-reference, ${legacyOrdersResult.count} legacy standalone)${date ? ` for ${date}` : ''}`);
     
     res.json({
       success: true,
@@ -1346,7 +1368,7 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
       profitsCredited,
       count: totalCompleted,
       orderItems: orderItemsResult.count,
-      legacyOrders: legacyOrdersResult.count,
+      legacyOrders: legacyOrdersSynced + legacyOrdersResult.count,
       dateFilter: date || null
     });
     
