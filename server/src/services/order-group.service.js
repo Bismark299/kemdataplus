@@ -1832,6 +1832,120 @@ const orderGroupService = {
       unchanged,
       results
     };
+  },
+
+  /**
+   * ============================================================
+   * RECONCILE STOREFRONT ORDERS
+   * ============================================================
+   * One-off / on-demand repair for orders that got stuck out of sync
+   * BEFORE the updateItemStatus()/processOrderItems() fix was added —
+   * i.e. fulfillment (legacy Order / OrderItem) shows COMPLETED but the
+   * linked StorefrontOrder never got the update, so the storefront page
+   * still shows PENDING/FAILED and Paystack profit was never credited.
+   *
+   * Safe to re-run any time — every write is idempotent (skips rows
+   * already COMPLETED, and creditAgentProfit refuses to double-credit).
+   *
+   * @param {boolean} apply - false (default) = dry run, report only.
+   *                          true = actually fix + credit profit.
+   */
+  async reconcileStorefrontOrders(apply = false) {
+    const report = {
+      apply,
+      storefrontOrdersScanned: 0,
+      storefrontOrdersStuck: [],
+      legacyOrdersStuck: [],
+      storefrontOrdersFixed: 0,
+      legacyOrdersFixed: 0,
+      profitsCredited: 0,
+      profitsSkipped: 0,
+      errors: []
+    };
+
+    // 1. legacy Order COMPLETED but linked StorefrontOrder lagging behind
+    const mismatched = await prisma.order.findMany({
+      where: { status: 'COMPLETED', storefrontOrderId: { not: null } },
+      include: { storefrontOrder: true }
+    });
+    report.storefrontOrdersScanned = mismatched.length;
+
+    const needsFix = mismatched.filter(o => o.storefrontOrder && o.storefrontOrder.status !== 'COMPLETED');
+    report.storefrontOrdersStuck = needsFix.map(o => ({
+      orderReference: o.reference,
+      storefrontOrderId: o.storefrontOrderId,
+      currentStatus: o.storefrontOrder.status,
+      paymentMethod: o.storefrontOrder.paymentMethod,
+      profitCredited: o.storefrontOrder.profitCredited
+    }));
+
+    // 2. OrderItem COMPLETED but legacy Order itself lagging behind (deeper gap)
+    const completedItems = await prisma.orderItem.findMany({
+      where: { status: 'COMPLETED' },
+      select: { id: true, reference: true }
+    });
+
+    const deeperGapRefs = [];
+    for (const item of completedItems) {
+      const orderRef = item.reference?.replace(/-\d+$/, '');
+      if (!orderRef) continue;
+      const order = await prisma.order.findFirst({ where: { reference: orderRef } });
+      if (order && order.status !== 'COMPLETED') {
+        deeperGapRefs.push({ itemRef: item.reference, orderRef, orderId: order.id, orderStatus: order.status });
+      }
+    }
+    report.legacyOrdersStuck = deeperGapRefs.map(r => ({
+      itemReference: r.itemRef,
+      orderReference: r.orderRef,
+      currentStatus: r.orderStatus
+    }));
+
+    if (!apply) {
+      return report;
+    }
+
+    // --- APPLY: fix legacy Orders lagging behind their completed OrderItem first ---
+    for (const r of deeperGapRefs) {
+      try {
+        await prisma.order.update({
+          where: { id: r.orderId },
+          data: { status: 'COMPLETED', processedAt: new Date() }
+        });
+        report.legacyOrdersFixed++;
+      } catch (e) {
+        report.errors.push(`Legacy Order ${r.orderRef}: ${e.message}`);
+      }
+    }
+
+    // --- APPLY: fix StorefrontOrder rows + credit profit ---
+    const financialOrderService = require('./financial-order.service');
+    const toFix = await prisma.order.findMany({
+      where: { status: 'COMPLETED', storefrontOrderId: { not: null } },
+      include: { storefrontOrder: true }
+    });
+
+    for (const o of toFix) {
+      if (!o.storefrontOrder || o.storefrontOrder.status === 'COMPLETED') continue;
+
+      try {
+        await prisma.storefrontOrder.update({
+          where: { id: o.storefrontOrderId },
+          data: { status: 'COMPLETED' }
+        });
+        report.storefrontOrdersFixed++;
+
+        const result = await financialOrderService.creditAgentProfit(o.storefrontOrderId);
+        if (result.credited) {
+          report.profitsCredited++;
+        } else {
+          report.profitsSkipped++;
+        }
+      } catch (e) {
+        report.errors.push(`StorefrontOrder ${o.storefrontOrderId}: ${e.message}`);
+      }
+    }
+
+    return report;
   }
 };
 

@@ -1378,6 +1378,36 @@ router.post('/admin/complete-all-processing', authenticate, authorize('ADMIN'), 
 });
 
 /**
+ * POST /api/order-groups/admin/reconcile-storefront-orders
+ * Repairs orders that got stuck out of sync BEFORE the updateItemStatus()/
+ * processOrderItems() fulfillment-sync fix was added — fulfillment shows
+ * COMPLETED but the linked StorefrontOrder never got the update, so the
+ * storefront page still shows PENDING/FAILED and Paystack profit was never
+ * credited.
+ *
+ * Body: { apply: boolean } — omit or false for a dry-run report only.
+ * Safe to call repeatedly — every write is idempotent.
+ */
+router.post('/admin/reconcile-storefront-orders', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const apply = req.body?.apply === true;
+    const orderGroupService = require('../services/order-group.service');
+    const report = await orderGroupService.reconcileStorefrontOrders(apply);
+    console.log(`[Admin] Reconcile storefront orders (apply=${apply}):`, JSON.stringify({
+      storefrontOrdersScanned: report.storefrontOrdersScanned,
+      storefrontOrdersStuckCount: report.storefrontOrdersStuck.length,
+      legacyOrdersStuckCount: report.legacyOrdersStuck.length,
+      storefrontOrdersFixed: report.storefrontOrdersFixed,
+      legacyOrdersFixed: report.legacyOrdersFixed,
+      profitsCredited: report.profitsCredited
+    }));
+    res.json({ success: true, ...report });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /api/order-groups/admin/item/:itemId/retry
  * Retry a FAILED order item that was never received by the provider (MCBIS 404).
  * Resets the item to PENDING and re-queues it for sending.
