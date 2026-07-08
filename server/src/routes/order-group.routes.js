@@ -1118,6 +1118,22 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
         data: { status: 'CANCELLED' }
       });
 
+      // Sync cancellation down to the storefront customer-facing order, if linked
+      if (legacyOrder.storefrontOrderId) {
+        try {
+          const storefrontOrder = await prisma.storefrontOrder.findUnique({ where: { id: legacyOrder.storefrontOrderId } });
+          if (storefrontOrder && storefrontOrder.status !== 'COMPLETED') {
+            await prisma.storefrontOrder.update({
+              where: { id: legacyOrder.storefrontOrderId },
+              data: { status: 'CANCELLED' }
+            });
+            console.log(`[Admin] Synced StorefrontOrder ${legacyOrder.storefrontOrderId} to CANCELLED`);
+          }
+        } catch (syncErr) {
+          console.error(`[Admin] Failed to sync cancellation to StorefrontOrder for ${legacyOrder.reference}:`, syncErr.message);
+        }
+      }
+
       // Refund to wallet via walletService (writes to walletLedger, idempotent)
       if (refundAmount > 0) {
         try {
@@ -1199,6 +1215,13 @@ router.post('/admin/item/:itemId/cancel', authenticate, authorize('ADMIN'), asyn
       
       // Wallet credit is handled after the transaction via walletService
     });
+
+    // Sync cancellation down to the legacy Order + storefront customer-facing order, if linked
+    try {
+      await orderGroupService.syncLegacyOrderStatus(item, 'CANCELLED');
+    } catch (syncErr) {
+      console.error(`[Admin] Failed to sync cancellation for item ${item.reference}:`, syncErr.message);
+    }
 
     // Refund to wallet via walletService (writes to walletLedger, idempotent, always COMPLETED)
     if (refundAmount > 0) {
