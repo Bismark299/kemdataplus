@@ -1569,4 +1569,117 @@ router.delete('/admin/:id/delete-duplicate', authenticate, authorize('ADMIN'), a
   }
 });
 
+/**
+ * POST /api/order-groups/admin/bulk-complete-by-phone
+ * Bulk-complete orders by pasting phone number + data size pairs.
+ * Format: one entry per line — "0241234567 5" (phone space dataSize)
+ * Matches on recipientPhone + bundle.dataAmount starts-with dataSize.
+ * Already-completed/cancelled/failed orders are silently skipped.
+ */
+router.post('/admin/bulk-complete-by-phone', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { entries } = req.body;
+    if (!entries || typeof entries !== 'string') {
+      return res.status(400).json({ error: 'entries field (string) is required' });
+    }
+
+    // Parse lines: "0241234567 5" → { phone: "0241234567", dataSize: "5" }
+    const pairs = entries
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const spaceIdx = line.indexOf(' ');
+        if (spaceIdx === -1) return null;
+        return {
+          phone: line.slice(0, spaceIdx).trim(),
+          dataSize: line.slice(spaceIdx + 1).trim()
+        };
+      })
+      .filter(Boolean);
+
+    if (pairs.length === 0) {
+      return res.status(400).json({ error: 'No valid entries found. Format: one "phone dataSize" per line.' });
+    }
+
+    const phones = [...new Set(pairs.map(p => p.phone))];
+
+    // Fetch all non-terminal OrderItems for these phone numbers, including bundle
+    const candidates = await prisma.orderItem.findMany({
+      where: {
+        recipientPhone: { in: phones },
+        status: { notIn: ['COMPLETED', 'CANCELLED', 'FAILED'] }
+      },
+      include: {
+        bundle: { select: { dataAmount: true } },
+        orderGroup: { include: { items: { select: { id: true, status: true } } } }
+      }
+    });
+
+    let completed = 0;
+    let skipped = 0;
+    const details = [];
+
+    const orderGroupService = require('../services/order-group.service');
+    const financialOrderService = require('../services/financial-order.service');
+
+    for (const { phone, dataSize } of pairs) {
+      // Find candidates matching this phone + dataSize (dataAmount starts with dataSize, case-insensitive)
+      const matches = candidates.filter(item =>
+        item.recipientPhone === phone &&
+        item.bundle?.dataAmount?.toLowerCase().startsWith(dataSize.toLowerCase())
+      );
+
+      if (matches.length === 0) {
+        skipped++;
+        details.push({ phone, dataSize, result: 'skipped', reason: 'no matching order found' });
+        continue;
+      }
+
+      for (const item of matches) {
+        try {
+          // Update OrderItem to COMPLETED
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: { status: 'COMPLETED', processedAt: new Date() }
+          });
+
+          // Recalculate and update OrderGroup summary status
+          const allItems = item.orderGroup.items;
+          const updatedStatuses = allItems.map(i => i.id === item.id ? 'COMPLETED' : i.status);
+          let newGroupStatus = 'PENDING';
+          if (updatedStatuses.every(s => s === 'COMPLETED')) newGroupStatus = 'COMPLETED';
+          else if (updatedStatuses.some(s => s === 'COMPLETED' || s === 'PROCESSING')) newGroupStatus = 'PROCESSING';
+          else if (updatedStatuses.every(s => s === 'FAILED')) newGroupStatus = 'FAILED';
+          else if (updatedStatuses.every(s => s === 'CANCELLED')) newGroupStatus = 'CANCELLED';
+
+          await prisma.orderGroup.update({
+            where: { id: item.orderGroupId },
+            data: { summaryStatus: newGroupStatus, status: newGroupStatus }
+          });
+
+          // Sync to legacy Order + StorefrontOrder + credit profit
+          await orderGroupService.syncLegacyOrderStatus(item, 'COMPLETED');
+
+          completed++;
+          details.push({ phone, dataSize, result: 'completed', itemId: item.id });
+        } catch (itemErr) {
+          details.push({ phone, dataSize, result: 'error', reason: itemErr.message, itemId: item.id });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      summary: `${completed} order(s) completed, ${skipped} skipped (no match)`,
+      completed,
+      skipped,
+      details
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

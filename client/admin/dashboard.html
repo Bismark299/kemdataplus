@@ -4849,6 +4849,9 @@
                     <button class="btn-action" onclick="reconcileStorefrontOrders()" style="background: #b91c1c;" title="Works for all networks/providers (MTN, Telecel, AirtelTigo, AT-BigTime) — fixes orders that are completed here but still show as pending on the storefront/customer tracking page.">
                         <i class="fas fa-link"></i> Fix Stuck Store Orders
                     </button>
+                    <button class="btn-action" onclick="openBulkCompleteModal()" style="background: #059669;" title="Paste phone numbers with data sizes to bulk-complete matching orders">
+                        <i class="fas fa-list-check"></i> Bulk Complete
+                    </button>
                 </div>
                 <div id="reconcileStorefrontResult" style="display:none; margin-top:15px; padding:15px; background:#fef3c7; border-radius:8px; font-size:0.85rem; white-space:pre-wrap;"></div>
             </div>
@@ -5962,6 +5965,34 @@
         </div>
 
 
+
+        <!-- ========== BULK COMPLETE BY PHONE MODAL ========== -->
+        <div class="statement-modal-overlay" id="bulkCompleteOverlay" style="display:none;">
+            <div class="statement-modal" style="max-width: 520px;">
+                <div class="statement-header" style="background: linear-gradient(135deg, #059669, #047857); color: white; border-radius: 12px 12px 0 0; padding: 18px 22px;">
+                    <div class="statement-header-info">
+                        <h3 style="color: white; margin: 0; font-size: 1rem;"><i class="fas fa-list-check" style="margin-right: 8px;"></i> Bulk Complete Orders</h3>
+                        <p style="color: rgba(255,255,255,0.85); margin: 4px 0 0 0; font-size: 0.83rem;">Paste phone numbers with data sizes — one per line</p>
+                    </div>
+                    <button onclick="closeBulkCompleteModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div style="padding: 20px 22px;">
+                    <p style="font-size: 0.83rem; color: #64748b; margin: 0 0 10px 0;">
+                        Format: <code style="background:#f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem;">0241234567 5</code> &nbsp;(phone number, space, data size)
+                    </p>
+                    <textarea id="bulkCompleteInput" placeholder="0241234567 5&#10;0557654321 1&#10;0201112222 2" style="width: 100%; height: 180px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: monospace; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
+                    <div id="bulkCompleteResult" style="display:none; margin-top: 14px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; line-height: 1.6;"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 14px;">
+                        <button onclick="closeBulkCompleteModal()" style="flex: 1; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Cancel</button>
+                        <button id="bulkCompleteSubmitBtn" onclick="submitBulkComplete()" style="flex: 2; padding: 10px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
+                            <i class="fas fa-check"></i> Complete Orders
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- ========== VIEW AGENT BALANCE MODAL ========== -->
         <div class="statement-modal-overlay" id="viewBalanceOverlay" style="display:none;">
@@ -14903,6 +14934,70 @@
                 }
             } catch (err) {
                 showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        function openBulkCompleteModal() {
+            document.getElementById('bulkCompleteInput').value = '';
+            const result = document.getElementById('bulkCompleteResult');
+            result.style.display = 'none';
+            result.textContent = '';
+            const btn = document.getElementById('bulkCompleteSubmitBtn');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Complete Orders';
+            const overlay = document.getElementById('bulkCompleteOverlay');
+            overlay.style.display = 'flex';
+        }
+
+        function closeBulkCompleteModal() {
+            document.getElementById('bulkCompleteOverlay').style.display = 'none';
+        }
+
+        async function submitBulkComplete() {
+            const input = document.getElementById('bulkCompleteInput').value.trim();
+            if (!input) { showToast('Please paste at least one entry.', 'error'); return; }
+
+            const btn = document.getElementById('bulkCompleteSubmitBtn');
+            const result = document.getElementById('bulkCompleteResult');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            result.style.display = 'none';
+
+            try {
+                const res = await adminFetch('/api/order-groups/admin/bulk-complete-by-phone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: input })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const skippedDetails = (data.details || []).filter(d => d.result === 'skipped');
+                    let msg = `✅ ${data.summary}\n`;
+                    if (skippedDetails.length > 0) {
+                        msg += `\nSkipped (no match found):\n` + skippedDetails.map(d => `  • ${d.phone} ${d.dataSize}`).join('\n');
+                    }
+                    result.style.background = data.completed > 0 ? '#d1fae5' : '#fef3c7';
+                    result.style.color = data.completed > 0 ? '#065f46' : '#92400e';
+                    result.style.display = 'block';
+                    result.textContent = msg;
+                    if (data.completed > 0) showToast(`✅ ${data.completed} order(s) completed`, 'success');
+                    else showToast('No orders completed — check the skipped list.', 'warning');
+                } else {
+                    result.style.background = '#fee2e2';
+                    result.style.color = '#991b1b';
+                    result.style.display = 'block';
+                    result.textContent = '❌ ' + (data.error || 'Something went wrong');
+                    showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                result.style.background = '#fee2e2';
+                result.style.color = '#991b1b';
+                result.style.display = 'block';
+                result.textContent = '❌ ' + err.message;
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Complete Orders';
             }
         }
 
