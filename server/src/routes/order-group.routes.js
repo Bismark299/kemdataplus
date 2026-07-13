@@ -1578,10 +1578,17 @@ router.delete('/admin/:id/delete-duplicate', authenticate, authorize('ADMIN'), a
  */
 router.post('/admin/bulk-complete-by-phone', authenticate, authorize('ADMIN'), async (req, res, next) => {
   try {
-    const { entries } = req.body;
+    const { entries, fromDate, toDate } = req.body;
     if (!entries || typeof entries !== 'string') {
       return res.status(400).json({ error: 'entries field (string) is required' });
     }
+    if (!fromDate || !toDate) {
+      return res.status(400).json({ error: 'fromDate and toDate are required' });
+    }
+    const from = new Date(fromDate);
+    // toDate is inclusive — advance to end of that day (UTC)
+    const to = new Date(toDate);
+    to.setUTCDate(to.getUTCDate() + 1);
 
     // Parse lines: "0241234567 5" → { phone: "0241234567", dataSize: "5" }
     const pairs = entries
@@ -1604,11 +1611,12 @@ router.post('/admin/bulk-complete-by-phone', authenticate, authorize('ADMIN'), a
 
     const phones = [...new Set(pairs.map(p => p.phone))];
 
-    // Fetch all non-terminal OrderItems for these phone numbers, including bundle
+    // Fetch all non-terminal OrderItems for these phone numbers within date range
     const candidates = await prisma.orderItem.findMany({
       where: {
         recipientPhone: { in: phones },
-        status: { notIn: ['COMPLETED', 'CANCELLED', 'FAILED'] }
+        status: { notIn: ['COMPLETED', 'CANCELLED', 'FAILED'] },
+        createdAt: { gte: from, lt: to }
       },
       include: {
         bundle: { select: { dataAmount: true } },
