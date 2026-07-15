@@ -362,27 +362,16 @@
     <!-- AUTHENTICATION -->
     <section class="doc-section alt-bg" id="auth-section">
         <div class="section-title"><i class="fas fa-lock"></i> Authentication</div>
-        <p class="section-desc">All protected endpoints require a Bearer token in the <code style="font-family:monospace;font-size:0.85em;">Authorization</code> header. You can authenticate using either a <strong>JWT token</strong> (session-based) or a static <strong>API key</strong> (recommended for integrations).</p>
+        <p class="section-desc">All protected endpoints require an API key in the <code style="font-family:monospace;font-size:0.85em;">Authorization</code> header. Generate your key from the Profile → Settings page.</p>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-            <div class="auth-info-box" style="margin:0;">
-                <h3><i class="fas fa-key"></i> Option 1 — API Key <span style="font-size:0.72rem;background:#10b98120;color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600;">Recommended</span></h3>
-                <p style="margin-bottom:10px;">Generate a static API key from your <strong>Profile → Settings</strong> tab. It never expires and works on every request without re-authenticating.</p>
-                <div class="code-block" style="margin:0;">
-                    <div class="code-block-header"><span class="code-block-lang">Header</span></div>
-                    <pre>Authorization: Bearer kdp_sk_a3f9c8d2...</pre>
-                </div>
-                <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Revoke or regenerate anytime from your profile. Keep it secret — treat it like a password.</p>
+        <div class="auth-info-box">
+            <h3><i class="fas fa-key"></i> How to authenticate</h3>
+            <p style="margin-bottom:10px;">Generate an API key from your <strong>Profile → Settings</strong> tab. It never expires — use it on every request without re-authenticating.</p>
+            <div class="code-block" style="margin:0;">
+                <div class="code-block-header"><span class="code-block-lang">Header</span></div>
+                <pre>Authorization: Bearer kdp_sk_a3f9c8d2...</pre>
             </div>
-            <div class="auth-info-box" style="margin:0;">
-                <h3><i class="fas fa-clock"></i> Option 2 — JWT Token</h3>
-                <p style="margin-bottom:10px;">Call <code>/api/auth/login</code> with your email and password to receive a short-lived token. Suitable for session-based access.</p>
-                <div class="code-block" style="margin:0;">
-                    <div class="code-block-header"><span class="code-block-lang">Header</span></div>
-                    <pre>Authorization: Bearer eyJhbGci...</pre>
-                </div>
-                <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Tokens expire — call <code>/api/auth/refresh</code> or re-login when they do.</p>
-            </div>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Keep your API key secret. Revoke or regenerate it anytime from your profile page.</p>
         </div>
 
         <!-- API KEY MANAGEMENT -->
