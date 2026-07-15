@@ -633,11 +633,23 @@
                     <div class="nav-menu">
                         <div class="links">
                             <a href="../public/dashboard.html">Dashboard</a>
-                            <a href="../pages/orders.html">Orders</a>
-                            <a href="../pages/wallet.html">Wallet</a>
-                            <a href="../pages/complaints.html" class="active">Support</a>
-                            <a href="../pages/profile.html">Profile</a>
+                            <a href="../public/dashboard.html#buy-bundles">Buy Bundles</a>
+                            <a href="./orders.html">Orders</a>
+                            <a href="./wallet.html">Wallet</a>
+                            <a href="./mystore.html">My Store</a>
                             <a href="#" onclick="logout(); return false;" class="mobile-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown">
+                        <img src="../public/img/kem.png" alt="Profile" class="profile-pic" id="profileBtn">
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a href="./profile.html"><i class="fas fa-user"></i> My Profile</a>
+                            <a href="./profile.html"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="./wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+                            <a href="./complaints.html" class="active"><i class="fas fa-headset"></i> Support</a>
+                            <a href="./api-docs.html"><i class="fas fa-code"></i> API Docs</a>
+                            <hr>
+                            <a href="#" onclick="logout(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </div>
                     <label for="check-box" class="close-icon">
@@ -1157,6 +1169,15 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', loadComplaints);
+
+        document.getElementById('profileBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        });
+        document.addEventListener('click', () => {
+            document.getElementById('dropdownMenu').style.display = 'none';
+        });
     </script>
     <script src="../public/js/session-timeout.js"></script>
 </body>
