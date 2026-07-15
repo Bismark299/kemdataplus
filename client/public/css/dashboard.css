@@ -194,6 +194,11 @@ header div img {
     transition: all var(--transition);
 }
 
+/* Hidden on desktop, shown only in mobile slide-out menu */
+.links a.mobile-only {
+    display: none;
+}
+
 .links a:hover {
     color: var(--accent);
     background: rgba(2, 73, 89, 0.1);
@@ -332,6 +337,13 @@ header div img {
         color: #F2C12E;
     }
     
+    /* Mobile-only links (hidden on desktop, visible in slide-out menu) */
+    .nav-menu .links a.mobile-only {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
     /* Mobile Logout Button Styling */
     .nav-menu .links a.mobile-logout {
         margin-top: 20px;
