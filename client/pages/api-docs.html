@@ -336,7 +336,7 @@
             <div class="intro-card">
                 <div class="ic-icon">🔐</div>
                 <h3>Authentication</h3>
-                <p>All endpoints require a Bearer token obtained via <code style="font-family:monospace;font-size:0.8em;background:#f1f5f9;padding:1px 5px;border-radius:3px;">/api/auth/login</code>. Include it in every request header.</p>
+                <p>All endpoints require an API key in the <code style="font-family:monospace;font-size:0.8em;background:#f1f5f9;padding:1px 5px;border-radius:3px;">Authorization</code> header. Generate yours from Profile → Settings.</p>
             </div>
             <div class="intro-card">
                 <div class="ic-icon">💰</div>
@@ -356,6 +356,74 @@
             <h3><i class="fas fa-server"></i> Base URL</h3>
             <p>All API requests should be made to: <code id="baseUrlInline">Loading...</code></p>
             <p style="margin-top:8px;">All request and response bodies are <strong>JSON</strong>. Set <code>Content-Type: application/json</code> and <code>Accept: application/json</code> on every request.</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px;"><i class="fas fa-bolt" style="color:var(--accent);margin-right:6px;"></i> Quick Start</h3>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:20px;">Three steps to place your first order.</p>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;gap:16px;align-items:flex-start;">
+                <div style="min-width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;margin-top:2px;">1</div>
+                <div style="flex:1;">
+                    <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Fetch available bundles to get a <code>bundleId</code></p>
+                    <div class="code-block" style="margin:0;">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl '<span class="url" id="curl-qs-1"></span>/api/bundles?network=MTN'</pre>
+                    </div>
+                    <div class="code-block" style="margin-top:6px;">
+                        <div class="code-block-header"><span class="code-block-lang">Response (excerpt)</span></div>
+                        <pre>[
+  { <span class="key">"id"</span>: <span class="string">"cm3x9a1b2c3d4e5f6"</span>, <span class="key">"name"</span>: <span class="string">"MTN 5GB Daily"</span>, <span class="key">"dataAmount"</span>: <span class="string">"5GB"</span>, <span class="key">"basePrice"</span>: <span class="number">8.50</span> },
+  { <span class="key">"id"</span>: <span class="string">"cm3x9b7c8d9e0f1a2"</span>, <span class="key">"name"</span>: <span class="string">"MTN 10GB Weekly"</span>, <span class="key">"dataAmount"</span>: <span class="string">"10GB"</span>, <span class="key">"basePrice"</span>: <span class="number">15.00</span> }
+]</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:16px;align-items:flex-start;">
+                <div style="min-width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;margin-top:2px;">2</div>
+                <div style="flex:1;">
+                    <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Place an order using the <code>bundleId</code> and recipient phone</p>
+                    <div class="code-block" style="margin:0;">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --request POST '<span class="url" id="curl-qs-2"></span>/api/order-groups' \
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>' \
+--header '<span class="header-key">Content-Type</span>: application/json' \
+--data '{
+  <span class="key">"items"</span>: [{ <span class="key">"bundleId"</span>: <span class="string">"cm3x9a1b2c3d4e5f6"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span> }]
+}'</pre>
+                    </div>
+                    <div class="code-block" style="margin-top:6px;">
+                        <div class="code-block-header"><span class="code-block-lang">Response</span></div>
+                        <pre>{
+  <span class="key">"message"</span>: <span class="string">"Order created successfully"</span>,
+  <span class="key">"order"</span>: { <span class="key">"orderId"</span>: <span class="string">"GRP-000105"</span>, <span class="key">"status"</span>: <span class="string">"PROCESSING"</span>, <span class="key">"totalAmount"</span>: <span class="number">8.50</span> }
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:16px;align-items:flex-start;">
+                <div style="min-width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;margin-top:2px;">3</div>
+                <div style="flex:1;">
+                    <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Poll the order status until <code>COMPLETED</code></p>
+                    <div class="code-block" style="margin:0;">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl '<span class="url" id="curl-qs-3"></span>/api/order-groups/GRP-000105' \
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
+                    </div>
+                    <div class="code-block" style="margin-top:6px;">
+                        <div class="code-block-header"><span class="code-block-lang">Response</span></div>
+                        <pre>{
+  <span class="key">"id"</span>: <span class="string">"GRP-000105"</span>,
+  <span class="key">"summaryStatus"</span>: <span class="string">"COMPLETED"</span>,
+  <span class="key">"items"</span>: [{ <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span>, <span class="key">"bundle"</span>: <span class="string">"MTN 5GB Daily"</span>, <span class="key">"status"</span>: <span class="string">"COMPLETED"</span> }]
+}</pre>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -428,7 +496,7 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location --request DELETE '<span class="url" id="curl-apikey-revoke-url"></span>/api/auth/api-key' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
                     </div>
                 </div>
                 <div class="tab-content" id="apikey-revoke-res">
@@ -518,7 +586,7 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-me-url"></span>/api/auth/me' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
                     </div>
                 </div>
                 <div class="tab-content" id="me-response">
@@ -679,12 +747,12 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL — Single Order</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-order-url"></span>/api/order-groups' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;' \
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>' \
 --header '<span class="header-key">Content-Type</span>: application/json' \
 --data '{
     <span class="key">"items"</span>: [
         {
-            <span class="key">"bundleId"</span>: <span class="string">"bundle_abc123"</span>,
+            <span class="key">"bundleId"</span>: <span class="string">"cm3x9a1b2c3d4e5f6"</span>,
             <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span>
         }
     ]
@@ -693,14 +761,14 @@
                     <div class="code-block" style="margin-top:12px;">
                         <div class="code-block-header"><span class="code-block-lang">cURL — Bulk Order</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-order-bulk-url"></span>/api/order-groups' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;' \
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>' \
 --header '<span class="header-key">Content-Type</span>: application/json' \
 --data '{
     <span class="key">"items"</span>: [
-        { <span class="key">"bundleId"</span>: <span class="string">"bundle_abc123"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span> },
-        { <span class="key">"bundleId"</span>: <span class="string">"bundle_def456"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0557654321"</span> }
+        { <span class="key">"bundleId"</span>: <span class="string">"cm3x9a1b2c3d4e5f6"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span> },
+        { <span class="key">"bundleId"</span>: <span class="string">"cm3x9b7c8d9e0f1a2"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0557654321"</span> }
     ],
-    <span class="key">"idempotencyKey"</span>: <span class="string">"my-batch-20240701-001"</span>
+    <span class="key">"idempotencyKey"</span>: <span class="string">"batch-20260715-001"</span>
 }'</pre>
                     </div>
                 </div>
@@ -767,7 +835,7 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-orders-list-url"></span>/api/order-groups?page=1&amp;limit=20' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
                     </div>
                 </div>
                 <div class="tab-content" id="orders-list-res">
@@ -817,7 +885,7 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-order-get-url"></span>/api/order-groups/GRP-000042' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
                     </div>
                 </div>
                 <div class="tab-content" id="order-get-res">
@@ -877,7 +945,7 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-balance-url"></span>/api/wallet/balance' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
                     </div>
                 </div>
                 <div class="tab-content" id="wallet-bal-res">
@@ -917,7 +985,7 @@
                     <div class="code-block">
                         <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
                         <pre>curl --location '<span class="url" id="curl-txn-url"></span>/api/wallet/transactions?page=1&amp;limit=20' \
---header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+--header '<span class="header-key">Authorization</span>: Bearer <span class="string">kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9</span>'</pre>
                     </div>
                 </div>
                 <div class="tab-content" id="wallet-txn-res">
