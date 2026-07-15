@@ -582,6 +582,9 @@
                         <button class="btn-save" style="background:var(--primary);" onclick="copyApiKey()">
                             <i class="fas fa-copy"></i> Copy
                         </button>
+                        <button class="btn-save" style="background:var(--danger);" onclick="revokeApiKey()">
+                            <i class="fas fa-ban"></i> Revoke
+                        </button>
                     </div>
                 </div>
 
@@ -921,20 +924,46 @@
             if (!confirmed) return;
             
             try {
-                // Generate new key and save via user profile API
-                const newKey = 'kdp_sk_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                
-                // Update profile with new API key (if API supports it)
-                // For now, store in userData
-                userData.apiKey = newKey;
-                saveUserData(userData);
-                
+                const res = await fetch('/api/auth/api-key/regenerate', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to regenerate');
+
+                userData.apiKey = data.apiKey;
                 const apiKeyInput = document.querySelector('#settingsTab input[readonly]');
-                if (apiKeyInput) apiKeyInput.value = newKey;
-                
+                if (apiKeyInput) apiKeyInput.value = data.apiKey;
                 showToast('New API key generated!');
             } catch (error) {
                 showToast('Failed to regenerate API key: ' + error.message, 'error');
+            }
+        }
+
+        async function revokeApiKey() {
+            const confirmed = await showConfirmModal({
+                title: 'Revoke API Key',
+                message: 'This will permanently delete your API key. Any integrations using it will stop working immediately.',
+                type: 'danger',
+                confirmText: 'Revoke Key',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/auth/api-key', {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to revoke');
+
+                userData.apiKey = '';
+                const apiKeyInput = document.querySelector('#settingsTab input[readonly]');
+                if (apiKeyInput) apiKeyInput.value = '';
+                showToast('API key revoked.');
+            } catch (error) {
+                showToast('Failed to revoke API key: ' + error.message, 'error');
             }
         }
 

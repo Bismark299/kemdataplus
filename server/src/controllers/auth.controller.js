@@ -240,6 +240,7 @@ const authController = {
           role: true,
           isActive: true,
           agentCode: true,
+          apiKey: true,
           createdAt: true
         }
       });
@@ -385,6 +386,36 @@ const authController = {
       });
 
       res.json({ message: 'Password reset successfully. You can now login with your new password.' });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // POST /api/auth/api-key/regenerate
+  async regenerateApiKey(req, res, next) {
+    try {
+      const rawKey = 'kdp_sk_' + crypto.randomBytes(24).toString('hex');
+
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { apiKey: rawKey }
+      });
+
+      res.json({ apiKey: rawKey });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // DELETE /api/auth/api-key
+  async revokeApiKey(req, res, next) {
+    try {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { apiKey: null }
+      });
+
+      res.json({ message: 'API key revoked successfully.' });
     } catch (error) {
       next(error);
     }

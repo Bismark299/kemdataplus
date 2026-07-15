@@ -28,4 +28,10 @@ router.get('/reset-password/:token', authController.verifyResetToken);
 // POST /api/auth/reset-password - Reset password with token
 router.post('/reset-password', authController.resetPassword);
 
+// POST /api/auth/api-key/regenerate - Generate or regenerate API key
+router.post('/api-key/regenerate', authenticate, authController.regenerateApiKey);
+
+// DELETE /api/auth/api-key - Revoke API key
+router.delete('/api-key', authenticate, authController.revokeApiKey);
+
 module.exports = router;

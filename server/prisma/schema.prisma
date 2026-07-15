@@ -192,6 +192,9 @@ model User {
   lockedUntil      DateTime?
   passwordChangedAt DateTime?     // Track when password was last changed for token invalidation
   
+  // API Key (for external integrations)
+  apiKey           String?       @unique
+
   // Password Reset
   resetToken       String?       @unique
   resetTokenExpiry DateTime?

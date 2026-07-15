@@ -21,7 +21,7 @@ const extractToken = (req) => {
 };
 
 /**
- * Authenticate user - supports both httpOnly cookies and Bearer tokens
+ * Authenticate user - supports httpOnly cookies, Bearer JWT tokens, and API keys (kdp_sk_...)
  */
 const authenticate = async (req, res, next) => {
   try {
@@ -31,6 +31,35 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
+    // API key path: tokens starting with kdp_sk_ are looked up directly
+    if (token.startsWith('kdp_sk_')) {
+      const user = await prisma.user.findUnique({
+        where: { apiKey: token },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          tenantId: true,
+          passwordChangedAt: true
+        }
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'Account is deactivated' });
+      }
+
+      req.user = user;
+      req.authMethod = 'api_key';
+      return next();
+    }
+
+    // JWT path
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await prisma.user.findUnique({
@@ -71,6 +100,7 @@ const authenticate = async (req, res, next) => {
     }
 
     req.user = user;
+    req.authMethod = 'jwt';
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
