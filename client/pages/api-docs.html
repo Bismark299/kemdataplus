@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KemDataplus API Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-width: 280px;
+            --accent: #14b8a6;
+            --accent-dark: #0d9488;
+            --get: #22c55e;
+            --post: #3b82f6;
+            --put: #f59e0b;
+            --delete: #ef4444;
+            --code-bg: #1e293b;
+            --code-border: #334155;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --section-bg: #f8fafc;
+        }
+
+        body { font-family: 'Inter', sans-serif; color: var(--text); background: #fff; display: flex; min-height: 100vh; }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            position: fixed; top: 0; left: 0; bottom: 0;
+            overflow-y: auto; z-index: 100;
+            display: flex; flex-direction: column;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        .sidebar-brand {
+            padding: 24px 20px 16px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .sidebar-brand .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .sidebar-brand .logo-icon {
+            width: 36px; height: 36px; background: var(--accent);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; color: white; font-weight: 700;
+        }
+        .sidebar-brand h1 { font-size: 0.95rem; font-weight: 700; color: white; line-height: 1.2; }
+        .sidebar-brand p { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+
+        .sidebar-base-url {
+            padding: 12px 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .sidebar-base-url label { font-size: 0.68rem; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 4px; }
+        .sidebar-base-url .url-pill {
+            background: #1e293b; border-radius: 6px; padding: 6px 10px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent);
+            word-break: break-all; cursor: pointer;
+        }
+
+        .sidebar-nav { padding: 12px 0; flex: 1; }
+        .nav-group { margin-bottom: 4px; }
+        .nav-group-title {
+            padding: 8px 20px 4px;
+            font-size: 0.67rem; color: #475569; text-transform: uppercase;
+            letter-spacing: 0.1em; font-weight: 600;
+        }
+        .nav-item { display: block; padding: 7px 20px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-item:hover { background: #1e293b; color: white; }
+        .nav-item.active { background: #1e293b; color: white; border-left-color: var(--accent); }
+        .nav-item .method-badge {
+            display: inline-block; font-size: 0.65rem; font-weight: 700;
+            padding: 1px 5px; border-radius: 3px; margin-right: 7px;
+            font-family: 'JetBrains Mono', monospace; min-width: 34px; text-align: center;
+        }
+        .nav-item .method-badge.get { background: rgba(34,197,94,0.15); color: var(--get); }
+        .nav-item .method-badge.post { background: rgba(59,130,246,0.15); color: var(--post); }
+
+        /* ===== MAIN CONTENT ===== */
+        .main { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; }
+
+        /* ===== HEADER ===== */
+        .doc-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 48px 56px; color: white;
+        }
+        .doc-header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+        .doc-header p { color: #94a3b8; font-size: 1rem; max-width: 560px; line-height: 1.6; }
+        .doc-header .badges { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+        .doc-header .badge {
+            padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500;
+            border: 1px solid; display: flex; align-items: center; gap: 6px;
+        }
+        .doc-header .badge.v { border-color: var(--accent); color: var(--accent); }
+        .doc-header .badge.auth { border-color: #f59e0b; color: #f59e0b; }
+        .doc-header .badge.json { border-color: #8b5cf6; color: #8b5cf6; }
+
+        /* ===== SECTIONS ===== */
+        .doc-section { padding: 40px 56px; border-bottom: 1px solid var(--border); }
+        .doc-section:last-child { border-bottom: none; }
+        .doc-section.alt-bg { background: var(--section-bg); }
+
+        .section-title {
+            font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 6px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section-title i { color: var(--accent); font-size: 1.1rem; }
+        .section-desc { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 28px; }
+
+        /* ===== ENDPOINT CARD ===== */
+        .endpoint-card {
+            border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+            margin-bottom: 24px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .endpoint-header {
+            padding: 16px 20px; display: flex; align-items: center; gap: 14px;
+            cursor: pointer; user-select: none; transition: background 0.15s;
+        }
+        .endpoint-header:hover { background: var(--section-bg); }
+        .endpoint-header .method {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; font-weight: 700;
+            padding: 4px 10px; border-radius: 6px; min-width: 52px; text-align: center;
+        }
+        .method.get { background: rgba(34,197,94,0.1); color: var(--get); border: 1px solid rgba(34,197,94,0.25); }
+        .method.post { background: rgba(59,130,246,0.1); color: var(--post); border: 1px solid rgba(59,130,246,0.25); }
+        .method.put { background: rgba(245,158,11,0.1); color: var(--put); border: 1px solid rgba(245,158,11,0.25); }
+        .method.delete { background: rgba(239,68,68,0.1); color: var(--delete); border: 1px solid rgba(239,68,68,0.25); }
+
+        .endpoint-path {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--text); font-weight: 500; flex: 1;
+        }
+        .endpoint-name { font-size: 0.82rem; color: var(--text-muted); }
+        .endpoint-auth-badge {
+            font-size: 0.7rem; padding: 3px 8px; border-radius: 20px;
+            background: rgba(245,158,11,0.1); color: #d97706; border: 1px solid rgba(245,158,11,0.2);
+            white-space: nowrap;
+        }
+        .endpoint-toggle { color: #94a3b8; font-size: 0.8rem; transition: transform 0.2s; }
+        .endpoint-toggle.open { transform: rotate(180deg); }
+
+        .endpoint-body { border-top: 1px solid var(--border); display: none; }
+        .endpoint-body.open { display: block; }
+
+        .endpoint-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--section-bg); }
+        .endpoint-tab {
+            padding: 10px 18px; font-size: 0.82rem; color: var(--text-muted); cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500;
+        }
+        .endpoint-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: white; }
+        .endpoint-tab:hover:not(.active) { color: var(--text); }
+
+        .tab-content { display: none; padding: 20px; }
+        .tab-content.active { display: block; }
+
+        /* ===== PARAMS TABLE ===== */
+        .params-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+        .params-table th {
+            text-align: left; padding: 8px 12px; background: var(--section-bg);
+            color: var(--text-muted); font-weight: 600; font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border);
+        }
+        .params-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .params-table tr:last-child td { border-bottom: none; }
+        .param-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); font-size: 0.83rem; }
+        .param-type { font-size: 0.75rem; color: #8b5cf6; background: rgba(139,92,246,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+        .param-required { font-size: 0.7rem; color: #ef4444; background: rgba(239,68,68,0.08); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+        .param-optional { font-size: 0.7rem; color: #64748b; background: rgba(100,116,139,0.08); padding: 2px 6px; border-radius: 4px; }
+        .param-desc { color: var(--text-muted); font-size: 0.82rem; }
+
+        /* ===== CODE BLOCK ===== */
+        .code-block {
+            background: var(--code-bg); border-radius: 8px; overflow: hidden;
+            border: 1px solid var(--code-border);
+        }
+        .code-block-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px; border-bottom: 1px solid var(--code-border); background: #0f172a;
+        }
+        .code-block-lang { font-size: 0.72rem; color: #64748b; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
+        .code-copy-btn {
+            background: none; border: 1px solid #334155; color: #94a3b8; padding: 3px 10px;
+            border-radius: 5px; font-size: 0.72rem; cursor: pointer; transition: all 0.15s;
+            font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; gap: 5px;
+        }
+        .code-copy-btn:hover { background: #334155; color: white; }
+        .code-copy-btn.copied { border-color: var(--accent); color: var(--accent); }
+        .code-block pre {
+            padding: 16px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.83rem; line-height: 1.7; color: #e2e8f0;
+        }
+        .code-block pre .key { color: #7dd3fc; }
+        .code-block pre .string { color: #86efac; }
+        .code-block pre .number { color: #fda4af; }
+        .code-block pre .comment { color: #475569; font-style: italic; }
+        .code-block pre .method { color: #f0abfc; }
+        .code-block pre .url { color: #fde68a; }
+        .code-block pre .header-key { color: #a5b4fc; }
+
+        .response-label {
+            font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 8px;
+        }
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem;
+            font-weight: 600; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px;
+        }
+        .status-pill.ok { background: rgba(34,197,94,0.1); color: var(--get); }
+        .status-pill.err { background: rgba(239,68,68,0.1); color: var(--delete); }
+
+        /* ===== AUTH SECTION ===== */
+        .auth-info-box {
+            background: linear-gradient(135deg, rgba(20,184,166,0.05), rgba(59,130,246,0.05));
+            border: 1px solid rgba(20,184,166,0.2); border-radius: 10px; padding: 20px 24px; margin-bottom: 24px;
+        }
+        .auth-info-box h3 { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .auth-info-box h3 i { color: var(--accent); }
+        .auth-info-box p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+        .auth-info-box code {
+            background: rgba(20,184,166,0.1); color: var(--accent-dark); padding: 2px 6px;
+            border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+        }
+
+        /* ===== ERROR TABLE ===== */
+        .error-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .error-item {
+            background: var(--section-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 14px 16px;
+        }
+        .error-item .code { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 700; color: var(--delete); margin-bottom: 4px; }
+        .error-item .desc { font-size: 0.82rem; color: var(--text-muted); }
+
+        /* ===== INTRO GRID ===== */
+        .intro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+        .intro-card {
+            background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px;
+        }
+        .intro-card .ic-icon { font-size: 1.3rem; margin-bottom: 10px; }
+        .intro-card h3 { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
+        .intro-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+        /* ===== NETWORKS TABLE ===== */
+        .network-pill {
+            display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem;
+            font-weight: 600; margin: 2px;
+        }
+        .network-pill.mtn { background: #fef3c7; color: #d97706; }
+        .network-pill.telecel { background: #fee2e2; color: #dc2626; }
+        .network-pill.airteltigo { background: #dbeafe; color: #2563eb; }
+
+        /* ===== SCROLLSPY ===== */
+        section[id] { scroll-margin-top: 20px; }
+
+        /* ===== MOBILE ===== */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .doc-header, .doc-section { padding: 28px 24px; }
+            .intro-grid { grid-template-columns: 1fr; }
+            .error-grid { grid-template-columns: 1fr; }
+        }
+
+        .divider { height: 1px; background: var(--border); margin: 24px 0; }
+        .note-box {
+            background: rgba(245,158,11,0.06); border-left: 4px solid #f59e0b;
+            padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 0.84rem;
+            color: #92400e; line-height: 1.6; margin-bottom: 16px;
+        }
+        .note-box strong { font-weight: 700; }
+    </style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <a class="logo" href="#">
+            <div class="logo-icon">K</div>
+            <div>
+                <h1>KemDataplus</h1>
+                <p>API Documentation</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="sidebar-base-url">
+        <label>Base URL</label>
+        <div class="url-pill" id="baseUrlPill" onclick="copyBaseUrl()" title="Click to copy">
+            <span id="baseUrlText">Loading...</span>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-group">
+            <div class="nav-group-title">Introduction</div>
+            <a class="nav-item active" onclick="scrollTo('intro')"><i class="fas fa-book" style="margin-right:8px;width:14px;text-align:center;opacity:0.6;"></i> Overview</a>
+            <a class="nav-item" onclick="scrollTo('auth-section')"><i class="fas fa-lock" style="margin-right:8px;width:14px;text-align:center;opacity:0.6;"></i> Authentication</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Endpoints</div>
+            <a class="nav-item" onclick="scrollTo('bundles-section')"><i class="fas fa-box" style="margin-right:8px;width:14px;text-align:center;opacity:0.6;"></i> Bundles</a>
+            <a class="nav-item" onclick="scrollTo('orders-section')"><i class="fas fa-shopping-cart" style="margin-right:8px;width:14px;text-align:center;opacity:0.6;"></i> Orders</a>
+            <a class="nav-item" onclick="scrollTo('wallet-section')"><i class="fas fa-wallet" style="margin-right:8px;width:14px;text-align:center;opacity:0.6;"></i> Wallet</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Reference</div>
+            <a class="nav-item" onclick="scrollTo('errors-section')"><i class="fas fa-exclamation-circle" style="margin-right:8px;width:14px;text-align:center;opacity:0.6;"></i> Error Codes</a>
+        </div>
+    </nav>
+</aside>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main">
+
+    <!-- HEADER -->
+    <div class="doc-header">
+        <h1>KemDataplus API</h1>
+        <p>Integrate data bundle purchasing directly into your application. Place orders, check balances, and track deliveries programmatically.</p>
+        <div class="badges">
+            <span class="badge v"><i class="fas fa-code-branch"></i> v1.0</span>
+            <span class="badge auth"><i class="fas fa-key"></i> Bearer Token</span>
+            <span class="badge json"><i class="fas fa-brackets-curly"></i> JSON</span>
+        </div>
+    </div>
+
+    <!-- INTRO -->
+    <section class="doc-section" id="intro">
+        <div class="section-title"><i class="fas fa-book"></i> Overview</div>
+        <p class="section-desc">The KemDataplus API lets you buy data bundles across all major networks (MTN, Telecel, AirtelTigo) programmatically. All requests use JSON over HTTPS and are authenticated with a Bearer token.</p>
+
+        <div class="intro-grid">
+            <div class="intro-card">
+                <div class="ic-icon">🔐</div>
+                <h3>Authentication</h3>
+                <p>All endpoints require a Bearer token obtained via <code style="font-family:monospace;font-size:0.8em;background:#f1f5f9;padding:1px 5px;border-radius:3px;">/api/auth/login</code>. Include it in every request header.</p>
+            </div>
+            <div class="intro-card">
+                <div class="ic-icon">💰</div>
+                <h3>Wallet-Based</h3>
+                <p>Orders are deducted from your pre-funded wallet balance. Top up your wallet before placing orders. Insufficient balance returns a clear error.</p>
+            </div>
+            <div class="intro-card">
+                <div class="ic-icon">📦</div>
+                <h3>Instant Delivery</h3>
+                <p>Orders are dispatched automatically to providers. Track status per order — <em>PENDING → PROCESSING → COMPLETED</em>.</p>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="auth-info-box">
+            <h3><i class="fas fa-server"></i> Base URL</h3>
+            <p>All API requests should be made to: <code id="baseUrlInline">Loading...</code></p>
+            <p style="margin-top:8px;">All request and response bodies are <strong>JSON</strong>. Set <code>Content-Type: application/json</code> and <code>Accept: application/json</code> on every request.</p>
+        </div>
+    </section>
+
+    <!-- AUTHENTICATION -->
+    <section class="doc-section alt-bg" id="auth-section">
+        <div class="section-title"><i class="fas fa-lock"></i> Authentication</div>
+        <p class="section-desc">Log in to receive a Bearer token, then pass it in the <code style="font-family:monospace;font-size:0.85em;">Authorization</code> header of every subsequent request.</p>
+
+        <div class="auth-info-box">
+            <h3><i class="fas fa-info-circle"></i> How to authenticate</h3>
+            <p>After a successful login, you'll receive a <code>token</code> field in the response. Send it as:<br>
+            <code>Authorization: Bearer &lt;your-token&gt;</code> on all protected endpoints.</p>
+        </div>
+
+        <!-- LOGIN -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/api/auth/login</span>
+                <span class="endpoint-name">Login</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'login-request')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'login-response')">Response</div>
+                </div>
+                <div class="tab-content active" id="login-request">
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">email</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Required</span></td><td class="param-desc">Your account email address</td></tr>
+                            <tr><td><span class="param-name">password</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Required</span></td><td class="param-desc">Your account password</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-login-url"></span>/api/auth/login' \
+--header '<span class="header-key">Content-Type</span>: application/json' \
+--data '{
+    <span class="key">"email"</span>: <span class="string">"you@example.com"</span>,
+    <span class="key">"password"</span>: <span class="string">"yourpassword"</span>
+}'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="login-response">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"token"</span>: <span class="string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+    <span class="key">"user"</span>: {
+        <span class="key">"id"</span>: <span class="string">"usr_abc123"</span>,
+        <span class="key">"name"</span>: <span class="string">"Kwame Mensah"</span>,
+        <span class="key">"email"</span>: <span class="string">"you@example.com"</span>,
+        <span class="key">"role"</span>: <span class="string">"USER"</span>
+    }
+}</pre>
+                    </div>
+                    <div class="status-pill err" style="margin-top:16px;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 401 Unauthorized</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"error"</span>: <span class="string">"Invalid email or password"</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GET ME -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/auth/me</span>
+                <span class="endpoint-name">Get current user</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'me-request')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'me-response')">Response</div>
+                </div>
+                <div class="tab-content active" id="me-request">
+                    <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:16px;">No request body required. Just include your Authorization header.</p>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-me-url"></span>/api/auth/me' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="me-response">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"id"</span>: <span class="string">"usr_abc123"</span>,
+    <span class="key">"name"</span>: <span class="string">"Kwame Mensah"</span>,
+    <span class="key">"email"</span>: <span class="string">"you@example.com"</span>,
+    <span class="key">"phone"</span>: <span class="string">"0241234567"</span>,
+    <span class="key">"role"</span>: <span class="string">"USER"</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BUNDLES -->
+    <section class="doc-section" id="bundles-section">
+        <div class="section-title"><i class="fas fa-box"></i> Bundles</div>
+        <p class="section-desc">Retrieve the available data bundles. Use the bundle ID when placing orders.</p>
+
+        <!-- GET ALL BUNDLES -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/bundles</span>
+                <span class="endpoint-name">List all bundles</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'bundles-all-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'bundles-all-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="bundles-all-req">
+                    <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:16px;">No authentication required. Optional query parameters:</p>
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Filter by network: <code>MTN</code>, <code>Telecel</code>, <code>AirtelTigo</code></td></tr>
+                            <tr><td><span class="param-name">active</span></td><td><span class="param-type">boolean</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Set <code>true</code> to return only active bundles</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-bundles-url"></span>/api/bundles'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="bundles-all-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>[
+    {
+        <span class="key">"id"</span>: <span class="string">"bundle_abc123"</span>,
+        <span class="key">"name"</span>: <span class="string">"MTN 5GB Daily"</span>,
+        <span class="key">"network"</span>: <span class="string">"MTN"</span>,
+        <span class="key">"dataAmount"</span>: <span class="string">"5GB"</span>,
+        <span class="key">"validity"</span>: <span class="string">"1 Day"</span>,
+        <span class="key">"basePrice"</span>: <span class="number">8.50</span>,
+        <span class="key">"isActive"</span>: <span class="number">true</span>,
+        <span class="key">"outOfStock"</span>: <span class="number">false</span>
+    },
+    { <span class="comment">/* ... more bundles */</span> }
+]</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GET BUNDLES BY NETWORK -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/bundles/network/:network</span>
+                <span class="endpoint-name">Bundles by network</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'bundles-net-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'bundles-net-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="bundles-net-req">
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string (path)</span></td><td><span class="param-required">Required</span></td><td class="param-desc">
+                                Supported networks:<br>
+                                <span class="network-pill mtn">MTN</span>
+                                <span class="network-pill telecel">Telecel</span>
+                                <span class="network-pill airteltigo">AirtelTigo</span>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-bundles-net-url"></span>/api/bundles/network/MTN'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="bundles-net-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>[
+    {
+        <span class="key">"id"</span>: <span class="string">"bundle_abc123"</span>,
+        <span class="key">"name"</span>: <span class="string">"MTN 5GB Daily"</span>,
+        <span class="key">"network"</span>: <span class="string">"MTN"</span>,
+        <span class="key">"dataAmount"</span>: <span class="string">"5GB"</span>,
+        <span class="key">"validity"</span>: <span class="string">"1 Day"</span>,
+        <span class="key">"basePrice"</span>: <span class="number">8.50</span>,
+        <span class="key">"isActive"</span>: <span class="number">true</span>
+    }
+]</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section class="doc-section alt-bg" id="orders-section">
+        <div class="section-title"><i class="fas fa-shopping-cart"></i> Orders</div>
+        <p class="section-desc">Place single or bulk data bundle orders. Each order deducts from your wallet and is dispatched to the provider automatically.</p>
+
+        <div class="note-box">
+            <strong>Wallet Balance:</strong> Ensure your wallet has sufficient funds before placing an order. Orders are rejected immediately if your balance is too low. Top up via the dashboard.
+        </div>
+
+        <!-- PLACE ORDER -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/api/order-groups</span>
+                <span class="endpoint-name">Place order</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'order-post-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'order-post-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="order-post-req">
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">items</span></td><td><span class="param-type">array</span></td><td><span class="param-required">Required</span></td><td class="param-desc">Array of order items (single or bulk)</td></tr>
+                            <tr><td><span class="param-name">items[].bundleId</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Required</span></td><td class="param-desc">Bundle ID from <code>/api/bundles</code></td></tr>
+                            <tr><td><span class="param-name">items[].recipientPhone</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Required</span></td><td class="param-desc">Recipient's phone number (e.g. <code>0241234567</code>)</td></tr>
+                            <tr><td><span class="param-name">idempotencyKey</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Unique key to prevent duplicate submissions on retry</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL — Single Order</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-order-url"></span>/api/order-groups' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;' \
+--header '<span class="header-key">Content-Type</span>: application/json' \
+--data '{
+    <span class="key">"items"</span>: [
+        {
+            <span class="key">"bundleId"</span>: <span class="string">"bundle_abc123"</span>,
+            <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span>
+        }
+    ]
+}'</pre>
+                    </div>
+                    <div class="code-block" style="margin-top:12px;">
+                        <div class="code-block-header"><span class="code-block-lang">cURL — Bulk Order</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-order-bulk-url"></span>/api/order-groups' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;' \
+--header '<span class="header-key">Content-Type</span>: application/json' \
+--data '{
+    <span class="key">"items"</span>: [
+        { <span class="key">"bundleId"</span>: <span class="string">"bundle_abc123"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span> },
+        { <span class="key">"bundleId"</span>: <span class="string">"bundle_def456"</span>, <span class="key">"recipientPhone"</span>: <span class="string">"0557654321"</span> }
+    ],
+    <span class="key">"idempotencyKey"</span>: <span class="string">"my-batch-20240701-001"</span>
+}'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="order-post-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 201 Created</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"message"</span>: <span class="string">"Order created successfully"</span>,
+    <span class="key">"order"</span>: {
+        <span class="key">"orderId"</span>: <span class="string">"GRP-000042"</span>,
+        <span class="key">"itemCount"</span>: <span class="number">2</span>,
+        <span class="key">"isBatch"</span>: <span class="number">true</span>,
+        <span class="key">"totalAmount"</span>: <span class="number">17.00</span>,
+        <span class="key">"status"</span>: <span class="string">"PROCESSING"</span>,
+        <span class="key">"items"</span>: [
+            {
+                <span class="key">"itemNumber"</span>: <span class="number">1</span>,
+                <span class="key">"reference"</span>: <span class="string">"ORD-000042-01"</span>,
+                <span class="key">"bundle"</span>: <span class="string">"MTN 5GB Daily"</span>,
+                <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span>,
+                <span class="key">"totalPrice"</span>: <span class="number">8.50</span>
+            }
+        ]
+    }
+}</pre>
+                    </div>
+                    <div class="status-pill err" style="margin-top:16px;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 400 Insufficient Balance</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"error"</span>: <span class="string">"Insufficient wallet balance"</span>,
+    <span class="key">"code"</span>: <span class="string">"INSUFFICIENT_BALANCE"</span>,
+    <span class="key">"required"</span>: <span class="number">17.00</span>,
+    <span class="key">"available"</span>: <span class="number">5.50</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GET ORDERS -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/order-groups</span>
+                <span class="endpoint-name">List my orders</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'orders-list-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'orders-list-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="orders-list-req">
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">page</span></td><td><span class="param-type">integer</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Page number (default: 1)</td></tr>
+                            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Results per page (default: 20, max: 100)</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-orders-list-url"></span>/api/order-groups?page=1&amp;limit=20' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="orders-list-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"orders"</span>: [
+        {
+            <span class="key">"id"</span>: <span class="string">"GRP-000042"</span>,
+            <span class="key">"summaryStatus"</span>: <span class="string">"COMPLETED"</span>,
+            <span class="key">"totalAmount"</span>: <span class="number">8.50</span>,
+            <span class="key">"itemCount"</span>: <span class="number">1</span>,
+            <span class="key">"createdAt"</span>: <span class="string">"2024-07-01T10:22:00.000Z"</span>
+        }
+    ],
+    <span class="key">"total"</span>: <span class="number">47</span>,
+    <span class="key">"page"</span>: <span class="number">1</span>,
+    <span class="key">"limit"</span>: <span class="number">20</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GET ORDER BY ID -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/order-groups/:id</span>
+                <span class="endpoint-name">Get order status</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'order-get-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'order-get-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="order-get-req">
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">id</span></td><td><span class="param-type">string (path)</span></td><td><span class="param-required">Required</span></td><td class="param-desc">Order group ID (e.g. <code>GRP-000042</code>)</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-order-get-url"></span>/api/order-groups/GRP-000042' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="order-get-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"id"</span>: <span class="string">"GRP-000042"</span>,
+    <span class="key">"summaryStatus"</span>: <span class="string">"COMPLETED"</span>,
+    <span class="key">"totalAmount"</span>: <span class="number">8.50</span>,
+    <span class="key">"createdAt"</span>: <span class="string">"2024-07-01T10:22:00.000Z"</span>,
+    <span class="key">"items"</span>: [
+        {
+            <span class="key">"reference"</span>: <span class="string">"ORD-000042-01"</span>,
+            <span class="key">"bundle"</span>: <span class="string">"MTN 5GB Daily"</span>,
+            <span class="key">"network"</span>: <span class="string">"MTN"</span>,
+            <span class="key">"recipientPhone"</span>: <span class="string">"0241234567"</span>,
+            <span class="key">"status"</span>: <span class="string">"COMPLETED"</span>,
+            <span class="key">"price"</span>: <span class="number">8.50</span>
+        }
+    ]
+}</pre>
+                    </div>
+                    <p style="margin-top:14px;font-size:0.83rem;color:var(--text-muted);">
+                        <strong>Status values:</strong> <code style="font-size:0.82em;background:#f1f5f9;padding:1px 5px;border-radius:3px;">PENDING</code> →
+                        <code style="font-size:0.82em;background:#f1f5f9;padding:1px 5px;border-radius:3px;">PROCESSING</code> →
+                        <code style="font-size:0.82em;background:#dbeafe;padding:1px 5px;border-radius:3px;color:#2563eb;">COMPLETED</code> /
+                        <code style="font-size:0.82em;background:#fee2e2;padding:1px 5px;border-radius:3px;color:#dc2626;">FAILED</code> /
+                        <code style="font-size:0.82em;background:#f1f5f9;padding:1px 5px;border-radius:3px;">CANCELLED</code>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- WALLET -->
+    <section class="doc-section" id="wallet-section">
+        <div class="section-title"><i class="fas fa-wallet"></i> Wallet</div>
+        <p class="section-desc">Check your balance and view transaction history. Orders are funded from your wallet — make sure it has enough balance before placing orders.</p>
+
+        <!-- GET BALANCE -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/wallet/balance</span>
+                <span class="endpoint-name">Get wallet balance</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'wallet-bal-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'wallet-bal-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="wallet-bal-req">
+                    <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:16px;">No request body required.</p>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-balance-url"></span>/api/wallet/balance' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="wallet-bal-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"balance"</span>: <span class="number">125.50</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GET TRANSACTIONS -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/wallet/transactions</span>
+                <span class="endpoint-name">Transaction history</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'wallet-txn-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'wallet-txn-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="wallet-txn-req">
+                    <table class="params-table" style="margin-bottom:16px;">
+                        <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="param-name">page</span></td><td><span class="param-type">integer</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Page number (default: 1)</td></tr>
+                            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td><span class="param-optional">Optional</span></td><td class="param-desc">Results per page (default: 20)</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location '<span class="url" id="curl-txn-url"></span>/api/wallet/transactions?page=1&amp;limit=20' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="wallet-txn-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"transactions"</span>: [
+        {
+            <span class="key">"id"</span>: <span class="string">"txn_xyz789"</span>,
+            <span class="key">"type"</span>: <span class="string">"DEBIT"</span>,
+            <span class="key">"amount"</span>: <span class="number">8.50</span>,
+            <span class="key">"description"</span>: <span class="string">"Order GRP-000042"</span>,
+            <span class="key">"balanceAfter"</span>: <span class="number">117.00</span>,
+            <span class="key">"createdAt"</span>: <span class="string">"2024-07-01T10:22:00.000Z"</span>
+        }
+    ],
+    <span class="key">"total"</span>: <span class="number">84</span>,
+    <span class="key">"page"</span>: <span class="number">1</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ERRORS -->
+    <section class="doc-section alt-bg" id="errors-section">
+        <div class="section-title"><i class="fas fa-exclamation-circle"></i> Error Codes</div>
+        <p class="section-desc">All errors return a JSON body with an <code style="font-size:0.85em;">error</code> message and an optional <code style="font-size:0.85em;">code</code> field for programmatic handling.</p>
+
+        <div class="code-block" style="margin-bottom:24px;">
+            <div class="code-block-header"><span class="code-block-lang">Error shape</span></div>
+            <pre>{
+    <span class="key">"error"</span>: <span class="string">"Human-readable message"</span>,
+    <span class="key">"code"</span>: <span class="string">"MACHINE_READABLE_CODE"</span>
+}</pre>
+        </div>
+
+        <div class="error-grid">
+            <div class="error-item">
+                <div class="code">401 Unauthorized</div>
+                <div class="desc">Missing or invalid Bearer token. Re-authenticate via <code>/api/auth/login</code>.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">400 INSUFFICIENT_BALANCE</div>
+                <div class="desc">Wallet balance is too low to cover the order. Response includes <code>required</code> and <code>available</code> amounts.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">400 INVALID_ITEM</div>
+                <div class="desc">Missing <code>bundleId</code> or <code>recipientPhone</code> in one of the order items.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">403 WALLET_FROZEN</div>
+                <div class="desc">Your wallet has been frozen by an administrator. Contact support.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">404 NOT_FOUND</div>
+                <div class="desc">The requested resource (bundle, order) does not exist or does not belong to you.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">429 Too Many Requests</div>
+                <div class="desc">Rate limit exceeded. Back off and retry after a few seconds.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">400 BUNDLE_OUT_OF_STOCK</div>
+                <div class="desc">The selected bundle is temporarily out of stock. Try another bundle or retry later.</div>
+            </div>
+            <div class="error-item">
+                <div class="code">500 Internal Error</div>
+                <div class="desc">Unexpected server error. If this persists, contact support with the request details.</div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);text-align:center;">
+            Need help? Contact us at <strong>support@kemdataplus.com</strong> or visit your dashboard.
+        </p>
+    </section>
+
+</main>
+
+<script>
+    // Set base URL dynamically
+    const BASE_URL = window.location.origin;
+    document.getElementById('baseUrlText').textContent = BASE_URL;
+    document.getElementById('baseUrlInline').textContent = BASE_URL;
+
+    // Populate all curl URL spans
+    document.querySelectorAll('span.url').forEach(el => {
+        el.textContent = BASE_URL;
+    });
+
+    // Toggle endpoint open/close
+    function toggleEndpoint(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.endpoint-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Switch tabs inside an endpoint card
+    function switchTab(tab, targetId) {
+        const card = tab.closest('.endpoint-card');
+        card.querySelectorAll('.endpoint-tab').forEach(t => t.classList.remove('active'));
+        card.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(targetId).classList.add('active');
+    }
+
+    // Copy code block
+    function copyCode(btn) {
+        const pre = btn.closest('.code-block').querySelector('pre');
+        navigator.clipboard.writeText(pre.innerText).then(() => {
+            btn.classList.add('copied');
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.innerHTML = '<i class="far fa-copy"></i> Copy';
+            }, 2000);
+        });
+    }
+
+    // Copy base URL
+    function copyBaseUrl() {
+        navigator.clipboard.writeText(BASE_URL).then(() => {
+            const pill = document.getElementById('baseUrlPill');
+            pill.style.background = '#134e4a';
+            setTimeout(() => { pill.style.background = ''; }, 1500);
+        });
+    }
+
+    // Sidebar scroll nav
+    function scrollTo(id) {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    // Scrollspy
+    const sections = ['intro', 'auth-section', 'bundles-section', 'orders-section', 'wallet-section', 'errors-section'];
+    const navMap = {
+        'intro': 0, 'auth-section': 1, 'bundles-section': 2,
+        'orders-section': 3, 'wallet-section': 4, 'errors-section': 5
+    };
+    const navItems = document.querySelectorAll('.nav-item');
+    window.addEventListener('scroll', () => {
+        let current = 'intro';
+        for (const id of sections) {
+            const el = document.getElementById(id);
+            if (el && el.getBoundingClientRect().top <= 100) current = id;
+        }
+        navItems.forEach(n => n.classList.remove('active'));
+        if (navMap[current] !== undefined) navItems[navMap[current]]?.classList.add('active');
+    });
+</script>
+</body>
+</html>
