@@ -362,12 +362,96 @@
     <!-- AUTHENTICATION -->
     <section class="doc-section alt-bg" id="auth-section">
         <div class="section-title"><i class="fas fa-lock"></i> Authentication</div>
-        <p class="section-desc">Log in to receive a Bearer token, then pass it in the <code style="font-family:monospace;font-size:0.85em;">Authorization</code> header of every subsequent request.</p>
+        <p class="section-desc">All protected endpoints require a Bearer token in the <code style="font-family:monospace;font-size:0.85em;">Authorization</code> header. You can authenticate using either a <strong>JWT token</strong> (session-based) or a static <strong>API key</strong> (recommended for integrations).</p>
 
-        <div class="auth-info-box">
-            <h3><i class="fas fa-info-circle"></i> How to authenticate</h3>
-            <p>After a successful login, you'll receive a <code>token</code> field in the response. Send it as:<br>
-            <code>Authorization: Bearer &lt;your-token&gt;</code> on all protected endpoints.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+            <div class="auth-info-box" style="margin:0;">
+                <h3><i class="fas fa-key"></i> Option 1 — API Key <span style="font-size:0.72rem;background:#10b98120;color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600;">Recommended</span></h3>
+                <p style="margin-bottom:10px;">Generate a static API key from your <strong>Profile → Settings</strong> tab. It never expires and works on every request without re-authenticating.</p>
+                <div class="code-block" style="margin:0;">
+                    <div class="code-block-header"><span class="code-block-lang">Header</span></div>
+                    <pre>Authorization: Bearer kdp_sk_a3f9c8d2...</pre>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Revoke or regenerate anytime from your profile. Keep it secret — treat it like a password.</p>
+            </div>
+            <div class="auth-info-box" style="margin:0;">
+                <h3><i class="fas fa-clock"></i> Option 2 — JWT Token</h3>
+                <p style="margin-bottom:10px;">Call <code>/api/auth/login</code> with your email and password to receive a short-lived token. Suitable for session-based access.</p>
+                <div class="code-block" style="margin:0;">
+                    <div class="code-block-header"><span class="code-block-lang">Header</span></div>
+                    <pre>Authorization: Bearer eyJhbGci...</pre>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Tokens expire — call <code>/api/auth/refresh</code> or re-login when they do.</p>
+            </div>
+        </div>
+
+        <!-- API KEY MANAGEMENT -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/api/auth/api-key/regenerate</span>
+                <span class="endpoint-name">Generate / regenerate API key</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'apikey-regen-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'apikey-regen-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="apikey-regen-req">
+                    <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:16px;">No request body needed. Generates a new key and immediately invalidates the old one (if any). You can also do this from <strong>Profile → Settings</strong> in the dashboard.</p>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location --request POST '<span class="url" id="curl-apikey-regen-url"></span>/api/auth/api-key/regenerate' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token-or-existing-api-key&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="apikey-regen-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"apiKey"</span>: <span class="string">"kdp_sk_a3f9c8d2e1b47f6a9c3d8e2f1b4a7c9d3e6f2a1b4c7d9e3f6a2b5c8d1e4f7a"</span>
+}</pre>
+                    </div>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin-top:12px;"><i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i> Copy and store this key immediately. For security, the full value is only shown once per generation — but you can always regenerate a new one.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- REVOKE API KEY -->
+        <div class="endpoint-card">
+            <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                <span class="method delete">DELETE</span>
+                <span class="endpoint-path">/api/auth/api-key</span>
+                <span class="endpoint-name">Revoke API key</span>
+                <span class="endpoint-auth-badge"><i class="fas fa-lock" style="font-size:0.65rem;"></i> Auth required</span>
+                <i class="fas fa-chevron-down endpoint-toggle"></i>
+            </div>
+            <div class="endpoint-body">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" onclick="switchTab(this, 'apikey-revoke-req')">Request</div>
+                    <div class="endpoint-tab" onclick="switchTab(this, 'apikey-revoke-res')">Response</div>
+                </div>
+                <div class="tab-content active" id="apikey-revoke-req">
+                    <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:16px;">No request body needed. Permanently deletes your current API key. Any integrations using it will stop working immediately.</p>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">cURL</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>curl --location --request DELETE '<span class="url" id="curl-apikey-revoke-url"></span>/api/auth/api-key' \
+--header '<span class="header-key">Authorization</span>: Bearer &lt;your-token&gt;'</pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="apikey-revoke-res">
+                    <div class="status-pill ok"><i class="fas fa-circle" style="font-size:0.5rem;"></i> 200 OK</div>
+                    <div class="code-block">
+                        <div class="code-block-header"><span class="code-block-lang">JSON</span><button class="code-copy-btn" onclick="copyCode(this)"><i class="far fa-copy"></i> Copy</button></div>
+                        <pre>{
+    <span class="key">"message"</span>: <span class="string">"API key revoked successfully."</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- LOGIN -->
