@@ -2152,7 +2152,7 @@
                 updateBalanceDisplay();
                 
                 // Get transactions
-                const txnData = await apiRequest('/wallet/transactions?limit=100');
+                const txnData = await apiRequest('/wallet/transactions?limit=500');
                 transactions = txnData.transactions || [];
                 filteredTransactions = [...transactions];
                 renderTransactions();

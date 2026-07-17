@@ -49,10 +49,9 @@ const walletController = {
   // Get transaction history
   async getTransactions(req, res, next) {
     try {
-      // Validate and sanitize pagination parameters
-      const page = Math.max(1, Math.min(parseInt(req.query.page) || 1, 10000));
-      const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 100));
-      const skip = (page - 1) * limit;
+      const page  = Math.max(1, Math.min(parseInt(req.query.page)  || 1, 10000));
+      const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 500));
+      const skip  = (page - 1) * limit;
 
       const wallet = await prisma.wallet.findUnique({
         where: { userId: req.user.id }
@@ -62,20 +61,30 @@ const walletController = {
         return res.status(404).json({ error: 'Wallet not found' });
       }
 
-      const [transactions, total] = await Promise.all([
-        prisma.transaction.findMany({
+      // Read from WalletLedger — this is where ALL balance changes are recorded
+      // (creditWallet, debitWallet, refunds, deposits, payouts all write here)
+      const [entries, total] = await Promise.all([
+        prisma.walletLedger.findMany({
           where: { walletId: wallet.id },
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
         }),
-        prisma.transaction.count({
+        prisma.walletLedger.count({
           where: { walletId: wallet.id }
         })
       ]);
 
       res.json({
-        transactions,
+        transactions: entries.map(e => ({
+          id:          e.id,
+          type:        e.entryType,
+          amount:      e.amount,
+          balance:     e.runningBalance,
+          description: e.description,
+          reference:   e.reference,
+          createdAt:   e.createdAt
+        })),
         pagination: {
           page,
           limit,
