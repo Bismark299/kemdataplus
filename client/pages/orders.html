@@ -754,7 +754,7 @@
             
             try {
                 // Fetch from OrderGroup API - get full details
-                const response = await fetch('/api/order-groups?limit=500', { credentials: 'include' });
+                const response = await fetch('/api/order-groups?limit=1000', { credentials: 'include' });
                 
                 if (!response.ok) {
                     if (response.status === 401) {

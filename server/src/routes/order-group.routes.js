@@ -192,7 +192,7 @@ router.get('/', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 20));
 
     const result = await orderGroupService.getOrdersForClient(userId, { page, limit });
 
