@@ -1833,11 +1833,11 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
                       storefront: { include: { owner: { select: { id: true } } } }
                     }
                   });
-                  if (sfOrder && sfOrder.paymentMethod === 'PAYSTACK' && sfOrder.ownerProfit > 0) {
+                  if (sfOrder && sfOrder.paymentMethod === 'PAYSTACK' && sfOrder.amount > 0) {
                     const ownerId = sfOrder.storefront.owner.id;
                     await walletService.creditWallet(
                       ownerId,
-                      sfOrder.ownerProfit,
+                      sfOrder.amount,
                       `Bulk cancel refund (Paystack) - ${item.orderGroup.displayId}`,
                       `BULK-REFUND-PAYSTACK-${item.orderGroup.displayId}`,
                       { entryType: 'REFUND', orderId: item.orderGroup.id }
