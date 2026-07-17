@@ -1690,4 +1690,144 @@ router.post('/admin/bulk-complete-by-phone', authenticate, authorize('ADMIN'), a
   }
 });
 
+/**
+ * POST /api/order-groups/admin/bulk-cancel-refund-by-phone
+ * Bulk-cancel orders by pasting phone number + data size pairs, and refund wallet.
+ * Format: one entry per line — "0241234567 5" (phone space dataSize)
+ * Matches on recipientPhone + bundle.dataAmount starts-with dataSize.
+ * Already-completed/cancelled/failed orders are silently skipped.
+ */
+router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { entries, fromDate, toDate } = req.body;
+    if (!entries || typeof entries !== 'string') {
+      return res.status(400).json({ error: 'entries field (string) is required' });
+    }
+    if (!fromDate || !toDate) {
+      return res.status(400).json({ error: 'fromDate and toDate are required' });
+    }
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    to.setUTCDate(to.getUTCDate() + 1);
+
+    const pairs = entries
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const spaceIdx = line.indexOf(' ');
+        if (spaceIdx === -1) return null;
+        return {
+          phone: line.slice(0, spaceIdx).trim(),
+          dataSize: line.slice(spaceIdx + 1).trim()
+        };
+      })
+      .filter(Boolean);
+
+    if (pairs.length === 0) {
+      return res.status(400).json({ error: 'No valid entries found. Format: one "phone dataSize" per line.' });
+    }
+
+    const phones = [...new Set(pairs.map(p => p.phone))];
+
+    const candidates = await prisma.orderItem.findMany({
+      where: {
+        recipientPhone: { in: phones },
+        status: { notIn: ['COMPLETED', 'CANCELLED', 'FAILED'] },
+        createdAt: { gte: from, lt: to }
+      },
+      include: {
+        bundle: { select: { dataAmount: true } },
+        orderGroup: {
+          select: {
+            id: true, displayId: true, userId: true, totalAmount: true,
+            walletDeducted: true, tenantId: true,
+            items: { select: { id: true, status: true } }
+          }
+        }
+      }
+    });
+
+    let cancelled = 0;
+    let refunded = 0;
+    let skipped = 0;
+    const details = [];
+
+    for (const { phone, dataSize } of pairs) {
+      const matches = candidates.filter(item =>
+        item.recipientPhone === phone &&
+        item.bundle?.dataAmount?.toLowerCase().startsWith(dataSize.toLowerCase())
+      );
+
+      if (matches.length === 0) {
+        skipped++;
+        details.push({ phone, dataSize, result: 'skipped', reason: 'no matching order found' });
+        continue;
+      }
+
+      for (const item of matches) {
+        try {
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: { status: 'CANCELLED' }
+          });
+
+          const allItems = item.orderGroup.items;
+          const updatedStatuses = allItems.map(i => i.id === item.id ? 'CANCELLED' : i.status);
+          let newGroupStatus = 'PENDING';
+          if (updatedStatuses.every(s => s === 'CANCELLED')) newGroupStatus = 'CANCELLED';
+          else if (updatedStatuses.every(s => s === 'COMPLETED')) newGroupStatus = 'COMPLETED';
+          else if (updatedStatuses.every(s => s === 'FAILED')) newGroupStatus = 'FAILED';
+          else if (updatedStatuses.some(s => s === 'COMPLETED' || s === 'PROCESSING')) newGroupStatus = 'PROCESSING';
+
+          await prisma.orderGroup.update({
+            where: { id: item.orderGroup.id },
+            data: { summaryStatus: newGroupStatus, status: newGroupStatus }
+          });
+
+          // Refund wallet if deducted
+          let itemRefunded = false;
+          if (item.orderGroup.walletDeducted && item.orderGroup.totalAmount > 0) {
+            try {
+              await walletService.creditWallet(
+                item.orderGroup.userId,
+                item.orderGroup.totalAmount,
+                `Bulk cancel refund - ${item.orderGroup.displayId}`,
+                `BULK-REFUND-${item.orderGroup.displayId}`,
+                { entryType: 'REFUND', orderId: item.orderGroup.id }
+              );
+              itemRefunded = true;
+              refunded++;
+            } catch (refundErr) {
+              if (refundErr.message === 'Duplicate transaction reference') {
+                itemRefunded = true;
+                refunded++;
+              } else {
+                console.error(`[BulkCancelRefund] Refund failed for ${item.orderGroup.displayId}:`, refundErr.message);
+              }
+            }
+          }
+
+          cancelled++;
+          details.push({ phone, dataSize, result: 'cancelled', itemId: item.id, refunded: itemRefunded });
+        } catch (itemErr) {
+          details.push({ phone, dataSize, result: 'error', reason: itemErr.message, itemId: item.id });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      summary: `${cancelled} order(s) cancelled, ${refunded} refunded, ${skipped} skipped (no match)`,
+      cancelled,
+      refunded,
+      skipped,
+      details
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
