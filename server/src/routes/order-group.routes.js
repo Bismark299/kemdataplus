@@ -1811,6 +1811,7 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
     let refunded = 0;
     let skipped = 0;
     const details = [];
+    const processedItemIds = new Set();
 
     for (const { phone, dataSize } of pairs) {
       const matches = candidates.filter(item =>
@@ -1825,6 +1826,8 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
       }
 
       for (const item of matches) {
+        if (processedItemIds.has(item.id)) continue;
+        processedItemIds.add(item.id);
         try {
           await prisma.orderItem.update({
             where: { id: item.id },
