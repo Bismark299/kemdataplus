@@ -493,19 +493,49 @@ const walletController = {
       const page = parseInt(req.query.page) || 1;
       const limit = Math.min(parseInt(req.query.limit) || 100, 500);
       const skip = (page - 1) * limit;
-      const typeFilter = req.query.type; // Optional filter
-      const userIdFilter = req.query.userId; // Optional user filter
+      const typeFilter = req.query.type;
+      const userIdFilter = req.query.userId;
+      const search = req.query.search;
+      const fromDate = req.query.fromDate;
+      const toDate = req.query.toDate;
 
       const where = {};
+
+      // Type filter — 'credit' and 'debit' are meta-groups
       if (typeFilter) {
-        where.type = typeFilter.toUpperCase();
+        const creditTypes = ['DEPOSIT', 'REFUND', 'TRANSFER_IN', 'CREDIT', 'PROFIT_CREDIT', 'COMMISSION'];
+        const debitTypes  = ['PURCHASE', 'DEDUCTION', 'TRANSFER_OUT', 'WITHDRAWAL'];
+        if (typeFilter.toLowerCase() === 'credit') {
+          where.type = { in: creditTypes };
+        } else if (typeFilter.toLowerCase() === 'debit') {
+          where.type = { in: debitTypes };
+        } else {
+          where.type = typeFilter.toUpperCase();
+        }
       }
-      
+
+      // Date range filter
+      if (fromDate || toDate) {
+        where.createdAt = {};
+        if (fromDate) where.createdAt.gte = new Date(fromDate);
+        if (toDate) {
+          const to = new Date(toDate);
+          to.setUTCDate(to.getUTCDate() + 1);
+          where.createdAt.lt = to;
+        }
+      }
+
+      // Search filter — description or reference
+      if (search) {
+        where.OR = [
+          { description: { contains: search, mode: 'insensitive' } },
+          { reference:   { contains: search, mode: 'insensitive' } }
+        ];
+      }
+
       // Filter by userId (through wallet relation)
       if (userIdFilter) {
-        where.wallet = {
-          userId: userIdFilter
-        };
+        where.wallet = { userId: userIdFilter };
       }
 
       const [transactions, total] = await Promise.all([

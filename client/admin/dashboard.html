@@ -5201,7 +5201,7 @@
                             <th>Type</th>
                             <th>Amount</th>
                             <th>Description</th>
-                            <th>Processed By</th>
+                            <th>Reference</th>
                         </tr>
                     </thead>
                     <tbody id="allTransactionsBody">
@@ -10911,33 +10911,50 @@
         let txnPagination = { page: 1, limit: 100, total: 0, pages: 1 };
         
         async function loadAllTransactions(resetPage = false) {
-            if (resetPage) {
-                txnPagination.page = 1;
-            }
-            
-            // Get filter values (server-side filtering for user)
-            const userFilter = document.getElementById('txnUserFilter')?.value || '';
+            if (resetPage) txnPagination.page = 1;
+
+            const userFilter  = document.getElementById('txnUserFilter')?.value  || '';
+            const typeFilter  = document.getElementById('txnTypeFilter')?.value  || '';
+            const dateFilter  = document.getElementById('txnDateFilter')?.value  || '';
+            const searchTerm  = document.getElementById('txnSearch')?.value.trim() || '';
             const limit = parseInt(document.getElementById('txnPerPage')?.value) || 100;
             txnPagination.limit = limit;
-            
+
+            // Resolve date filter into fromDate / toDate strings
+            let fromDate = '', toDate = '';
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            if (dateFilter === 'today') {
+                fromDate = toDate = ymd(now);
+            } else if (dateFilter === 'yesterday') {
+                const y = new Date(now); y.setDate(y.getDate() - 1);
+                fromDate = toDate = ymd(y);
+            } else if (dateFilter === 'week') {
+                const ws = new Date(now); ws.setDate(now.getDate() - now.getDay());
+                fromDate = ymd(ws); toDate = ymd(now);
+            } else if (dateFilter === 'month') {
+                fromDate = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+                toDate = ymd(now);
+            } else if (dateFilter === 'custom') {
+                fromDate = document.getElementById('txnDateFrom')?.value || '';
+                toDate   = document.getElementById('txnDateTo')?.value   || '';
+            }
+
             try {
                 let url = `/api/wallet/transactions/all?page=${txnPagination.page}&limit=${limit}`;
-                if (userFilter) {
-                    url += `&userId=${userFilter}`;
-                }
-                
+                if (userFilter)  url += `&userId=${encodeURIComponent(userFilter)}`;
+                if (typeFilter)  url += `&type=${encodeURIComponent(typeFilter)}`;
+                if (fromDate)    url += `&fromDate=${fromDate}`;
+                if (toDate)      url += `&toDate=${toDate}`;
+                if (searchTerm)  url += `&search=${encodeURIComponent(searchTerm)}`;
+
                 const res = await adminFetch(url);
                 if (!res.ok) throw new Error('Failed to fetch transactions');
                 const data = await res.json();
-                allTransactions = (data.transactions || []).map(t => ({
-                    ...t,
-                    date: t.createdAt
-                }));
-                
-                // Update pagination info
-                txnPagination = data.pagination || { page: 1, limit: limit, total: allTransactions.length, pages: 1 };
+                allTransactions = (data.transactions || []).map(t => ({ ...t, date: t.createdAt }));
+                txnPagination = data.pagination || { page: 1, limit, total: allTransactions.length, pages: 1 };
                 transactionsLoaded = true;
-                
                 updateTxnPaginationUI();
             } catch (err) {
                 console.error('Failed to load transactions:', err);
@@ -11012,63 +11029,20 @@
         }
         
         async function renderAllTransactions() {
-            // Load transactions from API if not already loaded
-            if (!transactionsLoaded) {
-                await loadAllTransactions();
-            }
-            
-            // Get all filter values
-            const searchTerm = (document.getElementById('txnSearch')?.value || '').toLowerCase();
-            const userFilter = document.getElementById('txnUserFilter')?.value || '';
-            const typeFilter = document.getElementById('txnTypeFilter')?.value || '';
-            const dateFilter = document.getElementById('txnDateFilter')?.value || '';
-            const dateRange = getTxnDateRange(dateFilter);
-            
-            let filtered = allTransactions;
-            
-            // Apply search filter (client-side)
-            if (searchTerm) {
-                filtered = filtered.filter(t => 
-                    (t.userName || '').toLowerCase().includes(searchTerm) ||
-                    (t.description || '').toLowerCase().includes(searchTerm) ||
-                    (t.reference || '').toLowerCase().includes(searchTerm) ||
-                    (t.id || '').toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            // User filter is now handled server-side in loadAllTransactions()
-            
-            // Apply type filter
-            if (typeFilter) {
-                filtered = filtered.filter(t => {
-                    const txnType = (t.type || '').toUpperCase();
-                    const isCredit = txnType === 'DEPOSIT' || txnType === 'REFUND' || txnType === 'TRANSFER_IN' || txnType === 'CREDIT' || txnType === 'PROFIT_CREDIT' || txnType === 'COMMISSION';
-                    
-                    if (typeFilter === 'credit') return isCredit;
-                    if (typeFilter === 'debit') return !isCredit;
-                    return txnType === typeFilter.toUpperCase();
-                });
-            }
-            
-            // Apply date filter
-            if (dateRange) {
-                filtered = filtered.filter(t => {
-                    const txnDate = new Date(t.date || t.createdAt);
-                    return txnDate >= dateRange.start && txnDate < dateRange.end;
-                });
-            }
-            
             const tbody = document.getElementById('allTransactionsBody');
-            
-            if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>Loading...</p></td></tr>';
+
+            await loadAllTransactions();
+
+            if (allTransactions.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No transactions found</p></td></tr>';
                 return;
             }
-            
-            // Pagination is now handled server-side
-            tbody.innerHTML = filtered.map(txn => {
+
+            const creditTypes = new Set(['credit', 'deposit', 'refund', 'profit_credit', 'commission', 'transfer_in']);
+            tbody.innerHTML = allTransactions.map(txn => {
                 const txnType = (txn.type || '').toLowerCase();
-                const isCredit = txnType === 'credit' || txnType === 'deposit' || txnType === 'refund' || txnType === 'profit_credit' || txnType === 'commission' || txnType === 'transfer_in';
+                const isCredit = creditTypes.has(txnType);
                 return `
                 <tr>
                     <td>${formatTransactionDate(txn.date || txn.createdAt)}</td>
@@ -11077,31 +11051,34 @@
                             <div class="user-avatar" style="width:30px;height:30px;font-size:0.75rem;">${(txn.userName || 'U').charAt(0)}</div>
                             <div>
                                 <div class="user-name" style="font-size:0.9rem;">${txn.userName || 'Unknown'}</div>
+                                <div style="font-size:0.75rem;color:#6b7280;">${txn.userPhone || ''}</div>
                             </div>
                         </div>
                     </td>
                     <td><span class="txn-type-badge ${isCredit ? 'credit' : 'debit'}">${txn.type || 'N/A'}</span></td>
                     <td class="txn-amount ${isCredit ? 'credit' : 'debit'}">${isCredit ? '+' : '-'}GH₵ ${Math.abs(txn.amount || 0).toFixed(2)}</td>
-                    <td>${txn.description || 'N/A'}</td>
-                    <td>${txn.processedBy || txn.verifiedBy || 'System'}</td>
+                    <td style="max-width:260px;word-break:break-word;">${txn.description || 'N/A'}</td>
+                    <td>${txn.reference || '—'}</td>
                 </tr>
             `}).join('');
         }
-        
-        // Transaction filter event listeners
-        document.getElementById('txnSearch')?.addEventListener('input', renderAllTransactions);
-        document.getElementById('txnUserFilter')?.addEventListener('change', function() {
-            loadAllTransactions(true).then(() => renderAllTransactions());
+
+        // All filter changes re-fetch from server
+        let txnSearchTimer;
+        document.getElementById('txnSearch')?.addEventListener('input', () => {
+            clearTimeout(txnSearchTimer);
+            txnSearchTimer = setTimeout(() => renderAllTransactions(), 400);
         });
-        document.getElementById('txnTypeFilter')?.addEventListener('change', renderAllTransactions);
+        document.getElementById('txnUserFilter')?.addEventListener('change', () => renderAllTransactions());
+        document.getElementById('txnTypeFilter')?.addEventListener('change', () => renderAllTransactions());
         document.getElementById('txnDateFilter')?.addEventListener('change', function() {
-            const customInputs = this.value === 'custom';
-            document.getElementById('txnDateFrom').style.display = customInputs ? 'block' : 'none';
-            document.getElementById('txnDateTo').style.display = customInputs ? 'block' : 'none';
-            renderAllTransactions();
+            const isCustom = this.value === 'custom';
+            document.getElementById('txnDateFrom').style.display = isCustom ? 'block' : 'none';
+            document.getElementById('txnDateTo').style.display  = isCustom ? 'block' : 'none';
+            if (!isCustom) renderAllTransactions();
         });
-        document.getElementById('txnDateFrom')?.addEventListener('change', renderAllTransactions);
-        document.getElementById('txnDateTo')?.addEventListener('change', renderAllTransactions);
+        document.getElementById('txnDateFrom')?.addEventListener('change', () => renderAllTransactions());
+        document.getElementById('txnDateTo')?.addEventListener('change',   () => renderAllTransactions());
 
         // ========== DUPLICATE ORDERS MANAGEMENT ==========
         let duplicateOrders = [];
