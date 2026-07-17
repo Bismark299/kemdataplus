@@ -1808,6 +1808,14 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
             }
           }
 
+          // Sync to legacy Order + StorefrontOrder (no profit credited for CANCELLED)
+          const orderGroupService = require('../services/order-group.service');
+          try {
+            await orderGroupService.syncLegacyOrderStatus(item, 'CANCELLED');
+          } catch (syncErr) {
+            console.error(`[BulkCancelRefund] Sync failed for item ${item.id}:`, syncErr.message);
+          }
+
           cancelled++;
           details.push({ phone, dataSize, result: 'cancelled', itemId: item.id, refunded: itemRefunded });
         } catch (itemErr) {
