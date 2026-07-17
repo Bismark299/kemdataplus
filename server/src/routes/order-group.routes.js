@@ -1865,7 +1865,7 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
               await walletService.creditWallet(
                 item.orderGroup.userId,
                 item.orderGroup.totalAmount,
-                `Bulk cancel refund - ${item.orderGroup.displayId}`,
+                `Order cancelled & refunded: ${phone} (${dataSize}GB) - ${item.orderGroup.displayId}`,
                 `BULK-REFUND-${item.orderGroup.displayId}`,
                 { entryType: 'REFUND', orderId: item.orderGroup.id }
               );
@@ -1900,7 +1900,7 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
                     await walletService.creditWallet(
                       ownerId,
                       sfOrder.amount,
-                      `Bulk cancel refund (Paystack) - ${item.orderGroup.displayId}`,
+                      `Order cancelled & refunded: ${phone} (${dataSize}GB) - ${item.orderGroup.displayId}`,
                       `BULK-REFUND-PAYSTACK-${item.orderGroup.displayId}`,
                       { entryType: 'REFUND', orderId: item.orderGroup.id }
                     );
