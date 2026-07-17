@@ -191,10 +191,15 @@ router.post('/', authenticate, async (req, res, next) => {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 20));
+    const page    = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit   = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 20));
+    const search  = req.query.search  || '';
+    const status  = req.query.status  || '';
+    const network = req.query.network || '';
+    const dateFrom = req.query.dateFrom || '';
+    const dateTo   = req.query.dateTo   || '';
 
-    const result = await orderGroupService.getOrdersForClient(userId, { page, limit });
+    const result = await orderGroupService.getOrdersForClient(userId, { page, limit, search, status, network, dateFrom, dateTo });
 
     res.json({
       orders: result.orders,

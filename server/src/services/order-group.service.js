@@ -513,12 +513,29 @@ const orderGroupService = {
    * Returns paginated list of orders for a user.
    * Combines new OrderGroup orders with legacy Order table for backwards compatibility.
    */
-  async getOrdersForClient(userId, { page = 1, limit = 20 } = {}) {
+  async getOrdersForClient(userId, { page = 1, limit = 20, search = '', status = '', network = '', dateFrom = '', dateTo = '' } = {}) {
     const skip = (page - 1) * limit;
+
+    // ── Build date range ───────────────────────────────────────────────
+    let dateWhere = {};
+    if (dateFrom || dateTo) {
+      dateWhere.createdAt = {};
+      if (dateFrom) dateWhere.createdAt.gte = new Date(dateFrom + 'T00:00:00.000Z');
+      if (dateTo)   dateWhere.createdAt.lte = new Date(dateTo   + 'T23:59:59.999Z');
+    }
+
+    // ── OrderGroup where ───────────────────────────────────────────────
+    const ogWhere = { userId, ...dateWhere };
+    if (status)  ogWhere.status = status;
+    if (network) ogWhere.items = { some: { bundle: { network: { contains: network, mode: 'insensitive' } } } };
+    if (search)  ogWhere.OR = [
+      { displayId: { contains: search, mode: 'insensitive' } },
+      { items: { some: { recipientPhone: { contains: search } } } }
+    ];
 
     // Fetch OrderGroups first to get displayIds to exclude from legacy orders
     const orderGroups = await prisma.orderGroup.findMany({
-      where: { userId },
+      where: ogWhere,
       include: {
         items: {
           include: {
@@ -535,18 +552,23 @@ const orderGroupService = {
     // Get all displayIds from OrderGroups to exclude from legacy query
     const orderGroupDisplayIds = orderGroups.map(og => og.displayId).filter(Boolean);
 
+    // ── Legacy Order where ─────────────────────────────────────────────
+    const legacyWhere = {
+      userId,
+      storefrontOrderId: null,
+      ...dateWhere,
+      ...(orderGroupDisplayIds.length > 0 ? { NOT: { reference: { in: orderGroupDisplayIds } } } : {})
+    };
+    if (status)  legacyWhere.status = status;
+    if (network) legacyWhere.bundle = { network: { contains: network, mode: 'insensitive' } };
+    if (search)  legacyWhere.OR = [
+      { reference:      { contains: search, mode: 'insensitive' } },
+      { recipientPhone: { contains: search } }
+    ];
+
     // Fetch legacy Orders that are NOT linked to OrderGroups
-    // Exclude orders where reference matches an OrderGroup displayId (prevents duplicates)
     const legacyOrders = await prisma.order.findMany({
-      where: { 
-        userId,
-        // Exclude orders that have a storefrontOrderId (they're shown via OrderGroup)
-        storefrontOrderId: null,
-        // Also exclude orders whose reference matches an OrderGroup displayId
-        NOT: orderGroupDisplayIds.length > 0 ? {
-          reference: { in: orderGroupDisplayIds }
-        } : undefined
-      },
+      where: legacyWhere,
       include: {
         bundle: {
           select: { name: true, network: true, dataAmount: true }

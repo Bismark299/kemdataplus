@@ -753,8 +753,37 @@
             `;
             
             try {
-                // Fetch from OrderGroup API - get full details
-                const response = await fetch('/api/order-groups?limit=1000', { credentials: 'include' });
+                // Build URL with all active filters — server does the filtering
+                const search   = document.getElementById('searchInput')?.value.trim() || '';
+                const network  = document.getElementById('networkFilter')?.value || '';
+                const status   = document.getElementById('statusFilter')?.value || '';
+                const dateFilter = document.getElementById('dateFilter')?.value || '';
+
+                const now = new Date();
+                const pad = n => String(n).padStart(2, '0');
+                const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+                let dateFrom = '', dateTo = '';
+                if (dateFilter === 'today') {
+                    dateFrom = dateTo = ymd(now);
+                } else if (dateFilter === 'week') {
+                    const ws = new Date(now); ws.setDate(now.getDate() - 6);
+                    dateFrom = ymd(ws); dateTo = ymd(now);
+                } else if (dateFilter === 'month') {
+                    dateFrom = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+                    dateTo   = ymd(now);
+                } else if (dateFilter === 'custom') {
+                    dateFrom = document.getElementById('customDateFrom')?.value || '';
+                    dateTo   = document.getElementById('customDateTo')?.value   || '';
+                }
+
+                let url = '/api/order-groups?limit=1000';
+                if (search)   url += `&search=${encodeURIComponent(search)}`;
+                if (network)  url += `&network=${encodeURIComponent(network)}`;
+                if (status)   url += `&status=${encodeURIComponent(status)}`;
+                if (dateFrom) url += `&dateFrom=${dateFrom}`;
+                if (dateTo)   url += `&dateTo=${dateTo}`;
+
+                const response = await fetch(url, { credentials: 'include' });
                 
                 if (!response.ok) {
                     if (response.status === 401) {
@@ -766,7 +795,7 @@
                 
                 const data = await response.json();
                 
-                // Store order groups with items
+                // Server already filtered — store as both orderGroups and filteredGroups
                 orderGroups = (data.orders || []).map(order => ({
                     orderId: order.orderId,
                     itemCount: order.itemCount,
@@ -777,10 +806,12 @@
                     items: order.items || [],
                     preview: order.preview
                 }));
+                filteredGroups = orderGroups;
                 
                 currentPage = 1;
+                updateActiveFiltersDisplay(search, network, status, dateFilter);
                 updateStats();
-                filterOrders(); // Apply any active filters (including default today filter)
+                render();
                 
             } catch (error) {
                 console.error('Error loading orders:', error);
@@ -1067,77 +1098,10 @@
             filterOrders();
         }
 
+        let filterDebounceTimer;
         function filterOrders() {
-            const search = document.getElementById('searchInput').value.toLowerCase().trim();
-            const network = document.getElementById('networkFilter').value.toUpperCase();
-            const status = document.getElementById('statusFilter').value;
-            const dateFilter = document.getElementById('dateFilter').value;
-            
-            // Update active filters display
-            updateActiveFiltersDisplay(search, network, status, dateFilter);
-
-            filteredGroups = orderGroups.filter(group => {
-                // Search by order ID or any phone number
-                let matchSearch = !search;
-                if (search) {
-                    // Check orderId
-                    if (group.orderId && group.orderId.toLowerCase().includes(search)) {
-                        matchSearch = true;
-                    }
-                    // Check items phones
-                    if (!matchSearch && group.items && group.items.length > 0) {
-                        matchSearch = group.items.some(item => 
-                            (item.recipientPhone || '').toLowerCase().includes(search) ||
-                            (item.reference || '').toLowerCase().includes(search)
-                        );
-                    }
-                    // Check preview phone
-                    if (!matchSearch && group.preview) {
-                        matchSearch = (group.preview.phone || '').toLowerCase().includes(search);
-                    }
-                }
-                
-                // Network filter - check items or preview
-                let matchNetwork = !network;
-                const matchNet = (net, filter) => {
-                    const n = (net || '').toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
-                    const f = filter.replace(/\s+/g, '').replace(/-/g, '');
-                    return n.includes(f) || f.includes(n);
-                };
-                if (network) {
-                    if (group.items && group.items.length > 0) {
-                        matchNetwork = group.items.some(item => matchNet(item.network, network));
-                    }
-                    if (!matchNetwork && group.preview) {
-                        matchNetwork = matchNet(group.preview.network, network);
-                    }
-                }
-                
-                // Status filter - check group status OR any item status
-                let matchStatus = !status;
-                if (status) {
-                    // First check group-level status
-                    if (group.status === status) {
-                        matchStatus = true;
-                    }
-                    // Also check individual item statuses
-                    if (!matchStatus && group.items && group.items.length > 0) {
-                        matchStatus = group.items.some(item => item.status === status);
-                    }
-                }
-                
-                // Date filter
-                const matchDate = checkDateFilter(group.createdAt, dateFilter);
-                
-                return matchSearch && matchNetwork && matchStatus && matchDate;
-            });
-
-            currentPage = 1;
-            render();
-            updateStats(); // Update stats based on filtered orders
-            
-            // Show count of filtered results
-            console.log(`Filtered: ${filteredGroups.length} of ${orderGroups.length} orders`);
+            clearTimeout(filterDebounceTimer);
+            filterDebounceTimer = setTimeout(() => loadOrders(), 350);
         }
         
         function updateActiveFiltersDisplay(search, network, status, dateFilter) {
