@@ -1590,17 +1590,17 @@ router.post('/admin/bulk-complete-by-phone', authenticate, authorize('ADMIN'), a
     const to = new Date(toDate);
     to.setUTCDate(to.getUTCDate() + 1);
 
-    // Parse lines: "0241234567 5" → { phone: "0241234567", dataSize: "5" }
+    // Parse lines: "0241234567 5" or "0241234567\t5" → { phone, dataSize }
     const pairs = entries
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .map(line => {
-        const spaceIdx = line.indexOf(' ');
-        if (spaceIdx === -1) return null;
+        const parts = line.split(/\s+/);
+        if (parts.length < 2) return null;
         return {
-          phone: line.slice(0, spaceIdx).trim(),
-          dataSize: line.slice(spaceIdx + 1).trim()
+          phone: parts[0].trim(),
+          dataSize: parts.slice(1).join(' ').trim()
         };
       })
       .filter(Boolean);
@@ -1715,11 +1715,11 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .map(line => {
-        const spaceIdx = line.indexOf(' ');
-        if (spaceIdx === -1) return null;
+        const parts = line.split(/\s+/);
+        if (parts.length < 2) return null;
         return {
-          phone: line.slice(0, spaceIdx).trim(),
-          dataSize: line.slice(spaceIdx + 1).trim()
+          phone: parts[0].trim(),
+          dataSize: parts.slice(1).join(' ').trim()
         };
       })
       .filter(Boolean);
