@@ -1785,9 +1785,20 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
             data: { summaryStatus: newGroupStatus, status: newGroupStatus }
           });
 
-          // Refund wallet if deducted
+          // Sync to legacy Order + StorefrontOrder (no profit credited for CANCELLED)
+          const orderGroupService = require('../services/order-group.service');
+          try {
+            await orderGroupService.syncLegacyOrderStatus(item, 'CANCELLED');
+          } catch (syncErr) {
+            console.error(`[BulkCancelRefund] Sync failed for item ${item.id}:`, syncErr.message);
+          }
+
+          // Refund: wallet-paid orders → refund totalAmount to agent wallet
+          //         Paystack-paid orders → credit ownerProfit to store owner wallet
           let itemRefunded = false;
+
           if (item.orderGroup.walletDeducted && item.orderGroup.totalAmount > 0) {
+            // Wallet-paid order — refund cost back to the agent
             try {
               await walletService.creditWallet(
                 item.orderGroup.userId,
@@ -1803,17 +1814,47 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
                 itemRefunded = true;
                 refunded++;
               } else {
-                console.error(`[BulkCancelRefund] Refund failed for ${item.orderGroup.displayId}:`, refundErr.message);
+                console.error(`[BulkCancelRefund] Wallet refund failed for ${item.orderGroup.displayId}:`, refundErr.message);
               }
             }
-          }
-
-          // Sync to legacy Order + StorefrontOrder (no profit credited for CANCELLED)
-          const orderGroupService = require('../services/order-group.service');
-          try {
-            await orderGroupService.syncLegacyOrderStatus(item, 'CANCELLED');
-          } catch (syncErr) {
-            console.error(`[BulkCancelRefund] Sync failed for item ${item.id}:`, syncErr.message);
+          } else {
+            // Check for Paystack storefront order — credit ownerProfit to store owner
+            try {
+              const orderRef = item.reference?.replace(/-\d+$/, '');
+              if (orderRef) {
+                const linkedOrder = await prisma.order.findFirst({
+                  where: { reference: orderRef },
+                  select: { storefrontOrderId: true }
+                });
+                if (linkedOrder?.storefrontOrderId) {
+                  const sfOrder = await prisma.storefrontOrder.findUnique({
+                    where: { id: linkedOrder.storefrontOrderId },
+                    include: {
+                      storefront: { include: { owner: { select: { id: true } } } }
+                    }
+                  });
+                  if (sfOrder && sfOrder.paymentMethod === 'PAYSTACK' && sfOrder.ownerProfit > 0) {
+                    const ownerId = sfOrder.storefront.owner.id;
+                    await walletService.creditWallet(
+                      ownerId,
+                      sfOrder.ownerProfit,
+                      `Bulk cancel refund (Paystack) - ${item.orderGroup.displayId}`,
+                      `BULK-REFUND-PAYSTACK-${item.orderGroup.displayId}`,
+                      { entryType: 'REFUND', orderId: item.orderGroup.id }
+                    );
+                    itemRefunded = true;
+                    refunded++;
+                  }
+                }
+              }
+            } catch (paystackRefundErr) {
+              if (paystackRefundErr.message === 'Duplicate transaction reference') {
+                itemRefunded = true;
+                refunded++;
+              } else {
+                console.error(`[BulkCancelRefund] Paystack profit refund failed for ${item.orderGroup.displayId}:`, paystackRefundErr.message);
+              }
+            }
           }
 
           cancelled++;
