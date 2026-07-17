@@ -6034,12 +6034,16 @@
                     <p style="font-size: 0.83rem; color: #64748b; margin: 0 0 10px 0;">
                         Format: <code style="background:#f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem;">0241234567 5</code> &nbsp;(phone number, space, data size)
                     </p>
-                    <textarea id="bulkCancelRefundInput" placeholder="0241234567 5&#10;0557654321 1&#10;0201112222 2" style="width: 100%; height: 160px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: monospace; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
-                    <div id="bulkCancelRefundResult" style="display:none; margin-top: 14px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; line-height: 1.6;"></div>
+                    <textarea id="bulkCancelRefundInput" placeholder="0241234567 5&#10;0557654321 1&#10;0201112222 2" style="width: 100%; height: 140px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: monospace; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
+                    <div id="bulkCancelRefundPreview" style="display:none; margin-top: 12px; padding: 14px 16px; border-radius: 8px; background: #fef3c7; border: 1px solid #f59e0b; font-size: 0.85rem; line-height: 1.6;"></div>
+                    <div id="bulkCancelRefundResult" style="display:none; margin-top: 12px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; line-height: 1.6;"></div>
                     <div style="display: flex; gap: 10px; margin-top: 14px;">
                         <button onclick="closeBulkCancelRefundModal()" style="flex: 1; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Close</button>
-                        <button id="bulkCancelRefundSubmitBtn" onclick="submitBulkCancelRefund()" style="flex: 2; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
-                            <i class="fas fa-ban"></i> Cancel & Refund Orders
+                        <button id="bulkCancelRefundPreviewBtn" onclick="previewBulkCancelRefund()" style="flex: 1.5; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button id="bulkCancelRefundSubmitBtn" onclick="submitBulkCancelRefund()" style="flex: 2; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; display:none;">
+                            <i class="fas fa-ban"></i> Confirm & Cancel
                         </button>
                     </div>
                 </div>
@@ -15064,12 +15068,19 @@
 
         function openBulkCancelRefundModal() {
             document.getElementById('bulkCancelRefundInput').value = '';
+            const preview = document.getElementById('bulkCancelRefundPreview');
+            preview.style.display = 'none';
+            preview.innerHTML = '';
             const result = document.getElementById('bulkCancelRefundResult');
             result.style.display = 'none';
             result.textContent = '';
-            const btn = document.getElementById('bulkCancelRefundSubmitBtn');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-ban"></i> Cancel & Refund Orders';
+            const previewBtn = document.getElementById('bulkCancelRefundPreviewBtn');
+            previewBtn.disabled = false;
+            previewBtn.innerHTML = '<i class="fas fa-eye"></i> Preview';
+            const submitBtn = document.getElementById('bulkCancelRefundSubmitBtn');
+            submitBtn.style.display = 'none';
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-ban"></i> Confirm & Cancel';
             const fromFilter = document.getElementById('filterFrom');
             const toFilter = document.getElementById('filterTo');
             if (fromFilter && fromFilter.value) document.getElementById('bulkCancelRefundFrom').value = fromFilter.value;
@@ -15081,6 +15092,61 @@
             document.getElementById('bulkCancelRefundOverlay').style.display = 'none';
         }
 
+        async function previewBulkCancelRefund() {
+            const input = document.getElementById('bulkCancelRefundInput').value.trim();
+            if (!input) { showToast('Please paste at least one entry.', 'error'); return; }
+            const fromVal = document.getElementById('bulkCancelRefundFrom').value;
+            const toVal = document.getElementById('bulkCancelRefundTo').value;
+            if (!fromVal || !toVal) { showToast('Please select a From and To date.', 'error'); return; }
+
+            const previewBtn = document.getElementById('bulkCancelRefundPreviewBtn');
+            const submitBtn = document.getElementById('bulkCancelRefundSubmitBtn');
+            const preview = document.getElementById('bulkCancelRefundPreview');
+            const result = document.getElementById('bulkCancelRefundResult');
+
+            previewBtn.disabled = true;
+            previewBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+            submitBtn.style.display = 'none';
+            result.style.display = 'none';
+            preview.style.display = 'none';
+
+            try {
+                const res = await adminFetch('/api/order-groups/admin/bulk-cancel-refund-by-phone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: input, fromDate: fromVal, toDate: toVal, dryRun: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const notFound = (data.rows || []).filter(r => !r.found);
+                    let html = `<strong style="font-size:0.92rem;">📋 Preview</strong><br><br>`;
+                    html += `<strong>${data.matchedOrders}</strong> order(s) will be cancelled<br>`;
+                    html += `<strong>Total refund: GH₵${data.totalRefund.toFixed(2)}</strong><br>`;
+                    if (notFound.length > 0) {
+                        html += `<br><span style="color:#92400e;">⚠️ Not found (${notFound.length}):</span><br>`;
+                        html += notFound.map(r => `&nbsp;&nbsp;• ${r.phone} ${r.dataSize}`).join('<br>');
+                    }
+                    preview.innerHTML = html;
+                    preview.style.display = 'block';
+                    if (data.matchedOrders > 0) {
+                        submitBtn.style.display = 'block';
+                    }
+                } else {
+                    preview.innerHTML = '❌ ' + (data.error || 'Something went wrong');
+                    preview.style.background = '#fee2e2';
+                    preview.style.borderColor = '#dc2626';
+                    preview.style.display = 'block';
+                }
+            } catch (err) {
+                preview.innerHTML = '❌ ' + err.message;
+                preview.style.background = '#fee2e2';
+                preview.style.display = 'block';
+            } finally {
+                previewBtn.disabled = false;
+                previewBtn.innerHTML = '<i class="fas fa-eye"></i> Preview';
+            }
+        }
+
         async function submitBulkCancelRefund() {
             const input = document.getElementById('bulkCancelRefundInput').value.trim();
             if (!input) { showToast('Please paste at least one entry.', 'error'); return; }
@@ -15089,10 +15155,14 @@
             const toVal = document.getElementById('bulkCancelRefundTo').value;
             if (!fromVal || !toVal) { showToast('Please select a From and To date.', 'error'); return; }
 
-            const btn = document.getElementById('bulkCancelRefundSubmitBtn');
+            const submitBtn = document.getElementById('bulkCancelRefundSubmitBtn');
+            const previewBtn = document.getElementById('bulkCancelRefundPreviewBtn');
             const result = document.getElementById('bulkCancelRefundResult');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            const preview = document.getElementById('bulkCancelRefundPreview');
+
+            submitBtn.disabled = true;
+            previewBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
             result.style.display = 'none';
 
             try {
@@ -15104,14 +15174,16 @@
                 const data = await res.json();
                 if (data.success) {
                     const skippedDetails = (data.details || []).filter(d => d.result === 'skipped');
-                    let msg = `🚫 ${data.summary}\n`;
+                    let msg = `🚫 ${data.summary}`;
                     if (skippedDetails.length > 0) {
-                        msg += `\nSkipped (no match found):\n` + skippedDetails.map(d => `  • ${d.phone} ${d.dataSize}`).join('\n');
+                        msg += `\n\nSkipped (no match found):\n` + skippedDetails.map(d => `  • ${d.phone} ${d.dataSize}`).join('\n');
                     }
-                    result.style.background = data.cancelled > 0 ? '#fee2e2' : '#fef3c7';
-                    result.style.color = data.cancelled > 0 ? '#991b1b' : '#92400e';
+                    preview.style.display = 'none';
+                    result.style.background = data.cancelled > 0 ? '#d1fae5' : '#fef3c7';
+                    result.style.color = data.cancelled > 0 ? '#065f46' : '#92400e';
                     result.style.display = 'block';
                     result.textContent = msg;
+                    submitBtn.style.display = 'none';
                     if (data.cancelled > 0) showToast(`🚫 ${data.cancelled} order(s) cancelled, ${data.refunded} refunded`, 'success');
                     else showToast('No orders cancelled — check the skipped list.', 'warning');
                 } else {
@@ -15128,8 +15200,9 @@
                 result.textContent = '❌ ' + err.message;
                 showToast('Error: ' + err.message, 'error');
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-ban"></i> Cancel & Refund Orders';
+                submitBtn.disabled = false;
+                previewBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-ban"></i> Confirm & Cancel';
             }
         }
 

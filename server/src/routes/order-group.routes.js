@@ -1728,6 +1728,7 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
       return res.status(400).json({ error: 'No valid entries found. Format: one "phone dataSize" per line.' });
     }
 
+    const { dryRun } = req.body;
     const phones = [...new Set(pairs.map(p => p.phone))];
 
     const candidates = await prisma.orderItem.findMany({
@@ -1747,6 +1748,64 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
         }
       }
     });
+
+    // ── DRY RUN: return preview without cancelling ──────────────────────
+    if (dryRun) {
+      let previewTotal = 0;
+      let previewCount = 0;
+      const previewRows = [];
+      const seen = new Set();
+
+      for (const { phone, dataSize } of pairs) {
+        const matches = candidates.filter(item =>
+          item.recipientPhone === phone &&
+          item.bundle?.dataAmount?.toLowerCase().startsWith(dataSize.toLowerCase())
+        );
+        if (matches.length === 0) {
+          previewRows.push({ phone, dataSize, found: false, orders: [] });
+          continue;
+        }
+        const orders = [];
+        for (const item of matches) {
+          if (seen.has(item.id)) continue;
+          seen.add(item.id);
+          // Estimate refund amount
+          let refundAmt = 0;
+          if (item.orderGroup.walletDeducted) {
+            refundAmt = item.orderGroup.totalAmount;
+          } else {
+            // Look up StorefrontOrder for Paystack amount
+            const orderRef = item.reference?.replace(/-\d+$/, '');
+            if (orderRef) {
+              const linkedOrder = await prisma.order.findFirst({
+                where: { reference: orderRef },
+                select: { storefrontOrderId: true }
+              });
+              if (linkedOrder?.storefrontOrderId) {
+                const sfOrder = await prisma.storefrontOrder.findUnique({
+                  where: { id: linkedOrder.storefrontOrderId },
+                  select: { amount: true, paymentMethod: true }
+                });
+                if (sfOrder?.paymentMethod === 'PAYSTACK') refundAmt = sfOrder.amount || 0;
+              }
+            }
+          }
+          previewTotal += refundAmt;
+          previewCount++;
+          orders.push({ orderId: item.orderGroup.displayId, status: item.status, refundAmt });
+        }
+        previewRows.push({ phone, dataSize, found: true, orders });
+      }
+
+      return res.json({
+        success: true,
+        dryRun: true,
+        matchedOrders: previewCount,
+        totalRefund: previewTotal,
+        rows: previewRows
+      });
+    }
+    // ────────────────────────────────────────────────────────────────────
 
     let cancelled = 0;
     let refunded = 0;
