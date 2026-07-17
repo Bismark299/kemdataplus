@@ -8789,7 +8789,12 @@
             // Order No filter
             const orderNoFilter = document.getElementById('filterOrderNoMain')?.value || '';
             if (orderNoFilter) {
-                orders = orders.filter(o => o.id?.toString().includes(orderNoFilter));
+                const term = orderNoFilter.toLowerCase();
+                orders = orders.filter(o =>
+                    (o.displayId || '').toLowerCase().includes(term) ||
+                    (o.reference || '').toLowerCase().includes(term) ||
+                    (o.id || '').toLowerCase().includes(term)
+                );
             }
             
             // Agent Code filter - matches KDP-XXXX codes or user names

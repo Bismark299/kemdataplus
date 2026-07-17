@@ -357,12 +357,12 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     // Build OrderGroup where clause
     const ogWhere = { ...dateWhere };
     if (search) {
-      ogWhere.user = {
-        OR: [
-          { name:      { contains: search, mode: 'insensitive' } },
-          { agentCode: { contains: search, mode: 'insensitive' } }
-        ]
-      };
+      ogWhere.OR = [
+        { displayId:  { contains: search, mode: 'insensitive' } },
+        { user: { name:      { contains: search, mode: 'insensitive' } } },
+        { user: { agentCode: { contains: search, mode: 'insensitive' } } },
+        { items: { some: { recipientPhone: { contains: search } } } }
+      ];
     }
 
     // Build legacy Order where clause
@@ -371,12 +371,12 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     if (phone)   orderWhere.recipientPhone = { contains: phone };
     if (network) orderWhere.bundle = { network: { contains: network, mode: 'insensitive' } };
     if (search)  {
-      orderWhere.user = {
-        OR: [
-          { name:      { contains: search, mode: 'insensitive' } },
-          { agentCode: { contains: search, mode: 'insensitive' } }
-        ]
-      };
+      orderWhere.OR = [
+        { reference:  { contains: search, mode: 'insensitive' } },
+        { user: { name:      { contains: search, mode: 'insensitive' } } },
+        { user: { agentCode: { contains: search, mode: 'insensitive' } } },
+        { recipientPhone: { contains: search } }
+      ];
     }
 
     console.log(`[OrderGroup] Admin fetching orders (limit: ${limit}, date: ${dateParam || dateFrom && `${dateFrom}→${dateTo}` || 'all'}, status: ${status || 'all'}, network: ${network || 'all'})`);
