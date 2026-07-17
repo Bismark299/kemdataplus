@@ -496,89 +496,109 @@ const walletController = {
     }
   },
 
-  // Get all transactions (admin) - reads from WalletLedger where all balance changes are recorded
+  // Get all transactions (admin) - merges WalletLedger + Transaction so nothing is missed
   async getAllTransactions(req, res, next) {
     try {
       const page  = parseInt(req.query.page)  || 1;
       const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-      const skip  = (page - 1) * limit;
       const typeFilter   = req.query.type;
       const userIdFilter = req.query.userId;
       const search   = req.query.search;
       const fromDate = req.query.fromDate;
       const toDate   = req.query.toDate;
 
-      const where = {};
+      const creditTypes = ['DEPOSIT', 'REFUND', 'TRANSFER_IN', 'CREDIT', 'PROFIT_CREDIT', 'COMMISSION'];
+      const debitTypes  = ['PURCHASE', 'DEDUCTION', 'TRANSFER_OUT', 'WITHDRAWAL'];
 
-      // Type filter — 'credit' and 'debit' are meta-groups; field is entryType on WalletLedger
-      if (typeFilter) {
-        const creditTypes = ['DEPOSIT', 'REFUND', 'TRANSFER_IN', 'CREDIT', 'PROFIT_CREDIT', 'COMMISSION'];
-        const debitTypes  = ['PURCHASE', 'DEDUCTION', 'TRANSFER_OUT', 'WITHDRAWAL'];
-        if (typeFilter.toLowerCase() === 'credit') {
-          where.entryType = { in: creditTypes };
-        } else if (typeFilter.toLowerCase() === 'debit') {
-          where.entryType = { in: debitTypes };
-        } else {
-          where.entryType = typeFilter.toUpperCase();
-        }
-      }
-
-      // Date range filter
+      // ── Shared filter builders ────────────────────────────────────────
+      const dateWhere = {};
       if (fromDate || toDate) {
-        where.createdAt = {};
-        if (fromDate) where.createdAt.gte = new Date(fromDate);
+        dateWhere.createdAt = {};
+        if (fromDate) dateWhere.createdAt.gte = new Date(fromDate);
         if (toDate) {
           const to = new Date(toDate);
           to.setUTCDate(to.getUTCDate() + 1);
-          where.createdAt.lt = to;
+          dateWhere.createdAt.lt = to;
         }
       }
 
-      // Search filter — description or reference
-      if (search) {
-        where.OR = [
+      const userWhere = userIdFilter ? { wallet: { userId: userIdFilter } } : {};
+
+      const searchWhere = search ? {
+        OR: [
           { description: { contains: search, mode: 'insensitive' } },
           { reference:   { contains: search, mode: 'insensitive' } }
-        ];
+        ]
+      } : {};
+
+      // ── WalletLedger where (uses entryType) ───────────────────────────
+      const ledgerWhere = { ...dateWhere, ...userWhere, ...searchWhere };
+      if (typeFilter) {
+        if (typeFilter.toLowerCase() === 'credit')      ledgerWhere.entryType = { in: creditTypes };
+        else if (typeFilter.toLowerCase() === 'debit')  ledgerWhere.entryType = { in: debitTypes };
+        else                                             ledgerWhere.entryType = typeFilter.toUpperCase();
       }
 
-      // Filter by userId (through wallet relation)
-      if (userIdFilter) {
-        where.wallet = { userId: userIdFilter };
+      // ── Transaction where (uses type) ────────────────────────────────
+      const txnWhere = { ...dateWhere, ...userWhere, ...searchWhere };
+      if (typeFilter) {
+        if (typeFilter.toLowerCase() === 'credit')      txnWhere.type = { in: creditTypes };
+        else if (typeFilter.toLowerCase() === 'debit')  txnWhere.type = { in: debitTypes };
+        else                                             txnWhere.type = typeFilter.toUpperCase();
       }
 
-      const [entries, total] = await Promise.all([
+      const userInclude = {
+        wallet: { include: { user: { select: { id: true, name: true, email: true, phone: true } } } }
+      };
+
+      // Fetch both sources in parallel — high cap so pagination over merged set works
+      const [ledgerEntries, txnEntries] = await Promise.all([
         prisma.walletLedger.findMany({
-          where,
-          skip,
-          take: limit,
+          where: ledgerWhere,
           orderBy: { createdAt: 'desc' },
-          include: {
-            wallet: {
-              include: {
-                user: {
-                  select: { id: true, name: true, email: true, phone: true }
-                }
-              }
-            }
-          }
+          take: 5000,
+          include: userInclude
         }),
-        prisma.walletLedger.count({ where })
+        prisma.transaction.findMany({
+          where: txnWhere,
+          orderBy: { createdAt: 'desc' },
+          take: 5000,
+          include: userInclude
+        })
       ]);
 
+      // Normalise both to the same shape
+      const normalize = (e, source) => ({
+        id:          e.id,
+        type:        source === 'ledger' ? e.entryType : e.type,
+        amount:      e.amount,
+        balance:     e.runningBalance ?? null,
+        reference:   e.reference,
+        description: e.description,
+        createdAt:   e.createdAt,
+        userName:    e.wallet?.user?.name,
+        userPhone:   e.wallet?.user?.phone,
+        userId:      e.wallet?.user?.id,
+        _source:     source
+      });
+
+      const ledgerMap = new Map();
+      ledgerEntries.forEach(e => ledgerMap.set(e.reference, normalize(e, 'ledger')));
+
+      // Add Transaction entries only if no WalletLedger entry with the same reference exists
+      const txnUnique = txnEntries
+        .filter(e => !ledgerMap.has(e.reference))
+        .map(e => normalize(e, 'transaction'));
+
+      const merged = [...ledgerMap.values(), ...txnUnique]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      const total = merged.length;
+      const skip  = (page - 1) * limit;
+      const page_data = merged.slice(skip, skip + limit).map(({ _source, ...rest }) => rest);
+
       res.json({
-        transactions: entries.map(e => ({
-          id:          e.id,
-          type:        e.entryType,
-          amount:      e.amount,
-          balance:     e.runningBalance,
-          reference:   e.reference,
-          description: e.description,
-          createdAt:   e.createdAt,
-          userName:    e.wallet?.user?.name,
-          userPhone:   e.wallet?.user?.phone,
-          userId:      e.wallet?.user?.id
-        })),
+        transactions: page_data,
         pagination: {
           page,
           limit,
