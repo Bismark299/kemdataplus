@@ -496,30 +496,30 @@ const walletController = {
     }
   },
 
-  // Get all transactions (admin) - for wallet management tab
+  // Get all transactions (admin) - reads from WalletLedger where all balance changes are recorded
   async getAllTransactions(req, res, next) {
     try {
-      const page = parseInt(req.query.page) || 1;
+      const page  = parseInt(req.query.page)  || 1;
       const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-      const skip = (page - 1) * limit;
-      const typeFilter = req.query.type;
+      const skip  = (page - 1) * limit;
+      const typeFilter   = req.query.type;
       const userIdFilter = req.query.userId;
-      const search = req.query.search;
+      const search   = req.query.search;
       const fromDate = req.query.fromDate;
-      const toDate = req.query.toDate;
+      const toDate   = req.query.toDate;
 
       const where = {};
 
-      // Type filter — 'credit' and 'debit' are meta-groups
+      // Type filter — 'credit' and 'debit' are meta-groups; field is entryType on WalletLedger
       if (typeFilter) {
         const creditTypes = ['DEPOSIT', 'REFUND', 'TRANSFER_IN', 'CREDIT', 'PROFIT_CREDIT', 'COMMISSION'];
         const debitTypes  = ['PURCHASE', 'DEDUCTION', 'TRANSFER_OUT', 'WITHDRAWAL'];
         if (typeFilter.toLowerCase() === 'credit') {
-          where.type = { in: creditTypes };
+          where.entryType = { in: creditTypes };
         } else if (typeFilter.toLowerCase() === 'debit') {
-          where.type = { in: debitTypes };
+          where.entryType = { in: debitTypes };
         } else {
-          where.type = typeFilter.toUpperCase();
+          where.entryType = typeFilter.toUpperCase();
         }
       }
 
@@ -547,8 +547,8 @@ const walletController = {
         where.wallet = { userId: userIdFilter };
       }
 
-      const [transactions, total] = await Promise.all([
-        prisma.transaction.findMany({
+      const [entries, total] = await Promise.all([
+        prisma.walletLedger.findMany({
           where,
           skip,
           take: limit,
@@ -557,32 +557,27 @@ const walletController = {
             wallet: {
               include: {
                 user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    phone: true
-                  }
+                  select: { id: true, name: true, email: true, phone: true }
                 }
               }
             }
           }
         }),
-        prisma.transaction.count({ where })
+        prisma.walletLedger.count({ where })
       ]);
 
       res.json({
-        transactions: transactions.map(t => ({
-          id: t.id,
-          type: t.type,
-          amount: t.amount,
-          status: t.status,
-          reference: t.reference,
-          description: t.description,
-          createdAt: t.createdAt,
-          userName: t.wallet?.user?.name,
-          userPhone: t.wallet?.user?.phone,
-          userId: t.wallet?.user?.id
+        transactions: entries.map(e => ({
+          id:          e.id,
+          type:        e.entryType,
+          amount:      e.amount,
+          balance:     e.runningBalance,
+          reference:   e.reference,
+          description: e.description,
+          createdAt:   e.createdAt,
+          userName:    e.wallet?.user?.name,
+          userPhone:   e.wallet?.user?.phone,
+          userId:      e.wallet?.user?.id
         })),
         pagination: {
           page,
