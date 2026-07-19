@@ -4671,7 +4671,11 @@
                     <div class="value" id="totalSold">GH₵ 0.00</div>
                 </div>
                 <div class="header-stat">
-                    <div class="label"><i class="fas fa-chart-line"></i> Profit Made:</div>
+                    <div class="label"><i class="fas fa-store"></i> Store Payouts:</div>
+                    <div class="value" id="storefrontOwnerPayout" style="color:#f59e0b;">GH₵ 0.00</div>
+                </div>
+                <div class="header-stat">
+                    <div class="label"><i class="fas fa-chart-line"></i> Net Profit:</div>
                     <div class="value profit" id="totalProfit">GH₵ 0.00</div>
                 </div>
                 <div class="admin-avatar">A</div>
@@ -8125,6 +8129,7 @@
                     document.getElementById('amountToday').textContent = 'GH₵ ' + s.completedAmount.toFixed(2);
                     document.getElementById('bundleToday').textContent = s.totalCapacity + ' GB';
                     document.getElementById('totalSold').textContent = 'GH₵ ' + s.totalSold.toFixed(2);
+                    document.getElementById('storefrontOwnerPayout').textContent = 'GH₵ ' + (s.storefrontOwnerPayout || 0).toFixed(2);
                     document.getElementById('totalProfit').textContent = 'GH₵ ' + s.totalProfit.toFixed(2);
                     document.getElementById('walletBalance').textContent = 'GH₵ ' + s.walletBalance.toFixed(2);
                     

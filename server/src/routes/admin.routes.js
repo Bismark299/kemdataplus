@@ -633,7 +633,9 @@ router.get('/dashboard-stats', async (req, res, next) => {
       // All OrderItems for date - for capacity + per-row cost calc
       allItemsForDate,
       // All legacy orders for date (deduplicated)
-      allLegacyForDate
+      allLegacyForDate,
+      // Storefront owner profit share to deduct from gross
+      storefrontOwnerProfitAgg
     ] = await Promise.all([
       // OrderItem counts/amounts grouped by status
       prisma.orderItem.groupBy({
@@ -684,6 +686,15 @@ router.get('/dashboard-stats', async (req, res, next) => {
           quantity: true,
           bundle: { select: { dataAmount: true, basePrice: true } }
         }
+      }),
+      // Store owner profit share — must be deducted from gross profit
+      prisma.storefrontOrder.aggregate({
+        where: {
+          createdAt: dateWhere.createdAt,
+          status: 'COMPLETED',
+          ownerProfit: { gt: 0 }
+        },
+        _sum: { ownerProfit: true }
       })
     ]);
 
@@ -739,7 +750,8 @@ router.get('/dashboard-stats', async (req, res, next) => {
     processItems(allItemsForDate);
     processItems(allLegacyForDate);
 
-    const totalProfit = totalSold - totalCost;
+    const storefrontOwnerPayout = storefrontOwnerProfitAgg._sum.ownerProfit || 0;
+    const totalProfit = totalSold - totalCost - storefrontOwnerPayout;
 
     // All orders for date
     const totalOrders = Object.values(statusMap).reduce((s, v) => s + v.count, 0);
@@ -767,6 +779,7 @@ router.get('/dashboard-stats', async (req, res, next) => {
       completedAmount: totalSold,
       totalSold,
       totalCost,
+      storefrontOwnerPayout,
       totalProfit,
       walletBalance: walletAgg._sum.balance || 0,
       byStatus: {
