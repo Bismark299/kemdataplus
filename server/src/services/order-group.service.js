@@ -211,7 +211,7 @@ const orderGroupService = {
         quantity,
         unitPrice,
         totalPrice: itemTotal,
-        baseCost: bundle.baseCost || 0
+        baseCost: bundle.baseCost || bundle.basePrice || 0
       });
 
       grandTotal += itemTotal;

@@ -272,6 +272,7 @@ const bundleController = {
       }
 
       const validBasePrice = Number(basePrice) || 0;
+      const validBaseCost = validBasePrice; // baseCost = what admin pays supplier (same value, different field)
 
       // Build role prices from request
       const pricesMap = {};
@@ -300,6 +301,7 @@ const bundleController = {
             network: network.toUpperCase(),
             dataAmount,
             basePrice: validBasePrice,
+            baseCost: validBaseCost,
             validity: validity || 'Non-Expiry',
             description: description || ''
           }
@@ -375,7 +377,7 @@ const bundleController = {
         if (name !== undefined) updateData.name = name;
         if (network !== undefined) updateData.network = network.toUpperCase();
         if (dataAmount !== undefined) updateData.dataAmount = dataAmount;
-        if (basePrice !== undefined) updateData.basePrice = Number(basePrice);
+        if (basePrice !== undefined) { updateData.basePrice = Number(basePrice); updateData.baseCost = Number(basePrice); }
         if (validity !== undefined) updateData.validity = validity;
         if (description !== undefined) updateData.description = description;
         if (isActive !== undefined) updateData.isActive = isActive;

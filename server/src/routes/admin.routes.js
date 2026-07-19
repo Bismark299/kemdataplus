@@ -671,7 +671,7 @@ router.get('/dashboard-stats', async (req, res, next) => {
           totalPrice: true,
           baseCost: true,
           quantity: true,
-          bundle: { select: { dataAmount: true } }
+          bundle: { select: { dataAmount: true, basePrice: true } }
         }
       }),
       // All legacy orders for date (deduplicated)
@@ -682,7 +682,7 @@ router.get('/dashboard-stats', async (req, res, next) => {
           totalPrice: true,
           baseCost: true,
           quantity: true,
-          bundle: { select: { dataAmount: true } }
+          bundle: { select: { dataAmount: true, basePrice: true } }
         }
       })
     ]);
@@ -726,7 +726,10 @@ router.get('/dashboard-stats', async (req, res, next) => {
         // Per-row profit: only count COMPLETED orders
         if (key === 'COMPLETED') {
           const price = item.totalPrice || 0;
-          const cost = (item.baseCost && item.baseCost > 0) ? item.baseCost : price * 0.95;
+          const bundleBasePrice = item.bundle?.basePrice || 0;
+          const cost = (item.baseCost && item.baseCost > 0)
+            ? item.baseCost
+            : (bundleBasePrice > 0 ? bundleBasePrice * (item.quantity || 1) : price * 0.95);
           totalSold += price;
           totalCost += cost;
         }

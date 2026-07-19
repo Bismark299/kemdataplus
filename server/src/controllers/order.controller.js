@@ -227,7 +227,7 @@ const orderController = {
           });
         }
         unitPrice = priceResult.price;
-        baseCost = bundle.baseCost || 0;
+        baseCost = bundle.baseCost || bundle.basePrice || 0;
       } else {
         // Legacy: Get price for user's role from DATABASE
         const rolePrice = bundle.prices.find(p => p.role === userRole);
@@ -240,7 +240,7 @@ const orderController = {
           });
         }
         unitPrice = rolePrice.price;
-        baseCost = bundle.baseCost || 0;
+        baseCost = bundle.baseCost || bundle.basePrice || 0;
       }
 
       // Use SERVER price ONLY - never trust frontend
