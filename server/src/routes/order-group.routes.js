@@ -1777,7 +1777,7 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
           // Estimate refund amount
           let refundAmt = 0;
           if (item.orderGroup.walletDeducted) {
-            refundAmt = item.orderGroup.totalAmount;
+            refundAmt = item.totalPrice || item.unitPrice || 0;
           } else {
             // Look up StorefrontOrder for Paystack amount
             const orderRef = item.reference?.replace(/-\d+$/, '');
@@ -1864,14 +1864,15 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
           //         Paystack-paid orders → credit ownerProfit to store owner wallet
           let itemRefunded = false;
 
-          if (item.orderGroup.walletDeducted && item.orderGroup.totalAmount > 0) {
-            // Wallet-paid order — refund cost back to the agent
+          const itemRefundAmount = item.totalPrice || item.unitPrice || 0;
+          if (item.orderGroup.walletDeducted && itemRefundAmount > 0) {
+            // Wallet-paid order — refund per-item cost back to the agent
             try {
               await walletService.creditWallet(
                 item.orderGroup.userId,
-                item.orderGroup.totalAmount,
-                `Order cancelled & refunded: ${phone} (${dataSize}GB) - ${item.orderGroup.displayId}`,
-                `BULK-REFUND-${item.orderGroup.displayId}`,
+                itemRefundAmount,
+                `Order cancelled & refunded: ${phone} (${dataSize}GB) - ${item.reference}`,
+                `BULK-REFUND-${item.reference}`,
                 { entryType: 'REFUND', orderId: item.orderGroup.id }
               );
               itemRefunded = true;
@@ -1905,8 +1906,8 @@ router.post('/admin/bulk-cancel-refund-by-phone', authenticate, authorize('ADMIN
                     await walletService.creditWallet(
                       ownerId,
                       sfOrder.amount,
-                      `Order cancelled & refunded: ${phone} (${dataSize}GB) - ${item.orderGroup.displayId}`,
-                      `BULK-REFUND-PAYSTACK-${item.orderGroup.displayId}`,
+                      `Order cancelled & refunded: ${phone} (${dataSize}GB) - ${item.reference}`,
+                      `BULK-REFUND-PAYSTACK-${item.reference}`,
                       { entryType: 'REFUND', orderId: item.orderGroup.id }
                     );
                     itemRefunded = true;
