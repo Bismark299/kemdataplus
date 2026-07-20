@@ -717,6 +717,8 @@ const datahubService = {
         newStatus = 'COMPLETED';
       } else if (apiStatus === 'failed' || apiStatus === 'fail' || apiStatus === 'error') {
         newStatus = 'FAILED';
+      } else if (apiStatus === 'cancelled' || apiStatus === 'cancel') {
+        newStatus = 'CANCELLED';
       } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
         newStatus = 'PROCESSING';
       }
@@ -825,6 +827,31 @@ const datahubService = {
           await profitPayoutService.cancelPendingProfit(order.storefrontOrderId, `Order ${newStatus.toLowerCase()}`);
         } catch (err) {
           console.error(`[DataHub] Failed to cancel pending profit for order ${orderId}:`, err.message);
+        }
+      }
+
+      // If order failed/cancelled, auto-refund the user's wallet
+      if ((newStatus === 'FAILED' || newStatus === 'CANCELLED') && newStatus !== order.status) {
+        try {
+          if (order.walletDeducted && order.totalPrice > 0) {
+            const walletService = require('./wallet.service');
+            await walletService.creditWallet(
+              order.userId,
+              order.totalPrice,
+              `Auto-refund: provider ${newStatus.toLowerCase()} — ${order.reference || orderId}`,
+              `MCBIS-REFUND-${order.reference || orderId}`,
+              { entryType: 'REFUND', orderId }
+            );
+            console.log(`[DataHub] ✅ Auto-refunded GHS ${order.totalPrice} to user ${order.userId} (${newStatus})`);
+          } else {
+            console.log(`[DataHub] ⏩ No refund for order ${order.reference || orderId} — walletDeducted=${order.walletDeducted}, totalPrice=${order.totalPrice}`);
+          }
+        } catch (refundErr) {
+          if (refundErr.message !== 'Duplicate transaction reference') {
+            console.error(`[DataHub] ⚠️ Auto-refund failed for order ${order.reference || orderId}:`, refundErr.message);
+          } else {
+            console.log(`[DataHub] ⏩ Refund already issued for ${order.reference || orderId} — skipping duplicate`);
+          }
         }
       }
 

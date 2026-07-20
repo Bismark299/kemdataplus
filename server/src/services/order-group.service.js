@@ -1449,6 +1449,8 @@ const orderGroupService = {
       newStatus = 'COMPLETED';
     } else if (externalStatus === 'failed' || externalStatus === 'error' || externalStatus === 'rejected') {
       newStatus = 'FAILED';
+    } else if (externalStatus === 'cancelled' || externalStatus === 'cancel') {
+      newStatus = 'CANCELLED';
     } else if (externalStatus === 'pending' || externalStatus === 'processing' || externalStatus === 'queued') {
       newStatus = 'PROCESSING';
     }
@@ -1517,6 +1519,30 @@ const orderGroupService = {
           }
         } catch (err) {
           console.error(`[Sync] Failed to cascade completion for item ${item.reference}:`, err.message);
+        }
+      }
+
+      // If FAILED or CANCELLED via provider, auto-refund the user's wallet
+      if (newStatus === 'FAILED' || newStatus === 'CANCELLED') {
+        try {
+          if (item.orderGroup.walletDeducted && item.totalPrice > 0) {
+            await walletService.creditWallet(
+              item.orderGroup.userId,
+              item.totalPrice,
+              `Auto-refund: provider ${newStatus.toLowerCase()} — ${item.reference}`,
+              `MCBIS-REFUND-${item.reference}`,
+              { entryType: 'REFUND', orderId: item.orderGroupId }
+            );
+            console.log(`[Sync] ✅ Auto-refunded GHS ${item.totalPrice} to user ${item.orderGroup.userId} for ${item.reference} (${newStatus})`);
+          } else {
+            console.log(`[Sync] ⏩ No refund for ${item.reference} — walletDeducted=${item.orderGroup.walletDeducted}, totalPrice=${item.totalPrice}`);
+          }
+        } catch (refundErr) {
+          if (refundErr.message !== 'Duplicate transaction reference') {
+            console.error(`[Sync] ⚠️ Auto-refund failed for ${item.reference}:`, refundErr.message);
+          } else {
+            console.log(`[Sync] ⏩ Refund already issued for ${item.reference} — skipping duplicate`);
+          }
         }
       }
     }
