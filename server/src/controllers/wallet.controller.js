@@ -50,7 +50,7 @@ const walletController = {
   async getTransactions(req, res, next) {
     try {
       const page  = Math.max(1, Math.min(parseInt(req.query.page)  || 1, 10000));
-      const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 500));
+      const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 2000));
       const skip  = (page - 1) * limit;
 
       const wallet = await prisma.wallet.findUnique({

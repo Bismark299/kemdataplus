@@ -264,14 +264,13 @@ router.get('/history', authenticate, async (req, res, next) => {
       }
     });
     
-    // Only return completed payments
+    // Return all completed payments (no limit — client paginates)
     const payments = await prisma.pendingPayment.findMany({
       where: { 
         userId: req.user.id,
         status: 'COMPLETED'
       },
-      orderBy: { createdAt: 'desc' },
-      take: 50
+      orderBy: { createdAt: 'desc' }
     });
     
     res.json({ payments });

@@ -1588,6 +1588,15 @@
                                 <div id="recentPaymentsList">
                                     <div class="no-pending">No recent payments</div>
                                 </div>
+                                <div id="topupPagination" style="display:none;justify-content:center;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0;">
+                                    <button onclick="prevTopupPage()" id="prevTopupBtn" class="btn-filter-action btn-filter-clear" style="padding:8px 12px;font-size:0.85rem;" disabled>
+                                        <i class="fas fa-chevron-left"></i> Prev
+                                    </button>
+                                    <span id="topupPageInfo" style="font-size:0.85rem;color:#64748b;">Page 1 of 1</span>
+                                    <button onclick="nextTopupPage()" id="nextTopupBtn" class="btn-filter-action btn-filter-apply" style="padding:8px 12px;font-size:0.85rem;" disabled>
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -2138,9 +2147,14 @@
             dateTo: ''
         };
         
-        // Pagination state
+        // Transaction History pagination state
         let currentPage = 1;
         let perPage = 10;
+        
+        // Recent Top Ups pagination state
+        let allPayments = [];
+        let topupPage = 1;
+        const TOPUPS_PER_PAGE = 10;
         
         async function loadWalletData() {
             if (!requireAuth()) return;
@@ -2152,7 +2166,7 @@
                 updateBalanceDisplay();
                 
                 // Get transactions
-                const txnData = await apiRequest('/wallet/transactions?limit=500');
+                const txnData = await apiRequest('/wallet/transactions?limit=2000');
                 transactions = txnData.transactions || [];
                 filteredTransactions = [...transactions];
                 renderTransactions();
@@ -2828,14 +2842,28 @@
         }
         
         function renderRecentPayments(payments) {
-            const container = document.getElementById('recentPaymentsList');
+            if (payments !== undefined) {
+                allPayments = payments;
+                topupPage = 1;
+            }
             
-            if (!payments || payments.length === 0) {
+            const container = document.getElementById('recentPaymentsList');
+            const paginationDiv = document.getElementById('topupPagination');
+            
+            if (!allPayments || allPayments.length === 0) {
                 container.innerHTML = '<div class="no-pending">No recent payments</div>';
+                paginationDiv.style.display = 'none';
                 return;
             }
             
-            container.innerHTML = payments.slice(0, 5).map(p => {
+            const totalPages = Math.ceil(allPayments.length / TOPUPS_PER_PAGE);
+            if (topupPage > totalPages) topupPage = totalPages;
+            if (topupPage < 1) topupPage = 1;
+            
+            const start = (topupPage - 1) * TOPUPS_PER_PAGE;
+            const paginated = allPayments.slice(start, start + TOPUPS_PER_PAGE);
+            
+            container.innerHTML = paginated.map(p => {
                 const statusClass = p.status === 'COMPLETED' ? 'completed' : 'pending';
                 const statusText = p.status === 'COMPLETED' ? 'Completed' : 'Pending';
                 return `
@@ -2848,6 +2876,25 @@
                     </div>
                 `;
             }).join('');
+            
+            // Update pagination controls
+            if (allPayments.length <= TOPUPS_PER_PAGE) {
+                paginationDiv.style.display = 'none';
+            } else {
+                paginationDiv.style.display = 'flex';
+                document.getElementById('topupPageInfo').textContent = `Page ${topupPage} of ${totalPages}`;
+                document.getElementById('prevTopupBtn').disabled = topupPage <= 1;
+                document.getElementById('nextTopupBtn').disabled = topupPage >= totalPages;
+            }
+        }
+        
+        function prevTopupPage() {
+            if (topupPage > 1) { topupPage--; renderRecentPayments(); }
+        }
+        
+        function nextTopupPage() {
+            const totalPages = Math.ceil(allPayments.length / TOPUPS_PER_PAGE);
+            if (topupPage < totalPages) { topupPage++; renderRecentPayments(); }
         }
         
         // Initialize
