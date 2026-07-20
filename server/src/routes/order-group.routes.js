@@ -338,8 +338,12 @@ router.get('/admin/all', authenticate, authorize('ADMIN'), async (req, res, next
     // Build date range filter (single date takes priority over range).
     // When NO date filter is provided at all, default to the last 7 days so we
     // never accidentally load the entire order history into memory.
+    // EXCEPTION: if a search term is provided, skip the date filter entirely so
+    // searching by order ID always finds the order regardless of when it was placed.
     const dateWhere = {};
-    if (dateParam) {
+    if (search) {
+      // No date restriction when searching — order could be any age
+    } else if (dateParam) {
       const start = new Date(dateParam + 'T00:00:00.000Z');
       const end   = new Date(dateParam + 'T23:59:59.999Z');
       dateWhere.createdAt = { gte: start, lte: end };
