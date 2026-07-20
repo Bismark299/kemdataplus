@@ -290,7 +290,13 @@ const paystackService = {
           where: { id: wallet.id },
           data: { balance: { increment: amountGHS } }
         });
-        
+
+        // Auto-recover any outstanding debt on deposit
+        if (wallet.debtBalance > 0) {
+          const walletService = require('./wallet.service');
+          await walletService.settleDebtInTx(tx, wallet.id, wallet.debtBalance, wallet.balance + amountGHS);
+        }
+
         // Create transaction record (prefix with PS_ to avoid conflicts)
         await tx.transaction.create({
           data: {

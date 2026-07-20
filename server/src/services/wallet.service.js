@@ -95,6 +95,40 @@ const walletService = {
    * @param {string} reference - Unique reference (prevents duplicates)
    * @param {Object} metadata - Additional data (orderId, profitRecordId, etc.)
    */
+  /**
+   * SETTLE DEBT IN TRANSACTION
+   * Called inside an existing Prisma transaction after a DEPOSIT to auto-recover
+   * any outstanding debtBalance from the user's wallet.
+   */
+  async settleDebtInTx(tx, walletId, debtBalance, postDepositBalance) {
+    if (!debtBalance || debtBalance <= 0) return 0;
+    const recovery = Math.min(debtBalance, Math.max(0, postDepositBalance));
+    if (recovery < 0.01) return 0;
+
+    const newBalance = Math.round((postDepositBalance - recovery) * 1e10) / 1e10;
+    const newDebt    = Math.max(0, Math.round((debtBalance - recovery) * 1e10) / 1e10);
+
+    await tx.walletLedger.create({
+      data: {
+        id: uuidv4(),
+        walletId,
+        entryType: 'PURCHASE',
+        amount: -recovery,
+        runningBalance: newBalance,
+        description: `Auto-recovery: over-refund correction. ${newDebt > 0 ? `Remaining debt: GH₵${newDebt.toFixed(2)}` : 'Debt fully cleared.'}`,
+        reference: `DEBT-RECOVERY-${walletId}-${Date.now()}`
+      }
+    });
+
+    await tx.wallet.update({
+      where: { id: walletId },
+      data: { balance: newBalance, debtBalance: newDebt }
+    });
+
+    console.log(`[Wallet] Auto-recovered GH₵${recovery.toFixed(2)} debt from wallet ${walletId}. Remaining: GH₵${newDebt.toFixed(2)}`);
+    return recovery;
+  },
+
   async creditWallet(userId, amount, description, reference, metadata = {}) {
     if (amount <= 0) {
       throw new Error('Credit amount must be positive');
@@ -156,6 +190,12 @@ const walletService = {
           dailyCredits: wallet.dailyCredits + amount
         }
       });
+
+      // Auto-recover any outstanding debt on deposits
+      const depositType = metadata.entryType || 'DEPOSIT';
+      if (depositType === 'DEPOSIT' && wallet.debtBalance > 0) {
+        await this.settleDebtInTx(tx, wallet.id, wallet.debtBalance, newBalance);
+      }
 
       // Log audit
       await tenantService.logAudit({

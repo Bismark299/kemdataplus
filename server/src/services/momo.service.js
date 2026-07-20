@@ -280,6 +280,12 @@ const momoService = {
         }
       });
 
+      // Auto-recover any outstanding debt on deposit
+      if (wallet.debtBalance > 0) {
+        const walletService = require('./wallet.service');
+        await walletService.settleDebtInTx(tx, wallet.id, wallet.debtBalance, updatedWallet.balance);
+      }
+
       // 3. Create immutable ledger entry
       const ledgerEntry = await tx.walletLedger.create({
         data: {

@@ -251,6 +251,7 @@ model Wallet {
   balance         Float    @default(0)        // Available balance
   pendingBalance  Float    @default(0)        // Pending (awaiting confirmation)
   lockedBalance   Float    @default(0)        // Locked (reserved for operations)
+  debtBalance     Float    @default(0)        // Pending debt: auto-recovered on next deposit
   
   // Daily tracking for caps
   dailyCredits    Float    @default(0)
