@@ -14815,24 +14815,56 @@
         });
 
         async function syncAllMcbisOrders() {
-            showToast('Starting full catch-up sync...', 'info');
+            const btn = document.querySelector('button[onclick="syncAllMcbisOrders()"]');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...'; }
+            showToast('Sync started — checking all processing orders...', 'info');
             try {
                 const res = await adminFetch('/api/datahub/sync-all', { method: 'POST' });
                 const data = await res.json();
-                
-                if (data.background) {
-                    showToast('Sync running in background — orders will update over the next minute. Refresh to see changes.', 'success');
-                } else {
-                    const completed = data.completed || 0;
-                    const checked = data.checked || data.synced || 0;
-                    if (completed > 0) {
-                        showToast(`✅ ${completed} order(s) completed! (${checked} checked)`, 'success');
-                    } else {
-                        showToast(`Checked ${checked} orders — no status changes`, 'info');
-                    }
-                    await loadStats();
+                if (data.running) {
+                    showToast('Sync already in progress — please wait.', 'info');
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Sync All Orders'; }
+                    return;
                 }
+                // Poll until done
+                let attempts = 0;
+                const maxAttempts = 60;
+                const poll = setInterval(async () => {
+                    attempts++;
+                    try {
+                        const sr = await adminFetch('/api/datahub/sync-status');
+                        const sd = await sr.json();
+                        if (!sd.running && sd.lastResult) {
+                            clearInterval(poll);
+                            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Sync All Orders'; }
+                            if (sd.lastResult.error) {
+                                showToast('Sync error: ' + sd.lastResult.error, 'error');
+                                return;
+                            }
+                            const r = sd.lastResult;
+                            const parts = [];
+                            if (r.completed > 0)  parts.push(`✅ ${r.completed} delivered`);
+                            if (r.cancelled > 0)  parts.push(`🚫 ${r.cancelled} cancelled`);
+                            if (r.failed > 0)     parts.push(`❌ ${r.failed} failed`);
+                            if (r.retried > 0)    parts.push(`🔄 ${r.retried} retried`);
+                            const summary = parts.length > 0
+                                ? parts.join(' · ') + `  (${r.checked} checked)`
+                                : `Checked ${r.checked} orders — no status changes`;
+                            showToast(summary, parts.length > 0 ? 'success' : 'info');
+                            await loadStats();
+                        }
+                        if (attempts >= maxAttempts) {
+                            clearInterval(poll);
+                            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Sync All Orders'; }
+                            showToast('Sync is taking longer than expected — check orders in a moment.', 'info');
+                        }
+                    } catch (e) {
+                        clearInterval(poll);
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Sync All Orders'; }
+                    }
+                }, 3000);
             } catch (err) {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Sync All Orders'; }
                 showToast('Sync error: ' + err.message, 'error');
             }
         }

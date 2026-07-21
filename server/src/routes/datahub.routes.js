@@ -171,13 +171,15 @@ const syncState = require('../lib/sync-state');
 
 router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res) => {
   if (syncState.syncAllRunning) {
-    return res.json({ success: true, background: true, message: 'Sync already in progress — check back in a moment.' });
+    return res.json({ success: true, running: true, message: 'Sync already in progress — check back in a moment.' });
   }
 
   // Respond immediately so the browser never times out
-  res.json({ success: true, background: true, message: 'Full catch-up sync started in background. Orders will update over the next minute.' });
+  res.json({ success: true, background: true, message: 'Sync started.' });
 
   syncState.syncAllRunning = true;
+  syncState.lastSyncResult = null;
+
   setImmediate(async () => {
     try {
       const settingsController = require('../controllers/settings.controller');
@@ -186,18 +188,38 @@ router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res) => {
 
       console.log('[SyncAll] Admin-triggered full catch-up sync started');
 
-      // Run all three passes sequentially (not parallel) so rate-limit detection
-      // in pass 1 doesn't get masked by pass 2 still running
       const legacyResult = await datahubService.syncAllPendingOrders({ catchUp: true });
       const itemResult   = await orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled, catchUp: true });
       const retryResult  = await orderGroupService.retryStuckPendingOrders();
 
-      console.log(`[SyncAll] Done — legacy: ${legacyResult.synced} checked, items: ${itemResult.completed} completed / ${itemResult.failed} failed / ${itemResult.unchanged} unchanged, retried: ${retryResult?.retried || 0}`);
+      syncState.lastSyncResult = {
+        completedAt: new Date().toISOString(),
+        checked:    (legacyResult.synced || 0) + (itemResult.total || 0),
+        completed:  (legacyResult.results || []).filter(r => r.newStatus === 'COMPLETED').length + (itemResult.completed || 0),
+        cancelled:  (legacyResult.results || []).filter(r => r.newStatus === 'CANCELLED').length + (itemResult.results || []).filter(r => r.newStatus === 'CANCELLED').length,
+        failed:     (legacyResult.results || []).filter(r => r.newStatus === 'FAILED').length    + (itemResult.failed || 0),
+        unchanged:  itemResult.unchanged || 0,
+        retried:    retryResult?.retried || 0
+      };
+
+      console.log(`[SyncAll] Done — checked: ${syncState.lastSyncResult.checked}, completed: ${syncState.lastSyncResult.completed}, cancelled: ${syncState.lastSyncResult.cancelled}, failed: ${syncState.lastSyncResult.failed}, unchanged: ${syncState.lastSyncResult.unchanged}`);
     } catch (err) {
       console.error('[SyncAll] Error during catch-up sync:', err.message);
+      syncState.lastSyncResult = { error: err.message, completedAt: new Date().toISOString() };
     } finally {
       syncState.syncAllRunning = false;
     }
+  });
+});
+
+/**
+ * GET /api/datahub/sync-status
+ * Returns whether a sync-all is running and the result of the last one.
+ */
+router.get('/sync-status', authenticate, authorize('ADMIN'), (req, res) => {
+  res.json({
+    running: syncState.syncAllRunning,
+    lastResult: syncState.lastSyncResult
   });
 });
 

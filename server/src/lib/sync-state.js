@@ -3,5 +3,6 @@
  * from hitting external APIs simultaneously and causing rate-limit collisions.
  */
 module.exports = {
-  syncAllRunning: false
+  syncAllRunning: false,
+  lastSyncResult: null
 };
