@@ -21,6 +21,10 @@ const LIMIT  = (() => {
   const a = process.argv.find(x => x.startsWith('--limit='));
   return a ? parseInt(a.split('=')[1]) : null;
 })();
+const DATE   = (() => {
+  const a = process.argv.find(x => x.startsWith('--date='));
+  return a ? a.split('=')[1] : null; // expects YYYY-MM-DD
+})();
 const API_KEY = process.env.MCBIS_API_KEY;
 const DELAY   = 1100;
 
@@ -49,9 +53,21 @@ async function main() {
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
 
+  let dateFilter = {};
+  let dateLabel  = 'all dates';
+  if (DATE) {
+    const from = new Date(DATE + 'T00:00:00.000Z');
+    const to   = new Date(DATE + 'T23:59:59.999Z');
+    dateFilter = { createdAt: { gte: from, lte: to } };
+    dateLabel  = DATE;
+  } else if (TODAY) {
+    dateFilter = { createdAt: { gte: todayStart } };
+    dateLabel  = `today (>= ${todayStart.toISOString()})`;
+  }
+
   console.log('\n=== McBIS Bulk Sync ===');
   console.log(`Mode  : ${APPLY ? 'LIVE (--apply)' : 'DRY RUN'}`);
-  console.log(`Filter: ${TODAY ? `today (>= ${todayStart.toISOString()})` : 'all dates'}`);
+  console.log(`Filter: ${dateLabel}`);
   console.log(`Limit : ${LIMIT || 'none'}\n`);
 
   const items = await prisma.orderItem.findMany({
@@ -62,7 +78,7 @@ async function main() {
         { externalReference: { startsWith: 'CK-' } },
         { externalReference: { startsWith: 'DGK-' } }
       ],
-      ...(TODAY ? { createdAt: { gte: todayStart } } : {})
+      ...dateFilter
     },
     include: { orderGroup: true },
     orderBy: { createdAt: 'asc' },
