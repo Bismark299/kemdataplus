@@ -317,7 +317,9 @@ const datahubService = {
       // }
       
       // CRITICAL: Use data.order.status (actual order status), NOT data.status (API call status)
-      const orderStatus = result.data?.order?.status || result.data?.status || 'unknown';
+      // DO NOT fall back to result.data?.status — that field just means "API call worked"
+      // (always "success") so falling back to it would silently mark cancelled orders as COMPLETED.
+      const orderStatus = result.data?.order?.status || 'unknown';
       
       console.log(`[DataHub] Extracted order status: ${orderStatus}`);
       

@@ -1,0 +1,31 @@
+I compared their flow to ours line by line. Their overall structure is the same as ours (poll checkOrderStatus/{reference}, read data.order.status, map the words), and their word mapping actually handles more spellings than we do. But there are two real problems in their code — and the first one is very likely why cancelled orders never show up:
+
+1. The dangerous fallback (prime suspect):
+
+const orderStatus = result.data?.order?.status || result.data?.status;
+
+Their own comment says data.status is just "the API call worked — ignore it," and then the code falls back to it anyway. So if McBIS returns a response where order.status is missing or empty for a cancelled order (e.g. { data: { status: "success", order: null } }), that line evaluates to "success" → their mapper marks the order COMPLETED. The cancellation is silently swallowed and no refund fires — which matches exactly "they don't get any status for canceled orders."
+
+Ours does the opposite:
+
+return String(data.data?.order?.status ?? "");   // no fallback to the outer status
+
+and anything unrecognized (including empty) is logged as a warning, never treated as success:
+
+} else if (s !== "pending" && s !== "processing") {
+  logger.warn({ orderId, ref, mcbisStatus: s || "(empty)" }, "unrecognized platform order status");
+}
+
+So the fix for them: remove the || result.data?.status fallback, and log the raw full response for one cancelled reference. That log will tell them immediately whether McBIS is sending "canceled" and their code is eating it, or whether McBIS genuinely never reports cancellation on that endpoint (in which case no client code can fix it — cancelled orders would just sit as "pending" forever and need a timeout/manual rule).
+
+2. Their auto-refund is unsafe (separate issue, worth flagging):
+
+await prisma.wallet.update({ data: { balance: { increment: item.totalPrice } } });
+await prisma.walletTransaction.create({ ... });
+
+No transaction wrapping the status change + refund together
+No idempotency key — if the sync ever processes the same item twice (their setInterval doesn't prevent overlapping runs), the user gets refunded twice
+Refund happens automatically on a status word from an external API — a McBIS glitch or a mislabeled status directly moves money
+We deliberately do it differently: the poller only flags the order as failed; the refund is an explicit admin action, wrapped in a transaction with row locks, and idempotent via a unique ledger reference (refund-order-{id}), so it can never double-credit.
+
+Bottom line: nothing is wrong with ours relative to theirs — ours is the stricter of the two. Their cancelled-order blindness is most likely the || result.data?.status fallback masking the real response, and step one for them is logging what McBIS actually returns for a known cancelled reference.
