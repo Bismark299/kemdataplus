@@ -1,0 +1,39 @@
+Here's the code. It's in artifacts/api-server/src/lib/mcbis.ts and works in two parts:
+
+1. The API call — asks McBIS for one order's status using its reference:
+
+export async function mcbisCheckStatus(apiKey: string, reference: string): Promise<string> {
+  // Response: { data: { status: "success", order: { status: "pending"|"success"|"failed", ... } } }
+  // data.status is the API response status (always "success" if request worked).
+  // data.order.status is the actual fulfillment status we need.
+  const { data } = await apiRequest(() =>
+    mcbisAxios.get<{ data: { order?: { status?: string } } }>(
+      `${MCBIS_BASE}/checkOrderStatus/${encodeURIComponent(reference)}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } },
+    )
+  );
+  return String(data.data?.order?.status ?? "");
+}
+
+So it's a GET to checkOrderStatus/{reference} with your API key as a Bearer token, and the real answer is nested in data.order.status (the outer data.status is just "did the request work").
+
+2. The poller — every 10 seconds it picks orders that are paid + processing with a McBIS reference, checks each one, and marks it failed when McBIS says so:
+
+// Normalize: McBIS status words are compared case-insensitively so a
+// "Success"/"COMPLETED"/"Delivered" response still settles the order.
+const s = (await mcbisCheckStatus(apiKey, o.ref)).trim().toLowerCase();
+if (s === "success" || s === "completed" || s === "delivered") {
+  await db.update(ordersTable).set({ delivered: "delivered" })
+    .where(and(eq(ordersTable.id, o.id), eq(ordersTable.status, "paid"), eq(ordersTable.delivered, "processing")));
+} else if (s === "failed" || s === "cancelled" || s === "canceled") {
+  await db.update(ordersTable).set({ delivered: "failed" })
+    .where(and(eq(ordersTable.id, o.id), eq(ordersTable.status, "paid"), eq(ordersTable.delivered, "processing")));
+} else if (s !== "pending" && s !== "processing") {
+  // Unknown status word — log it so the order doesn't silently stay "processing" forever
+  logger.warn({ orderId: o.id, ref: o.ref, mcbisStatus: s || "(empty)" }, "McBIS poller: unrecognized platform order status");
+}
+
+Key details worth knowing:
+
+Failure words recognized: failed, cancelled, canceled (case-insensitive) → order's delivered column is set to failed, which the client sees as a red "Failed" badge.
+Safety guard: every update also requires status = 'paid' AND delivered = 'processing' — so if an admin refunds the order mid-poll, the poller can't overwrite that.

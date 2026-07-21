@@ -721,6 +721,9 @@ const datahubService = {
         newStatus = 'CANCELLED';
       } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
         newStatus = 'PROCESSING';
+      } else if (apiStatus) {
+        // Unrecognized status — log it so nothing silently stays PROCESSING forever
+        console.warn(`[DataHub] ⚠️ Unrecognized McBIS status '${apiStatus}' for order ${orderId} (ref: ${order.externalReference}) — status left unchanged as ${order.status}`);
       }
       
       console.log(`[DataHub] Computed newStatus: '${newStatus}'`);

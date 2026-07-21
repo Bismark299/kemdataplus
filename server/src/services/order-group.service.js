@@ -1453,6 +1453,9 @@ const orderGroupService = {
       newStatus = 'CANCELLED';
     } else if (externalStatus === 'pending' || externalStatus === 'processing' || externalStatus === 'queued') {
       newStatus = 'PROCESSING';
+    } else if (externalStatus) {
+      // Unrecognized status — log it so nothing silently stays PROCESSING forever
+      console.warn(`[Sync] ⚠️ Unrecognized provider status '${externalStatus}' for item ${itemId} (ref: ${ref}, provider: ${apiResult.provider}) — status left unchanged as ${item.status}`);
     }
 
     // PREVENT STATUS DOWNGRADES - never revert manually completed/failed orders
