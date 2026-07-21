@@ -16,6 +16,7 @@ const axios  = require('axios');
 const prisma = require('../src/lib/prisma');
 
 const APPLY  = process.argv.includes('--apply');
+const TODAY  = process.argv.includes('--today');
 const LIMIT  = (() => {
   const a = process.argv.find(x => x.startsWith('--limit='));
   return a ? parseInt(a.split('=')[1]) : null;
@@ -45,9 +46,13 @@ function mapStatus(mcbisStatus) {
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function main() {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
   console.log('\n=== McBIS Bulk Sync ===');
   console.log(`Mode  : ${APPLY ? 'LIVE (--apply)' : 'DRY RUN'}`);
-  console.log(`Limit : ${LIMIT || 'none (all)'}\n`);
+  console.log(`Filter: ${TODAY ? `today (>= ${todayStart.toISOString()})` : 'all dates'}`);
+  console.log(`Limit : ${LIMIT || 'none'}\n`);
 
   const items = await prisma.orderItem.findMany({
     where: {
@@ -56,7 +61,8 @@ async function main() {
       NOT: [
         { externalReference: { startsWith: 'CK-' } },
         { externalReference: { startsWith: 'DGK-' } }
-      ]
+      ],
+      ...(TODAY ? { createdAt: { gte: todayStart } } : {})
     },
     include: { orderGroup: true },
     orderBy: { createdAt: 'asc' },
