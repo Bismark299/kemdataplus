@@ -854,7 +854,7 @@ const datahubService = {
             await walletService.creditWallet(
               order.userId,
               order.totalPrice,
-              `Auto-refund: provider ${newStatus.toLowerCase()} — ${order.reference || orderId}`,
+              `Refund: order ${order.reference || orderId} rejected by system`,
               `MCBIS-REFUND-${order.reference || orderId}`,
               { entryType: 'REFUND', orderId }
             );

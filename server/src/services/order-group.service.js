@@ -1532,7 +1532,7 @@ const orderGroupService = {
             await walletService.creditWallet(
               item.orderGroup.userId,
               item.totalPrice,
-              `Auto-refund: provider ${newStatus.toLowerCase()} — ${item.reference}`,
+              `Refund: order ${item.reference} rejected by system`,
               `MCBIS-REFUND-${item.reference}`,
               { entryType: 'REFUND', orderId: item.orderGroupId }
             );

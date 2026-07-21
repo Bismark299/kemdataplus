@@ -177,7 +177,7 @@ async function main() {
               amount:         item.totalPrice,
               runningBalance: newBalance,
               orderId:        og.id,
-              description:    `Auto-refund: McBIS ${newStatus.toLowerCase()} — ${item.reference}`,
+              description:    `Refund: order ${item.reference} rejected by system`,
               reference:      refundRef
             }
           });
