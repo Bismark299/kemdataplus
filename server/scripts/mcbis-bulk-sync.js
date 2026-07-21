@@ -177,7 +177,7 @@ async function main() {
               amount:         item.totalPrice,
               runningBalance: newBalance,
               orderId:        og.id,
-              description:    `Refund: order ${item.reference} rejected by system`,
+              description:    `Auto-refund: ${item.recipientPhone} rejected. Order ${item.reference}`,
               reference:      refundRef
             }
           });
