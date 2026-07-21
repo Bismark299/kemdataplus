@@ -151,7 +151,6 @@ async function main() {
     }
 
     const needsRefund = (newStatus === 'CANCELLED' || newStatus === 'FAILED')
-                        && og?.walletDeducted
                         && item.totalPrice > 0
                         && wallet;
 

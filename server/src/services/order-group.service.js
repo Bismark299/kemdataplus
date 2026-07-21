@@ -1528,7 +1528,7 @@ const orderGroupService = {
       // If FAILED or CANCELLED via provider, auto-refund the user's wallet
       if (newStatus === 'FAILED' || newStatus === 'CANCELLED') {
         try {
-          if (item.orderGroup.walletDeducted && item.totalPrice > 0) {
+          if (item.totalPrice > 0) {
             await walletService.creditWallet(
               item.orderGroup.userId,
               item.totalPrice,
@@ -1537,8 +1537,6 @@ const orderGroupService = {
               { entryType: 'REFUND', orderId: item.orderGroupId }
             );
             console.log(`[Sync] ✅ Auto-refunded GHS ${item.totalPrice} to user ${item.orderGroup.userId} for ${item.reference} (${newStatus})`);
-          } else {
-            console.log(`[Sync] ⏩ No refund for ${item.reference} — walletDeducted=${item.orderGroup.walletDeducted}, totalPrice=${item.totalPrice}`);
           }
         } catch (refundErr) {
           if (refundErr.message !== 'Duplicate transaction reference') {

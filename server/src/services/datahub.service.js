@@ -849,7 +849,7 @@ const datahubService = {
       // If order failed/cancelled, auto-refund the user's wallet
       if ((newStatus === 'FAILED' || newStatus === 'CANCELLED') && newStatus !== order.status) {
         try {
-          if (order.walletDeducted && order.totalPrice > 0) {
+          if (order.totalPrice > 0) {
             const walletService = require('./wallet.service');
             await walletService.creditWallet(
               order.userId,
@@ -859,8 +859,6 @@ const datahubService = {
               { entryType: 'REFUND', orderId }
             );
             console.log(`[DataHub] ✅ Auto-refunded GHS ${order.totalPrice} to user ${order.userId} (${newStatus})`);
-          } else {
-            console.log(`[DataHub] ⏩ No refund for order ${order.reference || orderId} — walletDeducted=${order.walletDeducted}, totalPrice=${order.totalPrice}`);
           }
         } catch (refundErr) {
           if (refundErr.message !== 'Duplicate transaction reference') {
