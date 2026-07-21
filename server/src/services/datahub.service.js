@@ -23,37 +23,48 @@ const httpAgent = new http.Agent({ family: 4 });
 const httpsAgent = new https.Agent({ family: 4 });
 
 // Helper to get API config from settings
-// Priority: Environment variables > settings.json > defaults
+// Priority: Environment variables > in-memory settings cache (DB) > settings.json > defaults
 function getApiConfig() {
-  // Check environment variables FIRST (more reliable for cloud deployment)
+  // 1. Environment variables — most reliable for cloud deployment
   if (process.env.DATAHUB_API_TOKEN) {
-    console.log('[DataHub] Using environment variables for config');
     return {
       url: process.env.DATAHUB_API_URL || 'https://datahub.mcbissolution.com/api/v1',
       token: process.env.DATAHUB_API_TOKEN
     };
   }
-  
-  // Fallback to settings.json
+
+  // 2. In-memory settings cache (loaded from DB at startup, stays current after admin saves)
+  //    This is the reliable source on production containers where settings.json is ephemeral.
   try {
-    const settingsPath = path.join(__dirname, '../../settings.json');
-    console.log('[DataHub] Reading settings from:', settingsPath);
-    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    
-    const token = settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || '';
-    
+    const settingsController = require('../controllers/settings.controller');
+    const adminSettings = settingsController.getAdminSettings ? settingsController.getAdminSettings() : null;
+    const token = adminSettings?.mcbisApiToken || adminSettings?.apiKey || '';
     if (token) {
-      console.log('[DataHub] Using settings.json for config');
       return {
-        url: settings.adminSettings?.mcbisApiUrl || settings.adminSettings?.apiUrl || 'https://datahub.mcbissolution.com/api/v1',
-        token: token
+        url: adminSettings?.mcbisApiUrl || 'https://datahub.mcbissolution.com/api/v1',
+        token
       };
     }
   } catch (e) {
-    console.log('[DataHub] Settings file error:', e.message);
+    // settingsController not yet initialised — fall through
   }
-  
-  console.log('[DataHub] WARNING: No API token found!');
+
+  // 3. Fallback to settings.json (local dev convenience)
+  try {
+    const settingsPath = path.join(__dirname, '../../settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    const token = settings.adminSettings?.mcbisApiToken || settings.adminSettings?.apiKey || '';
+    if (token) {
+      return {
+        url: settings.adminSettings?.mcbisApiUrl || settings.adminSettings?.apiUrl || 'https://datahub.mcbissolution.com/api/v1',
+        token
+      };
+    }
+  } catch (e) {
+    // File missing or unreadable — expected on production containers
+  }
+
+  console.warn('[DataHub] WARNING: No McBIS API token found — status checks will fail with 401');
   return {
     url: 'https://datahub.mcbissolution.com/api/v1',
     token: ''
