@@ -1449,7 +1449,7 @@ const orderGroupService = {
       newStatus = 'COMPLETED';
     } else if (externalStatus === 'failed' || externalStatus === 'error' || externalStatus === 'rejected') {
       newStatus = 'FAILED';
-    } else if (externalStatus === 'cancelled' || externalStatus === 'cancel') {
+    } else if (externalStatus === 'cancelled' || externalStatus === 'canceled' || externalStatus === 'cancel') {
       newStatus = 'CANCELLED';
     } else if (externalStatus === 'pending' || externalStatus === 'processing' || externalStatus === 'queued') {
       newStatus = 'PROCESSING';

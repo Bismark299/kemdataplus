@@ -717,7 +717,7 @@ const datahubService = {
         newStatus = 'COMPLETED';
       } else if (apiStatus === 'failed' || apiStatus === 'fail' || apiStatus === 'error') {
         newStatus = 'FAILED';
-      } else if (apiStatus === 'cancelled' || apiStatus === 'cancel') {
+      } else if (apiStatus === 'cancelled' || apiStatus === 'canceled' || apiStatus === 'cancel') {
         newStatus = 'CANCELLED';
       } else if (apiStatus === 'pending' || apiStatus === 'processing' || apiStatus === 'initiated') {
         newStatus = 'PROCESSING';
