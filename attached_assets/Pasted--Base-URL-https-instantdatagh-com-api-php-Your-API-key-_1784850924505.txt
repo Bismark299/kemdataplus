@@ -1,0 +1,75 @@
+🔗 Base URL
+https://instantdatagh.com/api.php
+
+🔑 Your API key
+api_8cce8c154128a1c73aa92c14ac0d705f322dd4e38f615b40a20911283eb86f63
+Regenerate from Profile if needed. Never expose this key in client-side code or public repos.
+🔐 Authentication
+Every request must send header x-api-key: <your key>. Missing or invalid keys receive 401. Blocked accounts receive 403.
+
+Response shape — Success: HTTP 200, body { "status": "success", "timestamp": "…", "message": "…", "data": { … } }. Error: 4xx/5xx, body { "status": "error", "message": "…", "timestamp": "…", "details": … } when applicable.
+📱 Networks
+Use exact names in network:
+
+🟡 MTN
+🔴 Telecel
+🔵 AirtelTigo
+Valid data_amount values are plan keys from your account (see GET /plans). If your user has a pricing tier, prices match the dashboard.
+
+POST
+https://instantdatagh.com/api.php/orders
+Create one or many orders for the same network. Wallet is debited once for the total.
+
+Headers
+Header	Required	Description
+x-api-key	Yes	Your API key
+Content-Type	Yes	application/json
+JSON body
+Field	Required	Description
+network	Yes	MTN, AirtelTigo, or Telecel
+phone_number	Yes	One phone (10 digits) or comma-separated list for bulk.
+data_amount	Yes	One plan key or comma-separated keys aligned by position with phones (first phone ↔ first amount).
+Example — single order
+curl -X POST https://instantdatagh.com/api.php/orders \ -H "x-api-key: api_8cce8c154128a1c73aa92c14ac0d705f322dd4e38f615b40a20911283eb86f63" \ -H "Content-Type: application/json" \ -d '{"network":"MTN","phone_number":"0501234567","data_amount":"5"}'
+Example — bulk (same network)
+curl -X POST https://instantdatagh.com/api.php/orders \ -H "x-api-key: api_8cce8c154128a1c73aa92c14ac0d705f322dd4e38f615b40a20911283eb86f63" \ -H "Content-Type: application/json" \ -d '{"network":"MTN","phone_number":"0246995732, 0538806691, 0505265279","data_amount":"1, 2, 3"}'
+Pairs: 0246995732→1, 0538806691→2, 0505265279→3 (keys must exist for that network on your account). Maximum 500 pairs per request.
+
+Success — single
+{ "status":"success","timestamp":"…","message":"Order created successfully","data":{ "order_id":"…","network":"MTN","phone_number":"0501234567","data_amount":"5", "amount":"GH₵20.50","status":"processing","remaining_balance":"GH₵45.30" }}
+Success — bulk
+{ "status":"success","message":"Orders created successfully","data":{ "network":"MTN","count":3,"total_amount":"GH₵…","remaining_balance":"GH₵…", "orders":[ {"order_id":"…","phone_number":"0246995732","data_amount":"1","amount":"GH₵…","status":"processing"}, {"order_id":"…","phone_number":"0538806691","data_amount":"2","amount":"GH₵…","status":"processing"}, {"order_id":"…","phone_number":"0505265279","data_amount":"3","amount":"GH₵…","status":"processing"} ] }}
+Common errors
+400 — mismatched list lengths, invalid phone/plan, insufficient balance, over bulk limit
+401 / 403 — invalid key or blocked account
+429 — rate limit exceeded
+GET
+https://instantdatagh.com/api.php/order-status?order_id=<id>
+Lookup one order you created. order_id is returned from POST /orders.
+
+Query
+Parameter	Required	Description
+order_id	Yes	Order ID string
+Example
+curl -s "https://instantdatagh.com/api.php/order-status?order_id=YOUR_ORDER_ID" \ -H "x-api-key: api_8cce8c154128a1c73aa92c14ac0d705f322dd4e38f615b40a20911283eb86f63"
+Success data fields
+order_id, network, phone_number, data_amount, amount, status (e.g. processing, awaiting_delivery, completed, failed, refunded), created_date, api_created
+
+GET
+https://instantdatagh.com/api.php/balance
+Current wallet balance for the authenticated user.
+
+Example
+curl -s "https://instantdatagh.com/api.php/balance" \ -H "x-api-key: api_8cce8c154128a1c73aa92c14ac0d705f322dd4e38f615b40a20911283eb86f63"
+Success data
+{ "user_id":"…","username":"…","balance":"GH₵0.00","balance_raw":0 }
+GET
+https://instantdatagh.com/api.php/plans
+Available in-stock plans and prices for your account (per network).
+
+Example
+curl -s "https://instantdatagh.com/api.php/plans" \ -H "x-api-key: api_8cce8c154128a1c73aa92c14ac0d705f322dd4e38f615b40a20911283eb86f63"
+Success data shape
+Object keyed by network name. Each value is an array of { "data_amount", "price", "price_raw" }.
+
+"data": { "MTN": [{"data_amount":"1","price":"GH₵…","price_raw":1.5}], "Telecel": […] }
