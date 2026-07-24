@@ -8341,6 +8341,7 @@
                     <td>
                         <span class="badge badge-${(o.status || 'PENDING').toLowerCase()}">${o.status || 'PENDING'}</span>
                         ${o.status === 'FAILED' && o.failureReason ? `<div title="${o.failureReason}" style="font-size:0.65rem;color:#991b1b;margin-top:3px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help;">${o.failureReason.includes('404') ? '⚠️ Not received by MCBIS' : o.failureReason.substring(0, 40)}</div>` : ''}
+                        ${o.externalReference ? `<div title="Provider Ref: ${o.externalReference}" onclick="navigator.clipboard.writeText('${o.externalReference}');showToast('Ref copied')" style="font-size:0.6rem;color:#4b5563;margin-top:3px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:copy;font-family:monospace;">${o.externalReference.startsWith('IDG-') ? '🟡' : o.externalReference.startsWith('DGK-') ? '🔵' : o.externalReference.startsWith('CK-') ? '🟢' : '⚫'} ${o.externalReference}</div>` : ''}
                     </td>
                     <td>
                         <div class="action-icons">
@@ -8668,7 +8669,13 @@
             if (order) {
                 const bundle = order.bundle || {};
                 const displayId = order.displayId || 'N/A';
-                alert(`Order: ${displayId}\nItem ID: ${order.id}\n\nNetwork: ${bundle.network || order.network}\nBundle: ${bundle.name || order.dataAmount || ''}\nRecipient: ${order.recipientPhone || order.phone || 'N/A'}\nTotal: GH₵ ${parseFloat(order.totalPrice || order.total || 0).toFixed(2)}\nOrder Status: ${order.status || 'PENDING'}\nPayment Status: ${order.paymentStatus || 'COMPLETED'}`);
+                const providerLabel = !order.externalReference ? '' :
+                    order.externalReference.startsWith('IDG-') ? 'InstantDataGH' :
+                    order.externalReference.startsWith('DGK-') ? 'DataGatekeeper' :
+                    order.externalReference.startsWith('CK-')  ? 'CKGodsway' : 'McBIS';
+                const refLine = order.externalReference
+                    ? `\n\nProvider: ${providerLabel}\nRef: ${order.externalReference}` : '';
+                alert(`Order: ${displayId}\nItem ID: ${order.id}\n\nNetwork: ${bundle.network || order.network}\nBundle: ${bundle.name || order.dataAmount || ''}\nRecipient: ${order.recipientPhone || order.phone || 'N/A'}\nTotal: GH₵ ${parseFloat(order.totalPrice || order.total || 0).toFixed(2)}\nOrder Status: ${order.status || 'PENDING'}\nPayment Status: ${order.paymentStatus || 'COMPLETED'}${refLine}`);
             }
         }
         
