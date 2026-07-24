@@ -282,13 +282,23 @@ if (STORE_DOMAIN) {
 }
 
 // Serve static files (frontend)
-// Serve client/public files at root level for main dashboard
+// HTML files: no-cache so browsers always fetch the latest version
+const htmlNoCache = {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+};
 app.use('/css', express.static(path.join(__dirname, '../../client/public/css')));
 app.use('/js', express.static(path.join(__dirname, '../../client/public/js')));
 app.use('/img', express.static(path.join(__dirname, '../../client/public/img')));
-app.use('/public', express.static(path.join(__dirname, '../../client/public'), { extensions: ['html'] }));
-app.use('/pages', express.static(path.join(__dirname, '../../client/pages'), { extensions: ['html'] }));
-app.use('/admin', express.static(path.join(__dirname, '../../client/admin'), { extensions: ['html'] }));
+app.use('/public', express.static(path.join(__dirname, '../../client/public'), htmlNoCache));
+app.use('/pages', express.static(path.join(__dirname, '../../client/pages'), htmlNoCache));
+app.use('/admin', express.static(path.join(__dirname, '../../client/admin'), htmlNoCache));
 // Serve static files for storefront (e.g., /store/img/favicon.ico)
 app.use('/store/img', express.static(path.join(__dirname, '../../client/public/img')));
 
