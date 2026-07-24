@@ -8421,6 +8421,10 @@
                             <button class="action-icon" data-action="retry-order" data-id="${o.id}" title="Retry - re-send to provider" style="background:#d97706;color:white;">
                                 <i class="fas fa-redo"></i>
                             </button>` : ''}
+                            ${o.status === 'PENDING' && !o.externalReference ? `
+                            <button class="action-icon" data-action="retry-order" data-id="${o.id}" title="Send to provider now" style="background:#2563eb;color:white;">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>` : ''}
                             <button class="action-icon cancel" data-action="cancel-order" data-id="${o.id}" title="Cancel">
                                 <i class="fas fa-times"></i>
                             </button>

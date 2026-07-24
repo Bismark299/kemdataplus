@@ -1458,12 +1458,12 @@ router.post('/admin/item/:itemId/retry', authenticate, authorize('ADMIN'), async
       return res.status(404).json({ error: 'Order item not found' });
     }
 
-    if (item.status !== 'FAILED') {
-      return res.status(400).json({ error: 'Only FAILED orders can be retried' });
+    if (item.status !== 'FAILED' && item.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Only FAILED or PENDING orders can be retried' });
     }
 
     // Safety: only allow retry if the item was never confirmed received by provider.
-    // externalReference is only set on success, so FAILED items with no externalReference
+    // externalReference is only set on success, so FAILED/PENDING items with no externalReference
     // are safe to retry (order never made it to the provider).
     const safeToRetry = !item.externalReference;
 
