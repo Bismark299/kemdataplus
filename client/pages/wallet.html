@@ -803,13 +803,32 @@
                 gap: 10px;
             }
             
+            /* === SIDEBAR: full reset for phones === */
             .wallet-sidebar {
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
+                order: 0;                        /* send sidebar BELOW main content */
+                display: block;                  /* drop grid — simple stacked blocks */
+                padding: 12px !important;
             }
-            
+
+            .wallet-sidebar .sidebar-card {
+                margin-bottom: 10px;
+            }
+
+            .wallet-sidebar h3 {
+                margin: 12px 0 8px;
+                grid-column: unset;
+            }
+
             .wallet-sidebar .quick-actions {
-                grid-template-columns: 1fr 1fr 1fr;
+                display: grid;
+                grid-template-columns: 1fr 1fr;  /* 2-column buttons */
+                gap: 10px;
+                grid-column: unset;
+            }
+
+            .wallet-sidebar > div:last-child {
+                grid-column: unset;
+                margin-top: 14px;
             }
             
             .topup-section,
