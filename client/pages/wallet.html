@@ -1027,6 +1027,135 @@
             }
         }
 
+        /* ===== MOBILE INPUT+BUTTON COMBOS ===== */
+        /* Any flex row with an input + button (Verify, etc.) stacks on mobile */
+        @media (max-width: 600px) {
+            /* Input + verify button rows */
+            .form-group div[style*="display: flex"][style*="gap: 8px"],
+            .form-group div[style*="display:flex"][style*="gap:8px"] {
+                flex-direction: column;
+                gap: 6px !important;
+            }
+
+            .form-group div[style*="display: flex"][style*="gap: 8px"] input,
+            .form-group div[style*="display:flex"][style*="gap:8px"] input {
+                width: 100% !important;
+                flex: none !important;
+            }
+
+            .form-group div[style*="display: flex"][style*="gap: 8px"] button,
+            .form-group div[style*="display:flex"][style*="gap:8px"] button {
+                width: 100% !important;
+                white-space: normal !important;
+                justify-content: center;
+            }
+
+            /* Quick actions: 2-col on 600px instead of 3 */
+            .wallet-sidebar .quick-actions {
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            /* Earnings stats: already 2-col, reduce font on tight screens */
+            .earnings-stat-card,
+            [style*="grid-template-columns: repeat(2, 1fr)"] > div {
+                padding: 12px !important;
+            }
+
+            [style*="grid-template-columns: repeat(2, 1fr)"] [style*="font-size: 1.5rem"] {
+                font-size: 1.1rem !important;
+            }
+
+            /* Paginated section headers: stack label + per-page */
+            .paginated-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 8px;
+            }
+
+            .per-page-control {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .per-page-control select {
+                flex: 1;
+            }
+
+            /* Withdrawal / send summary rows: ensure they wrap */
+            [style*="display: flex"][style*="justify-content: space-between"][style*="margin-bottom: 8px"],
+            [style*="display: flex"][style*="justify-content: space-between"][style*="margin-bottom:8px"] {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            /* Transaction pagination: keep centred, allow wrapping */
+            #transactionPagination,
+            #topupPagination {
+                flex-wrap: wrap;
+                gap: 8px !important;
+            }
+
+            /* Transaction count + per-page row */
+            [style*="justify-content:space-between"][style*="flex-wrap:wrap"] {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            /* Paystack info description: prevent overflow */
+            .paystack-info p,
+            .claim-info p,
+            .claim-info ol {
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+
+            /* Sidebar "Need Help?" box */
+            [style*="border-left:4px solid"],
+            [style*="border-left: 4px solid"] {
+                padding: 12px !important;
+                font-size: 0.85rem;
+            }
+
+            [style*="border-left:4px solid"] p,
+            [style*="border-left: 4px solid"] p {
+                font-size: 0.8rem !important;
+                word-break: break-word;
+            }
+
+            /* Withdrawal settings display: stack items vertically */
+            #withdrawalSettingsDisplay > div {
+                flex-direction: column !important;
+                gap: 4px !important;
+            }
+
+            /* Fee breakdown rows */
+            #profitFeeBreakdown [style*="display: flex"],
+            #withdrawSummary [style*="display: flex"] {
+                flex-wrap: wrap;
+                gap: 2px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            /* Earnings stats: single column on very small phones */
+            [style*="grid-template-columns: repeat(2, 1fr)"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Quick actions: single column */
+            .wallet-sidebar .quick-actions {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Wallet tabs: smaller text, no icon */
+            .wallet-tab {
+                font-size: 0.7rem !important;
+                padding: 8px 4px !important;
+            }
+        }
+
         /* ===== PAGINATED LIST STYLES ===== */
         .paginated-section {
             background: white;
