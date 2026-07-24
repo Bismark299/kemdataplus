@@ -172,25 +172,27 @@ const settingsController = {
 
       // Detect auto-sync toggling ON (false/undefined → true)
       const oldSettings = getSiteSettings();
-      const mcbisToggledOn     = !oldSettings.mcbisAutoSync     && siteSettings.mcbisAutoSync;
-      const ckgodswayToggledOn = !oldSettings.ckgodswayAutoSync && siteSettings.ckgodswayAutoSync;
+      const mcbisToggledOn          = !oldSettings.mcbisAutoSync          && siteSettings.mcbisAutoSync;
+      const ckgodswayToggledOn      = !oldSettings.ckgodswayAutoSync      && siteSettings.ckgodswayAutoSync;
+      const instantdataghToggledOn  = !oldSettings.instantdataghAutoSync  && siteSettings.instantdataghAutoSync;
 
       const settings = { adminSettings, siteSettings };
       writeSettings(settings);
       console.log('[Settings] Updated:', { mcbisAPI: siteSettings.mcbisAPI, mcbisAutoSync: siteSettings.mcbisAutoSync });
 
-      // If either auto-sync just turned ON, fire a catch-up sync immediately (non-blocking)
-      if (mcbisToggledOn || ckgodswayToggledOn) {
-        console.log(`[Settings] Auto-sync re-enabled (MCBIS: ${mcbisToggledOn}, CKGodsway: ${ckgodswayToggledOn}) — triggering catch-up sync`);
+      // If any auto-sync just turned ON, fire a catch-up sync immediately (non-blocking)
+      if (mcbisToggledOn || ckgodswayToggledOn || instantdataghToggledOn) {
+        console.log(`[Settings] Auto-sync re-enabled (MCBIS: ${mcbisToggledOn}, CKGodsway: ${ckgodswayToggledOn}, InstantDataGH: ${instantdataghToggledOn}) — triggering catch-up sync`);
         setImmediate(async () => {
           try {
             const orderGroupService = require('../services/order-group.service');
             const datahubService    = require('../services/datahub.service');
             await Promise.all([
               orderGroupService.syncAllProcessingItems({
-                mcbisEnabled:          !!(siteSettings.mcbisAutoSync     && siteSettings.mcbisAPI),
-                ckgodswayEnabled:      !!(siteSettings.ckgodswayAutoSync && siteSettings.ckgodswayAPI),
+                mcbisEnabled:          !!(siteSettings.mcbisAutoSync          && siteSettings.mcbisAPI),
+                ckgodswayEnabled:      !!(siteSettings.ckgodswayAutoSync      && siteSettings.ckgodswayAPI),
                 datagatekeeperEnabled: !!(siteSettings.datagatekeeperAPI),
+                instantdataghEnabled:  !!(siteSettings.instantdataghAutoSync  && siteSettings.instantdataghAPI),
                 catchUp: true
               }),
               mcbisToggledOn && siteSettings.mcbisAPI

@@ -915,6 +915,7 @@ const orderGroupService = {
     const datahubService = require('./datahub.service');
     const ckgodswayService = require('./ckgodsway.service');
     const dataGatekeeperService = require('./datagatekeeper.service');
+    const instantDataGHService = require('./instantdatagh.service');
     const settingsController = require('../controllers/settings.controller');
     const fs = require('fs');
     const path = require('path');
@@ -944,6 +945,7 @@ const orderGroupService = {
     const isTruthy = (val) => val === true || val === 'true' || val === 1;
     
     const PROVIDERS = [
+      { key: 'instantdataghAPI', name: 'INSTANTDATAGH', prefix: 'instantdatagh', service: instantDataGHService },
       { key: 'datagatekeeperAPI', name: 'DATAGATEKEEPER', prefix: 'datagatekeeper', service: dataGatekeeperService },
       { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
       { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: datahubService }
@@ -1400,8 +1402,15 @@ const orderGroupService = {
       const datahubService = require('./datahub.service');
       const ckgodswayService = require('./ckgodsway.service');
       const dataGatekeeperService = require('./datagatekeeper.service');
+      const instantDataGHService = require('./instantdatagh.service');
       
-      if (ref.startsWith('DGK-')) {
+      if (ref.startsWith('IDG-')) {
+        // InstantDataGH order
+        const idgResult = await instantDataGHService.checkOrderStatus(ref);
+        apiResult = idgResult.success
+          ? { success: true, status: idgResult.status, provider: 'INSTANTDATAGH' }
+          : { success: false, error: idgResult.error };
+      } else if (ref.startsWith('DGK-')) {
         // Data Gatekeeper order
         const dgResult = await dataGatekeeperService.checkOrderStatus(ref);
         apiResult = dgResult.success
@@ -1449,9 +1458,9 @@ const orderGroupService = {
       newStatus = 'COMPLETED';
     } else if (externalStatus === 'failed' || externalStatus === 'error' || externalStatus === 'rejected') {
       newStatus = 'FAILED';
-    } else if (externalStatus === 'cancelled' || externalStatus === 'canceled' || externalStatus === 'cancel') {
+    } else if (externalStatus === 'cancelled' || externalStatus === 'canceled' || externalStatus === 'cancel' || externalStatus === 'refunded') {
       newStatus = 'CANCELLED';
-    } else if (externalStatus === 'pending' || externalStatus === 'processing' || externalStatus === 'queued') {
+    } else if (externalStatus === 'pending' || externalStatus === 'processing' || externalStatus === 'queued' || externalStatus === 'awaiting_delivery') {
       newStatus = 'PROCESSING';
     } else if (externalStatus) {
       // Unrecognized status — log it so nothing silently stays PROCESSING forever
@@ -1746,7 +1755,7 @@ const orderGroupService = {
    * @param {boolean} options.catchUp - When true: no row cap, oldest-first (use on re-enable)
    */
   async syncAllProcessingItems(options = {}) {
-    const { mcbisEnabled = true, ckgodswayEnabled = true, datagatekeeperEnabled = true, catchUp = false } = options;
+    const { mcbisEnabled = true, ckgodswayEnabled = true, datagatekeeperEnabled = true, instantdataghEnabled = true, catchUp = false } = options;
     
     console.log(`[Sync] Starting sync of all processing OrderItems... (MCBIS: ${mcbisEnabled ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayEnabled ? 'ON' : 'OFF'}, DataGatekeeper: ${datagatekeeperEnabled ? 'ON' : 'OFF'}${catchUp ? ', CATCH-UP mode' : ''})`);
 
@@ -1754,6 +1763,36 @@ const orderGroupService = {
     let completed = 0;
     let failed = 0;
     let unchanged = 0;
+
+    // ── InstantDataGH sync ────────────────────────────────────────────────
+    if (instantdataghEnabled) {
+      const idgQuery = {
+        where: {
+          status: { in: ['PROCESSING', 'PENDING'] },
+          externalReference: { startsWith: 'IDG-' }
+        },
+        orderBy: { createdAt: 'asc' }
+      };
+      if (!catchUp) idgQuery.take = 50;
+      const idgItems = await prisma.orderItem.findMany(idgQuery);
+      console.log(`[Sync] InstantDataGH: ${idgItems.length} items to sync`);
+
+      for (const item of idgItems) {
+        try {
+          const result = await this.syncOrderItemStatus(item.id);
+          results.push({ itemId: item.id, reference: item.reference, ...result });
+          if (result.statusChanged) {
+            if (result.newStatus === 'COMPLETED') completed++;
+            else if (result.newStatus === 'FAILED') failed++;
+          } else {
+            unchanged++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } catch (error) {
+          results.push({ itemId: item.id, reference: item.reference, success: false, error: error.message });
+        }
+      }
+    }
 
     // ── DataGatekeeper sync ────────────────────────────────────────────────
     // Rate limit: 60 req/min. Cap at 20 items × 1100ms delay = 22s per cycle

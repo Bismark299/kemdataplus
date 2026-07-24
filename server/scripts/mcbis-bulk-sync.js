@@ -76,7 +76,8 @@ async function main() {
       externalReference: { not: null },
       NOT: [
         { externalReference: { startsWith: 'CK-' } },
-        { externalReference: { startsWith: 'DGK-' } }
+        { externalReference: { startsWith: 'DGK-' } },
+        { externalReference: { startsWith: 'IDG-' } }
       ],
       ...dateFilter
     },

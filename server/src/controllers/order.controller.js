@@ -5,7 +5,7 @@ const path = require('path');
 const prisma = require('../lib/prisma');
 
 // Import multi-tenant services (optional - graceful fallback if not available)
-let pricingEngine, profitService, walletService, auditService, datahubService, ckgodswayService, settingsController, financialOrderService;
+let pricingEngine, profitService, walletService, auditService, datahubService, ckgodswayService, instantDataGHService, settingsController, financialOrderService;
 try {
   pricingEngine = require('../services/pricing.service');
   profitService = require('../services/profit.service');
@@ -13,6 +13,7 @@ try {
   auditService = require('../services/audit.service');
   datahubService = require('../services/datahub.service');
   ckgodswayService = require('../services/ckgodsway.service');
+  instantDataGHService = require('../services/instantdatagh.service');
   settingsController = require('./settings.controller');
   financialOrderService = require('../services/financial-order.service');
 } catch (e) {
@@ -47,6 +48,7 @@ function isTruthy(val) {
 
 // All providers in priority order
 const PROVIDERS = [
+  { key: 'instantdataghAPI', name: 'INSTANTDATAGH', prefix: 'instantdatagh', getService: () => instantDataGHService },
   { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', getService: () => ckgodswayService },
   { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', getService: () => datahubService }
 ];
