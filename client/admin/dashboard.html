@@ -3660,9 +3660,55 @@
         .settings-card {
             background: white;
             border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
+            margin-bottom: 16px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .settings-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 25px;
+            cursor: pointer;
+            user-select: none;
+            gap: 12px;
+        }
+        .settings-card-header:hover {
+            background: #f9fafb;
+        }
+        .settings-card-header-title {
+            flex: 1;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+        .settings-card-chevron {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.25s ease, background 0.2s;
+            color: #6b7280;
+            font-size: 0.8rem;
+        }
+        .settings-card.sc-open .settings-card-chevron {
+            transform: rotate(180deg);
+            background: #e5e7eb;
+        }
+        .settings-card-body {
+            padding: 0 25px 25px;
+            display: none;
+        }
+        .settings-card.sc-open .settings-card-body {
+            display: block;
         }
         .settings-section-title {
             font-size: 1rem;
@@ -14252,6 +14298,58 @@
         // Flag to track if settings have been loaded from API (prevents overwriting server settings with defaults)
         let settingsLoaded = false;
         
+        function initCollapsibleCards() {
+            const cards = document.querySelectorAll('#settingsSection .settings-card');
+            cards.forEach((card, idx) => {
+                if (card.dataset.collapsible === 'done') return;
+                card.dataset.collapsible = 'done';
+
+                // Grab first child as the title element
+                const titleEl = card.firstElementChild;
+                if (!titleEl) return;
+
+                // Build header
+                const header = document.createElement('div');
+                header.className = 'settings-card-header';
+
+                // Copy border colour from card to header for API cards
+                const cardBorder = card.style.borderColor || '';
+                if (cardBorder) header.style.borderBottom = `2px solid ${cardBorder}`;
+
+                // Title wrapper
+                const titleWrap = document.createElement('div');
+                titleWrap.className = 'settings-card-header-title';
+                if (titleEl.style.color) titleWrap.style.color = titleEl.style.color;
+                titleWrap.innerHTML = titleEl.innerHTML;
+
+                // Chevron
+                const chevron = document.createElement('div');
+                chevron.className = 'settings-card-chevron';
+                chevron.innerHTML = '<i class="fas fa-chevron-down"></i>';
+
+                header.appendChild(titleWrap);
+                header.appendChild(chevron);
+
+                // Wrap remaining children in body
+                const body = document.createElement('div');
+                body.className = 'settings-card-body';
+                const children = Array.from(card.children).slice(1);
+                children.forEach(child => body.appendChild(child));
+
+                // Replace card content
+                titleEl.remove();
+                card.appendChild(header);
+                card.appendChild(body);
+
+                // Site Settings card (first) open by default; rest collapsed
+                if (idx === 0) card.classList.add('sc-open');
+
+                header.addEventListener('click', () => {
+                    card.classList.toggle('sc-open');
+                });
+            });
+        }
+
         async function loadSettingsSection() {
             // Load settings from API
             try {
@@ -14351,6 +14449,9 @@
             
             // Check SMS configuration and show test section if enabled
             checkSmsConfiguration();
+
+            // Init collapsible cards (idempotent — skips already-done cards)
+            initCollapsibleCards();
         }
         
         function updateSettingStatusTexts() {
