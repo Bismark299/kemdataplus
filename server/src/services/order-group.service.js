@@ -1246,7 +1246,7 @@ const orderGroupService = {
           if (item.totalPrice > 0) {
             try {
               await walletService.creditWallet(
-                item.orderGroup.userId,
+                orderGroup.userId,
                 item.totalPrice,
                 `Auto-refund: IDG rejected ${item.recipientPhone} — not in verified registry. Order ${item.reference}`,
                 `IDG-REFUND-${item.reference}`,
