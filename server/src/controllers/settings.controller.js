@@ -176,13 +176,20 @@ const settingsController = {
       const ckgodswayToggledOn      = !oldSettings.ckgodswayAutoSync      && siteSettings.ckgodswayAutoSync;
       const instantdataghToggledOn  = !oldSettings.instantdataghAutoSync  && siteSettings.instantdataghAutoSync;
 
+      // Detect main API toggle turning ON — any provider newly enabled should retry stuck PENDING orders
+      const anyProviderToggledOn =
+        (!oldSettings.instantdataghAPI && siteSettings.instantdataghAPI) ||
+        (!oldSettings.ckgodswayAPI     && siteSettings.ckgodswayAPI)     ||
+        (!oldSettings.datagatekeeperAPI && siteSettings.datagatekeeperAPI) ||
+        (!oldSettings.mcbisAPI         && siteSettings.mcbisAPI);
+
       const settings = { adminSettings, siteSettings };
       writeSettings(settings);
-      console.log('[Settings] Updated:', { mcbisAPI: siteSettings.mcbisAPI, mcbisAutoSync: siteSettings.mcbisAutoSync });
+      console.log('[Settings] Updated:', { mcbisAPI: siteSettings.mcbisAPI, instantdataghAPI: siteSettings.instantdataghAPI });
 
-      // If any auto-sync just turned ON, fire a catch-up sync immediately (non-blocking)
-      if (mcbisToggledOn || ckgodswayToggledOn || instantdataghToggledOn) {
-        console.log(`[Settings] Auto-sync re-enabled (MCBIS: ${mcbisToggledOn}, CKGodsway: ${ckgodswayToggledOn}, InstantDataGH: ${instantdataghToggledOn}) — triggering catch-up sync`);
+      // If any auto-sync or provider API just turned ON, fire a catch-up sync immediately (non-blocking)
+      if (mcbisToggledOn || ckgodswayToggledOn || instantdataghToggledOn || anyProviderToggledOn) {
+        console.log(`[Settings] Provider/sync enabled — triggering catch-up (MCBIS: ${mcbisToggledOn}, CKG: ${ckgodswayToggledOn}, IDG: ${instantdataghToggledOn}, anyAPI: ${anyProviderToggledOn})`);
         setImmediate(async () => {
           try {
             const orderGroupService = require('../services/order-group.service');
@@ -195,6 +202,10 @@ const settingsController = {
                 instantdataghEnabled:  !!(siteSettings.instantdataghAutoSync  && siteSettings.instantdataghAPI),
                 catchUp: true
               }),
+              // Retry stuck PENDING orders whenever any provider is newly enabled
+              anyProviderToggledOn || instantdataghToggledOn || ckgodswayToggledOn
+                ? orderGroupService.retryStuckPendingOrders()
+                : Promise.resolve(),
               mcbisToggledOn && siteSettings.mcbisAPI
                 ? datahubService.syncAllPendingOrders({ catchUp: true })
                 : Promise.resolve()
