@@ -28,14 +28,14 @@
             padding: 12px 10px;
         }
 
-        /* ===== WALLET HEADER ===== */
+        /* ===== WALLET HEADER — Bank Card style ===== */
         .wallet-header {
-            background: linear-gradient(135deg, var(--primary,#024959) 0%, var(--primary-light,#036c7f) 100%);
+            background: linear-gradient(135deg, var(--primary,#024959) 0%, #037a97 100%);
             color: white;
-            padding: 22px 16px;
-            border-radius: 12px;
+            padding: 22px 16px 18px;
+            border-radius: 16px;
             margin-bottom: 14px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+            box-shadow: 0 8px 28px rgba(2,73,89,0.28);
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -43,24 +43,81 @@
         .wallet-header::before {
             content: '';
             position: absolute;
-            top: -50%; right: -50%;
-            width: 100%; height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            top: -40px; right: -40px;
+            width: 160px; height: 160px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.07);
             pointer-events: none;
         }
-        .wallet-header h1 { margin: 0 0 6px; font-size: 1rem; font-weight: 500; opacity: 0.9; }
-        .wallet-balance { font-size: 2.2rem; font-weight: 700; margin: 10px 0; letter-spacing: -1px; }
-        .wallet-status { font-size: 0.82rem; opacity: 0.85; }
+        .wallet-header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px; right: 40px;
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            background: rgba(242,193,46,0.14);
+            pointer-events: none;
+        }
+        .wallet-header h1 { margin: 0 0 4px; font-size: 0.88rem; font-weight: 500; opacity: 0.8; position: relative; }
+        .wallet-balance { font-size: 2.4rem; font-weight: 800; margin: 8px 0 6px; letter-spacing: -1.5px; position: relative; }
+        .wallet-status { font-size: 0.8rem; opacity: 0.8; margin-bottom: 16px; position: relative; }
         .wallet-status strong { color: #a7f3d0; }
 
-        /* ===== LAYOUT — mobile: single column, sidebar at bottom ===== */
+        /* Stats row inside header */
+        .header-stats-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            position: relative;
+        }
+        .header-stat-card {
+            flex: 1;
+            background: rgba(255,255,255,0.13);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        .header-stat-card--alt {
+            background: rgba(242,174,48,0.18);
+            border-color: rgba(242,193,46,0.3);
+        }
+        .header-stat-label { font-size: 0.68rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px; }
+        .header-stat-value { font-size: 1.05rem; font-weight: 700; }
+
+        /* Quick action buttons inside header */
+        .header-quick-actions {
+            display: flex;
+            gap: 8px;
+            position: relative;
+        }
+        .header-quick-btn {
+            flex: 1;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 10px;
+            padding: 9px 4px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.2s;
+        }
+        .header-quick-btn:active { background: rgba(255,255,255,0.28); }
+        .header-quick-btn i { font-size: 1rem; }
+        .header-quick-btn span { font-size: 0.68rem; font-weight: 600; white-space: nowrap; }
+
+        /* ===== LAYOUT — mobile: single column, sidebar hidden ===== */
         .wallet-content {
             display: flex;
             flex-direction: column;
             gap: 14px;
         }
         .wallet-main  { min-width: 0; }
-        .wallet-sidebar-wrap { min-width: 0; }
+        /* Sidebar hidden on mobile — stats are now in the header card */
+        .wallet-sidebar-wrap { display: none; }
 
         /* ===== CARDS ===== */
         .topup-section,
@@ -655,32 +712,18 @@
         /* ===== TABLET 600px+ ===== */
         @media (min-width: 600px) {
             .wallet-container { padding: 16px 14px; }
-            .wallet-header { padding: 26px 20px; }
-            .wallet-header h1 { font-size: 1.05rem; }
-            .wallet-balance { font-size: 2.4rem; }
+            .wallet-header { padding: 26px 20px 20px; }
+            .wallet-header h1 { font-size: 1rem; }
+            .wallet-balance { font-size: 2.6rem; }
             .wallet-tab { font-size: 0.85rem; padding: 11px 12px; }
             .wallet-tab i { display: inline; }
+
+            .header-stat-value { font-size: 1.15rem; }
 
             .topup-section, .history-section, .wallet-sidebar { padding: 20px; }
 
             .filter-row { flex-direction: row; flex-wrap: wrap; }
             .filter-group { flex: 1; min-width: 130px; width: auto; }
-
-            /* Sidebar: 2-col stat cards, full-width quick actions */
-            .wallet-sidebar {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 12px;
-                align-items: start;
-            }
-            .wallet-sidebar .sidebar-card { margin-bottom: 0; }
-            .wallet-sidebar h3 { grid-column: 1 / -1; margin: 4px 0 0; }
-            .wallet-sidebar .quick-actions {
-                grid-column: 1 / -1;
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .wallet-sidebar > div:last-child { grid-column: 1 / -1; }
-            .quick-btn i { display: inline; }
 
             /* Input+button rows: side-by-side on tablet+ */
             #momoFields .form-group > div[style*='display: flex'],
@@ -703,36 +746,48 @@
         /* ===== DESKTOP 900px+ ===== */
         @media (min-width: 900px) {
             .wallet-container { padding: 20px 16px; }
-            .wallet-header { padding: 28px 24px; }
-            .wallet-balance { font-size: 2.6rem; }
+            .wallet-header { padding: 30px 28px 24px; }
+            .wallet-balance { font-size: 2.8rem; }
             .wallet-tab { font-size: 0.9rem; padding: 12px 16px; }
 
             /* 2-column layout: main + sidebar */
             .wallet-content {
                 display: grid;
-                grid-template-columns: 1fr 300px;
+                grid-template-columns: 1fr 280px;
                 gap: 20px;
                 align-items: start;
             }
-            .wallet-sidebar-wrap { grid-column: 2; grid-row: 1; }
+            /* Show sidebar on desktop — it's hidden on mobile */
+            .wallet-sidebar-wrap {
+                display: block;
+                grid-column: 2;
+                grid-row: 1;
+            }
             .wallet-main { grid-column: 1; }
 
             .topup-section, .history-section, .wallet-sidebar { padding: 24px; }
 
-            /* Sidebar back to vertical stack on desktop */
+            /* Sidebar vertical stack on desktop */
             .wallet-sidebar {
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
                 display: block;
                 height: fit-content;
             }
-            .wallet-sidebar .sidebar-card { margin-bottom: 12px; }
-            .wallet-sidebar h3 { margin: 14px 0 8px; }
+            .wallet-sidebar h3 {
+                color: var(--primary,#024959);
+                margin: 0 0 10px;
+                font-size: 0.95rem;
+            }
             .wallet-sidebar .quick-actions {
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
             }
+            .quick-btn i { display: inline; }
             .wallet-sidebar > div:last-child { margin-top: 16px; }
-            .sidebar-value { font-size: 1.4rem; }
 
             .filter-row { flex-direction: row; }
         }
@@ -782,11 +837,39 @@
 
         <!-- WALLET CONTENT -->
         <div class="wallet-container">
-            <!-- WALLET HEADER -->
+            <!-- WALLET HEADER — Bank Card layout -->
             <div class="wallet-header">
                 <h1><i class="fas fa-wallet"></i> My Wallet</h1>
                 <div class="wallet-balance" id="walletBalance">GHS 0.00</div>
                 <div class="wallet-status">Account Status: <strong>Active</strong></div>
+
+                <!-- Stats embedded inside the card -->
+                <div class="header-stats-row">
+                    <div class="header-stat-card">
+                        <div class="header-stat-label">Total Spent</div>
+                        <div class="header-stat-value" id="totalSpent">GHS 0.00</div>
+                    </div>
+                    <div class="header-stat-card header-stat-card--alt">
+                        <div class="header-stat-label">This Month</div>
+                        <div class="header-stat-value" id="thisMonthSpent">GHS 0.00</div>
+                    </div>
+                </div>
+
+                <!-- Quick action shortcuts -->
+                <div class="header-quick-actions">
+                    <button class="header-quick-btn" onclick="window.location.href='../public/dashboard.html#buy-bundles'">
+                        <i class="fas fa-bolt"></i><span>Top Up</span>
+                    </button>
+                    <button class="header-quick-btn" onclick="window.location.href='./orders.html'">
+                        <i class="fas fa-box"></i><span>Orders</span>
+                    </button>
+                    <button class="header-quick-btn" onclick="document.querySelector('[data-tab=sendFunds]').click()">
+                        <i class="fas fa-paper-plane"></i><span>Send</span>
+                    </button>
+                    <button class="header-quick-btn" onclick="document.querySelector('[data-tab=pendingEarnings]').click()">
+                        <i class="fas fa-coins"></i><span>Earn</span>
+                    </button>
+                </div>
             </div>
 
             <div class="wallet-content">
@@ -1301,19 +1384,9 @@
                     </div>
                 </div>
 
-                <!-- SIDEBAR -->
+                <!-- SIDEBAR — desktop only, stats have moved to the header card -->
                 <div class="wallet-sidebar-wrap">
                     <div class="wallet-sidebar">
-                        <div class="sidebar-card">
-                            <div class="sidebar-label">Total Spent</div>
-                            <div class="sidebar-value" id="totalSpent">GHS 0.00</div>
-                        </div>
-
-                        <div class="sidebar-card" style="background: linear-gradient(135deg, #593E25 0%, #F2AE30 100%);">
-                            <div class="sidebar-label">This Month</div>
-                            <div class="sidebar-value" id="thisMonthSpent">GHS 0.00</div>
-                        </div>
-
                         <h3>Quick Actions</h3>
                         <div class="quick-actions">
                             <button class="quick-btn" onclick="window.location.href='../public/dashboard.html#buy-bundles'">
