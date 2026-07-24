@@ -928,28 +928,41 @@
         }
 
         async function loadStore() {
-            try {
-                const res = await fetch(`/api/store/${slug}`);
-                if (!res.ok) throw new Error('Not found');
-                storeData = await res.json();
-                
-                // Set theme colors from store branding
-                const primaryColor = storeData.primaryColor || '#024959';
-                const accentColor = storeData.accentColor || '#F2C12E';
-                
-                // Calculate a lighter version of primary for gradient
-                document.documentElement.style.setProperty('--primary', primaryColor);
-                document.documentElement.style.setProperty('--primary-light', lightenColor(primaryColor, 20));
-                document.documentElement.style.setProperty('--accent', accentColor);
-                
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('storeContent').style.display = 'block';
-                
-                renderStore();
-                loadProducts();
-            } catch (e) {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('errorState').style.display = 'block';
+            const MAX_RETRIES = 3;
+            const RETRY_DELAY_MS = 2000;
+
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    const res = await fetch(`/api/store/${slug}`);
+                    // True 404 = store genuinely doesn't exist, no point retrying
+                    if (res.status === 404) break;
+                    if (!res.ok) throw new Error(`Server error ${res.status}`);
+                    storeData = await res.json();
+
+                    // Set theme colors from store branding
+                    const primaryColor = storeData.primaryColor || '#024959';
+                    const accentColor = storeData.accentColor || '#F2C12E';
+
+                    document.documentElement.style.setProperty('--primary', primaryColor);
+                    document.documentElement.style.setProperty('--primary-light', lightenColor(primaryColor, 20));
+                    document.documentElement.style.setProperty('--accent', accentColor);
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('storeContent').style.display = 'block';
+
+                    renderStore();
+                    loadProducts();
+                    return; // success — stop
+                } catch (e) {
+                    if (attempt < MAX_RETRIES) {
+                        // Wait then retry silently — user still sees the loading spinner
+                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                    } else {
+                        // All retries exhausted
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('errorState').style.display = 'block';
+                    }
+                }
             }
         }
         
