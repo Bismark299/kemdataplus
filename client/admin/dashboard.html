@@ -6210,12 +6210,13 @@
                             <th>Total (GHS)</th>
                             <th>Payment</th>
                             <th>Order Status</th>
+                            <th>Provider Ref</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="historyTableBody">
                         <tr>
-                            <td colspan="10">
+                            <td colspan="11">
                                 <div class="history-empty-state">
                                     <i class="fas fa-database"></i>
                                     <h4>No Orders</h4>
@@ -11975,7 +11976,7 @@
                 
                 return {
                     id: order.id || `ORD-${String(idx + 1).padStart(4, '0')}`,
-                    orderNo: orderNum,
+                    orderNo: order.displayId || order.reference || orderNum,
                     date: order.createdAt || order.orderDate || order.timestamp || new Date().toISOString(),
                     userName: userName,
                     userPhone: order.user?.phone || order.userPhone || '',
@@ -11988,7 +11989,7 @@
                     paymentStatus: (order.paymentStatus || order.payment || 'COMPLETED').toLowerCase(),
                     agent: userName,
                     agentCode: agentCode,
-                    reference: order.reference || order.txId || '-'
+                    externalReference: order.externalReference || '-'
                 };
             });
         }
@@ -12180,7 +12181,7 @@
             });
             
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10">
+                tbody.innerHTML = `<tr><td colspan="11">
                     ${createEmptyState(
                         'fas fa-history',
                         'No Order History',
@@ -12203,6 +12204,7 @@
                     <td><strong>${h.amount.toFixed(2)}</strong></td>
                     <td><span class="status-badge ${h.paymentStatus}">${h.paymentStatus}</span></td>
                     <td><span class="status-badge ${h.status}">${h.status}</span></td>
+                    <td style="font-size:0.78rem;font-family:monospace;color:#4b5563;">${h.externalReference !== '-' ? `<span title="${h.externalReference}" style="cursor:pointer;" onclick="navigator.clipboard.writeText('${h.externalReference}')">${h.externalReference}</span>` : '<span style="color:#9ca3af;">—</span>'}</td>
                     <td>
                         <div class="action-btns">
                             <button class="action-btn refund" title="Refund" onclick="refundOrder('${h.id}')">
