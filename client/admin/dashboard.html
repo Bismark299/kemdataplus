@@ -4666,6 +4666,10 @@
                     <div class="label"><i class="fas fa-server"></i> MCBIS Balance:</div>
                     <div class="value" id="headerMcbisBalance" style="color: #10b981;">Loading...</div>
                 </div>
+                <div class="header-stat" style="cursor: pointer;" onclick="refreshInstantdataghBalance()" title="Click to refresh InstantDataGH balance">
+                    <div class="label"><i class="fas fa-bolt"></i> IDG Balance:</div>
+                    <div class="value" id="headerIdgBalance" style="color: #10b981;">Loading...</div>
+                </div>
                 <div class="header-stat">
                     <div class="label"><i class="fas fa-shopping-bag"></i> Total Sold:</div>
                     <div class="value" id="totalSold">GH₵ 0.00</div>
@@ -14850,6 +14854,28 @@
             }
         }
 
+        // Refresh InstantDataGH balance for header (silent, no toast)
+        async function refreshInstantdataghBalance() {
+            const headerBalance = document.getElementById('headerIdgBalance');
+            if (headerBalance) headerBalance.textContent = 'Loading...';
+            try {
+                const res = await adminFetch('/api/instantdatagh/balance');
+                const data = await res.json();
+                if (data.success && headerBalance) {
+                    headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    headerBalance.style.color = data.balance < 50 ? '#ef4444' : '#10b981';
+                } else if (headerBalance) {
+                    headerBalance.textContent = 'Error';
+                    headerBalance.style.color = '#ef4444';
+                }
+            } catch (err) {
+                if (headerBalance) {
+                    headerBalance.textContent = 'Offline';
+                    headerBalance.style.color = '#9ca3af';
+                }
+            }
+        }
+
         // Refresh Paystack balance for header
         async function refreshPaystackBalance() {
             const headerBalance = document.getElementById('headerPaystackBalance');
@@ -14909,6 +14935,7 @@
         // Load balances on page load
         document.addEventListener('DOMContentLoaded', function() {
             refreshMcbisBalance();
+            refreshInstantdataghBalance();
             refreshPaystackBalance();
             refreshSmsBalance();
         });
@@ -15428,6 +15455,11 @@
                 if (data.success) {
                     document.getElementById('instantdataghBalanceDisplay').style.display = 'block';
                     document.getElementById('instantdataghBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    const headerBalance = document.getElementById('headerIdgBalance');
+                    if (headerBalance) {
+                        headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                        headerBalance.style.color = data.balance < 50 ? '#ef4444' : '#10b981';
+                    }
                     showToast(`InstantDataGH Balance: GHS ${data.balance}`, 'success');
                 } else {
                     showToast(`Failed to get balance: ${data.error}`, 'error');
