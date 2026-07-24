@@ -1019,6 +1019,15 @@ const orderGroupService = {
         const cached = dataGatekeeperService.getLastKnownBalance();
         providerBalances[providerName] = cached !== null ? cached : Infinity;
         console.log(`[OrderGroup] DataGatekeeper balance: ${cached !== null ? `GHS ${cached}` : 'unknown (using cached)'}`);
+      } else if (providerName === 'INSTANTDATAGH') {
+        try {
+          const balResult = await service.getWalletBalance();
+          providerBalances[providerName] = balResult.success ? balResult.balance : Infinity;
+          console.log(`[OrderGroup] InstantDataGH balance: ${balResult.success ? `GHS ${balResult.balance}` : 'unknown (proceeding anyway)'}`);
+        } catch (e) {
+          providerBalances[providerName] = Infinity;
+          console.log(`[OrderGroup] Could not fetch IDG balance (proceeding anyway): ${e.message}`);
+        }
       } else if (providerName === 'CKGODSWAY') {
         // CK-Godsway has no balance endpoint - bypass check
         providerBalances[providerName] = Infinity;
@@ -1161,7 +1170,16 @@ const orderGroupService = {
         });
 
         // Check for insufficient balance returned as a non-throwing failure
-        if (!result.success && result.error && result.error.includes('Insufficient balance')) {
+        const errLower = (result.error || '').toLowerCase();
+        const isBalanceError = !result.success && (
+          errLower.includes('insufficient') ||
+          errLower.includes('low balance') ||
+          errLower.includes('insufficient balance') ||
+          errLower.includes('wallet') && errLower.includes('low') ||
+          errLower.includes('not enough') ||
+          errLower.includes('funds')
+        );
+        if (isBalanceError) {
           console.log(`[OrderGroup] ${apiProvider} insufficient balance for ${item.reference}: ${result.error}`);
           providerBalances[apiProvider] = 0;
           // Reset apiSentAt so auto-retry can pick it up
