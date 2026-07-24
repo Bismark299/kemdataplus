@@ -1232,6 +1232,33 @@ const orderGroupService = {
             externalReference: result.reference,
             failureReason: null
           });
+        } else if (!result.success && apiProvider === 'INSTANTDATAGH' &&
+            /no verified numbers|not verified|unverified/i.test(result.error || '')) {
+          // ============ IDG: UNVERIFIED NUMBER — CANCEL + AUTO-REFUND ============
+          // IDG rejects numbers not in its verified registry. Treat as CANCELLED
+          // (not FAILED) so the agent is refunded automatically, same as MCBIS cancels.
+          console.log(`[OrderGroup] IDG rejected ${item.reference} (unverified number) — cancelling and refunding GHS ${item.totalPrice}`);
+          await this.updateItemStatus(item.id, {
+            status: 'CANCELLED',
+            failureReason: result.error
+          });
+          // Auto-refund wallet
+          if (item.totalPrice > 0) {
+            try {
+              await walletService.creditWallet(
+                item.orderGroup.userId,
+                item.totalPrice,
+                `Auto-refund: IDG rejected ${item.recipientPhone} — not in verified registry. Order ${item.reference}`,
+                `IDG-REFUND-${item.reference}`,
+                { entryType: 'REFUND', orderId: item.orderGroupId }
+              );
+              console.log(`[OrderGroup] ✅ IDG auto-refunded GHS ${item.totalPrice} for ${item.reference}`);
+            } catch (refundErr) {
+              if (refundErr.message !== 'Duplicate transaction reference') {
+                console.error(`[OrderGroup] ⚠️ IDG refund failed for ${item.reference}:`, refundErr.message);
+              }
+            }
+          }
         } else {
           // Update item status based on result
           // Only pass externalReference on success — on failure it stays null
