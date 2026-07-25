@@ -22,10 +22,12 @@
 
         /* ===== CONTAINER ===== */
         .wallet-container {
+            width: 100%;
             max-width: 1000px;
             overflow-x: hidden;
             margin: 0 auto;
             padding: 12px 10px;
+            box-sizing: border-box;
         }
 
         /* ===== WALLET HEADER — Bank Card style ===== */
@@ -59,7 +61,7 @@
             pointer-events: none;
         }
         .wallet-header h1 { margin: 0 0 4px; font-size: 0.88rem; font-weight: 500; opacity: 0.8; position: relative; }
-        .wallet-balance { font-size: 2.4rem; font-weight: 800; margin: 8px 0 6px; letter-spacing: -1.5px; position: relative; }
+        .wallet-balance { font-size: 2.4rem; font-weight: 800; margin: 8px 0 6px; letter-spacing: -1.5px; position: relative; overflow-wrap: break-word; word-break: break-word; }
         .wallet-status { font-size: 0.8rem; opacity: 0.8; margin-bottom: 16px; position: relative; }
         .wallet-status strong { color: #a7f3d0; }
 
@@ -72,6 +74,7 @@
         }
         .header-stat-card {
             flex: 1;
+            min-width: 0;
             background: rgba(255,255,255,0.13);
             border: 1px solid rgba(255,255,255,0.18);
             border-radius: 10px;
@@ -83,7 +86,7 @@
             border-color: rgba(242,193,46,0.3);
         }
         .header-stat-label { font-size: 0.68rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px; }
-        .header-stat-value { font-size: 1.05rem; font-weight: 700; }
+        .header-stat-value { font-size: 1.05rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* Quick action buttons inside header */
         .header-quick-actions {
@@ -707,6 +710,30 @@
         #bankFields .form-group > div[style*='display: flex'] button,
         #profitWithdrawForm .form-group > div[style*='display: flex'] button {
             width: 100% !important; white-space: normal !important;
+        }
+
+        /* ===== TINY PHONES < 380px ===== */
+        @media (max-width: 379px) {
+            .wallet-container { padding: 8px 8px; }
+            .wallet-header { padding: 16px 12px 14px; border-radius: 12px; }
+            .wallet-balance { font-size: 1.9rem; letter-spacing: -1px; }
+            .wallet-status { margin-bottom: 12px; }
+
+            /* Stats row: stack vertically on very tiny screens */
+            .header-stats-row { flex-direction: column; gap: 6px; margin-bottom: 10px; }
+            .header-stat-card { padding: 8px 10px; }
+            .header-stat-value { font-size: 0.95rem; }
+
+            /* Quick buttons: 2×2 grid instead of 1 row of 4 */
+            .header-quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+            .header-quick-btn { padding: 8px 4px; border-radius: 8px; }
+            .header-quick-btn i { font-size: 0.9rem; }
+            .header-quick-btn span { font-size: 0.65rem; }
+
+            .wallet-tab { font-size: 0.72rem; padding: 9px 6px; }
+            .topup-section, .history-section { padding: 12px; border-radius: 10px; }
+            .topup-amounts { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+            .amount-btn { padding: 10px 4px; font-size: 0.82rem; }
         }
 
         /* ===== TABLET 600px+ ===== */
