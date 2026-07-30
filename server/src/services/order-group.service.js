@@ -1203,10 +1203,109 @@ const orderGroupService = {
           errLower.includes('not enough') ||
           errLower.includes('funds')
         );
-        if (isBalanceError) {
+
+        // ===== MTN PLACEMENT-TIME FAILOVER =====
+        // Mirrors storefront/datahub logic: when primary definitively rejects (no network error),
+        // immediately try backup before giving up. Covers two triggers:
+        //   1. Primary has no balance
+        //   2. IDG rejects with "unverified number" (MCBIS has no such restriction)
+        // Safety: externalReference only written on success — no risk of dual-provider ownership.
+        const networkNorm = (network || '').toLowerCase();
+        const mtnFailoverEnabled = isTruthy(siteSettings.mtnFailoverEnabled);
+        const isIdgUnverified = !result.success && apiProvider === 'INSTANTDATAGH' &&
+          /no verified numbers|not verified|unverified/i.test(result.error || '');
+        const primaryName = (siteSettings.mtnPrimaryProvider || 'IDG').toUpperCase();
+        const isPrimaryFailoverTrigger =
+          mtnFailoverEnabled &&
+          networkNorm === 'mtn' &&
+          !result.networkError &&
+          apiProvider === primaryName &&
+          (isBalanceError || isIdgUnverified);
+
+        if (isPrimaryFailoverTrigger) {
+          const backupName  = (siteSettings.mtnBackupProvider || 'MCBIS').toUpperCase();
+          const backupKey   = backupName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
+          const backupEntry = PROVIDERS.find(p => p.key === backupKey);
+          const reason      = isIdgUnverified ? 'unverified number' : 'no funds';
+
+          if (backupEntry && isTruthy(siteSettings[backupEntry.key])) {
+            console.log(`[OrderGroup] Primary (${primaryName}) rejected (${reason}) — trying backup (${backupName}) for ${item.reference}`);
+            const backupResult = await backupEntry.service.placeOrder({
+              network,
+              phone:   item.recipientPhone,
+              amount:  dataAmount,
+              orderId: item.id
+            });
+            console.log(`[OrderGroup] Backup (${backupName}): ${backupResult.success ? `SUCCESS ref=${backupResult.reference}` : backupResult.error}`);
+
+            if (backupResult.success) {
+              // Backup delivered — mark PROCESSING under backup provider
+              await this.updateItemStatus(item.id, {
+                status: 'PROCESSING',
+                externalReference: backupResult.reference,
+                failureReason: null
+              });
+              results.push({
+                itemId: item.id,
+                reference: item.reference,
+                success: true,
+                externalReference: backupResult.reference,
+                provider: backupName,
+                failedOver: true
+              });
+              if (backupResult.newBalance !== undefined) {
+                providerBalances[backupName] = backupResult.newBalance;
+              }
+              continue;
+            }
+
+            // Backup also has no balance — stay PENDING, let retry loop pick it up
+            const backupErrLower = (backupResult.error || '').toLowerCase();
+            const backupNoFunds = backupErrLower.includes('insufficient') ||
+              backupErrLower.includes('low balance') || backupErrLower.includes('not enough') ||
+              backupErrLower.includes('funds') || (backupErrLower.includes('wallet') && backupErrLower.includes('low'));
+
+            if (backupNoFunds) {
+              console.log(`[OrderGroup] Backup (${backupName}) also has no funds — staying PENDING for retry`);
+              providerBalances[backupName] = 0;
+              await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } });
+              skipped++;
+              results.push({
+                itemId: item.id,
+                reference: item.reference,
+                skipped: true,
+                reason: `Both ${primaryName} and ${backupName} have no funds — will retry`
+              });
+              continue;
+            }
+
+            // Backup rejected for another reason (e.g. its own unverified) — fall through to cancel+refund below
+            console.log(`[OrderGroup] Backup (${backupName}) also rejected ${item.reference}: ${backupResult.error} — cancelling`);
+          }
+        }
+        // ===== END MTN PLACEMENT-TIME FAILOVER =====
+
+        if (isBalanceError && !isPrimaryFailoverTrigger) {
+          // Non-MTN or failover not configured — stay PENDING and let retry loop handle it
           console.log(`[OrderGroup] ${apiProvider} insufficient balance for ${item.reference}: ${result.error}`);
           providerBalances[apiProvider] = 0;
           // Reset apiSentAt so auto-retry can pick it up
+          await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } });
+          skipped++;
+          results.push({
+            itemId: item.id,
+            reference: item.reference,
+            skipped: true,
+            reason: `${apiProvider} insufficient balance — will auto-retry`
+          });
+          continue;
+        }
+
+        if (isBalanceError) {
+          // MTN with failover enabled but backup also had no funds (handled above via continue).
+          // This branch is only reached if backupEntry was missing/disabled — stay PENDING.
+          console.log(`[OrderGroup] ${apiProvider} insufficient balance for ${item.reference} — no backup available, staying PENDING`);
+          providerBalances[apiProvider] = 0;
           await prisma.orderItem.update({ where: { id: item.id }, data: { apiSentAt: null } });
           skipped++;
           results.push({
