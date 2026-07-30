@@ -961,6 +961,28 @@ const orderGroupService = {
     };
     
     const getProviderForNetwork = (network, siteSettings) => {
+      const networkNorm = (network || '').toLowerCase().replace(/\s+/g, '');
+
+      // For MTN: honour mtnPrimaryProvider (same single setting the storefront path uses).
+      // This means the admin only needs the master API toggle on — no separate per-network
+      // sub-toggle required for whichever provider is designated as MTN primary/backup.
+      if (networkNorm === 'mtn' && siteSettings.mtnPrimaryProvider) {
+        const providerNameMap = { IDG: 'INSTANTDATAGH', MCBIS: 'MCBIS' };
+        const targetName = providerNameMap[siteSettings.mtnPrimaryProvider];
+        if (targetName) {
+          const p = PROVIDERS.find(pr => pr.name === targetName);
+          if (p && isTruthy(siteSettings[p.key])) {
+            // Still skip DGK if unconfigured (shouldn't be primary, but guard anyway)
+            if (p.name === 'DATAGATEKEEPER' && p.service.isConfigured && !p.service.isConfigured()) {
+              console.log(`[OrderGroup] DATAGATEKEEPER: skipped — DATAGATEKEEPER_API_KEY not set`);
+            } else {
+              console.log(`[OrderGroup] MTN → ${p.name} (via mtnPrimaryProvider)`);
+              return { name: p.name, service: p.service };
+            }
+          }
+        }
+      }
+
       for (const p of PROVIDERS) {
         if (!isTruthy(siteSettings[p.key])) continue;
         const toggleKey = getNetworkToggleKey(p.prefix, network);
