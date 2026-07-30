@@ -311,6 +311,135 @@ router.post('/:id/cancel', authenticate, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/order-groups/:id/release
+ * Agent self-service: release their own DUPLICATE_HOLD order ("Proceed anyway")
+ */
+router.post('/:id/release', authenticate, async (req, res, next) => {
+  try {
+    const userId  = req.user.id;
+    const orderId = req.params.id;
+
+    const orderGroup = await prisma.orderGroup.findFirst({
+      where: { OR: [{ id: orderId }, { displayId: orderId }] },
+      include: { items: true }
+    });
+
+    if (!orderGroup) return res.status(404).json({ error: 'Order not found', code: 'NOT_FOUND' });
+    if (orderGroup.userId !== userId) return res.status(403).json({ error: 'Access denied', code: 'FORBIDDEN' });
+    if (orderGroup.status !== 'DUPLICATE_HOLD') {
+      return res.status(400).json({ error: `Order is not on hold. Current status: ${orderGroup.status}`, code: 'INVALID_STATUS' });
+    }
+
+    await prisma.orderGroup.update({
+      where: { id: orderGroup.id },
+      data: { status: 'PENDING', summaryStatus: 'PENDING' }
+    });
+    await prisma.orderItem.updateMany({
+      where: { orderGroupId: orderGroup.id },
+      data: { status: 'PENDING' }
+    });
+
+    console.log(`[Agent] Released DUPLICATE_HOLD order ${orderGroup.displayId} by owner ${req.user.email}`);
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        tenantId: orderGroup.tenantId,
+        action: 'ORDER_DUPLICATE_RELEASE',
+        entityType: 'OrderGroup',
+        entityId: orderGroup.id,
+        newValues: { displayId: orderGroup.displayId, releasedBy: req.user.email, source: 'agent-self-service' }
+      }
+    });
+
+    const result = await orderGroupService.processOrderItems(orderGroup.id);
+
+    res.json({
+      message: `Order ${orderGroup.displayId} released and processing started`,
+      orderId: orderGroup.displayId,
+      processed: result.processed,
+      success: result.success,
+      failed: result.failed
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/order-groups/:id/reject
+ * Agent self-service: cancel their own DUPLICATE_HOLD order and get a refund ("Cancel & refund me")
+ */
+router.post('/:id/reject', authenticate, async (req, res, next) => {
+  try {
+    const userId  = req.user.id;
+    const orderId = req.params.id;
+
+    const orderGroup = await prisma.orderGroup.findFirst({
+      where: { OR: [{ id: orderId }, { displayId: orderId }] },
+      include: { items: true }
+    });
+
+    if (!orderGroup) return res.status(404).json({ error: 'Order not found', code: 'NOT_FOUND' });
+    if (orderGroup.userId !== userId) return res.status(403).json({ error: 'Access denied', code: 'FORBIDDEN' });
+    if (orderGroup.status !== 'DUPLICATE_HOLD') {
+      return res.status(400).json({ error: `Order is not on hold. Current status: ${orderGroup.status}`, code: 'INVALID_STATUS' });
+    }
+
+    let refunded = false;
+    if (orderGroup.walletDeducted) {
+      try {
+        await walletService.creditWallet(
+          orderGroup.userId,
+          orderGroup.totalAmount,
+          `Duplicate order refund - ${orderGroup.displayId} (cancelled by agent)`,
+          `REFUND-${orderGroup.displayId}`,
+          { entryType: 'REFUND', orderId: orderGroup.id }
+        );
+        refunded = true;
+      } catch (refundErr) {
+        if (refundErr.message === 'Duplicate transaction reference') {
+          refunded = true;
+        } else {
+          console.error(`[Agent] Failed to refund order ${orderGroup.displayId}:`, refundErr.message);
+        }
+      }
+    }
+
+    await prisma.orderGroup.update({
+      where: { id: orderGroup.id },
+      data: { status: 'CANCELLED', summaryStatus: 'CANCELLED' }
+    });
+    await prisma.orderItem.updateMany({
+      where: { orderGroupId: orderGroup.id },
+      data: { status: 'CANCELLED' }
+    });
+
+    console.log(`[Agent] Cancelled DUPLICATE_HOLD order ${orderGroup.displayId} by owner ${req.user.email}`);
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        tenantId: orderGroup.tenantId,
+        action: 'ORDER_DUPLICATE_REJECT',
+        entityType: 'OrderGroup',
+        entityId: orderGroup.id,
+        newValues: { displayId: orderGroup.displayId, cancelledBy: req.user.email, source: 'agent-self-service', refundAmount: refunded ? orderGroup.totalAmount : 0 }
+      }
+    });
+
+    res.json({
+      message: `Order ${orderGroup.displayId} cancelled and ${refunded ? 'refunded' : 'not refunded (wallet was not deducted)'}`,
+      orderId: orderGroup.displayId,
+      refunded,
+      refundAmount: refunded ? orderGroup.totalAmount : 0
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ============================================================
 // ADMIN ROUTES
 // ============================================================

@@ -5198,16 +5198,24 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <div class="payments-table-footer">
-                            <label>Per Page</label>
-                            <select id="tablePerPage">
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                                <option value="200">200</option>
-                                <option value="500">500</option>
-                                <option value="1000">1000</option>
-                                <option value="2000">2000</option>
-                            </select>
+                        <div class="payments-table-footer" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <label>Per Page</label>
+                                <select id="tablePerPage">
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                    <option value="500">500</option>
+                                </select>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;font-size:0.9rem;color:#6b7280;">
+                                <span id="claimsPaginationInfo">—</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <button id="claimsPrevPage" onclick="changeClaimsPage(-1)" disabled style="padding:5px 12px;border:1px solid #d1d5db;border-radius:6px;background:white;cursor:pointer;font-size:0.85rem;">‹ Prev</button>
+                                <span id="claimsPageIndicator" style="font-size:0.85rem;color:#374151;min-width:50px;text-align:center;">1 / 1</span>
+                                <button id="claimsNextPage" onclick="changeClaimsPage(1)" disabled style="padding:5px 12px;border:1px solid #d1d5db;border-radius:6px;background:white;cursor:pointer;font-size:0.85rem;">Next ›</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -10734,6 +10742,8 @@
         let lastPaymentsLoad = 0;
         const PAYMENTS_CACHE_TTL = 3000; // Cache for 3 seconds to prevent excessive calls
 
+        let claimsCurrentPage = 1;
+
         async function loadIncomingPayments(forceRefresh = false) {
             // Prevent concurrent loads and respect cache TTL
             const now = Date.now();
@@ -10743,7 +10753,7 @@
             
             isLoadingPayments = true;
             try {
-                const res = await adminFetch('/api/wallet/deposits');
+                const res = await adminFetch('/api/wallet/deposits?limit=5000');
                 if (!res.ok) throw new Error('Failed to fetch incoming payments');
                 const data = await res.json();
                 lastPaymentsLoad = Date.now();
@@ -10790,39 +10800,37 @@
         function saveIncomingPayments() {}
         
         function updatePaymentStats() {
-            // loadIncomingPayments(); // Already loaded before calling this
-            
             let totalReceived = 0, totalClaimed = 0, totalUnclaimed = 0, pendingAmount = 0;
             let totalRecords = incomingPayments.length;
-            let claimedCount = 0, unclaimedCount = 0, pendingCount = 0;
-            
+            let claimedCount = 0, unclaimedCount = 0;
+
             incomingPayments.forEach(p => {
                 totalReceived += p.amount;
                 if (p.status === 'completed') {
                     totalClaimed += p.amount;
                     claimedCount++;
                 } else if (p.status === 'rejected') {
-                    // Don't count rejected in unclaimed
+                    // Rejected — don't count in unclaimed/pending
                 } else {
-                    // pending
-                    pendingAmount += p.amount;
-                    pendingCount++;
+                    // pending — waiting for admin approval
+                    totalUnclaimed += p.amount;
+                    pendingAmount  += p.amount;
+                    unclaimedCount++;
                 }
             });
-            
-            document.getElementById('statTotalReceived').textContent = '₵ ' + totalReceived.toFixed(2);
-            document.getElementById('statTotalClaimed').textContent = '₵ ' + totalClaimed.toFixed(2);
+
+            document.getElementById('statTotalReceived').textContent  = '₵ ' + totalReceived.toFixed(2);
+            document.getElementById('statTotalClaimed').textContent   = '₵ ' + totalClaimed.toFixed(2);
             document.getElementById('statTotalUnclaimed').textContent = '₵ ' + totalUnclaimed.toFixed(2);
-            document.getElementById('statPendingAmount').textContent = '₵ ' + pendingAmount.toFixed(2);
-            document.getElementById('statTotalRecords').textContent = totalRecords;
-            document.getElementById('statClaimedCount').textContent = claimedCount;
-            document.getElementById('statUnclaimedCount').textContent = unclaimedCount + pendingCount;
-            
+            document.getElementById('statPendingAmount').textContent  = '₵ ' + pendingAmount.toFixed(2);
+            document.getElementById('statTotalRecords').textContent   = totalRecords;
+            document.getElementById('statClaimedCount').textContent   = claimedCount;
+            document.getElementById('statUnclaimedCount').textContent = unclaimedCount;
+
             // Update badge
             const badge = document.getElementById('claimsBadge');
-            const badgeCount = unclaimedCount + pendingCount;
-            if (badgeCount > 0) {
-                badge.textContent = badgeCount;
+            if (unclaimedCount > 0) {
+                badge.textContent = unclaimedCount;
                 badge.style.display = 'inline';
             } else {
                 badge.style.display = 'none';
@@ -10880,13 +10888,20 @@
 
                 const tbody = document.getElementById('incomingPaymentsBody');
                 const perPage = parseInt(document.getElementById('tablePerPage')?.value || 50);
+                const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+                if (claimsCurrentPage > totalPages) claimsCurrentPage = 1;
 
                 if (filtered.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;"><i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>No claims found</td></tr>';
+                    renderClaimsPagination(0, 0, 1, 1);
                     return;
                 }
-            
-                tbody.innerHTML = filtered.slice(0, perPage).map(payment => {
+
+                const pageStart = (claimsCurrentPage - 1) * perPage;
+                const pageEnd   = pageStart + perPage;
+                renderClaimsPagination(filtered.length, perPage, claimsCurrentPage, totalPages);
+
+                tbody.innerHTML = filtered.slice(pageStart, pageEnd).map(payment => {
                     const methodBadge = payment.paymentMethod === 'paystack' 
                         ? '<span style="background:#dbeafe;color:#1d4ed8;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;"><i class="fas fa-credit-card"></i> Paystack</span>'
                         : '<span style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;"><i class="fas fa-mobile-alt"></i> MoMo</span>';
@@ -10925,6 +10940,29 @@
             });
         }
         
+        function renderClaimsPagination(total, perPage, page, pages) {
+            const info = document.getElementById('claimsPaginationInfo');
+            const prev = document.getElementById('claimsPrevPage');
+            const next = document.getElementById('claimsNextPage');
+            const ind  = document.getElementById('claimsPageIndicator');
+            if (!info) return;
+            if (total === 0) {
+                info.textContent = 'No claims';
+            } else {
+                const start = (page - 1) * perPage + 1;
+                const end   = Math.min(page * perPage, total);
+                info.textContent = `Showing ${start}–${end} of ${total}`;
+            }
+            if (ind)  ind.textContent  = `${page} / ${pages}`;
+            if (prev) prev.disabled = page <= 1;
+            if (next) next.disabled = page >= pages;
+        }
+
+        function changeClaimsPage(delta) {
+            claimsCurrentPage += delta;
+            renderIncomingPayments();
+        }
+
         function formatPaymentDate(dateStr) {
             if (!dateStr) return 'N/A';
             try {
@@ -11092,8 +11130,9 @@
         }
         
         ['searchTxnId', 'searchPhone', 'filterClaimStatus', 'filterClaimNetwork', 'filterClaimDate', 'filterPaymentMethod'].forEach(id => {
-            document.getElementById(id)?.addEventListener('change', renderIncomingPayments);
-            document.getElementById(id)?.addEventListener('input', renderIncomingPayments);
+            const resetAndRender = () => { claimsCurrentPage = 1; renderIncomingPayments(); };
+            document.getElementById(id)?.addEventListener('change', resetAndRender);
+            document.getElementById(id)?.addEventListener('input',  resetAndRender);
         });
         
         // ========== ALL TRANSACTIONS TAB ==========
@@ -16045,7 +16084,7 @@
             historyCurrentPage = 1; // Reset to first page
             renderHistoryTable();
         });
-        document.getElementById('tablePerPage')?.addEventListener('change', renderIncomingPayments);
+        document.getElementById('tablePerPage')?.addEventListener('change', () => { claimsCurrentPage = 1; renderIncomingPayments(); });
         document.getElementById('ordersPerPage')?.addEventListener('change', function() {
             ordersCurrentPage = 1; // Reset to first page
             // Re-render orders table with new per page value

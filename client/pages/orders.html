@@ -370,6 +370,63 @@
         .status-processing { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
         .status-pending { background: rgba(59, 130, 246, 0.1); color: var(--info); }
         .status-failed { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .status-cancelled { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .status-duplicate_hold { background: rgba(245, 158, 11, 0.15); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.4); }
+
+        /* Duplicate hold alert banner */
+        .hold-alert-banner {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 2px solid #f59e0b;
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            margin: var(--space-3) 0 0 0;
+        }
+        .hold-alert-banner .hold-alert-icon {
+            font-size: 1.4rem;
+            color: #d97706;
+            flex-shrink: 0;
+        }
+        .hold-alert-banner .hold-alert-body { flex: 1; }
+        .hold-alert-banner .hold-alert-title {
+            font-weight: 700;
+            color: #92400e;
+            font-size: var(--text-base);
+            margin-bottom: 4px;
+        }
+        .hold-alert-banner .hold-alert-msg {
+            font-size: var(--text-sm);
+            color: #78350f;
+            margin-bottom: var(--space-3);
+        }
+        .hold-alert-actions {
+            display: flex;
+            gap: var(--space-2);
+            flex-wrap: wrap;
+        }
+        .hold-btn {
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hold-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .hold-btn-proceed {
+            background: #10b981;
+            color: white;
+        }
+        .hold-btn-proceed:hover:not(:disabled) { background: #059669; }
+        .hold-btn-cancel {
+            background: white;
+            color: #dc2626;
+            border: 2px solid #dc2626;
+        }
+        .hold-btn-cancel:hover:not(:disabled) { background: #fee2e2; }
         
         /* No orders */
         .no-orders {
@@ -848,6 +905,26 @@
                 const statusClass = 'status-' + (group.status || 'pending').toLowerCase();
                 const groupId = group.orderId.replace(/[^a-zA-Z0-9]/g, '');
                 
+                const isOnHold = group.status === 'DUPLICATE_HOLD';
+                const holdBanner = isOnHold ? `
+                <div class="hold-alert-banner">
+                    <div style="display:flex;gap:var(--space-3);align-items:flex-start;">
+                        <i class="fas fa-exclamation-triangle hold-alert-icon"></i>
+                        <div class="hold-alert-body">
+                            <div class="hold-alert-title">⚠️ Order On Hold — Possible Duplicate</div>
+                            <div class="hold-alert-msg">This order looks similar to a recent one. Please confirm whether you'd like to proceed or cancel for a full refund.</div>
+                            <div class="hold-alert-actions">
+                                <button class="hold-btn hold-btn-proceed" onclick="agentProceedDuplicateOrder('${group.orderId}', this)">
+                                    <i class="fas fa-check"></i> Proceed Anyway
+                                </button>
+                                <button class="hold-btn hold-btn-cancel" onclick="agentCancelDuplicateOrder('${group.orderId}', this)">
+                                    <i class="fas fa-times"></i> Cancel &amp; Refund Me
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>` : '';
+
                 return `
                 <div class="order-group" id="group-${groupId}">
                     <div class="order-group-header" onclick="showOrderDetails('${group.orderId}')">
@@ -857,10 +934,12 @@
                         </div>
                         <div class="order-group-right">
                             <span class="order-group-total">GHS ${(group.totalAmount || 0).toFixed(2)}</span>
-                            <span class="status-badge ${statusClass}">${group.status}</span>
+                            <span class="status-badge ${statusClass}">${group.status === 'DUPLICATE_HOLD' ? '⏸ ON HOLD' : group.status}</span>
                         </div>
                     </div>
                     
+                    ${holdBanner}
+
                     <div class="order-group-summary" onclick="toggleOrderItems('${groupId}')">
                         <div class="summary-left">
                             <span class="item-count-badge">${group.itemCount} item${group.itemCount > 1 ? 's' : ''}</span>
@@ -1032,6 +1111,42 @@
 
         function closeModal() {
             document.getElementById('detailsModal').classList.remove('show');
+        }
+
+        // ── Duplicate hold self-service ───────────────────────────────────
+        async function agentProceedDuplicateOrder(orderId, btn) {
+            if (!confirm('Are you sure you want to proceed with this order? It will be sent immediately.')) return;
+            await _holdAction(orderId, 'release', btn, 'Processing order…', 'Order released! Processing now.');
+        }
+
+        async function agentCancelDuplicateOrder(orderId, btn) {
+            if (!confirm('Are you sure you want to cancel this order? Your wallet will be refunded.')) return;
+            await _holdAction(orderId, 'reject', btn, 'Cancelling…', 'Order cancelled. Refund credited to your wallet.');
+        }
+
+        async function _holdAction(orderId, action, btn, loadingMsg, successMsg) {
+            const banner = btn.closest('.hold-alert-banner');
+            const btns = banner ? banner.querySelectorAll('.hold-btn') : [];
+            btns.forEach(b => { b.disabled = true; });
+            if (btn) { btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingMsg}`; }
+            try {
+                const res = await fetch(`/api/order-groups/${encodeURIComponent(orderId)}/${action}`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                // Show inline success then reload
+                if (banner) {
+                    banner.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:#065f46;font-weight:600;"><i class="fas fa-check-circle" style="color:#10b981;font-size:1.2rem;"></i>${successMsg}</div>`;
+                }
+                setTimeout(() => loadOrders(), 2500);
+            } catch (err) {
+                btns.forEach(b => { b.disabled = false; });
+                if (btn) { btn.innerHTML = action === 'release' ? '<i class="fas fa-check"></i> Proceed Anyway' : '<i class="fas fa-times"></i> Cancel & Refund Me'; }
+                alert('Error: ' + err.message);
+            }
         }
 
         // Pagination

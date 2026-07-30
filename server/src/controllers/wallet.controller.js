@@ -527,7 +527,8 @@ const walletController = {
       const searchWhere = search ? {
         OR: [
           { description: { contains: search, mode: 'insensitive' } },
-          { reference:   { contains: search, mode: 'insensitive' } }
+          { reference:   { contains: search, mode: 'insensitive' } },
+          { wallet: { user: { name: { contains: search, mode: 'insensitive' } } } }
         ]
       } : {};
 
