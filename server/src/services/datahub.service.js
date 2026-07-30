@@ -848,7 +848,44 @@ const datahubService = {
           // Backup accepted the order — don't mark CANCELLED, don't refund
           return { success: true, previousStatus: order.status, newStatus: 'PROCESSING', rerouted: true };
         }
-        // Backup also rejected (or failover not configured) — fall through to normal CANCELLED handling
+        if (rerouteResult.awaitingBackupFunds) {
+          // Backup has no funds right now — revert CANCELLED, queue on backup, skip refund
+          const backupName = rerouteResult.backupProvider;
+          await prisma.order.update({
+            where: { id: orderId },
+            data: {
+              status:            'PENDING',
+              providerName:      backupName,
+              externalReference: null,
+              apiSentAt:         null,
+              failureReason:     `Primary cancelled. Awaiting ${backupName} funds — will retry when topped up.`
+            }
+          });
+          // Sync StorefrontOrder back to PENDING so the customer view stays consistent
+          if (order.storefrontOrderId) {
+            await prisma.storefrontOrder.update({
+              where: { id: order.storefrontOrderId },
+              data: { status: 'PENDING' }
+            }).catch(() => {});
+          }
+          // Sync linked OrderItem back to PENDING
+          if (order.reference) {
+            const relatedItem = await prisma.orderItem.findFirst({
+              where: { reference: { startsWith: order.reference } }
+            });
+            if (relatedItem) {
+              await prisma.orderItem.update({
+                where: { id: relatedItem.id },
+                data: { status: 'PENDING', externalReference: null, apiSentAt: null }
+              }).catch(() => {});
+              const orderGroupService = require('./order-group.service');
+              await orderGroupService.recalculateGroupStatus(relatedItem.orderGroupId).catch(() => {});
+            }
+          }
+          console.log(`[Failover] Order ${orderId} queued on backup (${backupName}) — awaiting funds.`);
+          return { success: true, previousStatus: order.status, newStatus: 'PENDING', awaitingBackupFunds: true };
+        }
+        // Backup also rejected for a non-balance reason (or failover not configured) — fall through to CANCELLED + refund
       }
 
       // If order failed/cancelled and has storefront order, cancel pending profit
@@ -993,10 +1030,20 @@ const datahubService = {
     ];
     const mtnFailoverEnabled = isTruthy(siteSettings.mtnFailoverEnabled);
     const mtnPrimaryName     = (siteSettings.mtnPrimaryProvider || 'MCBIS').toUpperCase();
-    const getProviderForNetwork = (network) => {
+    const getProviderForNetwork = (network, orderProviderName) => {
       const normalised = (network || '').toLowerCase();
-      // MTN failover: use designated primary for MTN orders
       if (mtnFailoverEnabled && normalised === 'mtn') {
+        const backupName = (siteSettings.mtnBackupProvider || 'IDG').toUpperCase();
+        // If this order was already queued on the backup (awaiting backup funds), route to backup
+        if ((orderProviderName || '').toUpperCase() === backupName) {
+          const backupKey = backupName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
+          const candidate = PROVIDERS.find(p => p.key === backupKey);
+          if (candidate && isTruthy(siteSettings[candidate.key])) {
+            console.log(`[Retry] Order providerName=${backupName} — routing to backup provider`);
+            return candidate;
+          }
+        }
+        // Otherwise use designated primary
         const primaryKey = mtnPrimaryName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
         const candidate  = PROVIDERS.find(p => p.key === primaryKey);
         if (candidate && isTruthy(siteSettings[candidate.key])) return candidate;
@@ -1045,7 +1092,7 @@ const datahubService = {
       }
 
       const network = order.bundle?.network || 'MTN';
-      const provider = getProviderForNetwork(network);
+      const provider = getProviderForNetwork(network, freshOrder.providerName);
       if (!provider) {
         console.log(`[Retry] No provider enabled for ${network}, skipping order ${order.id}`);
         continue;
@@ -1198,6 +1245,18 @@ async function tryMtnFailover(order, currentIsIDG) {
       });
       console.log(`[Failover] ✅ Order ${order.id} rerouted ${primaryProvider} → ${backupProvider}: ${backupResult.reference}`);
       return { rerouted: true };
+    }
+
+    // If backup rejected due to insufficient funds, queue on backup and wait — don't refund
+    const backupErrLower = (backupResult.error || '').toLowerCase();
+    const backupHasNoFunds =
+      backupErrLower.includes('insufficient') || backupErrLower.includes('low balance') ||
+      backupErrLower.includes('not enough')   || backupErrLower.includes('funds') ||
+      (backupErrLower.includes('wallet') && backupErrLower.includes('low'));
+
+    if (backupHasNoFunds) {
+      console.log(`[Failover] Backup (${backupProvider}) has insufficient funds for order ${order.id} — queuing for retry when topped up.`);
+      return { rerouted: false, awaitingBackupFunds: true, backupProvider };
     }
 
     console.log(`[Failover] ❌ Backup (${backupProvider}) also rejected order ${order.id}: ${backupResult.error}. Proceeding with refund.`);
