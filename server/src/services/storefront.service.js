@@ -1362,18 +1362,25 @@ const storefrontService = {
             const primaryName = (siteSettings.mtnPrimaryProvider || 'MCBIS').toUpperCase();
             const backupName  = (siteSettings.mtnBackupProvider  || 'IDG').toUpperCase();
             const errL        = (apiResult.error || '').toLowerCase();
-            const isPrimaryBalanceErr =
+            const isBalanceErr   =
+              errL.includes('insufficient') || errL.includes('low balance') ||
+              errL.includes('not enough')   || errL.includes('funds') ||
+              (errL.includes('wallet') && errL.includes('low'));
+            // IDG rejects numbers not in its verified registry — backup (MCBIS) has no such restriction
+            const isIdgUnverified =
+              activeProvider.name === 'IDG' &&
+              /no verified numbers|not verified|unverified/i.test(apiResult.error || '');
+            const isPrimaryFailoverTrigger =
               activeProvider.name.toUpperCase() === primaryName &&
               primaryName !== backupName &&
-              (errL.includes('insufficient') || errL.includes('low balance') ||
-               errL.includes('not enough')   || errL.includes('funds') ||
-               (errL.includes('wallet') && errL.includes('low')));
+              (isBalanceErr || isIdgUnverified);
 
-            if (isPrimaryBalanceErr) {
+            if (isPrimaryFailoverTrigger) {
+              const reason = isIdgUnverified ? 'unverified number' : 'no funds';
               const backupKey = backupName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
               const backupCandidate = PROVIDERS.find(p => p.key === backupKey);
               if (backupCandidate && isTruthy(siteSettings[backupCandidate.key])) {
-                console.log(`[Storefront] Primary (${primaryName}) has no funds — trying backup (${backupName}) for order ${result.orderId}`);
+                console.log(`[Storefront] Primary (${primaryName}) rejected (${reason}) — trying backup (${backupName}) for order ${result.orderId}`);
                 const backupResult = await backupCandidate.getService().placeOrder({
                   network: orderNetwork,
                   phone: result.recipientPhone || customerPhone,
@@ -1381,7 +1388,7 @@ const storefrontService = {
                   orderId: result.orderId
                 });
                 console.log(`[Storefront] Backup (${backupName}): ${backupResult.success ? `SUCCESS ref=${backupResult.reference}` : backupResult.error}`);
-                apiResult    = backupResult;
+                apiResult      = backupResult;
                 activeProvider = backupCandidate;
               }
             }

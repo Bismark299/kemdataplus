@@ -1134,18 +1134,25 @@ const datahubService = {
           const primaryName = mtnPrimaryName;
           const backupName  = (siteSettings.mtnBackupProvider || 'IDG').toUpperCase();
           const eL          = (result.error || '').toLowerCase();
-          const isPrimaryBalanceErr =
+          const isBalanceErr2   =
+            eL.includes('insufficient') || eL.includes('low balance') ||
+            eL.includes('not enough')   || eL.includes('funds') ||
+            (eL.includes('wallet') && eL.includes('low'));
+          // IDG rejects numbers not in its verified registry — backup (MCBIS) has no such restriction
+          const isIdgUnverified2 =
+            activeProvider.name === 'IDG' &&
+            /no verified numbers|not verified|unverified/i.test(result.error || '');
+          const isPrimaryFailoverTrigger =
             activeProvider.name.toUpperCase() === primaryName &&
             primaryName !== backupName &&
-            (eL.includes('insufficient') || eL.includes('low balance') ||
-             eL.includes('not enough')   || eL.includes('funds') ||
-             (eL.includes('wallet') && eL.includes('low')));
+            (isBalanceErr2 || isIdgUnverified2);
 
-          if (isPrimaryBalanceErr) {
+          if (isPrimaryFailoverTrigger) {
+            const reason2 = isIdgUnverified2 ? 'unverified number' : 'no funds';
             const backupKey = backupName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
             const backupCandidate = PROVIDERS.find(p => p.key === backupKey);
             if (backupCandidate && isTruthy(siteSettings[backupCandidate.key])) {
-              console.log(`[Retry] Primary (${primaryName}) has no funds — trying backup (${backupName}) for order ${order.id}`);
+              console.log(`[Retry] Primary (${primaryName}) rejected (${reason2}) — trying backup (${backupName}) for order ${order.id}`);
               const backupResult = await backupCandidate.service.placeOrder({
                 network: network,
                 phone: order.recipientPhone,
