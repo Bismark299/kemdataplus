@@ -1,1 +1,2 @@
 - [Order status sync](order-status-sync.md) — fulfillment status changes must propagate to legacy Order + StorefrontOrder + profit credit, or storefront/dashboard views drift apart.
+- [MTN Failover design](mtn-failover.md) — primary/backup API failover for MTN orders (MCBIS ↔ IDG); key constraints and race-condition guard.

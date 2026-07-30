@@ -539,39 +539,46 @@ function startAutoSync() {
       const siteSettings = settingsController.getSiteSettings();
       
       // Check which auto-sync toggles are enabled
-      const mcbisAutoSyncEnabled = siteSettings.mcbisAutoSync;
-      const ckgodswayAutoSyncEnabled = siteSettings.ckgodswayAutoSync;
-      
+      const mcbisAutoSyncEnabled      = siteSettings.mcbisAutoSync;
+      const ckgodswayAutoSyncEnabled  = siteSettings.ckgodswayAutoSync;
+      const idgAutoSyncEnabled        = siteSettings.instantdataghAutoSync;
+
       // Check which APIs are active
-      const mcbisActive = siteSettings.mcbisAPI;
-      const ckgodswayActive = siteSettings.ckgodswayAPI;
+      const mcbisActive         = siteSettings.mcbisAPI;
+      const ckgodswayActive     = siteSettings.ckgodswayAPI;
       const datagatekeeperActive = siteSettings.datagatekeeperAPI;
-      
+      const idgActive           = siteSettings.instantdataghAPI;
+      const mtnFailoverEnabled  = siteSettings.mtnFailoverEnabled;
+
       // Skip entirely if no API is enabled at all
-      if (!mcbisActive && !ckgodswayActive && !datagatekeeperActive) {
+      if (!mcbisActive && !ckgodswayActive && !datagatekeeperActive && !idgActive) {
         return; // No API enabled
       }
-      
+
       // If only DGK is active (MCBIS/CKGodsway auto-syncs off), still allow
       // retryStuckPendingOrders to run — skip only the status-sync steps below.
-      const anyAutoSyncEnabled = mcbisAutoSyncEnabled || ckgodswayAutoSyncEnabled;
-      
-      const mcbisShouldSync = mcbisAutoSyncEnabled && mcbisActive;
+      const anyAutoSyncEnabled = mcbisAutoSyncEnabled || ckgodswayAutoSyncEnabled || idgAutoSyncEnabled;
+
+      const mcbisShouldSync     = mcbisAutoSyncEnabled && mcbisActive;
       const ckgodswayShouldSync = ckgodswayAutoSyncEnabled && ckgodswayActive;
+      // IDG orders in the legacy Order table (created via failover) are synced
+      // by syncAllPendingOrders which now routes IDG references to IDG's API.
+      // Run the legacy sync if MCBIS is syncing OR if failover is on with IDG auto-sync.
+      const legacyHasIDGOrders = mtnFailoverEnabled && idgActive && idgAutoSyncEnabled;
       
-      console.log(`[AutoSync] Running... (MCBIS AutoSync: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway AutoSync: ${ckgodswayShouldSync ? 'ON' : 'OFF'}, DGK: ${datagatekeeperActive ? 'ON' : 'OFF'})`);
+      console.log(`[AutoSync] Running... (MCBIS: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayShouldSync ? 'ON' : 'OFF'}, IDG/Failover: ${legacyHasIDGOrders ? 'ON' : 'OFF'}, DGK: ${datagatekeeperActive ? 'ON' : 'OFF'})`);
       
       let totalSynced = 0;
       let totalCompleted = 0;
       let totalFailed = 0;
       let totalRetried = 0;
       
-      // 1. Sync LEGACY Order table (if MCBIS auto-sync is enabled)
-      if (mcbisShouldSync) {
+      // 1. Sync LEGACY Order table (MCBIS and/or IDG failover orders)
+      if (mcbisShouldSync || legacyHasIDGOrders) {
         try {
           const legacyResult = await datahubService.syncAllPendingOrders();
           if (legacyResult.synced > 0) {
-            console.log(`[AutoSync] Legacy Orders (MCBIS): synced ${legacyResult.synced}`);
+            console.log(`[AutoSync] Legacy Orders (MCBIS/IDG): synced ${legacyResult.synced}`);
             totalSynced += legacyResult.synced;
           }
         } catch (err) {

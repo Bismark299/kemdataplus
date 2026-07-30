@@ -468,10 +468,11 @@ model Order {
   // ============================================
   
   // External API tracking
-  externalReference String?   @unique // Reference from external provider (MCBIS)
+  externalReference String?   @unique // Reference from external provider (MCBIS/IDG)
   externalStatus    String?   // Status from external provider
   apiSentAt         DateTime? // When order was sent to external API
   apiConfirmedAt    DateTime? // When external API confirmed completion
+  providerName      String?   // 'MCBIS' | 'IDG' | 'CKGODSWAY' — which provider currently holds this order
   
   // Retry control
   retryCount        Int       @default(0)

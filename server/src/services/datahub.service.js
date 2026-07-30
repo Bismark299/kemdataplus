@@ -706,16 +706,21 @@ const datahubService = {
    */
   async syncOrderStatus(orderId) {
     const order = await prisma.order.findUnique({
-      where: { id: orderId }
+      where: { id: orderId },
+      include: { bundle: { select: { network: true, dataAmount: true } } }
     });
 
-    // Use externalReference (the MCBIS reference) not reference (our internal ORD-xxx)
+    // Use externalReference (the provider reference) not reference (our internal ORD-xxx)
     if (!order || !order.externalReference) {
       return { success: false, error: 'Order or API reference not found' };
     }
 
-    console.log(`[DataHub] Checking status for API reference: ${order.externalReference}`);
-    const statusResult = await this.checkOrderStatus(order.externalReference);
+    // Route status check to the correct provider service
+    const isIDGOrder = order.providerName === 'IDG' || (order.externalReference || '').startsWith('IDG-');
+    console.log(`[DataHub] Checking status for API reference: ${order.externalReference} (provider: ${order.providerName || 'MCBIS'})`);
+    const statusResult = isIDGOrder
+      ? await require('./instantdatagh.service').checkOrderStatus(order.externalReference)
+      : await this.checkOrderStatus(order.externalReference);
     console.log(`[DataHub] API returned status: ${statusResult.status}`);
 
     if (statusResult.success) {
@@ -836,6 +841,16 @@ const datahubService = {
         }
       }
       
+      // MTN FAILOVER: intercept CANCELLED from primary — try backup before refunding
+      if (newStatus === 'CANCELLED' && newStatus !== order.status) {
+        const rerouteResult = await tryMtnFailover(order, isIDGOrder);
+        if (rerouteResult.rerouted) {
+          // Backup accepted the order — don't mark CANCELLED, don't refund
+          return { success: true, previousStatus: order.status, newStatus: 'PROCESSING', rerouted: true };
+        }
+        // Backup also rejected (or failover not configured) — fall through to normal CANCELLED handling
+      }
+
       // If order failed/cancelled and has storefront order, cancel pending profit
       if ((newStatus === 'FAILED' || newStatus === 'CANCELLED') && order.storefrontOrderId) {
         try {
@@ -906,10 +921,11 @@ const datahubService = {
     
     const results = [];
     for (const order of pendingOrders) {
-      // Abort cycle early if MCBIS has rate-limited us
-      if (isMcbisRateLimited()) {
-        console.warn(`[DataHub] MCBIS rate-limited — stopping legacy sync cycle after ${results.length} order(s)`);
-        break;
+      // Skip MCBIS orders if rate-limited; IDG orders can proceed unaffected
+      const isIDGOrder = order.providerName === 'IDG' || (order.externalReference || '').startsWith('IDG-');
+      if (!isIDGOrder && isMcbisRateLimited()) {
+        console.warn(`[DataHub] MCBIS rate-limited — skipping MCBIS order ${order.id}`);
+        continue;
       }
       try {
         const result = await this.syncOrderStatus(order.id);
@@ -969,11 +985,23 @@ const datahubService = {
       if (n === 'at-bigtime' || n === 'atbigtime' || n === 'at-big time' || n.includes('big time') || n.includes('bigtime')) return `${prefix}_bigtimeAPI`;
       return null;
     };
+    const instantdataghService = require('./instantdatagh.service');
     const PROVIDERS = [
-      { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', service: ckgodswayService },
-      { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', service: this }
+      { key: 'ckgodswayAPI',     name: 'CKGODSWAY', prefix: 'ckgodsway',     service: ckgodswayService },
+      { key: 'mcbisAPI',         name: 'MCBIS',     prefix: 'mcbis',         service: this },
+      { key: 'instantdataghAPI', name: 'IDG',       prefix: 'instantdatagh', service: instantdataghService }
     ];
+    const mtnFailoverEnabled = isTruthy(siteSettings.mtnFailoverEnabled);
+    const mtnPrimaryName     = (siteSettings.mtnPrimaryProvider || 'MCBIS').toUpperCase();
     const getProviderForNetwork = (network) => {
+      const normalised = (network || '').toLowerCase();
+      // MTN failover: use designated primary for MTN orders
+      if (mtnFailoverEnabled && normalised === 'mtn') {
+        const primaryKey = mtnPrimaryName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
+        const candidate  = PROVIDERS.find(p => p.key === primaryKey);
+        if (candidate && isTruthy(siteSettings[candidate.key])) return candidate;
+      }
+      // Normal routing
       for (const p of PROVIDERS) {
         if (!isTruthy(siteSettings[p.key])) continue;
         const toggleKey = getNetworkToggleKey(p.prefix, network);
@@ -1087,5 +1115,89 @@ const datahubService = {
     return { retried: results.length, results };
   }
 };
+
+/**
+ * MTN Failover: when the primary provider cancels an MTN order, route to backup
+ * before issuing a refund. Only fires when mtnFailoverEnabled is set in siteSettings.
+ *
+ * @param {Object} order          - Order row (with bundle included)
+ * @param {boolean} currentIsIDG  - true if order is currently on IDG
+ * @returns {{ rerouted: boolean }}
+ */
+async function tryMtnFailover(order, currentIsIDG) {
+  try {
+    const settingsController = require('../controllers/settings.controller');
+    const siteSettings       = settingsController.getSiteSettings();
+
+    if (!siteSettings.mtnFailoverEnabled) return { rerouted: false };
+
+    const network = (order.bundle?.network || '').toLowerCase();
+    if (network !== 'mtn') return { rerouted: false };
+
+    const primaryProvider = (siteSettings.mtnPrimaryProvider || 'MCBIS').toUpperCase();
+    const backupProvider  = (siteSettings.mtnBackupProvider  || 'IDG').toUpperCase();
+
+    if (primaryProvider === backupProvider) return { rerouted: false }; // misconfiguration guard
+
+    // Only reroute if currently on primary — backup already tried means proceed with refund
+    const currentProvider = (order.providerName || primaryProvider).toUpperCase();
+    if (currentProvider !== primaryProvider) {
+      console.log(`[Failover] Order ${order.id} already on backup (${currentProvider}) — proceeding with refund`);
+      return { rerouted: false };
+    }
+
+    // Fresh confirmation to prevent race condition (status might have changed since we last polled)
+    const CANCELLED_STATES = ['cancelled', 'canceled', 'cancel', 'refunded', 'failed', 'fail', 'error'];
+    const freshService  = currentIsIDG ? require('./instantdatagh.service') : datahubService;
+    const freshCheck    = await freshService.checkOrderStatus(order.externalReference);
+    const freshStatus   = (freshCheck.status || '').toLowerCase();
+    if (!CANCELLED_STATES.includes(freshStatus)) {
+      console.log(`[Failover] Race condition prevented for order ${order.id} — provider now reports '${freshStatus}', not cancelled`);
+      return { rerouted: false, raceConditionPrevented: true };
+    }
+
+    // Resolve data amount from bundle
+    let dataAmount = 1;
+    if (order.bundle?.dataAmount) {
+      const match = order.bundle.dataAmount.match(/(\d+)/);
+      if (match) dataAmount = parseInt(match[1]);
+    }
+
+    // Send to backup provider
+    const backupService = backupProvider === 'IDG'
+      ? require('./instantdatagh.service')
+      : datahubService;
+
+    console.log(`[Failover] Primary (${primaryProvider}) cancelled order ${order.id}. Routing to backup (${backupProvider})...`);
+    const backupResult = await backupService.placeOrder({
+      network: 'MTN',
+      phone:   order.recipientPhone,
+      amount:  dataAmount,
+      orderId: order.id
+    });
+
+    if (backupResult.success) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          providerName:      backupProvider,
+          externalReference: backupResult.reference,
+          status:            'PROCESSING',
+          failureReason:     `Primary (${primaryProvider}) cancelled. Rerouted to ${backupProvider}.`,
+          apiSentAt:         new Date()
+        }
+      });
+      console.log(`[Failover] ✅ Order ${order.id} rerouted ${primaryProvider} → ${backupProvider}: ${backupResult.reference}`);
+      return { rerouted: true };
+    }
+
+    console.log(`[Failover] ❌ Backup (${backupProvider}) also rejected order ${order.id}: ${backupResult.error}. Proceeding with refund.`);
+    return { rerouted: false };
+
+  } catch (err) {
+    console.error(`[Failover] Error during failover for order ${order.id}:`, err.message);
+    return { rerouted: false };
+  }
+}
 
 module.exports = datahubService;

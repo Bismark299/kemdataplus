@@ -183,13 +183,16 @@ const settingsController = {
         (!oldSettings.datagatekeeperAPI && siteSettings.datagatekeeperAPI) ||
         (!oldSettings.mcbisAPI         && siteSettings.mcbisAPI);
 
+      // Detect MTN failover being enabled
+      const mtnFailoverToggledOn = !oldSettings.mtnFailoverEnabled && siteSettings.mtnFailoverEnabled;
+
       const settings = { adminSettings, siteSettings };
       writeSettings(settings);
       console.log('[Settings] Updated:', { mcbisAPI: siteSettings.mcbisAPI, instantdataghAPI: siteSettings.instantdataghAPI });
 
       // If any auto-sync or provider API just turned ON, fire a catch-up sync immediately (non-blocking)
-      if (mcbisToggledOn || ckgodswayToggledOn || instantdataghToggledOn || anyProviderToggledOn) {
-        console.log(`[Settings] Provider/sync enabled — triggering catch-up (MCBIS: ${mcbisToggledOn}, CKG: ${ckgodswayToggledOn}, IDG: ${instantdataghToggledOn}, anyAPI: ${anyProviderToggledOn})`);
+      if (mcbisToggledOn || ckgodswayToggledOn || instantdataghToggledOn || anyProviderToggledOn || mtnFailoverToggledOn) {
+        console.log(`[Settings] Provider/sync enabled — triggering catch-up (MCBIS: ${mcbisToggledOn}, CKG: ${ckgodswayToggledOn}, IDG: ${instantdataghToggledOn}, anyAPI: ${anyProviderToggledOn}, Failover: ${mtnFailoverToggledOn})`);
         setImmediate(async () => {
           try {
             const orderGroupService = require('../services/order-group.service');
@@ -206,7 +209,7 @@ const settingsController = {
               anyProviderToggledOn || instantdataghToggledOn || ckgodswayToggledOn
                 ? orderGroupService.retryStuckPendingOrders()
                 : Promise.resolve(),
-              mcbisToggledOn && siteSettings.mcbisAPI
+              (mcbisToggledOn || mtnFailoverToggledOn) && siteSettings.mcbisAPI
                 ? datahubService.syncAllPendingOrders({ catchUp: true })
                 : Promise.resolve()
             ]);

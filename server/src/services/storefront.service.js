@@ -1292,20 +1292,37 @@ const storefrontService = {
       };
       
       const PROVIDERS = [
-        { key: 'ckgodswayAPI', name: 'CKGODSWAY', prefix: 'ckgodsway', getService: () => require('./ckgodsway.service') },
-        { key: 'mcbisAPI', name: 'MCBIS', prefix: 'mcbis', getService: () => require('./datahub.service') }
+        { key: 'ckgodswayAPI',     name: 'CKGODSWAY', prefix: 'ckgodsway',     getService: () => require('./ckgodsway.service') },
+        { key: 'mcbisAPI',         name: 'MCBIS',     prefix: 'mcbis',         getService: () => require('./datahub.service') },
+        { key: 'instantdataghAPI', name: 'IDG',       prefix: 'instantdatagh', getService: () => require('./instantdatagh.service') }
       ];
-      
+
       let selectedProvider = null;
-      for (const p of PROVIDERS) {
-        if (!isTruthy(siteSettings[p.key])) continue;
-        const toggleKey = getNetworkToggleKey(p.prefix, orderNetwork);
-        if (toggleKey) {
-          const enabled = siteSettings[toggleKey] !== false;
-          if (!enabled) continue;
+
+      // MTN failover: use the designated primary provider instead of normal toggle order
+      const mtnFailoverEnabled = isTruthy(siteSettings.mtnFailoverEnabled);
+      if (mtnFailoverEnabled && orderNetwork?.toLowerCase() === 'mtn') {
+        const primaryName = (siteSettings.mtnPrimaryProvider || 'MCBIS').toUpperCase();
+        const primaryKey  = primaryName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
+        const candidate   = PROVIDERS.find(p => p.key === primaryKey);
+        if (candidate && isTruthy(siteSettings[candidate.key])) {
+          selectedProvider = candidate;
+          console.log(`[Storefront] MTN failover active — using primary provider: ${primaryName}`);
         }
-        selectedProvider = p;
-        break;
+      }
+
+      // Normal toggle-based routing (non-MTN, or failover not enabled/configured)
+      if (!selectedProvider) {
+        for (const p of PROVIDERS) {
+          if (!isTruthy(siteSettings[p.key])) continue;
+          const toggleKey = getNetworkToggleKey(p.prefix, orderNetwork);
+          if (toggleKey) {
+            const enabled = siteSettings[toggleKey] !== false;
+            if (!enabled) continue;
+          }
+          selectedProvider = p;
+          break;
+        }
       }
       
       if (selectedProvider) {
@@ -1339,7 +1356,8 @@ const storefrontService = {
             where: { id: result.orderId },
             data: {
               status: apiResult.success ? 'PROCESSING' : 'PENDING',
-              externalReference: apiResult.reference || null
+              externalReference: apiResult.reference || null,
+              ...(apiResult.success ? { providerName: selectedProvider.name } : {})
             }
           });
 
