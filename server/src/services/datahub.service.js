@@ -841,11 +841,32 @@ const datahubService = {
         }
       }
       
-      // MTN FAILOVER: intercept CANCELLED from primary — try backup before refunding
-      if (newStatus === 'CANCELLED' && newStatus !== order.status) {
+      // MTN FAILOVER: intercept CANCELLED or FAILED from primary — try backup before refunding
+      // Both CANCELLED and FAILED mean the primary did not deliver — backup should be tried.
+      if ((newStatus === 'CANCELLED' || newStatus === 'FAILED') && newStatus !== order.status) {
         const rerouteResult = await tryMtnFailover(order, isIDGOrder);
         if (rerouteResult.rerouted) {
-          // Backup accepted the order — don't mark CANCELLED, don't refund
+          // Backup accepted the order — correct StorefrontOrder/OrderItem back from the
+          // intermediate CANCELLED/FAILED status that was written above (lines 780-828).
+          if (order.storefrontOrderId) {
+            await prisma.storefrontOrder.update({
+              where: { id: order.storefrontOrderId },
+              data: { status: 'PROCESSING' }
+            }).catch(() => {});
+          }
+          if (order.reference) {
+            const relatedItem = await prisma.orderItem.findFirst({
+              where: { reference: { startsWith: order.reference } }
+            });
+            if (relatedItem) {
+              await prisma.orderItem.update({
+                where: { id: relatedItem.id },
+                data: { status: 'PROCESSING', externalReference: null }
+              }).catch(() => {});
+              const orderGroupService = require('./order-group.service');
+              await orderGroupService.recalculateGroupStatus(relatedItem.orderGroupId).catch(() => {});
+            }
+          }
           return { success: true, previousStatus: order.status, newStatus: 'PROCESSING', rerouted: true };
         }
         if (rerouteResult.awaitingBackupFunds) {
