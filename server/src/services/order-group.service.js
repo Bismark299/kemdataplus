@@ -987,7 +987,9 @@ const orderGroupService = {
         if (!isTruthy(siteSettings[p.key])) continue;
         const toggleKey = getNetworkToggleKey(p.prefix, network);
         if (toggleKey) {
-          const enabled = siteSettings[toggleKey] !== false;
+          // Treat missing/undefined toggles as disabled (opt-in per network).
+          // A provider should only handle a network if explicitly enabled for it.
+          const enabled = isTruthy(siteSettings[toggleKey]);
           if (!enabled) {
             console.log(`[OrderGroup] ${p.name}: ${network} disabled (${toggleKey}=${siteSettings[toggleKey]})`);
             continue;
