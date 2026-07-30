@@ -1376,16 +1376,32 @@ const storefrontService = {
               }
             });
           } else if (!apiResult.success) {
-            // CKGodsway has no idempotency — each retry creates a NEW order on their end.
-            // Mark FAILED so retryPendingOrders never re-queues it.
-            // For MCBIS: reset apiSentAt so it stays PENDING and can be retried.
             const isCkGodsway = selectedProvider.name === 'CKGODSWAY';
-            await prisma.order.update({
-              where: { id: result.orderId },
-              data: isCkGodsway
-                ? { status: 'FAILED', failureReason: apiResult.error || 'CKGodsway API failed' }
-                : { apiSentAt: null }
-            });
+            // CKGodsway has no idempotency — each retry creates a NEW order on their end.
+            // EXCEPTION: balance errors are safe to retry because CKGodsway rejected before
+            // processing, so no order was created on their end.
+            const errLower = (apiResult.error || '').toLowerCase();
+            const isCkgBalanceError = isCkGodsway && (
+              errLower.includes('insufficient') || errLower.includes('low balance') ||
+              errLower.includes('not enough')   || errLower.includes('funds') ||
+              (errLower.includes('wallet') && errLower.includes('low'))
+            );
+            if (isCkGodsway && !isCkgBalanceError) {
+              // Non-balance failure — mark FAILED to prevent duplicate orders on retry
+              await prisma.order.update({
+                where: { id: result.orderId },
+                data: { status: 'FAILED', failureReason: apiResult.error || 'CKGodsway API failed' }
+              });
+            } else {
+              // MCBIS failure OR CKGodsway balance error — stay PENDING, reset lock so retry can pick it up
+              await prisma.order.update({
+                where: { id: result.orderId },
+                data: {
+                  apiSentAt: null,
+                  ...(isCkgBalanceError ? { failureReason: `CKGodsway insufficient balance — retrying when topped up` } : {})
+                }
+              });
+            }
           }
 
           if (!apiResult.success) {

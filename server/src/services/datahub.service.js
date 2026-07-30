@@ -1078,19 +1078,28 @@ const datahubService = {
         });
         
         // CKGodsway has no idempotency — each retry creates a NEW order on their end.
-        // On failure: mark FAILED so retryPendingOrders never re-queues it.
-        // For MCBIS: keep existing behavior (reset apiSentAt, stay PENDING for retry).
+        // EXCEPTION: balance errors are safe to retry because CKGodsway rejected before
+        // processing, so no order was created on their end. Stay PENDING in that case.
         const isCkGodsway = provider.name === 'CKGODSWAY';
+        const errLower = (result.error || '').toLowerCase();
+        const isCkgBalanceError = isCkGodsway && (
+          errLower.includes('insufficient') || errLower.includes('low balance') ||
+          errLower.includes('not enough')   || errLower.includes('funds') ||
+          (errLower.includes('wallet') && errLower.includes('low'))
+        );
+        const shouldFail = isCkGodsway && !isCkgBalanceError;
+
         await prisma.order.update({
           where: { id: order.id },
           data: {
-            status: result.success ? 'PROCESSING' : (isCkGodsway ? 'FAILED' : 'PENDING'),
+            status: result.success ? 'PROCESSING' : (shouldFail ? 'FAILED' : 'PENDING'),
             externalReference: result.reference || null,
             ...(result.success ? {} : { failureReason: result.error || 'API failed' })
           }
         });
         
-        if (!result.success && !isCkGodsway) {
+        if (!result.success && !shouldFail) {
+          // Reset lock so retryPendingOrders can pick it up again
           await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } });
         }
         
