@@ -1345,19 +1345,55 @@ const storefrontService = {
         if (claimResult.count === 0) {
           console.log(`[Storefront] Order ${result.orderId} already claimed`);
         } else {
-          const apiResult = await service.placeOrder({
+          let apiResult = await service.placeOrder({
             network: orderNetwork,
             phone: result.recipientPhone || customerPhone,
             amount: dataAmount,
             orderId: result.orderId
           });
-          
+
+          // ===== MTN PLACEMENT-TIME FAILOVER =====
+          // If primary fails with a balance error (no network timeout = primary definitively
+          // rejected the request without processing it), immediately try the backup.
+          // Safety: externalReference is only written on success, so there is zero risk of
+          // both providers holding an active copy of the same order at the same time.
+          let activeProvider = selectedProvider;
+          if (!apiResult.success && !apiResult.networkError && mtnFailoverEnabled && orderNetwork?.toLowerCase() === 'mtn') {
+            const primaryName = (siteSettings.mtnPrimaryProvider || 'MCBIS').toUpperCase();
+            const backupName  = (siteSettings.mtnBackupProvider  || 'IDG').toUpperCase();
+            const errL        = (apiResult.error || '').toLowerCase();
+            const isPrimaryBalanceErr =
+              activeProvider.name.toUpperCase() === primaryName &&
+              primaryName !== backupName &&
+              (errL.includes('insufficient') || errL.includes('low balance') ||
+               errL.includes('not enough')   || errL.includes('funds') ||
+               (errL.includes('wallet') && errL.includes('low')));
+
+            if (isPrimaryBalanceErr) {
+              const backupKey = backupName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
+              const backupCandidate = PROVIDERS.find(p => p.key === backupKey);
+              if (backupCandidate && isTruthy(siteSettings[backupCandidate.key])) {
+                console.log(`[Storefront] Primary (${primaryName}) has no funds — trying backup (${backupName}) for order ${result.orderId}`);
+                const backupResult = await backupCandidate.getService().placeOrder({
+                  network: orderNetwork,
+                  phone: result.recipientPhone || customerPhone,
+                  amount: dataAmount,
+                  orderId: result.orderId
+                });
+                console.log(`[Storefront] Backup (${backupName}): ${backupResult.success ? `SUCCESS ref=${backupResult.reference}` : backupResult.error}`);
+                apiResult    = backupResult;
+                activeProvider = backupCandidate;
+              }
+            }
+          }
+          // ===== END MTN PLACEMENT-TIME FAILOVER =====
+
           await prisma.order.update({
             where: { id: result.orderId },
             data: {
               status: apiResult.success ? 'PROCESSING' : 'PENDING',
               externalReference: apiResult.reference || null,
-              ...(apiResult.success ? { providerName: selectedProvider.name } : {})
+              ...(apiResult.success ? { providerName: activeProvider.name } : {})
             }
           });
 
@@ -1376,7 +1412,7 @@ const storefrontService = {
               }
             });
           } else if (!apiResult.success) {
-            const isCkGodsway = selectedProvider.name === 'CKGODSWAY';
+            const isCkGodsway = activeProvider.name === 'CKGODSWAY';
             // CKGodsway has no idempotency — each retry creates a NEW order on their end.
             // EXCEPTION: balance errors are safe to retry because CKGodsway rejected before
             // processing, so no order was created on their end.
@@ -1393,7 +1429,7 @@ const storefrontService = {
                 data: { status: 'FAILED', failureReason: apiResult.error || 'CKGodsway API failed' }
               });
             } else {
-              // MCBIS failure OR CKGodsway balance error — stay PENDING, reset lock so retry can pick it up
+              // MCBIS/IDG failure OR CKGodsway balance error — stay PENDING, reset lock so retry can pick it up
               await prisma.order.update({
                 where: { id: result.orderId },
                 data: {
@@ -1407,7 +1443,7 @@ const storefrontService = {
           if (!apiResult.success) {
             console.log(`[Storefront] ⚠️ API processing failed: ${apiResult.error}`);
           } else {
-            console.log(`[Storefront] ✅ ${selectedProvider.name} accepted order: ${apiResult.reference}`);
+            console.log(`[Storefront] ✅ ${activeProvider.name} accepted order: ${apiResult.reference}`);
           }
         }
       } else {

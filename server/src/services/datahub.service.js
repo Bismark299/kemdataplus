@@ -1117,17 +1117,53 @@ const datahubService = {
           continue;
         }
         
-        const result = await provider.service.placeOrder({
+        let result = await provider.service.placeOrder({
           network: network,
           phone: order.recipientPhone,
           amount: dataAmount,
           orderId: order.id
         });
-        
+
+        // ===== MTN PLACEMENT-TIME FAILOVER =====
+        // If primary fails with a balance error (not a network timeout — primary definitively
+        // rejected without processing), try backup immediately.
+        // Safety: externalReference is only written on success, so there is zero risk of both
+        // providers holding an active copy of the same order at the same time.
+        let activeProvider = provider;
+        if (!result.success && !result.networkError && mtnFailoverEnabled && (network || '').toLowerCase() === 'mtn') {
+          const primaryName = mtnPrimaryName;
+          const backupName  = (siteSettings.mtnBackupProvider || 'IDG').toUpperCase();
+          const eL          = (result.error || '').toLowerCase();
+          const isPrimaryBalanceErr =
+            activeProvider.name.toUpperCase() === primaryName &&
+            primaryName !== backupName &&
+            (eL.includes('insufficient') || eL.includes('low balance') ||
+             eL.includes('not enough')   || eL.includes('funds') ||
+             (eL.includes('wallet') && eL.includes('low')));
+
+          if (isPrimaryBalanceErr) {
+            const backupKey = backupName === 'IDG' ? 'instantdataghAPI' : 'mcbisAPI';
+            const backupCandidate = PROVIDERS.find(p => p.key === backupKey);
+            if (backupCandidate && isTruthy(siteSettings[backupCandidate.key])) {
+              console.log(`[Retry] Primary (${primaryName}) has no funds — trying backup (${backupName}) for order ${order.id}`);
+              const backupResult = await backupCandidate.service.placeOrder({
+                network: network,
+                phone: order.recipientPhone,
+                amount: dataAmount,
+                orderId: order.id
+              });
+              console.log(`[Retry] Backup (${backupName}): ${backupResult.success ? `SUCCESS ref=${backupResult.reference}` : backupResult.error}`);
+              result        = backupResult;
+              activeProvider = backupCandidate;
+            }
+          }
+        }
+        // ===== END MTN PLACEMENT-TIME FAILOVER =====
+
         // CKGodsway has no idempotency — each retry creates a NEW order on their end.
         // EXCEPTION: balance errors are safe to retry because CKGodsway rejected before
         // processing, so no order was created on their end. Stay PENDING in that case.
-        const isCkGodsway = provider.name === 'CKGODSWAY';
+        const isCkGodsway = activeProvider.name === 'CKGODSWAY';
         const errLower = (result.error || '').toLowerCase();
         const isCkgBalanceError = isCkGodsway && (
           errLower.includes('insufficient') || errLower.includes('low balance') ||
@@ -1141,7 +1177,7 @@ const datahubService = {
           data: {
             status: result.success ? 'PROCESSING' : (shouldFail ? 'FAILED' : 'PENDING'),
             externalReference: result.reference || null,
-            ...(result.success ? {} : { failureReason: result.error || 'API failed' })
+            ...(result.success ? { providerName: activeProvider.name } : { failureReason: result.error || 'API failed' })
           }
         });
         
@@ -1150,8 +1186,8 @@ const datahubService = {
           await prisma.order.update({ where: { id: order.id }, data: { apiSentAt: null } });
         }
         
-        results.push({ orderId: order.id, success: result.success, provider: provider.name });
-        console.log(`[Retry] Order ${order.id}: ${result.success ? 'SUCCESS' : result.error} via ${provider.name}`);
+        results.push({ orderId: order.id, success: result.success, provider: activeProvider.name });
+        console.log(`[Retry] Order ${order.id}: ${result.success ? 'SUCCESS' : result.error} via ${activeProvider.name}`);
         
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
