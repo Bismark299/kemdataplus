@@ -1214,7 +1214,14 @@ const orderGroupService = {
         const mtnFailoverEnabled = isTruthy(siteSettings.mtnFailoverEnabled);
         const isIdgUnverified = !result.success && apiProvider === 'INSTANTDATAGH' &&
           /no verified numbers|not verified|unverified/i.test(result.error || '');
-        const primaryName = (siteSettings.mtnPrimaryProvider || 'IDG').toUpperCase();
+        // Normalize short aliases (IDG → INSTANTDATAGH, DGK → DATAGATEKEEPER) to match PROVIDERS[].name
+        const _normProvider = n => {
+          const s = (n || '').toUpperCase();
+          if (s === 'IDG') return 'INSTANTDATAGH';
+          if (s === 'DGK') return 'DATAGATEKEEPER';
+          return s;
+        };
+        const primaryName = _normProvider(siteSettings.mtnPrimaryProvider || 'IDG');
         const isPrimaryFailoverTrigger =
           mtnFailoverEnabled &&
           networkNorm === 'mtn' &&
