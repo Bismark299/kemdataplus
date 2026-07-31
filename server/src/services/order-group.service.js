@@ -1349,6 +1349,32 @@ const orderGroupService = {
           continue;
         }
 
+        // ============ NETWORK ERROR: CKGODSWAY — RESET, DON'T HARD-FAIL ============
+        // CKGodsway accepted the HTTP request but the response timed out / connection
+        // dropped. The order may already exist on CKGodsway's side. Hard-failing and
+        // refunding would leave the agent short while CKGodsway delivers. Instead, reset
+        // apiSentAt so the stuck-order checker retries after ~5 min. The retry sends the
+        // same bundle+phone, so if CKGodsway already processed it they'll either reject
+        // a duplicate or return a new order — either way is better than a silent cancel.
+        if (!result.success && result.networkError && apiProvider === 'CKGODSWAY') {
+          console.log(`[OrderGroup] CKGodsway network error for ${item.reference} — resetting for retry (order may have reached CKGodsway): ${result.error}`);
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: {
+              apiSentAt: null,
+              failureReason: `Network error (may have reached CKGodsway) — retrying: ${result.error}`
+            }
+          });
+          skipped++;
+          results.push({
+            itemId: item.id,
+            reference: item.reference,
+            skipped: true,
+            reason: `CKGodsway network error — reset for retry: ${result.error}`
+          });
+          continue;
+        }
+
         // ============ NETWORK ERROR: MARK PROCESSING, LET AUTO-SYNC VERIFY ============
         // If we got a network/timeout error, MCBIS may have already received and processed
         // the order despite no response. Store the reference and mark PROCESSING so that

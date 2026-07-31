@@ -182,9 +182,15 @@ const ckgodswayService = {
       }
     } catch (error) {
       console.error('[CKGodsway] Place order failed:', error.message);
+      // Distinguish network-level failures (connection dropped, timeout, DNS) from
+      // business rejections (HTTP 4xx with an error body). On network errors the
+      // order may have already reached CKGodsway — callers must NOT immediately
+      // hard-fail; they should reset and let the retry loop handle it.
+      const isNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED|socket|network|timeout|aborted/i.test(error.message);
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        networkError: isNetworkError
       };
     }
   },
