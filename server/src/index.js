@@ -565,8 +565,27 @@ function startAutoSync() {
       // by syncAllPendingOrders which now routes IDG references to IDG's API.
       // Run the legacy sync if MCBIS is syncing OR if failover is on with IDG auto-sync.
       const legacyHasIDGOrders = mtnFailoverEnabled && idgActive && idgAutoSyncEnabled;
+
+      // --- CKGodsway balance guard ---
+      // CKGodsway has no balance endpoint; balance is cached from each successful order response.
+      // If the cached balance is known and below the minimum threshold, pause ALL CKGodsway
+      // dispatch for this cycle (status-sync of existing orders still runs).
+      // This prevents a backlog of PENDING orders from piling up silently all day and then
+      // all firing at once when balance is restored, which risks duplicate sends.
+      const CKG_MIN_DISPATCH_BALANCE = 5; // GHS — below the cheapest bundle
+      let ckgodswayDispatchPaused = false;
+      if (ckgodswayShouldSync) {
+        const ckgSvc = require('./services/ckgodsway.service');
+        const ckgCachedBal = typeof ckgSvc.getLastKnownBalance === 'function'
+          ? ckgSvc.getLastKnownBalance()
+          : null;
+        if (ckgCachedBal !== null && ckgCachedBal < CKG_MIN_DISPATCH_BALANCE) {
+          ckgodswayDispatchPaused = true;
+          console.log(`[AutoSync] ⚠️  CKGodsway balance low (GHS ${ckgCachedBal}) — dispatch paused this cycle. Top up to resume.`);
+        }
+      }
       
-      console.log(`[AutoSync] Running... (MCBIS: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayShouldSync ? 'ON' : 'OFF'}, IDG/Failover: ${legacyHasIDGOrders ? 'ON' : 'OFF'}, DGK: ${datagatekeeperActive ? 'ON' : 'OFF'})`);
+      console.log(`[AutoSync] Running... (MCBIS: ${mcbisShouldSync ? 'ON' : 'OFF'}, CKGodsway: ${ckgodswayShouldSync ? (ckgodswayDispatchPaused ? 'PAUSED-LOW-BAL' : 'ON') : 'OFF'}, IDG/Failover: ${legacyHasIDGOrders ? 'ON' : 'OFF'}, DGK: ${datagatekeeperActive ? 'ON' : 'OFF'})`);
       
       let totalSynced = 0;
       let totalCompleted = 0;

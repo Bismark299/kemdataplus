@@ -1053,9 +1053,18 @@ const orderGroupService = {
           console.log(`[OrderGroup] Could not fetch IDG balance (proceeding anyway): ${e.message}`);
         }
       } else if (providerName === 'CKGODSWAY') {
-        // CK-Godsway has no balance endpoint - bypass check
-        providerBalances[providerName] = Infinity;
-        console.log(`[OrderGroup] CK-Godsway: No balance endpoint, skipping balance check`);
+        // CK-Godsway has no dedicated balance endpoint.
+        // Balance is cached from each successful order response.
+        // If we know the balance, use it so low-balance orders are skipped (not failed).
+        // If unknown (null = no successful orders yet this session), proceed optimistically.
+        const cached = service.getLastKnownBalance ? service.getLastKnownBalance() : null;
+        if (cached !== null) {
+          providerBalances[providerName] = cached;
+          console.log(`[OrderGroup] CKGodsway last known balance: GHS ${cached}`);
+        } else {
+          providerBalances[providerName] = Infinity;
+          console.log(`[OrderGroup] CKGodsway: balance unknown (no orders yet this session), proceeding`);
+        }
       } else if (providerName === 'MCBIS') {
         try {
           const balanceResult = await service.getWalletBalance();

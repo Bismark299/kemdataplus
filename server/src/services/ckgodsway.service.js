@@ -118,10 +118,18 @@ const ckgodswayService = {
     }
     return {
       success: true,
-      balance: 0,
+      balance: null,
       currency: 'GHS',
       note: 'No balance data yet — place an order to retrieve balance'
     };
+  },
+
+  /**
+   * Return the raw cached balance value (null if unknown yet).
+   * Used by the auto-sync to pause CKGodsway dispatch when balance is low.
+   */
+  getLastKnownBalance() {
+    return lastKnownBalance;
   },
 
   /**
@@ -178,6 +186,17 @@ const ckgodswayService = {
           newBalance: newBal
         };
       } else {
+        // Even on failure, try to capture the balance from the response body.
+        // This lets the auto-sync know the wallet is depleted and pause dispatch.
+        const failBal = data.balance?.current !== undefined ? parseFloat(data.balance.current) : null;
+        if (failBal !== null && !isNaN(failBal)) {
+          lastKnownBalance = failBal;
+        } else if (/insufficient|low balance|not enough|wallet.*low/i.test(data.error || data.message || '')) {
+          // CKGodsway confirmed insufficient balance but didn't return a balance field.
+          // Record as 0 so subsequent cycles stop trying until an order succeeds.
+          lastKnownBalance = 0;
+          console.warn('[CKGodsway] Insufficient balance confirmed — setting cached balance to 0, dispatch will pause');
+        }
         throw new Error(data.error || data.message || 'Order failed');
       }
     } catch (error) {
