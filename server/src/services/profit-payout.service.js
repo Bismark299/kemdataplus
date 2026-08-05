@@ -2077,7 +2077,7 @@ const profitPayoutService = {
       }) : { _sum: { ownerProfit: null } };
 
       // Withdrawal totals and wallet balance
-      const [pendingWithdrawals, completedWithdrawals, walletData, orderCount, adjustmentSum] = await Promise.all([
+      const [pendingWithdrawals, completedWithdrawals, walletData, orderCount, adjustmentSum, pendingProfitSum] = await Promise.all([
         prisma.agentPayout.aggregate({
           where: {
             userId: agent.id,
@@ -2085,7 +2085,7 @@ const profitPayoutService = {
           },
           _sum: { amount: true }
         }),
-        // Total successfully withdrawn (completed payouts)
+        // Total successfully withdrawn (completed payouts) — used for display only
         prisma.agentPayout.aggregate({
           where: {
             userId: agent.id,
@@ -2109,6 +2109,11 @@ const profitPayoutService = {
         prisma.adminProfitAdjustment.aggregate({
           where: { userId: agent.id },
           _sum: { amount: true }
+        }),
+        // PENDING PendingProfit records — same source used by getUserProfitStats (eye button)
+        prisma.pendingProfit.aggregate({
+          where: { userId: agent.id, status: 'PENDING' },
+          _sum: { amount: true }
         })
       ]);
       
@@ -2116,8 +2121,10 @@ const profitPayoutService = {
       const totalWithdrawn = completedWithdrawals._sum.amount || 0;
       const allTimeProfit = totalProfitResult._sum.ownerProfit || 0;
       const adminAdjustment = adjustmentSum._sum.amount || 0;
-      // Available = totalProfit - withdrawn - pendingWithdrawals + adminAdjustment
-      const availableForWithdrawal = Math.max(0, allTimeProfit - totalWithdrawn - reservedForWithdrawal + adminAdjustment);
+      const totalPendingProfit = pendingProfitSum._sum.amount || 0;
+      // Use the same formula as getUserProfitStats (eye button) so the figures match:
+      // available = PENDING PendingProfit records − reserved withdrawal requests + admin adjustment
+      const availableForWithdrawal = Math.max(0, totalPendingProfit - reservedForWithdrawal + adminAdjustment);
       const walletBalance = walletData?.balance || 0;
 
       return {
@@ -2151,7 +2158,7 @@ const profitPayoutService = {
         }
         return a.allTimeProfit > 0 || a.availableForWithdrawal > 0;
       })
-      .sort((a, b) => b.totalProfit - a.totalProfit);
+      .sort((a, b) => b.availableForWithdrawal - a.availableForWithdrawal);
 
     // Calculate totals
     const totals = filtered.reduce((acc, a) => ({
