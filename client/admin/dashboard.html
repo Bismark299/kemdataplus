@@ -5259,16 +5259,19 @@
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>User</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Description</th>
                             <th>Reference</th>
+                            <th>Agent</th>
+                            <th style="text-align:right;">Amount (GHS)</th>
+                            <th style="text-align:right;">Prev Balance</th>
+                            <th style="text-align:right;">Curr Balance</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Source</th>
                         </tr>
                     </thead>
                     <tbody id="allTransactionsBody">
                         <tr>
-                            <td colspan="6" class="empty-state">
+                            <td colspan="9" class="empty-state">
                                 <p>Loading transactions...</p>
                             </td>
                         </tr>
@@ -11260,35 +11263,96 @@
         
         async function renderAllTransactions() {
             const tbody = document.getElementById('allTransactionsBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>Loading...</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>Loading...</p></td></tr>';
 
             await loadAllTransactions();
 
             if (allTransactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No transactions found</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>No transactions found</p></td></tr>';
                 return;
             }
 
             const creditTypes = new Set(['credit', 'deposit', 'refund', 'profit_credit', 'commission', 'transfer_in']);
+
+            // Derive a short human-readable source label from type + description
+            function txnSource(type, description) {
+                const t = (type || '').toLowerCase();
+                const d = (description || '').toLowerCase();
+                if (d.includes('paystack') || d.includes('momo deposit') || d.includes('mobile_money')) return { label: 'Paystack', color: '#6366f1' };
+                if (d.includes('momo') || d.includes('mobile money')) return { label: 'MoMo', color: '#f59e0b' };
+                if (t === 'purchase' || d.includes('order')) return { label: 'Order', color: '#3b82f6' };
+                if (t === 'refund') return { label: 'Refund', color: '#10b981' };
+                if (t === 'profit_credit') return { label: 'Profit', color: '#8b5cf6' };
+                if (t === 'commission') return { label: 'Commission', color: '#ec4899' };
+                if (t === 'transfer_in' || t === 'transfer_out') return { label: 'Transfer', color: '#06b6d4' };
+                if (t === 'deduction') return { label: 'Deduction', color: '#ef4444' };
+                if (t === 'withdrawal') return { label: 'Withdrawal', color: '#f97316' };
+                if (t === 'deposit') return { label: 'Deposit', color: '#10b981' };
+                return { label: 'System', color: '#94a3b8' };
+            }
+
+            // Derive status badge
+            function txnStatusBadge(status) {
+                const s = (status || '').toUpperCase();
+                if (s === 'COMPLETED') return { label: 'Paid', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' };
+                if (s === 'PENDING')   return { label: 'Pending', bg: '#fffbeb', color: '#d97706', border: '#fde68a' };
+                if (s === 'FAILED')    return { label: 'Failed', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' };
+                if (s === 'PROCESSING') return { label: 'Processing', bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' };
+                return { label: status || '—', bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
+            }
+
+            // Format reference — line 1: cleaned ref, line 2: description snippet
+            function formatRefCell(ref, description) {
+                const r = ref || '—';
+                // Show order number nicely: ORD-003690 → #003690
+                const ordMatch = r.match(/ORD-(\d+)/i);
+                const line1 = ordMatch ? `#${ordMatch[1]}` : (r.length > 28 ? r.slice(0, 28) + '…' : r);
+                // Description snippet: strip "Order ORD-xxx - " prefix for orders
+                let line2 = (description || '').replace(/^Order\s+ORD-\d+(-\d+)?\s*[-–]\s*/i, '').trim();
+                if (line2.length > 34) line2 = line2.slice(0, 34) + '…';
+                return { line1, line2 };
+            }
+
             tbody.innerHTML = allTransactions.map(txn => {
                 const txnType = (txn.type || '').toLowerCase();
                 const isCredit = creditTypes.has(txnType);
+                const amt = Math.abs(txn.amount || 0);
+                const src = txnSource(txn.type, txn.description);
+                const badge = txnStatusBadge(txn.status);
+                const { line1, line2 } = formatRefCell(txn.reference, txn.description);
+                const hasPrev = txn.prevBalance != null;
+                const hasCurr = txn.currBalance != null;
                 return `
-                <tr>
-                    <td>${formatTransactionDate(txn.date || txn.createdAt)}</td>
-                    <td>
-                        <div class="user-info">
-                            <div class="user-avatar" style="width:30px;height:30px;font-size:0.75rem;">${(txn.userName || 'U').charAt(0)}</div>
-                            <div>
-                                <div class="user-name" style="font-size:0.9rem;">${txn.userName || 'Unknown'}</div>
-                                <div style="font-size:0.75rem;color:#6b7280;">${txn.userPhone || ''}</div>
-                            </div>
-                        </div>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:10px 12px;white-space:nowrap;font-size:0.82rem;color:#64748b;">
+                        ${formatTransactionDate(txn.date || txn.createdAt)}
                     </td>
-                    <td><span class="txn-type-badge ${isCredit ? 'credit' : 'debit'}">${txn.type || 'N/A'}</span></td>
-                    <td class="txn-amount ${isCredit ? 'credit' : 'debit'}">${isCredit ? '+' : '-'}GH₵ ${Math.abs(txn.amount || 0).toFixed(2)}</td>
-                    <td style="max-width:260px;word-break:break-word;">${txn.description || 'N/A'}</td>
-                    <td>${txn.reference || '—'}</td>
+                    <td style="padding:10px 12px;max-width:180px;">
+                        <div style="font-size:0.83rem;font-weight:600;color:#1e293b;">${line1}</div>
+                        ${line2 ? `<div style="font-size:0.73rem;color:#94a3b8;margin-top:1px;">${line2}</div>` : ''}
+                    </td>
+                    <td style="padding:10px 12px;">
+                        <div style="font-size:0.83rem;font-weight:600;color:#1e293b;">${txn.userName || 'Unknown'}</div>
+                        ${txn.userPhone ? `<div style="font-size:0.73rem;color:#94a3b8;margin-top:1px;">${txn.userPhone}</div>` : ''}
+                    </td>
+                    <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:0.9rem;color:${isCredit ? '#16a34a' : '#dc2626'};">
+                        ${isCredit ? '+' : '-'}${amt.toFixed(2)}
+                    </td>
+                    <td style="padding:10px 12px;text-align:right;font-size:0.83rem;color:#64748b;">
+                        ${hasPrev ? txn.prevBalance.toFixed(2) : '<span style="color:#d1d5db;">—</span>'}
+                    </td>
+                    <td style="padding:10px 12px;text-align:right;font-size:0.83rem;font-weight:600;color:#1e293b;">
+                        ${hasCurr ? txn.currBalance.toFixed(2) : '<span style="color:#d1d5db;">—</span>'}
+                    </td>
+                    <td style="padding:10px 12px;">
+                        <span style="display:inline-block;padding:3px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${badge.bg};color:${badge.color};border:1px solid ${badge.border};">${badge.label}</span>
+                    </td>
+                    <td style="padding:10px 12px;">
+                        <span style="display:inline-block;padding:3px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${isCredit ? '#f0fdf4' : '#fff7ed'};color:${isCredit ? '#16a34a' : '#ea580c'};border:1px solid ${isCredit ? '#bbf7d0' : '#fed7aa'};">${isCredit ? 'Credit' : 'Debit'}</span>
+                    </td>
+                    <td style="padding:10px 12px;">
+                        <span style="display:inline-block;padding:3px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;background:#f8fafc;color:${src.color};border:1px solid #e2e8f0;">${src.label}</span>
+                    </td>
                 </tr>
             `}).join('');
         }
