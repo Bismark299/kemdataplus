@@ -11301,15 +11301,12 @@
                 return { label: status || '—', bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
             }
 
-            // Format reference — line 1: cleaned ref, line 2: description snippet
+            // Format reference — line 1: reference as-is, line 2: description snippet
             function formatRefCell(ref, description) {
                 const r = ref || '—';
-                // Show order number nicely: ORD-003690 → #003690
-                const ordMatch = r.match(/ORD-(\d+)/i);
-                const line1 = ordMatch ? `#${ordMatch[1]}` : (r.length > 28 ? r.slice(0, 28) + '…' : r);
-                // Description snippet: strip "Order ORD-xxx - " prefix for orders
-                let line2 = (description || '').replace(/^Order\s+ORD-\d+(-\d+)?\s*[-–]\s*/i, '').trim();
-                if (line2.length > 34) line2 = line2.slice(0, 34) + '…';
+                const line1 = r.length > 30 ? r.slice(0, 30) + '…' : r;
+                let line2 = (description || '').trim();
+                if (line2.length > 36) line2 = line2.slice(0, 36) + '…';
                 return { line1, line2 };
             }
 
