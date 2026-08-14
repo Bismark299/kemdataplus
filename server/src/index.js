@@ -610,7 +610,8 @@ function startAutoSync() {
         const itemResult = await orderGroupService.syncAllProcessingItems({
           mcbisEnabled: mcbisShouldSync,
           ckgodswayEnabled: ckgodswayShouldSync,
-          datagatekeeperEnabled: true
+          datagatekeeperEnabled: true,
+          instantdataghEnabled: idgAutoSyncEnabled
         });
         if (itemResult.total > 0) {
           console.log(`[AutoSync] OrderItems: ${itemResult.completed} completed, ${itemResult.failed} failed, ${itemResult.unchanged} unchanged`);
