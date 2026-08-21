@@ -3,7 +3,7 @@ name: MCBIS API contract
 description: External MCBIS DataHub API contract and the provider-side proxy behavior observed during troubleshooting.
 ---
 
-MCBIS DataHub uses Bearer-token authentication at `/api/v1`, with wallet balance at `/walletBalance` and the balance payload nested at `data.walletBalance`. The published examples list AirtelTigo as `atpremium`; do not assume the internal `atishare` name is accepted.
+MCBIS DataHub uses Bearer-token authentication at `/api/v1`, with wallet balance at `/walletBalance` and the balance payload nested at `data.walletBalance`. This project uses MCBIS only for MTN orders; do not expand MCBIS routing to other networks without an explicit request.
 
 The published examples show LiteSpeed responses, while live requests may pass through Cloudflare and return HTML 403 pages. A valid token can therefore coexist with an intermittent Render-only access failure.
 

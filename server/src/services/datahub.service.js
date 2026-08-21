@@ -104,6 +104,25 @@ async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
 
   const config = getApiConfig();
   const url = `${config.url}${endpoint}`;
+
+  // Only pause provider reads (balance, status, product list) during a
+  // temporary throttle/block. MTN order placement remains untouched so this
+  // display protection cannot prevent a working order from being sent.
+  const isReadRequest = method.toUpperCase() === 'GET';
+  if (isReadRequest && isMcbisRateLimited()) {
+    const secondsLeft = Math.ceil((mcbisRateLimitedUntil - Date.now()) / 1000);
+    const error = new Error(`MCBIS rate-limited, retry in ${secondsLeft}s`);
+    error.status = 429;
+    error.code = 'MCBIS_RATE_LIMITED';
+    throw error;
+  }
+  if (isReadRequest && isMcbisAccessBlocked()) {
+    const secondsLeft = Math.ceil((mcbisAccessBlockedUntil - Date.now()) / 1000);
+    const error = new Error(`MCBIS temporarily unavailable after an access block, retry in ${secondsLeft}s`);
+    error.status = 403;
+    error.code = 'MCBIS_ACCESS_BLOCKED';
+    throw error;
+  }
   
   console.log(`[DataHub] Request: ${method} ${url}`);
   
@@ -138,15 +157,35 @@ async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
       if (error.response) {
         // Server responded with error status
         const text = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+        const responseHeaders = {
+          server: error.response.headers?.server,
+          cfRay: error.response.headers?.['cf-ray'],
+          retryAfter: error.response.headers?.['retry-after'],
+          contentType: error.response.headers?.['content-type']
+        };
+        const isHtmlResponse = text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment');
         
         // Check if response is HTML (Cloudflare page)
-        if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
-          console.error(`[DataHub] Cloudflare blocking detected. Status: ${error.response.status}`);
-          throw new Error(`API returned HTML (likely Cloudflare). Status: ${error.response.status}. Contact McbisSolution to whitelist server IP.`);
+        if (isHtmlResponse) {
+          console.error(`[DataHub] HTML access block detected. Status: ${error.response.status}`, responseHeaders);
+          const apiError = new Error(`MCBIS returned an HTML access-block page. Status: ${error.response.status}. Contact McbisSolution to allow the Render server.`);
+          apiError.status = error.response.status;
+          apiError.code = 'MCBIS_HTML_ACCESS_BLOCK';
+          apiError.isHtmlResponse = true;
+          apiError.responseHeaders = responseHeaders;
+          apiError.responsePreview = text.substring(0, 300);
+          setMcbisAccessBlocked();
+          throw apiError;
         }
         
         const errorMsg = error.response.data?.message || error.response.data?.error || `API Error: ${error.response.status}`;
-        throw new Error(errorMsg);
+        const apiError = new Error(errorMsg);
+        apiError.status = error.response.status;
+        apiError.responseHeaders = responseHeaders;
+        if (error.response.status === 429) {
+          setMcbisRateLimited();
+        }
+        throw apiError;
       } else if (error.request) {
         // Request made but no response - log details and retry
         const code = error.code || 'UNKNOWN';
@@ -174,6 +213,15 @@ function generateReference() {
 // checks for RATE_LIMIT_COOLDOWN_MS to let the window reset.
 const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 let mcbisRateLimitedUntil = 0;
+const ACCESS_BLOCK_COOLDOWN_MS = 60 * 1000; // Avoid repeated WAF/proxy requests
+let mcbisAccessBlockedUntil = 0;
+
+// Balance reads are requested by the dashboard and can also happen during
+// MTN order processing. Reuse a recent result and coalesce simultaneous calls
+// so one browser refresh cannot create several provider requests.
+const BALANCE_CACHE_TTL_MS = 30 * 1000;
+let mcbisBalanceCache = null;
+let mcbisBalanceRequest = null;
 
 function isMcbisRateLimited() {
   return Date.now() < mcbisRateLimitedUntil;
@@ -182,6 +230,25 @@ function isMcbisRateLimited() {
 function setMcbisRateLimited() {
   mcbisRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
   console.warn(`[DataHub] ⚠️ Rate-limited by MCBIS. Pausing status checks for ${RATE_LIMIT_COOLDOWN_MS / 60000} minutes until ${new Date(mcbisRateLimitedUntil).toISOString()}`);
+}
+
+function isMcbisAccessBlocked() {
+  return Date.now() < mcbisAccessBlockedUntil;
+}
+
+function setMcbisAccessBlocked() {
+  mcbisAccessBlockedUntil = Date.now() + ACCESS_BLOCK_COOLDOWN_MS;
+  console.warn(`[DataHub] ⚠️ MCBIS access-block cooldown active for ${ACCESS_BLOCK_COOLDOWN_MS / 1000}s`);
+}
+
+function getMcbisCooldownMessage() {
+  if (isMcbisRateLimited()) {
+    return `MCBIS rate-limited, retry in ${Math.ceil((mcbisRateLimitedUntil - Date.now()) / 1000)}s`;
+  }
+  if (isMcbisAccessBlocked()) {
+    return `MCBIS temporarily unavailable after an access block, retry in ${Math.ceil((mcbisAccessBlockedUntil - Date.now()) / 1000)}s`;
+  }
+  return null;
 }
 
 const datahubService = {
@@ -197,54 +264,47 @@ const datahubService = {
     console.log('[DataHub Test] Token configured:', !!config.token);
     
     try {
-      const response = await axios({
-        method: 'get',
-        url: url,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.token}`,
-          'User-Agent': 'KemDataplus/1.0'
-        },
-        timeout: 45000,
-        httpAgent: httpAgent,
-        httpsAgent: httpsAgent
-      });
+      // A connection test intentionally bypasses the short balance cache, but
+      // still uses the same request/error handling as normal MCBIS traffic.
+      const responseData = await apiRequest('/walletBalance', 'GET', null, 0);
       
-      console.log('[DataHub Test] Status:', response.status);
-      console.log('[DataHub Test] Response:', JSON.stringify(response.data).substring(0, 200));
+      console.log('[DataHub Test] Status: 200');
+      console.log('[DataHub Test] Response:', JSON.stringify(responseData).substring(0, 200));
       
       return {
         success: true,
         message: 'Connection successful!',
-        data: response.data,
-        balance: response.data?.data?.walletBalance
+        data: responseData,
+        balance: responseData?.data?.walletBalance
       };
     } catch (error) {
       console.error('[DataHub Test] Error:', error.message);
       
-      if (error.response) {
-        const text = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+      if (error.response || error.status || error.responseHeaders) {
+        const text = typeof error.response?.data === 'string' ? error.response.data : JSON.stringify(error.response?.data || '');
         console.log('[DataHub Test] Error response:', text.substring(0, 300));
         
-        // Check if HTML (Cloudflare)
-        if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
+        // Check if HTML (provider/WAF access block)
+        if (error.isHtmlResponse || text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('Just a moment')) {
           return {
             success: false,
-            error: `API returned HTML (likely Cloudflare). Status: ${error.response.status}`,
-            status: error.response.status,
-            hint: 'Cloudflare is blocking the request. Contact McbisSolution to whitelist server IP.',
-            responsePreview: text.substring(0, 300)
+            error: error.message,
+            status: error.status || error.response?.status,
+            hint: 'The provider or its proxy is blocking this server request. Ask McbisSolution to allow the Render server.',
+            responsePreview: error.responsePreview || text.substring(0, 300),
+            responseHeaders: error.responseHeaders
           };
         }
         
         return {
           success: false,
-          error: error.response.data?.message || `API Error: ${error.response.status}`,
-          status: error.response.status,
-          hint: error.response.status === 401 ? 'Token might be invalid or expired' : 
-                error.response.status === 404 ? 'API endpoint not found - check URL' :
-                'Check API URL and token'
+          error: error.response?.data?.message || error.message || `API Error: ${error.status || 'unknown'}`,
+          status: error.status || error.response?.status,
+          hint: (error.status || error.response?.status) === 401 ? 'Token might be invalid or expired' :
+                (error.status || error.response?.status) === 404 ? 'API endpoint not found - check URL' :
+                (error.status || error.response?.status) === 429 ? 'MCBIS rate limit reached; wait for the cooldown before retrying' :
+                'Check API URL, token, and provider access rules',
+          responseHeaders: error.responseHeaders
         };
       }
       
@@ -263,21 +323,78 @@ const datahubService = {
   /**
    * Get API wallet balance
    */
-  async getWalletBalance() {
-    try {
-      const result = await apiRequest('/walletBalance');
+  async getWalletBalance({ force = false, allowStale = true } = {}) {
+    const now = Date.now();
+    if (!force && mcbisBalanceCache && now - mcbisBalanceCache.fetchedAt < BALANCE_CACHE_TTL_MS) {
       return {
         success: true,
-        balance: parseFloat(result.data?.walletBalance || 0),
-        raw: result
-      };
-    } catch (error) {
-      return {
-        success: false,
-        balance: 0,
-        error: error.message
+        balance: mcbisBalanceCache.balance,
+        raw: mcbisBalanceCache.raw,
+        cached: true,
+        stale: false,
+        fetchedAt: mcbisBalanceCache.fetchedAt
       };
     }
+
+    const cooldownMessage = getMcbisCooldownMessage();
+    if (cooldownMessage) {
+      if (mcbisBalanceCache && allowStale) {
+        return {
+          success: true,
+          balance: mcbisBalanceCache.balance,
+          raw: mcbisBalanceCache.raw,
+          cached: true,
+          stale: true,
+          warning: cooldownMessage,
+          fetchedAt: mcbisBalanceCache.fetchedAt
+        };
+      }
+      return { success: false, balance: 0, error: cooldownMessage };
+    }
+
+    // A forced call is used by MTN order dispatch and must retain the
+    // existing live-check behavior instead of inheriting a dashboard fallback.
+    if (mcbisBalanceRequest && !force) return mcbisBalanceRequest;
+
+    mcbisBalanceRequest = (async () => {
+      try {
+        const result = await apiRequest('/walletBalance');
+        const balance = parseFloat(result.data?.walletBalance || 0);
+        const fetchedAt = Date.now();
+        mcbisBalanceCache = { balance, raw: result, fetchedAt };
+        return {
+          success: true,
+          balance,
+          raw: result,
+          cached: false,
+          stale: false,
+          fetchedAt
+        };
+      } catch (error) {
+        if (mcbisBalanceCache && allowStale) {
+          return {
+            success: true,
+            balance: mcbisBalanceCache.balance,
+            raw: mcbisBalanceCache.raw,
+            cached: true,
+            stale: true,
+            warning: error.message,
+            status: error.status,
+            fetchedAt: mcbisBalanceCache.fetchedAt
+          };
+        }
+        return {
+          success: false,
+          balance: 0,
+          error: error.message,
+          status: error.status
+        };
+      } finally {
+        mcbisBalanceRequest = null;
+      }
+    })();
+
+    return mcbisBalanceRequest;
   },
 
   /**
@@ -305,9 +422,9 @@ const datahubService = {
    */
   async checkOrderStatus(reference) {
     // Respect rate-limit cooldown to avoid hammering MCBIS
-    if (isMcbisRateLimited()) {
-      const secondsLeft = Math.ceil((mcbisRateLimitedUntil - Date.now()) / 1000);
-      return { success: false, status: 'unknown', error: `MCBIS rate-limited, retry in ${secondsLeft}s` };
+    const cooldownMessage = getMcbisCooldownMessage();
+    if (cooldownMessage) {
+      return { success: false, status: 'unknown', error: cooldownMessage };
     }
 
     try {
@@ -556,7 +673,7 @@ const datahubService = {
     console.log(`[DataHub] Estimated order cost: ${estimatedOrderCost} GHS (${dataAmount}GB × ${estimatedCostPerGB} GHS/GB)`);
     
     // Check MCBIS wallet balance
-    const balanceResult = await this.getWalletBalance();
+    const balanceResult = await this.getWalletBalance({ force: true, allowStale: false });
     
     if (!balanceResult.success) {
       console.log(`[DataHub] WARNING: Could not check MCBIS balance: ${balanceResult.error}`);

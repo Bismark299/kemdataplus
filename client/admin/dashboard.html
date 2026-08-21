@@ -15087,14 +15087,15 @@
                 
                 if (data.success) {
                     document.getElementById('mcbisBalanceDisplay').style.display = 'block';
-                    document.getElementById('mcbisBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    const balanceLabel = data.stale ? ' (cached)' : '';
+                    document.getElementById('mcbisBalanceAmount').textContent = `GHS ${parseFloat(data.balance).toFixed(2)}${balanceLabel}`;
                     // Also update header balance
                     const headerBalance = document.getElementById('headerMcbisBalance');
                     if (headerBalance) {
-                        headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                        headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}${balanceLabel}`;
                         headerBalance.style.color = data.balance < 50 ? '#ef4444' : '#10b981';
                     }
-                    showToast(`API Balance: GHS ${data.balance}`, 'success');
+                    showToast(data.stale ? `MCBIS temporarily unavailable. Showing cached balance: GHS ${data.balance}` : `API Balance: GHS ${data.balance}`, data.stale ? 'info' : 'success');
                 } else {
                     showToast('Failed to get balance: ' + (data.error || 'Unknown error'), 'error');
                 }
@@ -15111,7 +15112,7 @@
                 const res = await adminFetch('/api/datahub/balance');
                 const data = await res.json();
                 if (data.success && headerBalance) {
-                    headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}`;
+                    headerBalance.textContent = `GHS ${parseFloat(data.balance).toFixed(2)}${data.stale ? ' (cached)' : ''}`;
                     headerBalance.style.color = data.balance < 50 ? '#ef4444' : '#10b981';
                 } else if (headerBalance) {
                     headerBalance.textContent = 'Error';
