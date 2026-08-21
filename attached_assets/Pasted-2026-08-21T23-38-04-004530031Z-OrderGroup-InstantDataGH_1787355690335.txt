@@ -1,0 +1,185 @@
+2026-08-21T23:38:04.004530031Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:04.004536311Z [OrderGroup] Skipping ORD-112118-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:04.004588032Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:04.389658754Z [AutoRetry] Retrying ORD-112109...
+2026-08-21T23:38:04.396210405Z [OrderGroup] Processing 1 PENDING items for ORD-112109
+2026-08-21T23:38:04.396231466Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:04.401155465Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:04.401177475Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:04.488663553Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:04","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:04.488705833Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:04.488711574Z [OrderGroup] Skipping ORD-112109-01: Insufficient INSTANTDATAGH balance (need 19.5, have 2.36)
+2026-08-21T23:38:04.488714404Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:05.005770415Z [AutoRetry] Retrying ORD-112109...
+2026-08-21T23:38:05.009525868Z [OrderGroup] Processing 1 PENDING items for ORD-112109
+2026-08-21T23:38:05.009548988Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:05.010372926Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:05.010410327Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:05.107710534Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:05","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:05.107735484Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:05.107749645Z [OrderGroup] Skipping ORD-112109-01: Insufficient INSTANTDATAGH balance (need 19.5, have 2.36)
+2026-08-21T23:38:05.107752455Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:05.489883229Z [AutoRetry] Retrying ORD-112154...
+2026-08-21T23:38:05.498295848Z [OrderGroup] Processing 1 PENDING items for ORD-112154
+2026-08-21T23:38:05.498320288Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:05.500473092Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:05.500490252Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:05.735071265Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:05","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:05.735136386Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:05.735174297Z [OrderGroup] Skipping ORD-112154-01: Insufficient INSTANTDATAGH balance (need 19.5, have 2.36)
+2026-08-21T23:38:05.735213958Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:06.108042027Z [AutoRetry] Retrying ORD-112154...
+2026-08-21T23:38:06.110822339Z [OrderGroup] Processing 1 PENDING items for ORD-112154
+2026-08-21T23:38:06.110905491Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:06.111956414Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:06.112004905Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:06.208622626Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:06","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:06.208646287Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:06.208666477Z [OrderGroup] Skipping ORD-112154-01: Insufficient INSTANTDATAGH balance (need 19.5, have 2.36)
+2026-08-21T23:38:06.208669537Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:06.425040803Z [getStoreOrders] First order status: PROCESSING linked order status: PROCESSING
+2026-08-21T23:38:06.429751388Z 172.70.190.156 - - [21/Aug/2026:23:38:06 +0000] "GET /api/storefronts/3c081f64-49ca-4f0b-b34e-530817302085/orders HTTP/1.1" 304 - "https://kemdataplus.onrender.com/pages/mystore.html" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Mobile/15E148 Safari/604.1"
+2026-08-21T23:38:06.735647038Z [AutoRetry] Retrying ORD-112115...
+2026-08-21T23:38:06.741974135Z [OrderGroup] Processing 1 PENDING items for ORD-112115
+2026-08-21T23:38:06.742083647Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:06.744496356Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:06.744512627Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:06.836118507Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:06","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:06.836670618Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:06.836824471Z [OrderGroup] Skipping ORD-112115-01: Insufficient INSTANTDATAGH balance (need 11.7, have 2.36)
+2026-08-21T23:38:06.836980554Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:07.209155763Z [AutoRetry] Retrying ORD-112115...
+2026-08-21T23:38:07.212033867Z [OrderGroup] Processing 1 PENDING items for ORD-112115
+2026-08-21T23:38:07.212349454Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:07.213146472Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:07.213210513Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:07.309749153Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:07","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:07.309778193Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:07.309790494Z [OrderGroup] Skipping ORD-112115-01: Insufficient INSTANTDATAGH balance (need 11.7, have 2.36)
+2026-08-21T23:38:07.309848495Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:07.840847584Z [AutoRetry] Retrying ORD-112128...
+2026-08-21T23:38:07.844947746Z [OrderGroup] Processing 1 PENDING items for ORD-112128
+2026-08-21T23:38:07.84513796Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:07.847858724Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:07.847927226Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:07.934757761Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:07","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:07.934771861Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:07.934775441Z [OrderGroup] Skipping ORD-112128-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:07.934778041Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:08.310727969Z [AutoRetry] Retrying ORD-112128...
+2026-08-21T23:38:08.31346665Z [OrderGroup] Processing 1 PENDING items for ORD-112128
+2026-08-21T23:38:08.313798717Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:08.314660936Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:08.314732828Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:08.410305716Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:08","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:08.410332997Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:08.410344667Z [OrderGroup] Skipping ORD-112128-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:08.410347737Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:08.935909865Z [AutoRetry] Retrying ORD-112129...
+2026-08-21T23:38:08.940027048Z [OrderGroup] Processing 1 PENDING items for ORD-112129
+2026-08-21T23:38:08.94012918Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:08.941683851Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:08.941702272Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:09.028335913Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:08","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:09.028355063Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:09.028360963Z [OrderGroup] Skipping ORD-112129-01: Insufficient INSTANTDATAGH balance (need 38.5, have 2.36)
+2026-08-21T23:38:09.028365703Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:10.028290583Z [AutoRetry] Retrying ORD-112130...
+2026-08-21T23:38:10.032072139Z [OrderGroup] Processing 1 PENDING items for ORD-112130
+2026-08-21T23:38:10.03209591Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:10.033408176Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:10.033423746Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:09.4107511Z [AutoRetry] Retrying ORD-112129...
+2026-08-21T23:38:09.413863009Z [OrderGroup] Processing 1 PENDING items for ORD-112129
+2026-08-21T23:38:09.413880789Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:09.414455982Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:09.414488343Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:09.510682575Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:09","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:09.510794777Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:09.510801967Z [OrderGroup] Skipping ORD-112129-01: Insufficient INSTANTDATAGH balance (need 38.5, have 2.36)
+2026-08-21T23:38:09.510811508Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:10.119496726Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:10","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:10.119516336Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:10.119522046Z [OrderGroup] Skipping ORD-112130-01: Insufficient INSTANTDATAGH balance (need 23.4, have 2.36)
+2026-08-21T23:38:10.119525756Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:10.511092147Z [AutoRetry] Retrying ORD-112130...
+2026-08-21T23:38:10.513702455Z [OrderGroup] Processing 1 PENDING items for ORD-112130
+2026-08-21T23:38:10.513759676Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:10.514811029Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:10.5148317Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:10.610000529Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:10","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:10.610269595Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:10.610285675Z [OrderGroup] Skipping ORD-112130-01: Insufficient INSTANTDATAGH balance (need 23.4, have 2.36)
+2026-08-21T23:38:10.610288956Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:11.119803654Z [AutoRetry] Retrying ORD-112145...
+2026-08-21T23:38:11.123256603Z [OrderGroup] Processing 1 PENDING items for ORD-112145
+2026-08-21T23:38:11.123281034Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:11.12458904Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:11.124611991Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:11.210543427Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:11","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:11.210563287Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:11.210595598Z [OrderGroup] Skipping ORD-112145-01: Insufficient INSTANTDATAGH balance (need 3.9, have 2.36)
+2026-08-21T23:38:11.210603218Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:11.610152115Z [AutoRetry] Retrying ORD-112145...
+2026-08-21T23:38:11.612915956Z [OrderGroup] Processing 1 PENDING items for ORD-112145
+2026-08-21T23:38:11.612941587Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:11.615203547Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:11.615219907Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:11.710645352Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:11","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:11.710673473Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:11.710678533Z [OrderGroup] Skipping ORD-112145-01: Insufficient INSTANTDATAGH balance (need 3.9, have 2.36)
+2026-08-21T23:38:11.710695343Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:12.210830745Z [AutoRetry] Retrying ORD-112104...
+2026-08-21T23:38:12.214615741Z [OrderGroup] Processing 1 PENDING items for ORD-112104
+2026-08-21T23:38:12.214639251Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:12.215946137Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:12.215976688Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:12.303105869Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:12","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:12.303132399Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:12.303136729Z [OrderGroup] Skipping ORD-112104-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:12.303139819Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:13.303179342Z [AutoRetry] Retrying ORD-112103...
+2026-08-21T23:38:13.306806155Z [OrderGroup] Processing 1 PENDING items for ORD-112103
+2026-08-21T23:38:13.306824185Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:13.308027259Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:13.30803786Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:13.394397155Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:13","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:13.394422775Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:13.394426775Z [OrderGroup] Skipping ORD-112103-01: Insufficient INSTANTDATAGH balance (need 19.5, have 2.36)
+2026-08-21T23:38:13.394429376Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:12.711022142Z [AutoRetry] Retrying ORD-112104...
+2026-08-21T23:38:12.713733273Z [OrderGroup] Processing 1 PENDING items for ORD-112104
+2026-08-21T23:38:12.713766003Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:12.714823857Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:12.715552533Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:12.808953163Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:12","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:12.808976663Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:12.809016834Z [OrderGroup] Skipping ORD-112104-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:12.809027554Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:13.808931604Z [AutoRetry] Retrying ORD-112103...
+2026-08-21T23:38:13.811517701Z [OrderGroup] Processing 1 PENDING items for ORD-112103
+2026-08-21T23:38:13.811562122Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:13.812527193Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:13.812555704Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:13.906961726Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:13","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:13.906981357Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:13.906986277Z [OrderGroup] Skipping ORD-112103-01: Insufficient INSTANTDATAGH balance (need 19.5, have 2.36)
+2026-08-21T23:38:13.907001417Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:14.39404899Z [AutoRetry] Retrying ORD-112105...
+2026-08-21T23:38:14.398372827Z [OrderGroup] Processing 1 PENDING items for ORD-112105
+2026-08-21T23:38:14.398388817Z [OrderGroup] Settings from cache: {"datagatekeeperAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAPI":true,"instantdatagh_mtnAPI":false,"instantdataghAutoSync":false,"ckgodswayAPI":false,"ckgodsway_mtnAPI":false,"ckgodsway_telecelAPI":true,"ckgodsway_airteltigoAPI":true,"ckgodsway_bigtimeAPI":true,"ckgodswayAutoSync":true,"mcbisAPI":true,"mcbis_mtnAPI":false,"mcbis_telecelAPI":false,"mcbis_airteltigoAPI":false,"mcbis_bigtimeAPI":false,"mcbisAutoSync":false,"mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","mtnBackupProvider":"MCBIS","placeOrders":true,"loadWallet":false,"claimWallet":true,"bulkOrders":true,"excelImport":false,"cartOrder":true,"newRegistration":true,"websiteUpdate":false,"paystackEnabled":true,"momoClaimEnabled":false,"paystackWithdrawal":true,"etopup_mtnAPI":false}
+2026-08-21T23:38:14.399456398Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:14.399468849Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:14.486274003Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:14","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:14.486307643Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:14.486313494Z [OrderGroup] Skipping ORD-112105-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:14.486330834Z [OrderGroup] Processed: 0, Skipped: 1
+2026-08-21T23:38:14.907658182Z [AutoRetry] Retrying ORD-112105...
+2026-08-21T23:38:14.910180209Z [OrderGroup] Processing 1 PENDING items for ORD-112105
+2026-08-21T23:38:14.910204209Z [OrderGroup] Settings from cache: {"mcbisAPI":true,"cartOrder":true,"bulkOrders":true,"loadWallet":false,"claimWallet":true,"excelImport":false,"placeOrders":true,"ckgodswayAPI":false,"mcbis_mtnAPI":false,"etopup_mtnAPI":false,"mcbisAutoSync":false,"websiteUpdate":false,"newRegistration":true,"paystackEnabled":true,"ckgodsway_mtnAPI":false,"instantdataghAPI":true,"mcbis_bigtimeAPI":false,"mcbis_telecelAPI":false,"momoClaimEnabled":false,"ckgodswayAutoSync":true,"datagatekeeperAPI":false,"mtnBackupProvider":"MCBIS","mtnFailoverEnabled":false,"mtnPrimaryProvider":"IDG","paystackWithdrawal":true,"mcbis_airteltigoAPI":false,"ckgodsway_bigtimeAPI":true,"ckgodsway_telecelAPI":true,"instantdatagh_mtnAPI":false,"datagatekeeper_mtnAPI":true,"instantdataghAutoSync":false,"ckgodsway_airteltigoAPI":true}
+2026-08-21T23:38:14.911236412Z [OrderGroup] MTN → INSTANTDATAGH (via mtnPrimaryProvider)
+2026-08-21T23:38:14.912265635Z [InstantDataGH] GET https://instantdatagh.com/api.php/balance
+2026-08-21T23:38:15.007433864Z [InstantDataGH] HTTP 200: {"status":"success","timestamp":"2026-08-21 23:38:14","message":"Balance retrieved successfully","data":{"user_id":"9466d8ed51f5ec7518903f00577cabd4","username":"Sir","balance":"GH₵2.36","balance_raw"
+2026-08-21T23:38:15.007451724Z [OrderGroup] InstantDataGH balance: GHS 2.36
+2026-08-21T23:38:15.007454924Z [OrderGroup] Skipping ORD-112105-01: Insufficient INSTANTDATAGH balance (need 7.8, have 2.36)
+2026-08-21T23:38:15.007457014Z [OrderGroup] Processed: 0, Skipped: 1
