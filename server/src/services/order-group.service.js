@@ -21,6 +21,7 @@
 
 const prisma = require('../lib/prisma');
 const walletService = require('./wallet.service');
+const { getCustomerOrderStatus } = require('./order-status.service');
 
 // TopUpGH batch queue — lazy-loaded to avoid circular deps at startup
 let topupghBatchService = null;
@@ -465,19 +466,10 @@ const orderGroupService = {
       return null;
     }
 
-    // Calculate summary status from items
-    const itemStatuses = orderGroup.items.map(i => i.status);
-    let summaryStatus = 'PENDING';
-    
-    if (itemStatuses.every(s => s === 'COMPLETED')) {
-      summaryStatus = 'COMPLETED';
-    } else if (itemStatuses.every(s => s === 'FAILED')) {
-      summaryStatus = 'FAILED';
-    } else if (itemStatuses.some(s => s === 'PROCESSING' || s === 'COMPLETED')) {
-      summaryStatus = 'PROCESSING';
-    } else if (itemStatuses.every(s => s === 'CANCELLED')) {
-      summaryStatus = 'CANCELLED';
-    }
+    const summaryStatus = getCustomerOrderStatus(
+      orderGroup.items.map(item => item.status),
+      orderGroup.status
+    );
 
     return {
       // Client-facing data
@@ -526,7 +518,6 @@ const orderGroupService = {
 
     // ── OrderGroup where ───────────────────────────────────────────────
     const ogWhere = { userId, ...dateWhere };
-    if (status)  ogWhere.status = status;
     if (network) ogWhere.items = { some: { bundle: { network: { contains: network, mode: 'insensitive' } } } };
     if (search)  ogWhere.OR = [
       { displayId: { contains: search, mode: 'insensitive' } },
@@ -559,7 +550,6 @@ const orderGroupService = {
       ...dateWhere,
       ...(orderGroupDisplayIds.length > 0 ? { NOT: { reference: { in: orderGroupDisplayIds } } } : {})
     };
-    if (status)  legacyWhere.status = status;
     if (network) legacyWhere.bundle = { network: { contains: network, mode: 'insensitive' } };
     if (search)  legacyWhere.OR = [
       { reference:      { contains: search, mode: 'insensitive' } },
@@ -579,12 +569,10 @@ const orderGroupService = {
 
     // Convert OrderGroups to standard format
     const formattedOrderGroups = orderGroups.map(order => {
-      const statuses = order.items.map(i => i.status);
-      let summaryStatus = 'PENDING';
-      if (statuses.every(s => s === 'COMPLETED')) summaryStatus = 'COMPLETED';
-      else if (statuses.every(s => s === 'FAILED')) summaryStatus = 'FAILED';
-      else if (statuses.some(s => s === 'PROCESSING' || s === 'COMPLETED')) summaryStatus = 'PROCESSING';
-      else if (statuses.every(s => s === 'CANCELLED')) summaryStatus = 'CANCELLED';
+      const summaryStatus = getCustomerOrderStatus(
+        order.items.map(item => item.status),
+        order.status
+      );
 
       return {
         orderId: order.displayId,
@@ -650,6 +638,7 @@ const orderGroupService = {
 
     // Combine and sort by date (newest first)
     const allOrders = [...formattedOrderGroups, ...formattedLegacyOrders]
+      .filter(order => !status || order.status === status)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     // Apply pagination to combined list
@@ -858,39 +847,6 @@ const orderGroupService = {
         console.error(`[OrderGroup] Auto-complete profit credit failed:`, profitErr.message);
       }
     }
-  },
-
-  /**
-   * ============================================================
-   * RECALCULATE GROUP STATUS
-   * ============================================================
-   * Updates the OrderGroup's summaryStatus based on item statuses.
-   */
-  async recalculateGroupStatus(orderGroupId) {
-    const items = await prisma.orderItem.findMany({
-      where: { orderGroupId },
-      select: { status: true }
-    });
-
-    const statuses = items.map(i => i.status);
-    let summaryStatus = 'PENDING';
-
-    if (statuses.every(s => s === 'COMPLETED')) {
-      summaryStatus = 'COMPLETED';
-    } else if (statuses.every(s => s === 'FAILED')) {
-      summaryStatus = 'FAILED';
-    } else if (statuses.some(s => s === 'PROCESSING' || s === 'COMPLETED')) {
-      summaryStatus = 'PROCESSING';
-    } else if (statuses.every(s => s === 'CANCELLED')) {
-      summaryStatus = 'CANCELLED';
-    }
-
-    await prisma.orderGroup.update({
-      where: { id: orderGroupId },
-      data: { summaryStatus }
-    });
-
-    return summaryStatus;
   },
 
   /**
@@ -1779,49 +1735,36 @@ const orderGroupService = {
   },
 
   /**
-   * Recalculate OrderGroup summary status based on all items
+   * Recalculate the customer-facing OrderGroup status from its items.
+   * `status` and `summaryStatus` must stay aligned because existing callers
+   * and older records read both fields.
    */
   async recalculateGroupStatus(orderGroupId) {
-    const items = await prisma.orderItem.findMany({
-      where: { orderGroupId }
-    });
+    const [orderGroup, items] = await Promise.all([
+      prisma.orderGroup.findUnique({
+        where: { id: orderGroupId },
+        select: { status: true }
+      }),
+      prisma.orderItem.findMany({
+        where: { orderGroupId },
+        select: { status: true }
+      })
+    ]);
 
-    if (items.length === 0) return;
+    if (!orderGroup || items.length === 0) return orderGroup?.status;
 
-    const statusCounts = {
-      PENDING: 0,
-      PROCESSING: 0,
-      COMPLETED: 0,
-      FAILED: 0,
-      CANCELLED: 0
-    };
-
-    items.forEach(item => {
-      if (statusCounts[item.status] !== undefined) {
-        statusCounts[item.status]++;
-      }
-    });
-
-    let summaryStatus = 'MIXED';
-    
-    if (statusCounts.COMPLETED === items.length) {
-      summaryStatus = 'COMPLETED';
-    } else if (statusCounts.FAILED === items.length) {
-      summaryStatus = 'FAILED';
-    } else if (statusCounts.CANCELLED === items.length) {
-      summaryStatus = 'CANCELLED';
-    } else if (statusCounts.PENDING === items.length) {
-      summaryStatus = 'PENDING';
-    } else if (statusCounts.PROCESSING > 0 || statusCounts.PENDING > 0) {
-      summaryStatus = 'PROCESSING';
-    }
+    const summaryStatus = getCustomerOrderStatus(
+      items.map(item => item.status),
+      orderGroup.status
+    );
 
     await prisma.orderGroup.update({
       where: { id: orderGroupId },
-      data: { summaryStatus }
+      data: { status: summaryStatus, summaryStatus }
     });
 
-    console.log(`[Sync] Updated OrderGroup ${orderGroupId} summaryStatus to ${summaryStatus}`);
+    console.log(`[Sync] Updated OrderGroup ${orderGroupId} status to ${summaryStatus}`);
+    return summaryStatus;
   },
 
   /**
