@@ -69,3 +69,7 @@ externalPort = 8000
 deploymentTarget = "vm"
 run = ["node", "server/src/index.js"]
 build = ["bash", "-c", "cd server && npm install && npx prisma generate"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
