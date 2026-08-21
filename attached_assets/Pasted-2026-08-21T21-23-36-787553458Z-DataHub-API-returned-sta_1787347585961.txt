@@ -1,0 +1,150 @@
+2026-08-21T21:23:36.787553458Z [DataHub] API returned status: processing
+2026-08-21T21:23:36.787556948Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:36.787559378Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:36.787561749Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:36.787564419Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:37.208313995Z [DataHub] Checking status for API reference: IDG-c6dba0d923071d7f6c77d6ea8f579e84 (provider: IDG)
+2026-08-21T21:23:37.296438362Z [DataHub] API returned status: processing
+2026-08-21T21:23:37.296443602Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:37.296448322Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:37.296452132Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:37.296455862Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:37.720016745Z [DataHub] Checking status for API reference: IDG-278c567d81781acc4056bb6321e8d92e (provider: IDG)
+2026-08-21T21:23:37.805313425Z [DataHub] API returned status: processing
+2026-08-21T21:23:37.805316495Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:37.805319055Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:37.805321485Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:37.805328785Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:38.226486844Z [DataHub] Checking status for API reference: IDG-5d1db032653c96fc304d8fd54c18cfef (provider: IDG)
+2026-08-21T21:23:38.313915389Z [DataHub] API returned status: processing
+2026-08-21T21:23:38.31394669Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:38.313953581Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:38.313957731Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:38.313962011Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:38.734975536Z [DataHub] Checking status for API reference: IDG-6212ae03e4f1b74527bcb3d66d9f51e8 (provider: IDG)
+2026-08-21T21:23:38.822257486Z [DataHub] API returned status: processing
+2026-08-21T21:23:38.822261236Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:38.822265246Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:38.822270326Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:38.822275067Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:39.243427736Z [DataHub] Checking status for API reference: IDG-baa730d376392f43067b4fa45800af77 (provider: IDG)
+2026-08-21T21:23:39.331508461Z [DataHub] API returned status: processing
+2026-08-21T21:23:39.331512961Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:39.331532221Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:39.331536121Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:39.331538101Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:39.754259878Z [DataHub] Checking status for API reference: IDG-43a4da66e4e72274f5030f5d2aeb3058 (provider: IDG)
+2026-08-21T21:23:39.955476038Z [DataHub] API returned status: processing
+2026-08-21T21:23:39.955479099Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:39.955481569Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:39.955483909Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:39.955486399Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:40.377117693Z [DataHub] Checking status for API reference: IDG-cfb11bd682a4eb391a0642c5ba8974c3 (provider: IDG)
+2026-08-21T21:23:40.465266379Z [DataHub] API returned status: processing
+2026-08-21T21:23:40.465269819Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:40.465273499Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:40.46527658Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:40.46527954Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:40.886510151Z [DataHub] Checking status for API reference: IDG-42917eb87d7d92d65e1833388875d7f4 (provider: IDG)
+2026-08-21T21:23:40.974224325Z [DataHub] API returned status: processing
+2026-08-21T21:23:40.974228065Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:40.974230635Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:40.974233015Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:40.974235475Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:41.3945913Z [DataHub] Checking status for API reference: IDG-8653f841d03b4db85017ec39c3f09a95 (provider: IDG)
+2026-08-21T21:23:41.481601712Z [DataHub] API returned status: processing
+2026-08-21T21:23:41.481606753Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:41.481610613Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:41.481633883Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:41.481636793Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:41.907047702Z [DataHub] Checking status for API reference: IDG-9f3d4637f6b86b15e9fc9030afc82b6d (provider: IDG)
+2026-08-21T21:23:41.994117106Z [DataHub] API returned status: processing
+2026-08-21T21:23:41.994120316Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:41.994123726Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:41.994126566Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:41.994129486Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:42.415277155Z [DataHub] Checking status for API reference: IDG-fb005235a7dd9c95f68f4de3f2ba1aaa (provider: IDG)
+2026-08-21T21:23:42.585055051Z [DataHub] API returned status: processing
+2026-08-21T21:23:42.585058191Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:42.585061401Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:42.585064161Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:42.585066941Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:43.006327684Z [DataHub] Checking status for API reference: IDG-4c9c0f76bb4329a0d528038d3286f848 (provider: IDG)
+2026-08-21T21:23:43.093912554Z [DataHub] API returned status: processing
+2026-08-21T21:23:43.093915203Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:43.093917294Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:43.093935654Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:43.093941574Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:43.514361091Z [DataHub] Checking status for API reference: IDG-87d00487c8fafd63fb3cd540f4e233f6 (provider: IDG)
+2026-08-21T21:23:43.705201357Z [DataHub] API returned status: processing
+2026-08-21T21:23:43.705206566Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:43.705210687Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:43.705215057Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:43.705219567Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:44.126227812Z [DataHub] Checking status for API reference: IDG-3279ee5dba39c3047be31d38170745fa (provider: IDG)
+2026-08-21T21:23:44.214071159Z [DataHub] API returned status: processing
+2026-08-21T21:23:44.214074259Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:44.214077079Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:44.21407939Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:44.214081819Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:44.643674745Z [DataHub] Checking status for API reference: IDG-b41b5fade60a15ffca15fecf5c643162 (provider: IDG)
+2026-08-21T21:23:44.733837283Z [DataHub] API returned status: processing
+2026-08-21T21:23:44.733840793Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:44.733843803Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:44.733847023Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:44.733850033Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:45.154802586Z [DataHub] Checking status for API reference: IDG-7104048ec2c696eefba8c68ae860a157 (provider: IDG)
+2026-08-21T21:23:45.243896762Z [DataHub] API returned status: processing
+2026-08-21T21:23:45.243900552Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:45.243903652Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:45.243906592Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:45.243909552Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:45.664794343Z [DataHub] Checking status for API reference: IDG-1f96fc2e9ce11e4abe586b617313c728 (provider: IDG)
+2026-08-21T21:23:46.125961118Z [DataHub] API returned status: processing
+2026-08-21T21:23:46.125964518Z [DataHub] Normalized API status: 'processing'
+2026-08-21T21:23:46.125967488Z [DataHub] Current DB status: 'PROCESSING'
+2026-08-21T21:23:46.125970198Z [DataHub] Computed newStatus: 'PROCESSING'
+2026-08-21T21:23:46.125973068Z [DataHub] Order status unchanged (PROCESSING)
+2026-08-21T21:23:46.547256311Z [DataHub] Checking status for API reference: KEM1787344740375IZQFGX (provider: MCBIS)
+2026-08-21T21:23:46.547286532Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1787344740375IZQFGX
+2026-08-21T21:23:46.585262275Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:23:46.585290046Z [DataHub] API returned status: unknown
+2026-08-21T21:23:46.9878389Z [DataHub] Checking status for API reference: KEM17873454808953ATQOD (provider: MCBIS)
+2026-08-21T21:23:46.987855901Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17873454808953ATQOD
+2026-08-21T21:23:47.016641205Z [DataHub] API returned status: unknown
+2026-08-21T21:23:47.016641245Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:23:47.419422876Z [DataHub] Checking status for API reference: KEM1787346122878G4UY8X (provider: MCBIS)
+2026-08-21T21:23:47.419456187Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1787346122878G4UY8X
+2026-08-21T21:23:47.448340784Z [DataHub] API returned status: unknown
+2026-08-21T21:23:47.448340804Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:23:47.849170826Z [DataHub] Checking status for API reference: KEM17873461580355Z2BWS (provider: MCBIS)
+2026-08-21T21:23:47.849200297Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17873461580355Z2BWS
+2026-08-21T21:23:47.878378463Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:23:47.878412064Z [DataHub] API returned status: unknown
+2026-08-21T21:23:48.281487314Z [DataHub] Checking status for API reference: KEM1787346257325ISQTOI (provider: MCBIS)
+2026-08-21T21:23:48.281620918Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1787346257325ISQTOI
+2026-08-21T21:23:48.327970706Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:23:48.327991877Z [DataHub] API returned status: unknown
+2026-08-21T21:23:48.730362965Z [DataHub] Checking status for API reference: KEM1787346289964M6GC83 (provider: MCBIS)
+2026-08-21T21:23:48.730388456Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1787346289964M6GC83
+2026-08-21T21:23:48.758275163Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:23:48.758278423Z [DataHub] API returned status: unknown
+2026-08-21T21:23:49.161082045Z [DataHub] Checking status for API reference: KEM17873463369459S0MVC (provider: MCBIS)
+2026-08-21T21:23:49.161109076Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17873463369459S0MVC
+2026-08-21T21:23:49.189591861Z [DataHub] API returned status: unknown
+2026-08-21T21:23:49.189597031Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:24:37.613496644Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-08-21T21:24:37.647214599Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:24:37.647511548Z 172.71.146.124 - - [21/Aug/2026:21:24:37 +0000] "GET /api/datahub/balance?_t=1787347476093 HTTP/1.1" 200 137 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
+2026-08-21T21:24:39.682681864Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-08-21T21:24:39.708988404Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:24:39.709332414Z 172.68.247.31 - - [21/Aug/2026:21:24:39 +0000] "GET /api/datahub/balance?_t=1787347478153 HTTP/1.1" 200 137 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
+2026-08-21T21:24:40.717741503Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-08-21T21:24:40.746102985Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:24:40.746171337Z 172.71.147.174 - - [21/Aug/2026:21:24:40 +0000] "GET /api/datahub/balance?_t=1787347479193 HTTP/1.1" 200 137 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
+2026-08-21T21:24:41.651448643Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-08-21T21:24:41.682323742Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:24:41.6826066Z 172.68.247.31 - - [21/Aug/2026:21:24:41 +0000] "GET /api/datahub/balance?_t=1787347480123 HTTP/1.1" 200 137 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
+2026-08-21T21:24:42.574544611Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-08-21T21:24:42.603363876Z [DataHub] Cloudflare blocking detected. Status: 403
+2026-08-21T21:24:42.603700216Z 172.71.147.174 - - [21/Aug/2026:21:24:42 +0000] "GET /api/datahub/balance?_t=1787347481053 HTTP/1.1" 200 137 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
