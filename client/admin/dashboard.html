@@ -8841,7 +8841,7 @@
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed to retry order');
-                showToast('Order re-queued for sending. Check status in ~1 minute.');
+                showToast(data.message || 'Order sent to the provider. Check status in ~1 minute.');
                 loadStats();
             } catch (err) {
                 showToast('Error: ' + err.message, 'error');

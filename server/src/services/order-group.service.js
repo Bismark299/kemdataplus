@@ -867,7 +867,7 @@ const orderGroupService = {
    * - Checks API wallet balance BEFORE each item
    * - Items stay PENDING if API disabled or insufficient balance
    */
-  async processOrderItems(orderGroupId) {
+  async processOrderItems(orderGroupId, options = {}) {
     const datahubService = require('./datahub.service');
     const ckgodswayService = require('./ckgodsway.service');
     const dataGatekeeperService = require('./datagatekeeper.service');
@@ -963,13 +963,19 @@ const orderGroupService = {
       return null;
     };
     
+    const requestedItemIds = Array.isArray(options.itemIds)
+      ? options.itemIds.filter(Boolean)
+      : [];
+    const pendingItemFilter = { status: 'PENDING' };
+    if (requestedItemIds.length > 0) {
+      pendingItemFilter.id = { in: requestedItemIds };
+    }
+
     const orderGroup = await prisma.orderGroup.findUnique({
       where: { id: orderGroupId },
       include: {
         items: {
-          where: {
-            status: 'PENDING' // Only process PENDING items
-          },
+          where: pendingItemFilter,
           include: { bundle: true }
         }
       }
@@ -988,6 +994,7 @@ const orderGroupService = {
     
     // Track balances per provider (fetched on first use)
     const providerBalances = {};
+    const providerBalanceErrors = {};
     
     async function getProviderBalance(providerName, service) {
       if (providerBalances[providerName] !== undefined) return providerBalances[providerName];
@@ -1024,12 +1031,18 @@ const orderGroupService = {
       } else if (providerName === 'MCBIS') {
         try {
           const balanceResult = await service.getWalletBalance();
-          providerBalances[providerName] = balanceResult.success ? balanceResult.balance : Infinity;
-          console.log(`[OrderGroup] MCBIS wallet balance: ${providerBalances[providerName]} GHS`);
+          if (!balanceResult.success) {
+            providerBalances[providerName] = null;
+            providerBalanceErrors[providerName] = balanceResult.error || 'MCBIS balance check failed';
+            console.warn(`[OrderGroup] MCBIS balance unavailable — dispatch paused: ${providerBalanceErrors[providerName]}`);
+          } else {
+            providerBalances[providerName] = balanceResult.balance;
+            console.log(`[OrderGroup] MCBIS wallet balance: ${providerBalances[providerName]} GHS`);
+          }
         } catch (e) {
-          // If balance check fails, proceed anyway — let placeOrder fail naturally
-          providerBalances[providerName] = Infinity;
-          console.log(`[OrderGroup] Could not fetch MCBIS balance (proceeding anyway): ${e.message}`);
+          providerBalances[providerName] = null;
+          providerBalanceErrors[providerName] = e.message;
+          console.warn(`[OrderGroup] MCBIS balance unavailable — dispatch paused: ${e.message}`);
         }
       } else {
         providerBalances[providerName] = Infinity;
@@ -1109,6 +1122,18 @@ const orderGroupService = {
       
       // Check 3: Is API balance sufficient?
       const apiBalance = await getProviderBalance(apiProvider, apiService);
+      if (apiProvider === 'MCBIS' && apiBalance === null) {
+        const balanceError = providerBalanceErrors[apiProvider] || 'MCBIS balance check failed';
+        console.warn(`[OrderGroup] Skipping ${item.reference}: MCBIS wallet balance unavailable — order will not be sent`);
+        skipped++;
+        results.push({
+          itemId: item.id,
+          reference: item.reference,
+          skipped: true,
+          reason: `MCBIS wallet balance unavailable — order not sent: ${balanceError}`
+        });
+        continue;
+      }
       if (apiBalance < estimatedCost) {
         console.log(`[OrderGroup] Skipping ${item.reference}: Insufficient ${apiProvider} balance (need ${estimatedCost}, have ${apiBalance})`);
         skipped++;

@@ -1622,15 +1622,44 @@ router.post('/admin/item/:itemId/retry', authenticate, authorize('ADMIN'), async
       });
     }
 
-    // Trigger processing immediately
+    // Trigger processing immediately for this item only. A retry of one item
+    // must never dispatch other pending items in the same order group.
     try {
-      await orderGroupService.processOrderItems(item.orderGroup.id);
+      const processResult = await orderGroupService.processOrderItems(item.orderGroup.id, {
+        itemIds: [item.id]
+      });
+      const itemResult = processResult.results.find(result => result.itemId === item.id);
+
+      if (itemResult?.skipped) {
+        return res.status(409).json({
+          success: false,
+          error: itemResult.reason || 'Order was not sent',
+          retried: false
+        });
+      }
+
+      if (!itemResult?.success) {
+        return res.status(502).json({
+          success: false,
+          error: itemResult?.error || 'Provider did not accept the retry',
+          retried: false
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: `Order sent to ${itemResult.provider}`,
+        provider: itemResult.provider,
+        externalReference: itemResult.externalReference
+      });
     } catch (processErr) {
       console.error('[RetryItem] processOrderItems error:', processErr.message);
-      // Non-fatal — auto-sync will pick it up within 1 minute
+      return res.status(500).json({
+        success: false,
+        error: `Retry could not be processed: ${processErr.message}`,
+        retried: false
+      });
     }
-
-    res.json({ success: true, message: 'Order re-queued for sending' });
 
   } catch (error) {
     next(error);
