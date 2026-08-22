@@ -1,3 +1,4 @@
 - [Order status sync](order-status-sync.md) — fulfillment status changes must propagate to legacy Order + StorefrontOrder + profit credit, or storefront/dashboard views drift apart.
 - [MTN Failover design](mtn-failover.md) — primary/backup API failover for MTN orders (MCBIS ↔ IDG); key constraints and race-condition guard.
 - [MCBIS API contract](mcbis-api-contract.md) — Bearer auth and wallet response shape are correct; MCBIS is MTN-only here, and live 403s may be proxy/WAF blocks.
+- [InstantDataGH rate limit](instantdatagh-rate-limit.md) — IDG reports a 120-requests-per-minute limit; status polling must stay below it across all callers.
