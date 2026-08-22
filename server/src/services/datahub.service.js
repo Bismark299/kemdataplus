@@ -216,11 +216,7 @@ let mcbisRateLimitedUntil = 0;
 const ACCESS_BLOCK_COOLDOWN_MS = 60 * 1000; // Avoid repeated WAF/proxy requests
 let mcbisAccessBlockedUntil = 0;
 
-// Balance reads are requested by the dashboard and can also happen during
-// MTN order processing. Reuse a recent result and coalesce simultaneous calls
-// so one browser refresh cannot create several provider requests.
-const BALANCE_CACHE_TTL_MS = 30 * 1000;
-let mcbisBalanceCache = null;
+// Coalesce simultaneous live balance reads, but never reuse a prior balance.
 let mcbisBalanceRequest = null;
 
 function isMcbisRateLimited() {
@@ -264,8 +260,7 @@ const datahubService = {
     console.log('[DataHub Test] Token configured:', !!config.token);
     
     try {
-      // A connection test intentionally bypasses the short balance cache, but
-      // still uses the same request/error handling as normal MCBIS traffic.
+      // Use the same request/error handling as normal MCBIS traffic.
       const responseData = await apiRequest('/walletBalance', 'GET', null, 0);
       
       console.log('[DataHub Test] Status: 200');
@@ -323,66 +318,24 @@ const datahubService = {
   /**
    * Get API wallet balance
    */
-  async getWalletBalance({ force = false, allowStale = true } = {}) {
-    const now = Date.now();
-    if (!force && mcbisBalanceCache && now - mcbisBalanceCache.fetchedAt < BALANCE_CACHE_TTL_MS) {
-      return {
-        success: true,
-        balance: mcbisBalanceCache.balance,
-        raw: mcbisBalanceCache.raw,
-        cached: true,
-        stale: false,
-        fetchedAt: mcbisBalanceCache.fetchedAt
-      };
-    }
-
+  async getWalletBalance() {
     const cooldownMessage = getMcbisCooldownMessage();
     if (cooldownMessage) {
-      if (mcbisBalanceCache && allowStale) {
-        return {
-          success: true,
-          balance: mcbisBalanceCache.balance,
-          raw: mcbisBalanceCache.raw,
-          cached: true,
-          stale: true,
-          warning: cooldownMessage,
-          fetchedAt: mcbisBalanceCache.fetchedAt
-        };
-      }
       return { success: false, balance: 0, error: cooldownMessage };
     }
 
-    // A forced call is used by MTN order dispatch and must retain the
-    // existing live-check behavior instead of inheriting a dashboard fallback.
-    if (mcbisBalanceRequest && !force) return mcbisBalanceRequest;
+    if (mcbisBalanceRequest) return mcbisBalanceRequest;
 
     mcbisBalanceRequest = (async () => {
       try {
         const result = await apiRequest('/walletBalance');
         const balance = parseFloat(result.data?.walletBalance || 0);
-        const fetchedAt = Date.now();
-        mcbisBalanceCache = { balance, raw: result, fetchedAt };
         return {
           success: true,
           balance,
-          raw: result,
-          cached: false,
-          stale: false,
-          fetchedAt
+          raw: result
         };
       } catch (error) {
-        if (mcbisBalanceCache && allowStale) {
-          return {
-            success: true,
-            balance: mcbisBalanceCache.balance,
-            raw: mcbisBalanceCache.raw,
-            cached: true,
-            stale: true,
-            warning: error.message,
-            status: error.status,
-            fetchedAt: mcbisBalanceCache.fetchedAt
-          };
-        }
         return {
           success: false,
           balance: 0,
@@ -673,7 +626,7 @@ const datahubService = {
     console.log(`[DataHub] Estimated order cost: ${estimatedOrderCost} GHS (${dataAmount}GB × ${estimatedCostPerGB} GHS/GB)`);
     
     // Check MCBIS wallet balance
-    const balanceResult = await this.getWalletBalance({ force: true, allowStale: false });
+    const balanceResult = await this.getWalletBalance();
     
     if (!balanceResult.success) {
       console.log(`[DataHub] WARNING: Could not check MCBIS balance: ${balanceResult.error}`);

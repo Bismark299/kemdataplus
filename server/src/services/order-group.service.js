@@ -1023,10 +1023,7 @@ const orderGroupService = {
         }
       } else if (providerName === 'MCBIS') {
         try {
-          // Order dispatch keeps its original live balance check. The
-          // dashboard cache is intentionally not used to decide whether a
-          // working MTN order should be sent.
-          const balanceResult = await service.getWalletBalance({ force: true, allowStale: false });
+          const balanceResult = await service.getWalletBalance();
           providerBalances[providerName] = balanceResult.success ? balanceResult.balance : Infinity;
           console.log(`[OrderGroup] MCBIS wallet balance: ${providerBalances[providerName]} GHS`);
         } catch (e) {
