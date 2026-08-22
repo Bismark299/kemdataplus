@@ -1,0 +1,153 @@
+The Key Discovery: You're Missing Required Headers
+Look at the authentication requirements in the documentation:
+
+javascript
+// ✅ REQUIRED HEADERS FROM DOCS:
+headers: {
+  'Accept': 'application/json',           // ✅ You have this
+  'Authorization': `Bearer ${token}`,     // ✅ You have this
+  'Content-Type': 'application/json',    // ✅ You have this (for POST)
+  'User-Agent': 'KemDataplus/1.0'       // ❌ YOU'RE MISSING THIS!
+}
+Your app is likely not sending the User-Agent: KemDataplus/1.0 header, which is required by their API. This is a big red flag for Cloudflare's bot protection!
+
+🔍 Why This Causes the Cloudflare 403
+Cloudflare sees requests without the proper User-Agent as suspicious bot traffic
+
+After a few requests, Cloudflare blocks the IP with a "Just a moment..." challenge
+
+Redeploy works temporarily because the new IP gets a fresh start, but the same pattern repeats
+
+The documentation explicitly states:
+
+"I do not recommend intentionally flooding the live MCBIS account. It can trigger a Cloudflare 403"
+
+This confirms your issue is rate/pattern-based blocking, not a permanent blacklist.
+
+🛠️ The Fix: Add the Missing Headers to ALL Requests
+Update ALL your MCBIS API calls to include the proper headers:
+
+javascript
+// ✅ CORRECTED FUNCTION FOR ALL MCBIS REQUESTS
+async function makeMcbisRequest(endpoint, options = {}) {
+    const baseUrl = 'https://datahub.mcbissolution.com/api/v1';
+    const url = `${baseUrl}${endpoint}`;
+    
+    const response = await fetch(url, {
+        method: options.method || 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${process.env.MCBIS_API_TOKEN}`,
+            'Content-Type': 'application/json',  // Required for POST
+            'User-Agent': 'KemDataplus/1.0'      // ⭐ THIS WAS MISSING!
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    
+    // Handle rate limiting properly
+    if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after');
+        throw new Error(
+            `MCBIS rate limit reached. Retry-After: ${retryAfter || 'not provided'}`
+        );
+    }
+    
+    if (!response.ok) {
+        throw new Error(`MCBIS request failed with HTTP ${response.status}`);
+    }
+    
+    return response.json();
+}
+
+// ✅ EXAMPLE USAGE:
+// Get wallet balance
+const balanceData = await makeMcbisRequest('/walletBalance');
+
+// Get products
+const products = await makeMcbisRequest('/allProducts');
+
+// Place an order (POST)
+const orderResult = await makeMcbisRequest('/placeOrder', {
+    method: 'POST',
+    body: {
+        network: 'mtn',
+        reference: `KEM${Date.now()}${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        receiver: '0555546229',
+        amount: 1
+    }
+});
+📊 The "Retry-After" Header Handling
+The documentation shows you should handle the retry-after header when you get a 429:
+
+javascript
+// ✅ PROPER RATE LIMIT HANDLING
+async function getMcbisBalance() {
+    const response = await fetch('https://datahub.mcbissolution.com/api/v1/walletBalance', {
+        headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${process.env.MCBIS_API_TOKEN}`,
+            'User-Agent': 'KemDataplus/1.0'  // ⭐ STILL NEED THIS
+        }
+    });
+    
+    if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after');
+        throw new Error(
+            `MCBIS rate limit reached. Retry-After: ${retryAfter || 'not provided'}`
+        );
+    }
+    
+    if (!response.ok) {
+        throw new Error(`MCBIS request failed with HTTP ${response.status}`);
+    }
+    
+    return response.json();
+}
+🚨 Critical Warnings from Documentation
+Do NOT automatically retry POST requests:
+
+"Important: do not automatically retry this POST request. MCBIS may receive the request even if your server does not receive the response, which could cause duplicate delivery."
+
+Do NOT use /placeOrder for rate-limit testing:
+
+"Do not use /placeOrder for rate-limit testing."
+
+Use bounded probes for testing:
+
+"Use a bounded probe instead. This sends one safe read request every five seconds and stops immediately on 429"
+
+🎯 Immediate Action Items
+1. Add the User-Agent Header to ALL MCBIS Requests
+This is the most likely cause of your Cloudflare 403 errors.
+
+2. Check Your Request Frequency
+javascript
+// Add request tracking to identify patterns
+let requestCount = 0;
+const MAX_REQUESTS_PER_MINUTE = 20; // Conservative estimate
+
+async function rateLimitedMcbisRequest(endpoint) {
+    requestCount++;
+    console.log(`MCBIS request #${requestCount} to ${endpoint}`);
+    
+    // If making too many requests, add delay
+    if (requestCount > MAX_REQUESTS_PER_MINUTE) {
+        console.log('Rate limit approaching, adding delay...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        requestCount = 0;
+    }
+    
+    return makeMcbisRequest(endpoint);
+}
+3. Check Your Auto-Refresh Settings
+You mentioned:
+
+text
+[Dashboard] Auto-refreshing orders...
+If this runs every 30 seconds, that's 120 requests/hour - which might trigger Cloudflare. Consider:
+
+Increasing refresh interval to 2-5 minutes
+
+Adding random delays between refreshes
+
+Only refreshing when user is actively viewing the dashboard
