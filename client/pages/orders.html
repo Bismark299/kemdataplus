@@ -684,6 +684,7 @@
                     <select class="filter-select" id="dateFilter">
                         <option value="">All Time</option>
                         <option value="today" selected>Today</option>
+                        <option value="yesterday">Yesterday</option>
                         <option value="week">This Week</option>
                         <option value="month">This Month</option>
                         <option value="custom">Custom Date</option>
@@ -823,6 +824,10 @@
                 let dateFrom = '', dateTo = '';
                 if (dateFilter === 'today') {
                     dateFrom = dateTo = ymd(now);
+                } else if (dateFilter === 'yesterday') {
+                    const yesterday = new Date(now);
+                    yesterday.setDate(now.getDate() - 1);
+                    dateFrom = dateTo = ymd(yesterday);
                 } else if (dateFilter === 'week') {
                     const ws = new Date(now); ws.setDate(now.getDate() - 6);
                     dateFrom = ymd(ws); dateTo = ymd(now);
@@ -1229,7 +1234,7 @@
             if (network) filters.push(`Network: ${network}`);
             if (status) filters.push(`Status: ${status}`);
             if (dateFilter) {
-                const dateLabels = { today: 'Today', week: 'This Week', month: 'This Month', custom: 'Custom Date' };
+                const dateLabels = { today: 'Today', yesterday: 'Yesterday', week: 'This Week', month: 'This Month', custom: 'Custom Date' };
                 if (dateFilter === 'custom') {
                     const from = document.getElementById('customDateFrom').value;
                     const to = document.getElementById('customDateTo').value;
@@ -1259,6 +1264,10 @@
 
             if (filterType === 'today') {
                 return orderDate.toDateString() === now.toDateString();
+            } else if (filterType === 'yesterday') {
+                const yesterday = new Date(now);
+                yesterday.setDate(now.getDate() - 1);
+                return orderDate.toDateString() === yesterday.toDateString();
             } else if (filterType === 'week') {
                 const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
                 return orderDate >= weekAgo;
