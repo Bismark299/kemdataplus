@@ -6047,7 +6047,7 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div style="padding: 20px 22px;">
+                <div style="padding: 20px 22px; overflow-y: auto; flex: 1; min-height: 0;">
                     <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 160px;">
                             <label style="font-size: 0.8rem; color: #64748b; white-space: nowrap;">From:</label>
@@ -6063,12 +6063,12 @@
                     </p>
                     <textarea id="bulkCompleteInput" placeholder="0241234567 5&#10;0557654321 1&#10;0201112222 2" style="width: 100%; height: 160px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: monospace; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
                     <div id="bulkCompleteResult" style="display:none; margin-top: 14px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; line-height: 1.6;"></div>
-                    <div style="display: flex; gap: 10px; margin-top: 14px;">
-                        <button onclick="closeBulkCompleteModal()" style="flex: 1; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Cancel</button>
-                        <button id="bulkCompleteSubmitBtn" onclick="submitBulkComplete()" style="flex: 2; padding: 10px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
-                            <i class="fas fa-check"></i> Complete Orders
-                        </button>
-                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; padding: 14px 22px; border-top: 1px solid #e5e7eb; flex-shrink: 0;">
+                    <button onclick="closeBulkCompleteModal()" style="flex: 1; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Cancel</button>
+                    <button id="bulkCompleteSubmitBtn" onclick="submitBulkComplete()" style="flex: 2; padding: 10px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
+                        <i class="fas fa-check"></i> Complete Orders
+                    </button>
                 </div>
             </div>
         </div>
@@ -6085,7 +6085,7 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div style="padding: 20px 22px;">
+                <div style="padding: 20px 22px; overflow-y: auto; flex: 1; min-height: 0;">
                     <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 160px;">
                             <label style="font-size: 0.8rem; color: #64748b; white-space: nowrap;">From:</label>
@@ -6102,15 +6102,15 @@
                     <textarea id="bulkCancelRefundInput" placeholder="0241234567 5&#10;0557654321 1&#10;0201112222 2" style="width: 100%; height: 140px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: monospace; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
                     <div id="bulkCancelRefundPreview" style="display:none; margin-top: 12px; padding: 14px 16px; border-radius: 8px; background: #fef3c7; border: 1px solid #f59e0b; font-size: 0.85rem; line-height: 1.6;"></div>
                     <div id="bulkCancelRefundResult" style="display:none; margin-top: 12px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; line-height: 1.6;"></div>
-                    <div style="display: flex; gap: 10px; margin-top: 14px;">
-                        <button onclick="closeBulkCancelRefundModal()" style="flex: 1; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Close</button>
-                        <button id="bulkCancelRefundPreviewBtn" onclick="previewBulkCancelRefund()" style="flex: 1.5; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
-                            <i class="fas fa-eye"></i> Preview
-                        </button>
-                        <button id="bulkCancelRefundSubmitBtn" onclick="submitBulkCancelRefund()" style="flex: 2; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; display:none;">
-                            <i class="fas fa-ban"></i> Confirm & Cancel
-                        </button>
-                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; padding: 14px 22px; border-top: 1px solid #e5e7eb; flex-shrink: 0;">
+                    <button onclick="closeBulkCancelRefundModal()" style="flex: 1; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Close</button>
+                    <button id="bulkCancelRefundPreviewBtn" onclick="previewBulkCancelRefund()" style="flex: 1.5; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                    <button id="bulkCancelRefundSubmitBtn" onclick="submitBulkCancelRefund()" style="flex: 2; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; display:none;">
+                        <i class="fas fa-ban"></i> Confirm & Cancel
+                    </button>
                 </div>
             </div>
         </div>
