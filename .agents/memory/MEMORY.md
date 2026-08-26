@@ -2,3 +2,5 @@
 - [MTN Failover design](mtn-failover.md) — primary/backup API failover for MTN orders (MCBIS ↔ IDG); key constraints and race-condition guard.
 - [MCBIS API contract](mcbis-api-contract.md) — Bearer auth and wallet response shape are correct; MCBIS is MTN-only here, and live 403s may be proxy/WAF blocks.
 - [InstantDataGH rate limit](instantdatagh-rate-limit.md) — IDG reports a 120-requests-per-minute limit; status polling must stay below it across all callers.
+- [Render database access](render-database-access.md) — ad hoc access to the configured Render database requires SSL with Prisma; never expose the connection string.
+- [Completion correction](completion-correction.md) — verify provider status and reverse queued profit before restoring a mistaken completion to processing.
