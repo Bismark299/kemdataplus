@@ -132,8 +132,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.token}`,
-      'User-Agent': 'KemDataplus/1.0'
+      'Authorization': `Bearer ${config.token}`
     },
     timeout: 45000,
     maxRedirects: 5,
