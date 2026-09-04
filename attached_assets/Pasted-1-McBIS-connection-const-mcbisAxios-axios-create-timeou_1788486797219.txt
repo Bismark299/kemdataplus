@@ -1,0 +1,121 @@
+1. McBIS connection
+const mcbisAxios = axios.create({
+  timeout: 15_000,
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": "KemDataplus/1.0",
+  },
+});
+const MCBIS_BASE =
+  process.env.DATAHUB_API_URL ??
+  "https://datahub.mcbissolution.com/api/v1";
+
+The API token is stored securely as:
+
+DATAHUB_API_TOKEN
+
+2. Wallet-balance request
+async function mcbisGetBalance(apiKey: string): Promise<number> {
+  const { data } = await mcbisAxios.get(
+    `${MCBIS_BASE}/walletBalance`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    },
+  );
+  return parseFloat(data.data.walletBalance);
+}
+
+This produces:
+
+GET https://datahub.mcbissolution.com/api/v1/walletBalance
+Accept: application/json
+Content-Type: application/json
+User-Agent: KemDataplus/1.0
+Authorization: Bearer <TOKEN>
+
+3. Server-side balance cache
+We cache the result for 60 seconds:
+
+let balanceCache: {
+  value: number;
+  at: number;
+} | null = null;
+const BALANCE_CACHE_TTL_MS = 60_000;
+async function mcbisGetBalanceCached(apiKey: string) {
+  const now = Date.now();
+  if (
+    balanceCache &&
+    now - balanceCache.at < BALANCE_CACHE_TTL_MS
+  ) {
+    return {
+      balance: balanceCache.value,
+      stale: false,
+      fetchedAt: balanceCache.at,
+    };
+  }
+  try {
+    const value = await mcbisGetBalance(apiKey);
+    balanceCache = {
+      value,
+      at: now,
+    };
+    return {
+      balance: value,
+      stale: false,
+      fetchedAt: now,
+    };
+  } catch (error) {
+    // If McBIS temporarily fails or rate-limits us,
+    // continue showing the last successful balance.
+    if (balanceCache) {
+      return {
+        balance: balanceCache.value,
+        stale: true,
+        fetchedAt: balanceCache.at,
+      };
+    }
+    throw error;
+  }
+}
+
+4. Our internal endpoint
+The frontend calls this endpoint instead of McBIS:
+
+router.get(
+  "/admin/mcbis/balance",
+  requireAdmin,
+  async (_req, res) => {
+    const apiKey = process.env.DATAHUB_API_TOKEN ?? "";
+    if (!apiKey) {
+      res.status(400).json({
+        error: "McbisSolution API key not configured",
+      });
+      return;
+    }
+    const result = await mcbisGetBalanceCached(apiKey);
+    res.json(result);
+  },
+);
+
+5. Frontend polling
+The admin sidebar requests our internal endpoint every 30 seconds:
+
+useQuery({
+  queryKey: ["mcbis-balance-sidebar"],
+  queryFn: async () => {
+    const response = await fetch(
+      "/api/admin/mcbis/balance",
+      { credentials: "include" },
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+  refetchInterval: 30_000,
+  staleTime: 20_000,
+  retry: false,
+});
