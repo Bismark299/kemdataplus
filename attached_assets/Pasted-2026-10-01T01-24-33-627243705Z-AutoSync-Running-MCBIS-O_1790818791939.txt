@@ -1,0 +1,161 @@
+2026-10-01T01:24:33.627243705Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:24:33.633487222Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:24:33.729404041Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17762944979354IFIXV
+2026-10-01T01:24:34.076095341Z [MCBIS Tracking] Status unavailable for KEM17762944979354IFIXV: Order not found
+2026-10-01T01:24:35.729767673Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776294767719I3K798
+2026-10-01T01:24:36.158688467Z [MCBIS Tracking] Status unavailable for KEM1776294767719I3K798: Order not found
+2026-10-01T01:24:37.72922038Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776294967806ZKPB7E
+2026-10-01T01:24:38.152671758Z [MCBIS Tracking] Status unavailable for KEM1776294967806ZKPB7E: Order not found
+2026-10-01T01:24:38.152880294Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:25:03.627074684Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:25:03.639037751Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:25:33.627741874Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:25:33.635570306Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:25:48.753678904Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776295226614OBQPR5
+2026-10-01T01:25:49.081700503Z [MCBIS Tracking] Status unavailable for KEM1776295226614OBQPR5: Order not found
+2026-10-01T01:25:50.754962938Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776295450985W2KCKX
+2026-10-01T01:25:51.080590033Z [MCBIS Tracking] Status unavailable for KEM1776295450985W2KCKX: Order not found
+2026-10-01T01:25:52.755652735Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776295991771HVRWQZ
+2026-10-01T01:25:53.098785426Z [MCBIS Tracking] Status unavailable for KEM1776295991771HVRWQZ: Order not found
+2026-10-01T01:25:53.098817747Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:26:03.627118696Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:26:03.638312652Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:26:33.627298465Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:26:33.637351042Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:27:03.62709582Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:27:03.638650537Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:27:03.734496298Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17764700177576TESIQ
+2026-10-01T01:27:04.416301525Z [MCBIS Tracking] Status unavailable for KEM17764700177576TESIQ: Order not found
+2026-10-01T01:27:05.734843529Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776787507309TTQFWO
+2026-10-01T01:27:06.078073154Z [MCBIS Tracking] Status unavailable for KEM1776787507309TTQFWO: Order not found
+2026-10-01T01:27:07.735708805Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1776854017078B66B0F
+2026-10-01T01:27:08.174797218Z [MCBIS Tracking] Status unavailable for KEM1776854017078B66B0F: Order not found
+2026-10-01T01:27:08.174825189Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:27:33.627861225Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:27:33.633644179Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:28:03.627059682Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:28:03.635908948Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:28:18.734307955Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777303305073B2JIWB
+2026-10-01T01:28:19.081993158Z [MCBIS Tracking] Status unavailable for KEM1777303305073B2JIWB: Order not found
+2026-10-01T01:28:20.736004744Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM177730358038436B4MM
+2026-10-01T01:28:21.066608532Z [MCBIS Tracking] Status unavailable for KEM177730358038436B4MM: Order not found
+2026-10-01T01:28:22.736241294Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777303621074GOKT8C
+2026-10-01T01:28:23.076763546Z [MCBIS Tracking] Status unavailable for KEM1777303621074GOKT8C: Order not found
+2026-10-01T01:28:23.076812818Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:28:33.627006169Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:28:33.633350758Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:29:03.627316192Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:29:03.638140679Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:29:33.62788187Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:29:33.633530071Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:29:33.739333092Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17773036421177T6FK0
+2026-10-01T01:29:34.074297351Z [MCBIS Tracking] Status unavailable for KEM17773036421177T6FK0: Order not found
+2026-10-01T01:29:35.742414393Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777304405418J8MZVV
+2026-10-01T01:29:36.101940575Z [MCBIS Tracking] Status unavailable for KEM1777304405418J8MZVV: Order not found
+2026-10-01T01:29:37.744257281Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777304795263U0SOTN
+2026-10-01T01:29:38.164603549Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:29:38.164660481Z [MCBIS Tracking] Status unavailable for KEM1777304795263U0SOTN: Order not found
+2026-10-01T01:30:03.628416146Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:30:03.643743894Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:30:33.629485463Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:30:33.644357999Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:30:48.748553151Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777304848234855K30
+2026-10-01T01:30:49.108161761Z [MCBIS Tracking] Status unavailable for KEM1777304848234855K30: Order not found
+2026-10-01T01:30:50.749932053Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17773049055908OK0H3
+2026-10-01T01:30:51.134065486Z [MCBIS Tracking] Status unavailable for KEM17773049055908OK0H3: Order not found
+2026-10-01T01:30:52.749568529Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17773049375808JWRRC
+2026-10-01T01:30:53.089446054Z [MCBIS Tracking] Status unavailable for KEM17773049375808JWRRC: Order not found
+2026-10-01T01:30:53.089449004Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:31:03.628040435Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:31:03.639337414Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:31:33.628383075Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:31:33.637543729Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:32:03.628039682Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:32:03.635586673Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:32:03.748121266Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM177730520874594PXCC
+2026-10-01T01:32:05.257224105Z [MCBIS Tracking] Status unavailable for KEM177730520874594PXCC: Order not found
+2026-10-01T01:32:05.747948408Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777329747672REUQPN
+2026-10-01T01:32:06.087740656Z [MCBIS Tracking] Status unavailable for KEM1777329747672REUQPN: Order not found
+2026-10-01T01:32:07.749027763Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17774038456410YY895
+2026-10-01T01:32:08.127332905Z [MCBIS Tracking] Status unavailable for KEM17774038456410YY895: Order not found
+2026-10-01T01:32:08.127333495Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:32:33.628414639Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:32:33.634435408Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:33:03.628690482Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:33:03.63421864Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:33:18.750760872Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777403989390W3K171
+2026-10-01T01:33:19.082435357Z [MCBIS Tracking] Status unavailable for KEM1777403989390W3K171: Order not found
+2026-10-01T01:33:20.751390082Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777404253311NVYFDG
+2026-10-01T01:33:21.079441502Z [MCBIS Tracking] Status unavailable for KEM1777404253311NVYFDG: Order not found
+2026-10-01T01:33:22.751696004Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777404404471EVN8JF
+2026-10-01T01:33:23.118469349Z [MCBIS Tracking] Status unavailable for KEM1777404404471EVN8JF: Order not found
+2026-10-01T01:33:23.11849061Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:33:33.628048156Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:33:33.643734411Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:34:03.63175631Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:34:03.639766072Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:34:33.631235346Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:34:33.637484733Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:34:33.755189706Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777404634573QLW75E
+2026-10-01T01:34:34.090407831Z [MCBIS Tracking] Status unavailable for KEM1777404634573QLW75E: Order not found
+2026-10-01T01:34:35.755267836Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777404647921BLN794
+2026-10-01T01:34:36.067351254Z [MCBIS Tracking] Status unavailable for KEM1777404647921BLN794: Order not found
+2026-10-01T01:34:37.755507989Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17774047562935QZY8E
+2026-10-01T01:34:38.094576717Z [MCBIS Tracking] Status unavailable for KEM17774047562935QZY8E: Order not found
+2026-10-01T01:34:38.094598307Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:35:03.632699768Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:35:03.644726207Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:35:33.631201962Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:35:33.640936531Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:35:48.754535179Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777404758411YTULHU
+2026-10-01T01:35:49.095563621Z [MCBIS Tracking] Status unavailable for KEM1777404758411YTULHU: Order not found
+2026-10-01T01:35:50.754227925Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777404963033U5LPCA
+2026-10-01T01:35:51.083949317Z [MCBIS Tracking] Status unavailable for KEM1777404963033U5LPCA: Order not found
+2026-10-01T01:35:52.756032168Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777405060228T5ZYBC
+2026-10-01T01:35:53.089349005Z [MCBIS Tracking] Status unavailable for KEM1777405060228T5ZYBC: Order not found
+2026-10-01T01:35:53.089387186Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:36:03.631727635Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:36:03.64285192Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:36:33.631300315Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:36:33.642710688Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:36:48.687905957Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-10-01T01:37:01.136748612Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/walletBalance
+2026-10-01T01:37:03.631076169Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:37:03.640015285Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:37:03.762519931Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17774051041102L8XTX
+2026-10-01T01:37:04.088200168Z [MCBIS Tracking] Status unavailable for KEM17774051041102L8XTX: Order not found
+2026-10-01T01:37:05.762236014Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777405107254F88H5Z
+2026-10-01T01:37:06.081355019Z [MCBIS Tracking] Status unavailable for KEM1777405107254F88H5Z: Order not found
+2026-10-01T01:37:06.08139419Z [MCBIS Tracking] backlog=1342 checked=2 completed=0 cancelled=0 failed=0 errors=2
+2026-10-01T01:37:07.762852253Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777405109424UL1J34
+2026-10-01T01:37:08.157022129Z [MCBIS Tracking] Status unavailable for KEM1777405109424UL1J34: Order not found
+2026-10-01T01:37:09.76339598Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777405349293G0VXOU
+2026-10-01T01:37:10.138844772Z [MCBIS Tracking] Status unavailable for KEM1777405349293G0VXOU: Order not found
+2026-10-01T01:37:11.764906762Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777829984615O3AIOX
+2026-10-01T01:37:12.139313717Z [MCBIS Tracking] Status unavailable for KEM1777829984615O3AIOX: Order not found
+2026-10-01T01:37:12.139358308Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:37:12.139374538Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON, CATCH-UP mode)
+2026-10-01T01:37:33.631449806Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:37:33.638313417Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:38:03.631432705Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:38:03.642131688Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:38:18.761794053Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM17778299928628H2V0A
+2026-10-01T01:38:19.140542326Z [MCBIS Tracking] Status unavailable for KEM17778299928628H2V0A: Order not found
+2026-10-01T01:38:20.761436175Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777830378387FRNXG0
+2026-10-01T01:38:21.113356277Z [MCBIS Tracking] Status unavailable for KEM1777830378387FRNXG0: Order not found
+2026-10-01T01:38:22.761870717Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777830409921JC8GG0
+2026-10-01T01:38:23.119181352Z [MCBIS Tracking] Status unavailable for KEM1777830409921JC8GG0: Order not found
+2026-10-01T01:38:23.119207333Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
+2026-10-01T01:38:33.631712133Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:38:33.637357533Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:39:03.631106668Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:39:03.637508158Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:39:33.631264424Z [AutoSync] Running... (MCBIS: ON, CKGodsway: ON, IDG/Failover: OFF, DGK: OFF)
+2026-10-01T01:39:33.637398006Z [Sync] Starting sync of all processing OrderItems... (MCBIS: OFF, CKGodsway: ON, DataGatekeeper: ON)
+2026-10-01T01:39:33.757251264Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777830412886K1GJ5R
+2026-10-01T01:39:34.078870084Z [MCBIS Tracking] Status unavailable for KEM1777830412886K1GJ5R: Order not found
+2026-10-01T01:39:35.757249342Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777830437904Y4I2XH
+2026-10-01T01:39:36.080197437Z [MCBIS Tracking] Status unavailable for KEM1777830437904Y4I2XH: Order not found
+2026-10-01T01:39:37.756936272Z [DataHub] Request: GET https://datahub.mcbissolution.com/api/v1/checkOrderStatus/KEM1777830477597Y8XYU0
+2026-10-01T01:39:38.108692308Z [MCBIS Tracking] Status unavailable for KEM1777830477597Y8XYU0: Order not found
+2026-10-01T01:39:38.108692838Z [MCBIS Tracking] backlog=1342 checked=3 completed=0 cancelled=0 failed=0 errors=3 paused
