@@ -1,0 +1,487 @@
+let _pollerStarted = false;
+let _pollRunning = false;
+
+export function startMcbisPoller(): void {
+  if (_pollerStarted) return;
+  _pollerStarted = true;
+
+  const INTERVAL_MS = 10_000;
+  const STATUS_CHECK_CAP = 30;
+  const RETRY_CAP = 5;
+  const STATUS_DELAY_MS = 100;
+  const DISPATCH_DELAY_MS = 500;
+
+  const poll = async () => {
+    if (_pollRunning) return;
+    _pollRunning = true;
+
+    try {
+      const { enabled, autoSync, apiKey } = await getMcbisSettings();
+
+      if (!enabled || !autoSync || !apiKey) return;
+
+      // 1. Check processing platform orders.
+      const platformProcessing = await db
+        .select({
+          id: ordersTable.id,
+          ref: ordersTable.mcbisReference,
+        })
+        .from(ordersTable)
+        .where(
+          and(
+            eq(ordersTable.status, "paid"),
+            eq(ordersTable.delivered, "processing"),
+            isNotNull(ordersTable.mcbisReference),
+          ),
+        )
+        .orderBy(ordersTable.updatedAt)
+        .limit(STATUS_CHECK_CAP);
+
+      let checkErrors = 0;
+      let lastCheckError = "";
+      let rateLimited = false;
+
+      for (const o of platformProcessing) {
+        if (!o.ref) continue;
+
+        let settled = false;
+
+        try {
+          const s = (await mcbisCheckStatus(apiKey, o.ref))
+            .trim()
+            .toLowerCase();
+
+          if (
+            s === "success" ||
+            s === "completed" ||
+            s === "delivered"
+          ) {
+            await db
+              .update(ordersTable)
+              .set({ delivered: "delivered" })
+              .where(
+                and(
+                  eq(ordersTable.id, o.id),
+                  eq(ordersTable.status, "paid"),
+                  eq(ordersTable.delivered, "processing"),
+                ),
+              );
+
+            settled = true;
+          } else if (s === "cancelled" || s === "canceled") {
+            // Explicit provider cancellation: refund inside a transaction.
+            try {
+              const refunded = await db.transaction(async (tx) => {
+                const amount = await refundOrderInTx(tx, o.id, null);
+
+                await tx
+                  .update(ordersTable)
+                  .set({ delivered: "failed" })
+                  .where(eq(ordersTable.id, o.id));
+
+                return amount;
+              });
+
+              logger.info(
+                {
+                  orderId: o.id,
+                  ref: o.ref,
+                  refunded,
+                },
+                "McBIS poller: provider cancelled — order marked failed and auto-refunded",
+              );
+            } catch (refundErr) {
+              logger.warn(
+                {
+                  orderId: o.id,
+                  ref: o.ref,
+                  err:
+                    refundErr instanceof Error
+                      ? refundErr.message
+                      : String(refundErr),
+                },
+                "McBIS poller: cancelled order not auto-refunded — marked failed only",
+              );
+
+              await db
+                .update(ordersTable)
+                .set({ delivered: "failed" })
+                .where(
+                  and(
+                    eq(ordersTable.id, o.id),
+                    eq(ordersTable.status, "paid"),
+                    eq(ordersTable.delivered, "processing"),
+                  ),
+                );
+            }
+
+            settled = true;
+          } else if (s === "failed") {
+            // A plain failure does not automatically refund money.
+            await db
+              .update(ordersTable)
+              .set({ delivered: "failed" })
+              .where(
+                and(
+                  eq(ordersTable.id, o.id),
+                  eq(ordersTable.status, "paid"),
+                  eq(ordersTable.delivered, "processing"),
+                ),
+              );
+
+            settled = true;
+          } else if (s !== "pending" && s !== "processing") {
+            logger.warn(
+              {
+                orderId: o.id,
+                ref: o.ref,
+                mcbisStatus: s || "(empty)",
+              },
+              "McBIS poller: unrecognized platform order status",
+            );
+          }
+        } catch (err) {
+          checkErrors++;
+
+          lastCheckError =
+            err instanceof Error ? err.message : String(err);
+
+          if (
+            axios.isAxiosError(err) &&
+            err.response?.status === 429
+          ) {
+            rateLimited = true;
+            break;
+          }
+        }
+
+        // Rotate unsettled orders so older orders do not block newer ones.
+        if (!settled) {
+          await db
+            .update(ordersTable)
+            .set({ updatedAt: new Date() })
+            .where(eq(ordersTable.id, o.id));
+        }
+
+        await sleep(STATUS_DELAY_MS);
+      }
+
+      // 2. Check processing store orders.
+      const storeProcessing = await db
+        .select({
+          id: storeOrdersTable.id,
+          ref: storeOrdersTable.mcbisReference,
+        })
+        .from(storeOrdersTable)
+        .where(
+          and(
+            eq(storeOrdersTable.status, "paid"),
+            eq(storeOrdersTable.delivered, "processing"),
+            isNotNull(storeOrdersTable.mcbisReference),
+          ),
+        )
+        .orderBy(storeOrdersTable.updatedAt)
+        .limit(STATUS_CHECK_CAP);
+
+      for (const o of storeProcessing) {
+        if (rateLimited) break;
+        if (!o.ref) continue;
+
+        let settled = false;
+
+        try {
+          const s = (await mcbisCheckStatus(apiKey, o.ref))
+            .trim()
+            .toLowerCase();
+
+          if (
+            s === "success" ||
+            s === "completed" ||
+            s === "delivered"
+          ) {
+            await db.transaction(async (tx) => {
+              const [row] = await tx
+                .select({
+                  profit: storeOrdersTable.profit,
+                  storeId: storeOrdersTable.storeId,
+                  status: storeOrdersTable.status,
+                  delivered: storeOrdersTable.delivered,
+                })
+                .from(storeOrdersTable)
+                .where(eq(storeOrdersTable.id, o.id))
+                .for("update");
+
+              // Do not complete an order that was refunded/cancelled
+              // while the provider request was in progress.
+              if (
+                !row ||
+                row.status !== "paid" ||
+                row.delivered !== "processing"
+              ) {
+                return;
+              }
+
+              await tx
+                .update(storeOrdersTable)
+                .set({ delivered: "delivered" })
+                .where(
+                  and(
+                    eq(storeOrdersTable.id, o.id),
+                    eq(storeOrdersTable.status, "paid"),
+                    eq(storeOrdersTable.delivered, "processing"),
+                  ),
+                );
+
+              const profit = parseFloat(row.profit);
+
+              await tx
+                .update(storesTable)
+                .set({
+                  profitBalance:
+                    sql`profit_balance + ${profit.toFixed(2)}::numeric`,
+                })
+                .where(eq(storesTable.id, row.storeId));
+            });
+
+            settled = true;
+          } else if (s === "cancelled" || s === "canceled") {
+            // Refund the store owner's wallet, not the Paystack customer.
+            try {
+              const refunded = await db.transaction(async (tx) => {
+                const amount = await cancelStoreOrderInTx(
+                  tx,
+                  o.id,
+                  null,
+                );
+
+                await tx
+                  .update(storeOrdersTable)
+                  .set({ delivered: "failed" })
+                  .where(eq(storeOrdersTable.id, o.id));
+
+                return amount;
+              });
+
+              logger.info(
+                {
+                  storeOrderId: o.id,
+                  ref: o.ref,
+                  refunded,
+                },
+                "McBIS poller: provider cancelled store order — owner's wallet refunded",
+              );
+            } catch (refundErr) {
+              logger.warn(
+                {
+                  storeOrderId: o.id,
+                  ref: o.ref,
+                  err:
+                    refundErr instanceof Error
+                      ? refundErr.message
+                      : String(refundErr),
+                },
+                "McBIS poller: cancelled store order not auto-refunded — marked failed only",
+              );
+
+              await db
+                .update(storeOrdersTable)
+                .set({ delivered: "failed" })
+                .where(
+                  and(
+                    eq(storeOrdersTable.id, o.id),
+                    eq(storeOrdersTable.status, "paid"),
+                    eq(storeOrdersTable.delivered, "processing"),
+                  ),
+                );
+            }
+
+            settled = true;
+          } else if (s === "failed") {
+            await db
+              .update(storeOrdersTable)
+              .set({ delivered: "failed" })
+              .where(
+                and(
+                  eq(storeOrdersTable.id, o.id),
+                  eq(storeOrdersTable.status, "paid"),
+                  eq(storeOrdersTable.delivered, "processing"),
+                ),
+              );
+
+            settled = true;
+          } else if (s !== "pending" && s !== "processing") {
+            logger.warn(
+              {
+                storeOrderId: o.id,
+                ref: o.ref,
+                mcbisStatus: s || "(empty)",
+              },
+              "McBIS poller: unrecognized store order status",
+            );
+          }
+        } catch (err) {
+          checkErrors++;
+
+          lastCheckError =
+            err instanceof Error ? err.message : String(err);
+
+          if (
+            axios.isAxiosError(err) &&
+            err.response?.status === 429
+          ) {
+            rateLimited = true;
+            break;
+          }
+        }
+
+        if (!settled) {
+          await db
+            .update(storeOrdersTable)
+            .set({ updatedAt: new Date() })
+            .where(eq(storeOrdersTable.id, o.id));
+        }
+
+        await sleep(STATUS_DELAY_MS);
+      }
+
+      if (checkErrors > 0 || rateLimited) {
+        logger.warn(
+          {
+            checkErrors,
+            rateLimited,
+            lastCheckError,
+          },
+          "McBIS poller: order status checks failed this cycle",
+        );
+      }
+
+      // 3. Check cached wallet balance before retrying dispatch.
+      let mcbisBalance = 0;
+
+      try {
+        mcbisBalance = (
+          await mcbisGetBalanceCached(apiKey)
+        ).balance;
+      } catch {
+        mcbisBalance = 1;
+      }
+
+      if (mcbisBalance > 0 && !rateLimited) {
+        // Retry undispatched paid platform MTN orders.
+        const pendingPlatform = await db
+          .select({
+            id: ordersTable.id,
+            phone: ordersTable.phoneNumber,
+            bundleData: ordersTable.bundleData,
+            network: bundlesTable.network,
+            createdAt: ordersTable.createdAt,
+          })
+          .from(ordersTable)
+          .leftJoin(
+            bundlesTable,
+            eq(bundlesTable.id, ordersTable.bundleId),
+          )
+          .where(
+            and(
+              eq(ordersTable.status, "paid"),
+              isNull(ordersTable.delivered),
+              isNull(ordersTable.mcbisReference),
+              isNull(ordersTable.topupghBatchId),
+              eq(bundlesTable.network, "mtn"),
+            ),
+          )
+          .orderBy(ordersTable.createdAt)
+          .limit(RETRY_CAP);
+
+        for (const o of pendingPlatform) {
+          if (!o.network) continue;
+
+          try {
+            const outcome = await dispatchToMcbis({
+              orderId: o.id,
+              network: o.network,
+              phone: o.phone,
+              bundleData: o.bundleData,
+            });
+
+            if (outcome.dispatched) {
+              await db
+                .update(ordersTable)
+                .set({
+                  delivered: "processing",
+                  mcbisReference: outcome.reference,
+                })
+                .where(eq(ordersTable.id, o.id));
+            } else if (outcome.reason === "insufficient_funds") {
+              break;
+            }
+          } catch {
+            // Retry next cycle.
+          }
+
+          await sleep(DISPATCH_DELAY_MS);
+        }
+
+        // 4. Retry undispatched paid store MTN orders.
+        const paidStore = await db
+          .select({
+            id: storeOrdersTable.id,
+            phone: storeOrdersTable.customerPhone,
+            bundleData: storeOrdersTable.bundleData,
+            network: storeOrdersTable.bundleNetwork,
+            createdAt: storeOrdersTable.createdAt,
+          })
+          .from(storeOrdersTable)
+          .where(
+            and(
+              eq(storeOrdersTable.status, "paid"),
+              isNull(storeOrdersTable.delivered),
+              isNull(storeOrdersTable.mcbisReference),
+              isNull(storeOrdersTable.topupghBatchId),
+              eq(storeOrdersTable.bundleNetwork, "mtn"),
+            ),
+          )
+          .orderBy(storeOrdersTable.createdAt)
+          .limit(RETRY_CAP);
+
+        for (const o of paidStore) {
+          try {
+            const outcome = await dispatchToMcbis({
+              orderId: o.id,
+              network: o.network,
+              phone: o.phone,
+              bundleData: o.bundleData,
+              isStoreOrder: true,
+            });
+
+            if (outcome.dispatched) {
+              await db
+                .update(storeOrdersTable)
+                .set({
+                  delivered: "processing",
+                  mcbisReference: outcome.reference,
+                })
+                .where(eq(storeOrdersTable.id, o.id));
+            } else if (outcome.reason === "insufficient_funds") {
+              break;
+            }
+          } catch {
+            // Retry next cycle.
+          }
+
+          await sleep(DISPATCH_DELAY_MS);
+        }
+      }
+    } catch {
+      // Top-level guard.
+    } finally {
+      _pollRunning = false;
+    }
+  };
+
+  // Start after 5 seconds, then schedule every 10 seconds.
+  setTimeout(() => {
+    poll();
+    setInterval(poll, INTERVAL_MS);
+  }, 5_000);
+}
