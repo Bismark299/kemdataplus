@@ -1,0 +1,50 @@
+2026-10-01T01:16:37.994053644Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148438722_1783678389132
+2026-10-01T01:16:38.397582385Z [Sync] Checking status for item ORD-082001-01, externalRef: CK-manual_ORD-2148465008_1784053157306
+2026-10-01T01:16:38.397636476Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148465008_1784053157306
+2026-10-01T01:16:39.034491354Z [CKGodsway] Response status: 404
+2026-10-01T01:16:39.035279725Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148465008_1784053157306
+2026-10-01T01:16:39.035294095Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148465008_1784053157306
+2026-10-01T01:16:39.443682506Z [Sync] Checking status for item ORD-083766-01, externalRef: CK-manual_ORD-2148482576_1784316042945
+2026-10-01T01:16:39.443712417Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148482576_1784316042945
+2026-10-01T01:16:40.06400672Z [CKGodsway] Response status: 404
+2026-10-01T01:16:40.065183712Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148482576_1784316042945
+2026-10-01T01:16:40.065209502Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148482576_1784316042945
+2026-10-01T01:16:40.469795961Z [Sync] Checking status for item ORD-083799-01, externalRef: CK-manual_ORD-2148482575_1784316038187
+2026-10-01T01:16:40.471707623Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148482575_1784316038187
+2026-10-01T01:16:40.545260475Z 172.71.146.94 - - [01/Oct/2026:01:16:40 +0000] "GET /api/admin/dashboard-stats?date=2026-09-30&_t=1790817399395 HTTP/1.1" 200 600 "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0"
+2026-10-01T01:16:41.052501827Z [CKGodsway] Response status: 404
+2026-10-01T01:16:41.05337891Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148482575_1784316038187
+2026-10-01T01:16:41.053391691Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148482575_1784316038187
+2026-10-01T01:16:41.458312719Z [Sync] Checking status for item ORD-095850-01, externalRef: CK-manual_ORD-2148560954_1785526544602
+2026-10-01T01:16:41.45834738Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148560954_1785526544602
+2026-10-01T01:16:42.075895009Z [CKGodsway] Response status: 404
+2026-10-01T01:16:42.077226815Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148560954_1785526544602
+2026-10-01T01:16:42.077253456Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148560954_1785526544602
+2026-10-01T01:16:42.484568878Z [Sync] Checking status for item ORD-095951-01, externalRef: CK-manual_ORD-2148561838_1785532928204
+2026-10-01T01:16:42.484595679Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148561838_1785532928204
+2026-10-01T01:16:43.011707224Z [CKGodsway] Response status: 404
+2026-10-01T01:16:43.012969537Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148561838_1785532928204
+2026-10-01T01:16:43.012998828Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148561838_1785532928204
+2026-10-01T01:16:43.19544321Z [OrderGroup] Admin fetching orders (limit: 5000, date: 2026-09-30, status: all, network: all)
+2026-10-01T01:16:43.270183385Z [OrderGroup] Fetched 472 order groups, 276 legacy orders
+2026-10-01T01:16:43.293695555Z 172.71.150.25 - - [01/Oct/2026:01:16:43 +0000] "GET /api/order-groups/admin/all?compact=true&date=2026-09-30&limit=5000&_t=1790817402080 HTTP/1.1" 200 - "https://kemdataplus.onrender.com/admin/dashboard.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0"
+2026-10-01T01:16:43.41694319Z [Sync] Checking status for item ORD-099765-01, externalRef: CK-manual_ORD-2148594325_1785947403249
+2026-10-01T01:16:43.417706511Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148594325_1785947403249
+2026-10-01T01:16:43.793855607Z [CKGodsway] Response status: 200
+2026-10-01T01:16:43.795224464Z [Sync] API returned status: processing (provider: CKGODSWAY)
+2026-10-01T01:16:44.198832747Z [Sync] Checking status for item ORD-099838-01, externalRef: CK-manual_ORD-2148594327_1785947405766
+2026-10-01T01:16:44.198884178Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148594327_1785947405766
+2026-10-01T01:16:44.564219995Z [CKGodsway] Response status: 200
+2026-10-01T01:16:44.564989695Z [Sync] API returned status: processing (provider: CKGODSWAY)
+2026-10-01T01:16:44.968263729Z [Sync] Checking status for item ORD-103063-01, externalRef: CK-manual_ORD-2148619096_1786224050923
+2026-10-01T01:16:44.968322801Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148619096_1786224050923
+2026-10-01T01:16:45.552101505Z [CKGodsway] Response status: 404
+2026-10-01T01:16:45.553330018Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148619096_1786224050923
+2026-10-01T01:16:45.553348928Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148619096_1786224050923
+2026-10-01T01:16:45.956464978Z [Sync] Checking status for item ORD-110020-01, externalRef: CK-manual_ORD-2148688579_1787039088428
+2026-10-01T01:16:45.956581251Z [CKGodsway] Request: GET https://console.ckgodsway.com/api/external/order-status?reference=manual_ORD-2148688579_1787039088428
+2026-10-01T01:16:46.559367345Z [CKGodsway] Response status: 404
+2026-10-01T01:16:46.560124625Z [CKGodsway] Request failed: Order not found with reference: manual_ORD-2148688579_1787039088428
+2026-10-01T01:16:46.560146966Z [CKGodsway] Status check failed: Order not found with reference: manual_ORD-2148688579_1787039088428
+2026-10-01T01:16:46.960864551Z [Sync] Complete: 14 synced — 0 completed, 0 failed, 14 unchanged
+2026-10-01T01:16:46.960895502Z [AutoSync] OrderItems: 0 completed, 0 failed, 14 unchanged
