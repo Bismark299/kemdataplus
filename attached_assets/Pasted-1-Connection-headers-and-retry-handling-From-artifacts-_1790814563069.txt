@@ -1,0 +1,207 @@
+1. Connection, headers and retry handling
+From artifacts/api-server/src/lib/mcbis.ts:
+
+const mcbisAxios = axios.create({
+  timeout: 15_000,
+  headers: {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": "KemDataplus/1.0",
+  },
+});
+const sleep = (ms: number) =>
+  new Promise<void>(r => setTimeout(r, ms));
+async function apiRequest<T>(fn: () => Promise<T>): Promise<T> {
+  const MAX_RETRIES = 2;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const retryable = [
+        "ECONNABORTED",
+        "ECONNRESET",
+        "ETIMEDOUT",
+      ].includes(err?.code ?? "");
+      if (retryable && attempt < MAX_RETRIES) {
+        await sleep((attempt + 1) * 1_000);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+const MCBIS_BASE =
+  process.env.DATAHUB_API_URL ??
+  "https://datahub.mcbissolution.com/api/v1";
+2. Wallet balance request and cache
+From the same file:
+
+export async function mcbisGetBalance(
+  apiKey: string,
+): Promise<number> {
+  const { data } = await apiRequest(() =>
+    mcbisAxios.get<{ data: { walletBalance: string } }>(
+      `${MCBIS_BASE}/walletBalance`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+    )
+  );
+  return parseFloat(data.data.walletBalance);
+}
+let balanceCache: { value: number; at: number } | null = null;
+const BALANCE_CACHE_TTL_MS = 60_000;
+export async function mcbisGetBalanceCached(
+  apiKey: string,
+  maxAgeMs: number = BALANCE_CACHE_TTL_MS,
+): Promise<{
+  balance: number;
+  stale: boolean;
+  fetchedAt: number;
+}> {
+  const now = Date.now();
+  if (balanceCache && now - balanceCache.at < maxAgeMs) {
+    return {
+      balance: balanceCache.value,
+      stale: false,
+      fetchedAt: balanceCache.at,
+    };
+  }
+  try {
+    const value = await mcbisGetBalance(apiKey);
+    balanceCache = { value, at: now };
+    return {
+      balance: value,
+      stale: false,
+      fetchedAt: now,
+    };
+  } catch (err) {
+    if (balanceCache) {
+      return {
+        balance: balanceCache.value,
+        stale: true,
+        fetchedAt: balanceCache.at,
+      };
+    }
+    throw err;
+  }
+}
+3. Reading the token and settings
+Also in mcbis.ts. This uses your existing database and settings table:
+
+export async function getMcbisSettings(): Promise<{
+  enabled: boolean;
+  autoSync: boolean;
+  apiKey: string;
+}> {
+  const [enabledRow, autoSyncRow] = await Promise.all([
+    db.select({ value: settingsTable.value })
+      .from(settingsTable)
+      .where(eq(settingsTable.key, "mcbis_enabled"))
+      .then(r => r[0]),
+    db.select({ value: settingsTable.value })
+      .from(settingsTable)
+      .where(eq(settingsTable.key, "mcbis_auto_sync"))
+      .then(r => r[0]),
+  ]);
+  const enabled = enabledRow?.value === "true";
+  const autoSync = autoSyncRow?.value !== "false";
+  const apiKey = process.env.DATAHUB_API_TOKEN ?? "";
+  return { enabled, autoSync, apiKey };
+}
+4. Backend wallet endpoint
+From artifacts/api-server/src/routes/admin.ts:
+
+router.get(
+  "/admin/mcbis/balance",
+  requireAdmin,
+  async (_req, res): Promise<void> => {
+    const { apiKey } = await getMcbisSettings();
+    if (!apiKey) {
+      res.status(400).json({
+        error: "McbisSolution API key not configured",
+      });
+      return;
+    }
+    try {
+      const { balance, stale, fetchedAt } =
+        await mcbisGetBalanceCached(apiKey);
+      res.json({ balance, stale, fetchedAt });
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : "Failed to fetch balance";
+      logger.warn(`mcbis balance error: ${msg}`);
+      res.status(502).json({ error: msg });
+    }
+  },
+);
+5. Frontend balance refresh
+From artifacts/data-bundle/src/components/AdminSidebar.tsx:
+
+const {
+  data: mcbisData,
+  isLoading: mcbisLoading,
+} = useQuery<{
+  balance: number | null;
+  configured: boolean;
+}>({
+  queryKey: ["mcbis-balance-sidebar"],
+  queryFn: async () => {
+    const r = await fetch("/api/admin/mcbis/balance", {
+      credentials: "include",
+    });
+    const d = await r.json() as {
+      balance?: number;
+      error?: string;
+    };
+    if (
+      r.status === 400 &&
+      d.error?.includes("not configured")
+    ) {
+      return { balance: null, configured: false };
+    }
+    if (!r.ok) {
+      throw new Error(d.error ?? `HTTP ${r.status}`);
+    }
+    return {
+      balance: d.balance ?? null,
+      configured: true,
+    };
+  },
+  enabled: mcbisEnabled,
+  refetchInterval: mcbisEnabled ? 30_000 : false,
+  staleTime: 20_000,
+  retry: false,
+});
+6. Order-status request
+From mcbis.ts—this is the function called by the existing background order checker:
+
+export async function mcbisCheckStatus(
+  apiKey: string,
+  reference: string,
+): Promise<string> {
+  const { data } = await apiRequest(() =>
+    mcbisAxios.get<{
+      data: {
+        order?: {
+          status?: string;
+        };
+      };
+    }>(
+      `${MCBIS_BASE}/checkOrderStatus/${encodeURIComponent(reference)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+    )
+  );
+  return String(data.data?.order?.status ?? "");
+}
