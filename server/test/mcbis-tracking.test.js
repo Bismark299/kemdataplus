@@ -298,6 +298,119 @@ test('failed provider responses and unknown statuses never invoke status handler
   }
 });
 
+test('three missing references do not pause the batch or apply statuses before a valid order', async () => {
+  const checked = [];
+  const applied = [];
+  const { tracker } = makeTracker({
+    orders: ['MISSING-1', 'MISSING-2', 'MISSING-3', 'VALID'].map(ref => row(ref, ref)),
+    items: ['MISSING-1', 'MISSING-2', 'MISSING-3'].map(ref => row(`item-${ref}`, ref)),
+    checkOrderStatus: async reference => {
+      checked.push(reference);
+      return reference.startsWith('MISSING')
+        ? { success: false, status: 'unknown', httpStatus: 404, error: 'Order not found' }
+        : { success: true, status: 'completed' };
+    },
+    syncOrderStatus: async (id, options) => {
+      applied.push(id);
+      return appliedStatus(options.statusResult);
+    },
+    syncOrderItemStatus: async () => assert.fail('404 must not apply item status or financial effects')
+  });
+  const result = await tracker.run();
+  assert.deepEqual(checked, ['MISSING-1', 'MISSING-2', 'MISSING-3', 'VALID']);
+  assert.deepEqual(applied, ['VALID']);
+  assert.equal(result.checked, 4);
+  assert.equal(result.notFound, 3);
+  assert.equal(result.errors, 3);
+  assert.equal(result.completed, 1);
+  assert.equal(result.paused, undefined);
+});
+
+test('missing references wait an hour while valid references retain normal automatic checks', async () => {
+  let now = 0;
+  const checked = [];
+  const { tracker } = makeTracker({
+    orders: [row('missing', 'MISSING'), row('valid', 'VALID')],
+    now: () => now,
+    checkOrderStatus: async reference => {
+      checked.push(reference);
+      return reference === 'MISSING'
+        ? { success: false, status: 'unknown', httpStatus: 404 }
+        : { success: true, status: 'processing' };
+    }
+  });
+  await tracker.run();
+  now = 120000;
+  assert.equal((await tracker.run()).checked, 1);
+  assert.deepEqual(checked, ['MISSING', 'VALID', 'VALID']);
+  now = 3600000 - 1;
+  await tracker.run();
+  assert.equal(checked.filter(ref => ref === 'MISSING').length, 1);
+  now = 3600000;
+  assert.equal((await tracker.run()).checked, 1);
+  assert.equal(checked.filter(ref => ref === 'MISSING').length, 2);
+});
+
+test('broad catch-up respects 404 backoff but an explicit single-record check can recover immediately', async () => {
+  let now = 0;
+  let missing = true;
+  const { tracker } = makeTracker({
+    orders: [row('order', 'REF')],
+    now: () => now,
+    checkOrderStatus: async () => missing
+      ? { success: false, status: 'unknown', httpStatus: 404 }
+      : { success: true, status: 'processing' }
+  });
+  await tracker.run();
+  now = 15000;
+  assert.equal((await tracker.run({ manual: true, catchUp: true })).checked, 0);
+  missing = false;
+  const single = await tracker.syncRecord('order', 'order', 'REF');
+  assert.equal(single.success, true);
+  assert.equal(single.newStatus, 'PROCESSING');
+  // Recovery removes missing-reference backoff and restores the usual interval.
+  now += 120000;
+  assert.equal((await tracker.run()).checked, 1);
+});
+
+test('401, 403 and 429 retain batch pauses and prevent immediate retries', async () => {
+  for (const httpStatus of [401, 403, 429]) {
+    let now = 0;
+    let calls = 0;
+    const { tracker } = makeTracker({
+      orders: [row('first', 'REF-A'), row('second', 'REF-B')],
+      now: () => now,
+      checkOrderStatus: async () => {
+        calls++;
+        return { success: false, status: 'unknown', httpStatus };
+      }
+    });
+    const result = await tracker.run();
+    assert.equal(result.paused, true);
+    assert.equal(result.checked, 1);
+    assert.equal(result.notFound, 0);
+    now += 15000;
+    assert.equal((await tracker.run({ manual: true, catchUp: true })).paused, true);
+    assert.equal(calls, 1);
+  }
+});
+
+test('three consecutive non-404 provider errors still pause the batch', async () => {
+  let calls = 0;
+  const { tracker } = makeTracker({
+    orders: ['A', 'B', 'C', 'D'].map(ref => row(ref, ref)),
+    checkOrderStatus: async () => {
+      calls++;
+      return { success: false, status: 'unknown', httpStatus: 503, error: 'Unavailable' };
+    }
+  });
+  const result = await tracker.run();
+  assert.equal(calls, 3);
+  assert.equal(result.paused, true);
+  assert.equal(result.notFound, 0);
+  assert.equal(result.errors, 3);
+});
+
 test('failed status calls still advance scheduling so the batch rotates to another reference', async () => {
   let now = 0;
   const checked = [];

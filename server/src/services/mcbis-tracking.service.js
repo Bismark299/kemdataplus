@@ -4,7 +4,8 @@
  * Scheduling metadata is process-local and never overwrites order.updatedAt.
  */
 function createMcbisTracker({ prisma, datahub, orderGroups, getSettings, syncState,
-  now = Date.now, log = console, batchSize = 30, checkIntervalMs = 120000 } = {}) {
+  now = Date.now, log = console, batchSize = 30, checkIntervalMs = 120000,
+  notFoundRecheckMs = 60 * 60 * 1000 } = {}) {
   const schedule = new Map();
   let running = null;
   let timer = null;
@@ -52,7 +53,7 @@ function createMcbisTracker({ prisma, datahub, orderGroups, getSettings, syncSta
   }
 
   async function track({ catchUp = false, manual = false, reference, targetKind, targetId } = {}) {
-    const result = { checked: 0, completed: 0, cancelled: 0, failed: 0, unchanged: 0, errors: 0, results: [] };
+    const result = { checked: 0, completed: 0, cancelled: 0, failed: 0, unchanged: 0, errors: 0, notFound: 0, results: [] };
     if ((!manual && (!enabled() || syncState.syncAllRunning)) || stopped) return result;
     if (targetId) {
       const model = targetKind === 'order' ? prisma.order : prisma.orderItem;
@@ -77,7 +78,10 @@ function createMcbisTracker({ prisma, datahub, orderGroups, getSettings, syncSta
     }
     const candidatesList = await candidates();
     const all = reference ? candidatesList.filter(entry => entry.reference === reference) : candidatesList;
-    const due = catchUp ? all : all.filter(entry => (schedule.get(entry.reference)?.nextCheckAt ?? 0) <= now()).slice(0, batchSize);
+    // A specific manual check can retry immediately. Broad catch-up passes
+    // respect missing-reference backoff so Sync All cannot replay the backlog.
+    const eligible = all.filter(entry => reference || (schedule.get(entry.reference)?.notFoundUntil ?? 0) <= now());
+    const due = catchUp ? eligible : eligible.filter(entry => (schedule.get(entry.reference)?.nextCheckAt ?? 0) <= now()).slice(0, batchSize);
     let consecutiveErrors = 0;
     for (const entry of due) {
       // Settings are re-read during long batches, not just once on startup.
@@ -89,12 +93,21 @@ function createMcbisTracker({ prisma, datahub, orderGroups, getSettings, syncSta
         break;
       }
       let providerResult;
+      let missingReference = false;
       try {
         providerResult = await datahub.checkOrderStatus(entry.reference);
         result.checked++;
         // Empty/unknown provider responses must not trigger financial effects.
         const knownStatus = /^(pending|processing|initiated|queued|awaiting_delivery|success|successful|completed|delivered|failed|fail|error|rejected|cancelled|canceled|cancel|refunded)$/i;
-        if (!providerResult.success || !knownStatus.test(providerResult.status || '')) {
+        if (!providerResult.success && providerResult.httpStatus === 404) {
+          // A missing order is a reference-specific problem, not an outage.
+          // Preserve all local status/financial records and keep checking others.
+          missingReference = true;
+          result.errors++;
+          result.notFound++;
+          consecutiveErrors = 0;
+          log.warn(`[MCBIS Tracking] Reference not found: ${entry.reference}; recheck in ${Math.ceil(Math.max(checkIntervalMs, notFoundRecheckMs) / 1000)}s; continuing with other orders`);
+        } else if (!providerResult.success || !knownStatus.test(providerResult.status || '')) {
           result.errors++;
           consecutiveErrors++;
           log.warn(`[MCBIS Tracking] Status unavailable for ${entry.reference}: ${providerResult.error || 'unrecognized status'}`);
@@ -137,7 +150,9 @@ function createMcbisTracker({ prisma, datahub, orderGroups, getSettings, syncSta
         log.error(`[MCBIS Tracking] Check/apply failed for ${entry.reference}: ${error.message}`);
       } finally {
         const checkedAt = now();
-        schedule.set(entry.reference, { lastCheckedAt: checkedAt, nextCheckAt: checkedAt + checkIntervalMs });
+        const nextCheckAt = checkedAt + (missingReference ? Math.max(checkIntervalMs, notFoundRecheckMs) : checkIntervalMs);
+        schedule.set(entry.reference, { lastCheckedAt: checkedAt, nextCheckAt,
+          notFoundUntil: missingReference ? nextCheckAt : 0 });
       }
       // Stop the batch on access blocks/rate limits, rather than cycling over
       // every remaining order and producing duplicate errors.
@@ -158,7 +173,7 @@ function createMcbisTracker({ prisma, datahub, orderGroups, getSettings, syncSta
         break;
       }
     }
-    log.info(`[MCBIS Tracking] backlog=${all.length} checked=${result.checked} completed=${result.completed} cancelled=${result.cancelled} failed=${result.failed} errors=${result.errors}${result.paused ? ' paused' : ''}`);
+    log.info(`[MCBIS Tracking] backlog=${all.length} checked=${result.checked} completed=${result.completed} cancelled=${result.cancelled} failed=${result.failed} errors=${result.errors} notFound=${result.notFound}${result.paused ? ' paused' : ''}`);
     return result;
   }
 

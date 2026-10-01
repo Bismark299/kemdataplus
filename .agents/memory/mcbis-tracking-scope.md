@@ -14,3 +14,9 @@ For a tracking-only repair, avoid changing the external production schema or rep
 **Why:** This keeps deployment and database impact narrow while addressing batch starvation. An in-memory guard cannot coordinate multiple Render instances.
 
 **How to apply:** If scaling to multiple instances, explicitly scope a shared worker lease and durable scheduling rather than assuming the process-local guard covers all servers.
+
+Treat provider “order not found” responses as reference-specific unavailability, not evidence of a provider-wide outage. Preserve the local order and its financial state.
+
+**Why:** Historical unresolved references can return 404 while recent references and the wallet endpoint work. Counting those missing references toward an outage circuit breaker unnecessarily pauses valid order checks.
+
+**How to apply:** Back off missing references individually, continue the rest of the backlog, and retain shared pauses for authentication, access blocks, throttling and repeated genuine provider failures. Broad catch-up must respect missing-reference backoff; an explicit single-order check may retry sooner.
