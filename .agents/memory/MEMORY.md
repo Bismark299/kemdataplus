@@ -4,3 +4,4 @@
 - [InstantDataGH rate limit](instantdatagh-rate-limit.md) — IDG reports a 120-requests-per-minute limit; status polling must stay below it across all callers.
 - [Render database access](render-database-access.md) — ad hoc access to the configured Render database requires SSL with Prisma; never expose the connection string.
 - [Completion correction](completion-correction.md) — verify provider status and reverse queued profit before restoring a mistaken completion to processing.
+- [MCBIS tracking boundaries](mcbis-tracking-scope.md) — improve scheduling without importing another site's wallet/refund policies; coordinate status application as well as HTTP reads.

@@ -490,6 +490,7 @@ const datahubService = require('./services/datahub.service');
 const orderGroupService = require('./services/order-group.service');
 const profitScheduler = require('./services/profit-scheduler');
 const topupghBatchService = require('./services/topupgh-batch.service');
+const mcbisTracker = require('./services/mcbis-tracking.service');
 
 let autoSyncInterval = null;
 const AUTO_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
@@ -520,6 +521,7 @@ function startAutoSync() {
   }
 
   const syncState = require('./lib/sync-state');
+  mcbisTracker.start();
 
   // Check settings and start if enabled
   const checkAndSync = async () => {
@@ -595,7 +597,9 @@ function startAutoSync() {
       // 1. Sync LEGACY Order table (MCBIS and/or IDG failover orders)
       if (mcbisShouldSync || legacyHasIDGOrders) {
         try {
-          const legacyResult = await datahubService.syncAllPendingOrders();
+          // MCBIS status checks belong to the independent rotating worker.
+          // Keep the existing pending-dispatch retries and IDG legacy sync.
+          const legacyResult = await datahubService.syncAllPendingOrders({ mcbisEnabled: false });
           if (legacyResult.synced > 0) {
             console.log(`[AutoSync] Legacy Orders (MCBIS/IDG): synced ${legacyResult.synced}`);
             totalSynced += legacyResult.synced;
@@ -608,7 +612,7 @@ function startAutoSync() {
       // 2. Sync NEW OrderItem table (check per-item which API it belongs to)
       try {
         const itemResult = await orderGroupService.syncAllProcessingItems({
-          mcbisEnabled: mcbisShouldSync,
+          mcbisEnabled: false,
           ckgodswayEnabled: ckgodswayShouldSync,
           datagatekeeperEnabled: true,
           instantdataghEnabled: idgAutoSyncEnabled
@@ -658,6 +662,7 @@ process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
   
   // Stop auto-sync
+  mcbisTracker.stop();
   if (autoSyncInterval) {
     clearInterval(autoSyncInterval);
     console.log('Auto-sync stopped');

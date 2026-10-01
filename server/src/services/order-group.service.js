@@ -1570,7 +1570,7 @@ const orderGroupService = {
    * Checks the status of an OrderItem from MCBIS or CK-Godsway API
    * and updates the local status accordingly.
    */
-  async syncOrderItemStatus(itemId) {
+  async syncOrderItemStatus(itemId, options = {}) {
     const item = await prisma.orderItem.findUnique({
       where: { id: itemId },
       include: { orderGroup: true }
@@ -1581,7 +1581,17 @@ const orderGroupService = {
     }
 
     if (!item.externalReference) {
+      if (options.statusResult) return { success: true, skipped: true, statusChanged: false };
       return { success: false, error: 'No external reference - order not sent to API yet' };
+    }
+    if (!options.statusResult && !/^(IDG-|DGK-|CK-)/.test(item.externalReference)) {
+      return require('./mcbis-tracking.service').syncRecord('item', item.id, item.externalReference);
+    }
+    if (options.statusResult && (
+        options.externalReference !== item.externalReference ||
+        /^(IDG-|DGK-|CK-)/.test(item.externalReference) ||
+        !['PENDING', 'PROCESSING'].includes(item.status))) {
+      return { success: true, skipped: true, previousStatus: item.status, newStatus: item.status, statusChanged: false };
     }
 
     console.log(`[Sync] Checking status for item ${item.reference}, externalRef: ${item.externalReference}`);
@@ -1615,7 +1625,7 @@ const orderGroupService = {
           : { success: false, error: ckResult.error };
       } else {
         // Default: MCBIS (legacy orders without prefix, or KEM- prefix)
-        const mcbisResult = await datahubService.checkOrderStatus(ref);
+        const mcbisResult = options.statusResult || await datahubService.checkOrderStatus(ref);
         if (mcbisResult.success) {
           const s = (mcbisResult.status || '').toLowerCase();
           if (s === 'unknown') {
@@ -1681,7 +1691,7 @@ const orderGroupService = {
           : `Provider reported failure: ${apiResult.status}`;
       }
       
-      await prisma.orderItem.update({
+      const update = {
         where: { id: itemId },
         data: {
           status: newStatus,
@@ -1689,7 +1699,15 @@ const orderGroupService = {
           ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {}),
           ...(failureReason !== undefined ? { failureReason } : { failureReason: null })
         }
-      });
+      };
+      if (options.statusResult) {
+        update.where.externalReference = options.externalReference;
+        update.where.status = item.status;
+        const changed = await prisma.orderItem.updateMany(update);
+        if (!changed.count) return { success: true, skipped: true, statusChanged: false };
+      } else {
+        await prisma.orderItem.update(update);
+      }
 
       // Update OrderGroup summary status
       await this.recalculateGroupStatus(item.orderGroupId);
@@ -1702,13 +1720,24 @@ const orderGroupService = {
           const linkedOrder = await prisma.order.findFirst({
             where: { reference: orderRef }
           });
-          if (linkedOrder) {
+          const trackingMayUpdateOrder = !options.statusResult || (linkedOrder &&
+            linkedOrder.externalReference === options.externalReference &&
+            ['PENDING', 'PROCESSING', 'COMPLETED'].includes(linkedOrder.status));
+          if (linkedOrder && trackingMayUpdateOrder) {
             // Sync Order status
             if (linkedOrder.status !== 'COMPLETED') {
-              await prisma.order.update({
+              const update = {
                 where: { id: linkedOrder.id },
                 data: { status: 'COMPLETED', apiConfirmedAt: new Date() }
-              });
+              };
+              if (options.statusResult) {
+                update.where.externalReference = options.externalReference;
+                update.where.status = linkedOrder.status;
+                const changed = await prisma.order.updateMany(update);
+                if (!changed.count) return { success: true, itemId, previousStatus: item.status, newStatus, statusChanged, provider: apiResult.provider };
+              } else {
+                await prisma.order.update(update);
+              }
               console.log(`[Sync] ✅ Order ${orderRef} synced to COMPLETED`);
             }
             // Sync StorefrontOrder + credit profit
@@ -2056,7 +2085,8 @@ const orderGroupService = {
           externalReference: { not: null },
           NOT: [
             { externalReference: { startsWith: 'CK-' } },
-            { externalReference: { startsWith: 'DGK-' } }
+            { externalReference: { startsWith: 'DGK-' } },
+            { externalReference: { startsWith: 'IDG-' } }
           ]
         },
         orderBy: { createdAt: 'asc' }

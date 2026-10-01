@@ -199,7 +199,7 @@ const settingsController = {
             const datahubService    = require('../services/datahub.service');
             await Promise.all([
               orderGroupService.syncAllProcessingItems({
-                mcbisEnabled:          !!(siteSettings.mcbisAutoSync          && siteSettings.mcbisAPI),
+                 mcbisEnabled:          false,
                 ckgodswayEnabled:      !!(siteSettings.ckgodswayAutoSync      && siteSettings.ckgodswayAPI),
                 datagatekeeperEnabled: !!(siteSettings.datagatekeeperAPI),
                 instantdataghEnabled:  !!(siteSettings.instantdataghAutoSync  && siteSettings.instantdataghAPI),
@@ -210,8 +210,11 @@ const settingsController = {
                 ? orderGroupService.retryStuckPendingOrders()
                 : Promise.resolve(),
               (mcbisToggledOn || mtnFailoverToggledOn) && siteSettings.mcbisAPI
-                ? datahubService.syncAllPendingOrders({ catchUp: true })
-                : Promise.resolve()
+                 ? datahubService.syncAllPendingOrders({ catchUp: true, mcbisEnabled: false })
+                 : Promise.resolve(),
+               siteSettings.mcbisAPI && siteSettings.mcbisAutoSync
+                 ? require('../services/mcbis-tracking.service').run({ catchUp: true })
+                 : Promise.resolve()
             ]);
             console.log('[Settings] Catch-up sync complete');
           } catch (err) {

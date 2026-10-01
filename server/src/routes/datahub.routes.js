@@ -188,17 +188,21 @@ router.post('/sync-all', authenticate, authorize('ADMIN'), async (req, res) => {
 
       console.log('[SyncAll] Admin-triggered full catch-up sync started');
 
-      const legacyResult = await datahubService.syncAllPendingOrders({ catchUp: true });
-      const itemResult   = await orderGroupService.syncAllProcessingItems({ mcbisEnabled: true, ckgodswayEnabled, catchUp: true });
+      const trackingResult = await require('../services/mcbis-tracking.service').run({ catchUp: true, manual: true });
+      const legacyResult = await datahubService.syncAllPendingOrders({ catchUp: true, mcbisEnabled: false });
+      const itemResult   = await orderGroupService.syncAllProcessingItems({ mcbisEnabled: false, ckgodswayEnabled, catchUp: true });
       const retryResult  = await orderGroupService.retryStuckPendingOrders();
 
       syncState.lastSyncResult = {
         completedAt: new Date().toISOString(),
-        checked:    (legacyResult.synced || 0) + (itemResult.total || 0),
-        completed:  (legacyResult.results || []).filter(r => r.newStatus === 'COMPLETED').length + (itemResult.completed || 0),
-        cancelled:  (legacyResult.results || []).filter(r => r.newStatus === 'CANCELLED').length + (itemResult.results || []).filter(r => r.newStatus === 'CANCELLED').length,
-        failed:     (legacyResult.results || []).filter(r => r.newStatus === 'FAILED').length    + (itemResult.failed || 0),
-        unchanged:  itemResult.unchanged || 0,
+        checked:    (legacyResult.synced || 0) + (itemResult.total || 0) + trackingResult.checked,
+        completed:  (legacyResult.results || []).filter(r => r.newStatus === 'COMPLETED').length + (itemResult.completed || 0) + trackingResult.completed,
+        cancelled:  (legacyResult.results || []).filter(r => r.newStatus === 'CANCELLED').length + (itemResult.results || []).filter(r => r.newStatus === 'CANCELLED').length + trackingResult.cancelled,
+        failed:     (legacyResult.results || []).filter(r => r.newStatus === 'FAILED').length    + (itemResult.failed || 0) + trackingResult.failed,
+        unchanged:  (itemResult.unchanged || 0) + trackingResult.unchanged,
+        trackingErrors: trackingResult.errors,
+        paused: trackingResult.paused || false,
+        pauseReason: trackingResult.reason || null,
         retried:    retryResult?.retried || 0
       };
 

@@ -17,6 +17,8 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const prisma = require('../lib/prisma');
+const { createStatusQueue } = require('../lib/mcbis-status-queue');
+const mcbisStatusQueue = createStatusQueue();
 
 // Force IPv4 to avoid IPv6 issues on cloud platforms (Render, Railway, etc.)
 const httpAgent = new http.Agent({ family: 4 });
@@ -93,7 +95,7 @@ const axios = require('axios');
  * Make API request to McbisSolution using axios
  * Axios handles redirects and cookies better than native fetch
  */
-async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
+async function apiRequest(endpoint, method = 'GET', body = null, retries = 2, timeout = 45000) {
   // CRITICAL SAFETY: Never retry POST requests on network errors.
   // POST /placeOrder is NOT idempotent — MCBIS may have received and processed the request
   // even if we got no response (ECONNABORTED/timeout). Retrying would send data to the
@@ -134,7 +136,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, retries = 2) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${config.token}`
     },
-    timeout: 45000,
+    timeout,
     maxRedirects: 5,
     httpAgent: httpAgent,
     httpsAgent: httpsAgent
@@ -373,6 +375,7 @@ const datahubService = {
    * Check order status by reference
    */
   async checkOrderStatus(reference) {
+    return mcbisStatusQueue.run(reference, async () => {
     // Respect rate-limit cooldown to avoid hammering MCBIS
     const cooldownMessage = getMcbisCooldownMessage();
     if (cooldownMessage) {
@@ -380,10 +383,10 @@ const datahubService = {
     }
 
     try {
-      const result = await apiRequest(`/checkOrderStatus/${reference}`);
-      
-      // Log the raw response to debug status mapping
-      console.log(`[DataHub] checkOrderStatus raw response:`, JSON.stringify(result, null, 2));
+      // Status tracking retries on a later scheduled turn, not three long
+      // attempts that block the entire backlog. Other API operations keep
+      // their existing timeout/retry behavior.
+      const result = await apiRequest(`/checkOrderStatus/${encodeURIComponent(reference)}`, 'GET', null, 0, 15000);
       
       // MCBIS API returns: 
       // { 
@@ -421,9 +424,16 @@ const datahubService = {
       return {
         success: false,
         status: 'unknown',
-        error: error.message
+        error: error.message,
+        httpStatus: error.status,
+        errorCode: error.code
       };
     }
+    });
+  },
+
+  getStatusTrackingCooldown() {
+    return getMcbisCooldownMessage();
   },
 
   /**
@@ -773,7 +783,7 @@ const datahubService = {
    * Sync order status from API
    * Call this periodically to update pending orders
    */
-  async syncOrderStatus(orderId) {
+  async syncOrderStatus(orderId, options = {}) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { bundle: { select: { network: true, dataAmount: true } } }
@@ -786,10 +796,20 @@ const datahubService = {
 
     // Route status check to the correct provider service
     const isIDGOrder = order.providerName === 'IDG' || (order.externalReference || '').startsWith('IDG-');
+    if (!isIDGOrder && !options.statusResult) {
+      return require('./mcbis-tracking.service').syncRecord('order', order.id, order.externalReference);
+    }
+    // A queued check may finish after a manual update or failover. Never
+    // apply that old result to a different reference or a terminal order.
+    if (options.statusResult && (isIDGOrder ||
+        options.externalReference !== order.externalReference ||
+        !['PENDING', 'PROCESSING'].includes(order.status))) {
+      return { success: true, skipped: true, previousStatus: order.status, newStatus: order.status };
+    }
     console.log(`[DataHub] Checking status for API reference: ${order.externalReference} (provider: ${order.providerName || 'MCBIS'})`);
     const statusResult = isIDGOrder
       ? await require('./instantdatagh.service').checkOrderStatus(order.externalReference)
-      : await this.checkOrderStatus(order.externalReference);
+      : options.statusResult || await this.checkOrderStatus(order.externalReference);
     console.log(`[DataHub] API returned status: ${statusResult.status}`);
 
     if (statusResult.success) {
@@ -832,30 +852,46 @@ const datahubService = {
 
       if (newStatus !== order.status) {
         console.log(`[DataHub] ✅ Status change: ${order.status} → ${newStatus}`);
-        await prisma.order.update({
+        const update = {
           where: { id: orderId },
           data: { 
             status: newStatus,
             externalStatus: statusResult.status,
             ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
           }
-        });
+        };
+        if (options.statusResult) {
+          update.where.externalReference = options.externalReference;
+          update.where.status = order.status;
+          const changed = await prisma.order.updateMany(update);
+          if (!changed.count) return { success: true, skipped: true };
+        } else {
+          await prisma.order.update(update);
+        }
         console.log(`[DataHub] ✅ Order table updated!`);
       } else {
         console.log(`[DataHub] Order status unchanged (${order.status})`);
       }
 
       // SYNC ALL RELATED TABLES (always, not just on status change)
+      let trackingStorefrontChanged = false;
+      let trackingItemId = null;
       // 1. Update linked StorefrontOrder status if exists
       if (order.storefrontOrderId) {
         const storefrontOrder = await prisma.storefrontOrder.findUnique({
           where: { id: order.storefrontOrderId }
         });
         if (storefrontOrder && storefrontOrder.status !== newStatus) {
-          await prisma.storefrontOrder.update({
+          const update = {
             where: { id: order.storefrontOrderId },
             data: { status: newStatus }
-          });
+          };
+          if (options.statusResult) {
+            update.where.status = { in: ['PENDING', 'PROCESSING'] };
+            trackingStorefrontChanged = (await prisma.storefrontOrder.updateMany(update)).count > 0;
+          } else {
+            await prisma.storefrontOrder.update(update);
+          }
           console.log(`[DataHub] ✅ StorefrontOrder status synced: ${storefrontOrder.status} → ${newStatus}`);
         }
       }
@@ -869,7 +905,10 @@ const datahubService = {
           }
         });
         
-        if (orderItem && (orderItem.status !== newStatus || !orderItem.externalReference)) {
+        const trackingMayUpdateItem = !options.statusResult || (orderItem &&
+          orderItem.externalReference === options.externalReference &&
+          ['PENDING', 'PROCESSING'].includes(orderItem.status));
+        if (orderItem && trackingMayUpdateItem && (orderItem.status !== newStatus || !orderItem.externalReference)) {
           // PREVENT STATUS DOWNGRADES on OrderItem too (e.g., admin manually completed)
           const itemPriority = { 'PENDING': 1, 'PROCESSING': 2, 'COMPLETED': 3, 'FAILED': 3, 'CANCELLED': 3 };
           const curPri = itemPriority[orderItem.status] || 0;
@@ -878,7 +917,7 @@ const datahubService = {
           if (newPri < curPri) {
             console.log(`[DataHub] ⚠️ Skipping OrderItem downgrade: ${orderItem.status} → ${newStatus} (manual override preserved)`);
           } else {
-            await prisma.orderItem.update({
+            const update = {
               where: { id: orderItem.id },
               data: { 
                 status: newStatus,
@@ -886,7 +925,23 @@ const datahubService = {
                 externalReference: order.externalReference,
                 ...(newStatus === 'COMPLETED' ? { apiConfirmedAt: new Date() } : {})
               }
-            });
+            };
+            if (options.statusResult) {
+              update.where.externalReference = options.externalReference;
+              update.where.status = { in: ['PENDING', 'PROCESSING'] };
+              const changed = await prisma.orderItem.updateMany(update);
+              if (changed.count) {
+                trackingItemId = orderItem.id;
+              } else {
+                const freshItem = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });
+                if (freshItem && freshItem.externalReference === options.externalReference &&
+                    ['PENDING', 'PROCESSING'].includes(freshItem.status)) {
+                  return { success: false, error: 'Linked order changed during status application; retry required' };
+                }
+              }
+            } else {
+              await prisma.orderItem.update(update);
+            }
             console.log(`[DataHub] ✅ OrderItem synced: ${orderItem.status} → ${newStatus}, externalRef: ${order.externalReference}`);
 
             // 3. Recalculate OrderGroup summary status
@@ -918,20 +973,35 @@ const datahubService = {
           // Backup accepted the order — correct StorefrontOrder/OrderItem back from the
           // intermediate CANCELLED/FAILED status that was written above (lines 780-828).
           if (order.storefrontOrderId) {
-            await prisma.storefrontOrder.update({
+            const update = {
               where: { id: order.storefrontOrderId },
               data: { status: 'PROCESSING' }
-            }).catch(() => {});
+            };
+            if (options.statusResult) {
+              if (trackingStorefrontChanged) {
+                update.where.status = newStatus;
+                await prisma.storefrontOrder.updateMany(update).catch(() => {});
+              }
+            } else {
+              await prisma.storefrontOrder.update(update).catch(() => {});
+            }
           }
           if (order.reference) {
             const relatedItem = await prisma.orderItem.findFirst({
               where: { reference: { startsWith: order.reference } }
             });
-            if (relatedItem) {
-              await prisma.orderItem.update({
+            if (relatedItem && (!options.statusResult || relatedItem.id === trackingItemId)) {
+              const update = {
                 where: { id: relatedItem.id },
                 data: { status: 'PROCESSING', externalReference: null }
-              }).catch(() => {});
+              };
+              if (options.statusResult) {
+                update.where.externalReference = options.externalReference;
+                update.where.status = newStatus;
+                await prisma.orderItem.updateMany(update).catch(() => {});
+              } else {
+                await prisma.orderItem.update(update).catch(() => {});
+              }
               const orderGroupService = require('./order-group.service');
               await orderGroupService.recalculateGroupStatus(relatedItem.orderGroupId).catch(() => {});
             }
@@ -953,21 +1023,36 @@ const datahubService = {
           });
           // Sync StorefrontOrder back to PENDING so the customer view stays consistent
           if (order.storefrontOrderId) {
-            await prisma.storefrontOrder.update({
+            const update = {
               where: { id: order.storefrontOrderId },
               data: { status: 'PENDING' }
-            }).catch(() => {});
+            };
+            if (options.statusResult) {
+              if (trackingStorefrontChanged) {
+                update.where.status = newStatus;
+                await prisma.storefrontOrder.updateMany(update).catch(() => {});
+              }
+            } else {
+              await prisma.storefrontOrder.update(update).catch(() => {});
+            }
           }
           // Sync linked OrderItem back to PENDING
           if (order.reference) {
             const relatedItem = await prisma.orderItem.findFirst({
               where: { reference: { startsWith: order.reference } }
             });
-            if (relatedItem) {
-              await prisma.orderItem.update({
+            if (relatedItem && (!options.statusResult || relatedItem.id === trackingItemId)) {
+              const update = {
                 where: { id: relatedItem.id },
                 data: { status: 'PENDING', externalReference: null, apiSentAt: null }
-              }).catch(() => {});
+              };
+              if (options.statusResult) {
+                update.where.externalReference = options.externalReference;
+                update.where.status = newStatus;
+                await prisma.orderItem.updateMany(update).catch(() => {});
+              } else {
+                await prisma.orderItem.update(update).catch(() => {});
+              }
               const orderGroupService = require('./order-group.service');
               await orderGroupService.recalculateGroupStatus(relatedItem.orderGroupId).catch(() => {});
             }
@@ -1027,7 +1112,7 @@ const datahubService = {
    * Runs every minute via auto-sync
    */
   async syncAllPendingOrders(options = {}) {
-    const { catchUp = false } = options;
+    const { catchUp = false, mcbisEnabled = true } = options;
     // First, try to process orders that are PENDING and haven't been pushed yet
     // (likely due to insufficient MCBIS balance earlier)
     await this.retryPendingOrders();
@@ -1040,6 +1125,12 @@ const datahubService = {
       },
       orderBy: { createdAt: catchUp ? 'asc' : 'desc' }
     };
+    if (!mcbisEnabled) {
+      orderQuery.where.OR = [
+        { providerName: 'IDG' },
+        { externalReference: { startsWith: 'IDG-' } }
+      ];
+    }
     if (!catchUp) orderQuery.take = 30; // Steady-state: limit to prevent API overload
     const pendingOrders = await prisma.order.findMany(orderQuery);
     if (catchUp) console.log(`[DataHub] Catch-up mode: processing all ${pendingOrders.length} backlogged orders (oldest first)`);
