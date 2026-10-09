@@ -6,15 +6,32 @@ id = "u_q9G5vz9kIk335ZySmzM"
 uri = "file://docs/profit-payout.md"
 type = "text"
 title = "Profit Payout System — Full Documentation"
+logical_id = "6096f2d2-e256-413f-8e2b-fc07b2442122"
 
 [[outputs]]
 id = "boJ806Uk4DxOjYmlkfLLe"
 uri = "file://overrefund-recovery-report.csv"
 type = "table"
 title = "Over-Refund Recovery Report"
+logical_id = "660d51f7-1cb7-4a90-9986-6a38488f187d"
 
 [[outputs]]
 id = "v90lDhx5DFfdYkwbQ_9jU"
 uri = "file://over_refund_recovery_20Jul2026.xlsx"
 type = "table"
 title = "Over-Refund Recovery — July 20, 2026"
+logical_id = "7c3827ce-c447-4c9f-97ec-9d238db79ce9"
+
+[[outputs]]
+id = "ioraIgjSlIAAmO70bZcpf"
+uri = "file://attached_assets/failed-orders-2026-10-09-1791561631261-restored.csv"
+type = "table"
+title = "October 9 orders restored to Processing"
+description = "Copy of all 21 restored orders, including references, recipient numbers, bundles, amounts and original failure reasons."
+logical_id = "d466f8a3-79cd-41fd-ade5-9de55cbdd5de"
+content_hash = "sha256:a4d35987d48007ecc2ae0e9444f55fa5a0eb7de580e00cb3029d34ca21f6928e"
+size = 2762
+mtime_ms = 1791561631257
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:348b80b5-3718-405c-9777-744d35985801/d466f8a3-79cd-41fd-ade5-9de55cbdd5de/01980e85-c089-4e35-937f-8ff740b0818b"
+storage_version_token = "1791561653291277"
+content_type = "text/csv"
