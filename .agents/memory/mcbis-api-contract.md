@@ -16,3 +16,9 @@ Do not infer the order-placement network parameter's casing solely from the prod
 **Why:** Product identifiers and placement parameters can have different contracts. An uppercase product key does not establish that lowercase placement caused a “Network not found” rejection.
 
 **How to apply:** Confirm the placement contract using provider documentation or the failed request/response evidence before proposing a casing change. Do not test by placing a real order without authorization.
+
+MCBIS `/placeOrder` requires uppercase `MTN` for this integration.
+
+**Why:** User-authorized live tests on October 9, 2026 used the same recipient and 1GB amount: lowercase `mtn` returned “Network not found”; changing only the network value to uppercase `MTN` returned “Order created successfully”, and a read-only status check confirmed the order existed as pending. Acceptance is not proof of delivery.
+
+**How to apply:** Use uppercase `MTN` in MTN placement payloads when the user authorizes the fix. Keep API-toggle routing as a separate issue; successful direct placement does not explain why dispatch occurred with providers disabled. The user requires confirmation before saved code changes.
