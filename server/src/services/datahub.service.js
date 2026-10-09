@@ -75,8 +75,8 @@ function getApiConfig() {
 
 // Network mapping (our system -> API)
 const NETWORK_MAP = {
-  'MTN': 'mtn',
-  'mtn': 'mtn',
+  'MTN': 'MTN',
+  'mtn': 'MTN',
   'TELECEL': 'telecel',
   'telecel': 'telecel',
   'Telecel': 'telecel',
