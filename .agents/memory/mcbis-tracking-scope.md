@@ -20,3 +20,9 @@ Treat provider “order not found” responses as reference-specific unavailabil
 **Why:** Historical unresolved references can return 404 while recent references and the wallet endpoint work. Counting those missing references toward an outage circuit breaker unnecessarily pauses valid order checks.
 
 **How to apply:** Back off missing references individually, continue the rest of the backlog, and retain shared pauses for authentication, access blocks, throttling and repeated genuine provider failures. Broad catch-up must respect missing-reference backoff; an explicit single-order check may retry sooner.
+
+When no fulfillment API is enabled for an order's network, leave the order PENDING rather than failing it.
+
+**Why:** The user explicitly expects orders to wait when APIs are off; they reported “Network not found” failures instead. This is a dispatch-routing issue to investigate separately from status tracking.
+
+**How to apply:** Check master and per-network toggles on every placement path. Do not infer that a provider's “Network not found” response proves a network-key casing mismatch. The user requires confirmation before fixing this issue.
