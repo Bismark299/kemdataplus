@@ -10,3 +10,9 @@ The published examples show LiteSpeed responses, while live requests may pass th
 **Why:** The wallet endpoint returned 200 with the configured credential, while deployed requests later returned HTML 403 responses; this separates request-format/authentication problems from provider/WAF behavior.
 
 **How to apply:** Keep the Bearer header and endpoint unchanged, log safe status/proxy metadata on failures, and treat HTML 403 responses as an upstream access-block signal rather than automatically assuming the token is invalid.
+
+Do not infer the order-placement network parameter's casing solely from the product list's `network_key`.
+
+**Why:** Product identifiers and placement parameters can have different contracts. An uppercase product key does not establish that lowercase placement caused a “Network not found” rejection.
+
+**How to apply:** Confirm the placement contract using provider documentation or the failed request/response evidence before proposing a casing change. Do not test by placing a real order without authorization.
