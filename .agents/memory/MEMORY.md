@@ -5,3 +5,4 @@
 - [Render database access](render-database-access.md) — ad hoc access to the configured Render database requires SSL with Prisma; never expose the connection string.
 - [Completion correction](completion-correction.md) — verify provider status and reverse queued profit before restoring a mistaken completion to processing.
 - [MCBIS tracking boundaries](mcbis-tracking-scope.md) — improve scheduling without importing another site's wallet/refund policies; coordinate status application as well as HTTP reads.
+- [Store payer visibility](store-payer-visibility.md) — payer details begin with orders created 2026-10-12; preserve Paystack masking and never substitute recipient numbers.

@@ -973,8 +973,9 @@ model StorefrontOrder {
   paymentStatus       String        @default("PENDING")  // PENDING, PAID, FAILED
   paymentMethod       String?       // MOMO, PAYSTACK
   paymentReference    String?       // Customer's MoMo transaction reference or Paystack reference
-  paymentPhone        String?       // Phone number customer paid from
+  paymentPhone        String?       // Data recipient phone (legacy field name, not the payer)
   paystackReference   String?       // Paystack transaction reference (if used)
+  payerMomoNumber     String?       // Verified Paystack payer number; may contain provider masking (*)
   
   // Status
   status              String        @default("PENDING")  // PENDING, PROCESSING, COMPLETED, FAILED, REFUNDED

@@ -6,6 +6,7 @@
  */
 
 const prisma = require('../lib/prisma');
+const { PAYER_CAPTURE_START, captureStorePayerMomo, refreshStorePayers } = require('./store-payer.service');
 
 // Roles allowed to create storefronts
 const STOREFRONT_ALLOWED_ROLES = ['ADMIN', 'PARTNER', 'SUPER_DEALER', 'DEALER', 'SUPER_AGENT', 'AGENT'];
@@ -909,8 +910,17 @@ const storefrontService = {
     
     // Debug log
     console.log('[getStoreOrders] First order status:', orders[0]?.status, 'linked order status:', orders[0]?.order?.status);
-    
-    return orders;
+
+    // Recover provider evidence for eligible paid orders from earlier today.
+    // Do not delay the owner response or invoke order completion/resending.
+    refreshStorePayers(prisma, orders, reference =>
+      require('./paystack.service').verifyPayment(reference)
+    ).catch(() => console.warn('[StorePayer] Background payer refresh could not finish'));
+
+    return orders.map(order => ({
+      ...order,
+      payerMomoNumber: new Date(order.createdAt) >= PAYER_CAPTURE_START ? order.payerMomoNumber : null
+    }));
   },
 
   /**
@@ -1111,7 +1121,7 @@ const storefrontService = {
    * CRITICAL: Uses database-level locking to prevent race conditions
    * between webhook and frontend verification calling simultaneously
    */
-  async completePaystackOrder(storefrontOrderId, paystackReference) {
+  async completePaystackOrder(storefrontOrderId, paystackReference, verifiedPayment = null) {
     // Use the global order ID system
     const orderGroupService = require('./order-group.service');
     
@@ -1128,6 +1138,10 @@ const storefrontService = {
       if (!existingOrder) {
         throw new Error('Order not found');
       }
+
+      // Capture payment evidence even if a prior webhook already created fulfillment.
+      // The helper enforces the date cutoff and matching verified payment reference.
+      await captureStorePayerMomo(tx, storefrontOrderId, paystackReference, verifiedPayment);
       
       // Check if already completed BEFORE doing anything else
       if (existingOrder.orderId) {

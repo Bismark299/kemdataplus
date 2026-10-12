@@ -305,7 +305,7 @@ router.get('/store/:slug/paystack/verify/:reference', async (req, res, next) => 
     let orderResult = null;
     
     if (storefrontOrderId) {
-      orderResult = await storefrontService.completePaystackOrder(storefrontOrderId, reference);
+      orderResult = await storefrontService.completePaystackOrder(storefrontOrderId, reference, verification);
     }
 
     res.json({

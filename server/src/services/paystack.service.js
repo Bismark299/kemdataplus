@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const prisma = require('../lib/prisma');
+const { extractPayerMomoNumber } = require('./store-payer.service');
 
 // Get Paystack config from settings or env
 function getPaystackConfig() {
@@ -152,7 +153,8 @@ const paystackService = {
       reference: response.data.reference,
       metadata: response.data.metadata,
       paidAt: response.data.paid_at,
-      channel: response.data.channel
+      channel: response.data.channel,
+      payerMomoNumber: extractPayerMomoNumber(response.data)
     };
   },
 
@@ -212,7 +214,8 @@ const paystackService = {
           const storefrontService = require('./storefront.service');
           const completionResult = await storefrontService.completePaystackOrder(
             metadata.storefrontOrderId,
-            reference
+            reference,
+            event.data
           );
           
           console.log(`[Paystack] ✅ Storefront order completed via webhook: ${metadata.storefrontOrderId}`);

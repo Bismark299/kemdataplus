@@ -1415,6 +1415,37 @@
             renderOrders(filtered);
         }
         
+        function escapeOrderHtml(value) {
+            return String(value).replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+        }
+
+        function renderOrderPayerDetails(order) {
+            const cutoff = Date.parse('2026-10-12T00:00:00Z');
+            const createdAt = Date.parse(order.createdAt);
+            if (!Number.isFinite(createdAt) || createdAt < cutoff) return '';
+
+            const payer = typeof order.payerMomoNumber === 'string' && order.payerMomoNumber.length
+                ? order.payerMomoNumber
+                : 'Not provided';
+            const recipient = typeof order.paymentPhone === 'string' && order.paymentPhone.length
+                ? order.paymentPhone
+                : 'Not provided';
+            const payerLabel = typeof order.payerMomoNumber === 'string' && order.payerMomoNumber.includes('*')
+                ? 'MoMo payer (masked)'
+                : 'MoMo payer';
+
+            return `<div style="margin-top:4px;font-size:0.8em;line-height:1.45">
+                <div><small>Data recipient:</small> ${escapeOrderHtml(recipient)}</div>
+                <div><small>${payerLabel}:</small> ${escapeOrderHtml(payer)}</div>
+            </div>`;
+        }
+
         function renderOrders(orders = storeOrders){
             const tbody=document.getElementById('ordersBody');
             const table=document.getElementById('ordersTable');
@@ -1442,7 +1473,7 @@
                     <td>${o.bundle.name}<br><small>${o.bundle.network} • ${o.bundle.dataAmount}</small></td>
                     <td>GHS ${o.amount.toFixed(2)}</td>
                     <td><span class="profit-badge">GHS ${o.ownerProfit.toFixed(2)}</span></td>
-                    <td><span style="color:${payColor};font-weight:500">${o.paymentStatus||'PENDING'}</span></td>
+                    <td><span style="color:${payColor};font-weight:500">${o.paymentStatus||'PENDING'}</span>${renderOrderPayerDetails(o)}</td>
                     <td><span style="color:${statusColor};font-weight:600">${o.status}</span></td>
                 </tr>`;
             }).join('');
@@ -1474,7 +1505,7 @@
                     </div>
                     <div class="order-card-row">
                         <span class="order-card-label">Payment</span>
-                        <span class="order-card-value" style="color:${o.paymentStatus==='PAID'?'#22c55e':'#f59e0b'}">${o.paymentStatus||'PENDING'}</span>
+                        <div class="order-card-value" style="color:${o.paymentStatus==='PAID'?'#22c55e':'#f59e0b'}">${o.paymentStatus||'PENDING'}${renderOrderPayerDetails(o)}</div>
                     </div>
                     <div class="order-card-row">
                         <span class="order-card-label">Date</span>
