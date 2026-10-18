@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075e68">
+  <title>Number Verification Queue | KemDataplus Admin</title>
+  <link rel="stylesheet" href="/css/number-verification.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+  <script>
+    fetch('/api/auth/me', { credentials: 'include' }).then(async response => {
+      if (!response.ok) return location.replace('/pages/login.html');
+      const user = await response.json();
+      if (user.role !== 'ADMIN') location.replace('/pages/login.html');
+    }).catch(() => location.replace('/pages/login.html'));
+  </script>
+</head>
+<body class="number-verification-page">
+  <header class="nv-topbar">
+    <div class="nv-topbar-inner">
+      <a class="nv-brand" href="/admin/dashboard.html"><span class="nv-brand-mark"><i class="fa-solid fa-shield-halved"></i></span><span>Admin · KemDataplus</span></a>
+      <a class="nv-top-link" href="/admin/dashboard.html"><i class="fa-solid fa-arrow-left"></i> Admin dashboard</a>
+    </div>
+  </header>
+  <main class="nv-main">
+    <section class="nv-intro">
+      <p class="nv-eyebrow">Admin review</p>
+      <h1>Number verification submissions</h1>
+      <p>Review numbers submitted by agents, update verification status, and copy or download matching submissions.</p>
+    </section>
+    <section class="nv-card nv-list">
+      <div class="nv-card-body">
+        <div class="nv-admin-tools">
+          <input class="nv-search" type="search" id="searchInput" placeholder="Search number, agent name, email or phone">
+          <select class="nv-select" id="statusFilter" aria-label="Filter by status">
+            <option value="">All statuses</option><option value="PENDING">Pending</option><option value="VERIFIED">Verified</option><option value="REJECTED">Rejected</option>
+          </select>
+          <button class="nv-button" id="applyFilters"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        </div>
+        <div class="nv-admin-stats" id="statusCounts"></div>
+        <div class="nv-actions" style="margin-top:14px">
+          <button class="nv-button secondary" id="copyNumbers"><i class="fa-regular fa-copy"></i> Copy numbers</button>
+          <button class="nv-button secondary" id="downloadNumbers"><i class="fa-solid fa-download"></i> Download numbers (.txt)</button>
+          <button class="nv-button secondary" id="downloadCsv"><i class="fa-solid fa-file-csv"></i> Download activity (.csv)</button>
+        </div>
+      </div>
+      <div class="nv-table-wrap">
+        <table class="nv-table">
+          <thead><tr><th>Phone number</th><th>Agent</th><th>Submitted</th><th>Source</th><th>Review</th></tr></thead>
+          <tbody id="submissionRows"><tr><td colspan="5" class="nv-empty">Loading submissions…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="nv-pagination">
+        <button class="nv-button secondary" id="previousPage"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+        <span id="pageLabel">Page 1</span>
+        <button class="nv-button secondary" id="nextPage">Next <i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+    </section>
+  </main>
+  <div class="nv-toast" id="toast" role="status" hidden></div>
+  <script src="/js/number-verification-admin.js" defer></script>
+</body>
+</html>

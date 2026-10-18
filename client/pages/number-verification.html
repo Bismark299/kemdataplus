@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075e68">
+  <title>Number Verification | KemDataplus</title>
+  <link rel="stylesheet" href="/css/number-verification.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    fetch('/api/auth/me', { credentials: 'include' }).then(async response => {
+      if (!response.ok) return location.replace('/pages/login.html');
+      const user = await response.json();
+      if (user.role === 'ADMIN') return location.replace('/admin/number-verification.html');
+      if (!['AGENT', 'SUPER_AGENT', 'DEALER', 'SUPER_DEALER', 'PARTNER'].includes(user.role)) {
+        return location.replace('/pages/login.html');
+      }
+    }).catch(() => location.replace('/pages/login.html'));
+  </script>
+</head>
+<body class="number-verification-page">
+  <header class="nv-topbar">
+    <div class="nv-topbar-inner">
+      <a class="nv-brand" href="/public/dashboard.html">
+        <span class="nv-brand-mark"><i class="fa-solid fa-sim-card"></i></span>
+        <span>KemDataplus</span>
+      </a>
+      <a class="nv-top-link" href="/public/dashboard.html"><i class="fa-solid fa-arrow-left"></i> Agent dashboard</a>
+    </div>
+  </header>
+  <main class="nv-main">
+    <section class="nv-intro">
+      <p class="nv-eyebrow">Agent tools</p>
+      <h1>Phone number verification</h1>
+      <p>Submit phone numbers that need verification. You can paste a list or upload an Excel file. Numbers are saved without spaces or formatting marks.</p>
+    </section>
+    <div class="nv-grid">
+      <section class="nv-card">
+        <div class="nv-card-head">
+          <h2>Submit numbers</h2>
+          <p>Up to 500 numbers per submission. Repeated numbers in the same submission are removed.</p>
+        </div>
+        <div class="nv-card-body">
+          <label class="nv-label" for="phoneNumbers">Paste numbers</label>
+          <textarea class="nv-textarea" id="phoneNumbers" placeholder="0244689575&#10;0555546229"></textarea>
+          <p class="nv-hint">Separate numbers with a new line, comma, or semicolon. Spaces, hyphens and brackets within a number are removed.</p>
+          <div class="nv-preview" aria-live="polite">
+            <span>Ready to submit</span><strong id="previewCount">0 numbers</strong>
+          </div>
+          <div style="height:16px"></div>
+          <label class="nv-label" for="excelFile">Or upload Excel</label>
+          <label class="nv-upload" for="excelFile">
+            <span class="nv-upload-icon"><i class="fa-solid fa-file-excel"></i></span>
+            <span><strong id="fileName">Choose an Excel or CSV file</strong><small>Reads phone numbers from the first column (.xlsx, .xls, .csv)</small></span>
+            <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+          </label>
+          <div class="nv-actions">
+            <button class="nv-button" type="button" id="submitButton" disabled><i class="fa-solid fa-paper-plane"></i> Submit for verification</button>
+          </div>
+          <p class="nv-status-message" id="submitMessage" role="status"></p>
+        </div>
+      </section>
+      <section class="nv-card nv-list">
+        <div class="nv-list-header">
+          <div><h2>My submissions</h2><span>Recent submissions and review results</span></div>
+          <button class="nv-button secondary" type="button" id="refreshButton" aria-label="Refresh submissions"><i class="fa-solid fa-rotate"></i></button>
+        </div>
+        <div class="nv-table-wrap">
+          <table class="nv-table">
+            <thead><tr><th>Number</th><th>Submitted</th><th>Status</th></tr></thead>
+            <tbody id="submissionRows"><tr><td colspan="3" class="nv-empty">Loading your submissions…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="/js/number-verification-agent.js" defer></script>
+</body>
+</html>

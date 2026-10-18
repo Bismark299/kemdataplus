@@ -235,6 +235,9 @@ model User {
   // Admin profit adjustments
   profitAdjustments    AdminProfitAdjustment[]
 
+  // Unverified phone number submissions
+  numberVerificationSubmissions NumberVerificationSubmission[] @relation("NumberVerificationSubmitter")
+
   @@index([tenantId])
   @@index([parentUserId])
   @@index([email])
@@ -1472,4 +1475,24 @@ model AdminProfitAdjustment {
   @@index([userId])
   @@index([createdAt])
   @@map("admin_profit_adjustments")
+}
+
+model NumberVerificationSubmission {
+  id          String   @id @default(uuid())
+  batchId     String
+  phoneNumber String
+  source      String   @default("MANUAL")
+  status      String   @default("PENDING")
+  submittedById String
+  reviewedById String?
+  reviewNote  String?
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+
+  submittedBy User @relation("NumberVerificationSubmitter", fields: [submittedById], references: [id], onDelete: Cascade)
+
+  @@index([submittedById, createdAt])
+  @@index([status, createdAt])
+  @@index([batchId])
+  @@map("number_verification_submissions")
 }

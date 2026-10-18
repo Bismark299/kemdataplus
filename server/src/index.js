@@ -44,6 +44,8 @@ const dataGatekeeperRoutes = require('./routes/datagatekeeper.routes');
 const paystackRoutes = require('./routes/paystack.routes');
 const profitPayoutRoutes = require('./routes/profit-payout.routes');
 const topupghRoutes     = require('./routes/topupgh.routes');
+const numberVerificationRoutes = require('./routes/number-verification.routes');
+const adminNumberVerificationRoutes = require('./routes/admin-number-verification.routes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -311,7 +313,9 @@ app.use('/api/order-groups', require('./routes/order-group.routes'));
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/tenants', tenantRoutes);
+app.use('/api/admin/number-verification', adminNumberVerificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/number-verification', numberVerificationRoutes);
 app.use('/api/storefronts', storefrontRoutes);
 app.use('/api/momo', momoRoutes);
 app.use('/api/store-customer', storeCustomerRoutes);
