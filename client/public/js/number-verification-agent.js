@@ -62,8 +62,9 @@
       }
       tbody.innerHTML = data.submissions.map(item => {
         const status = item.status.toLowerCase();
+        const label = item.status.charAt(0) + item.status.slice(1).toLowerCase();
         const note = item.reviewNote ? `<div class="nv-hint">${escapeHtml(item.reviewNote)}</div>` : '';
-        return `<tr><td><span class="nv-phone">${escapeHtml(item.phoneNumber)}</span>${note}</td><td>${formatDate(item.createdAt)}</td><td><span class="nv-badge ${status}">${escapeHtml(item.status)}</span></td></tr>`;
+        return `<tr><td><span class="nv-phone">${escapeHtml(item.phoneNumber)}</span>${note}</td><td>${formatDate(item.createdAt)}</td><td><span class="nv-badge ${status}">${escapeHtml(label)}</span></td></tr>`;
       }).join('');
     } catch (error) {
       tbody.innerHTML = `<tr><td colspan="3" class="nv-empty">${escapeHtml(error.message)}</td></tr>`;
@@ -141,7 +142,8 @@
       updatePreview();
       const extras = [
         data.duplicateCount ? `${data.duplicateCount} duplicate${data.duplicateCount === 1 ? '' : 's'} removed` : '',
-        data.invalidCount ? `${data.invalidCount} invalid entr${data.invalidCount === 1 ? 'y' : 'ies'} skipped` : ''
+        data.invalidCount ? `${data.invalidCount} invalid entr${data.invalidCount === 1 ? 'y' : 'ies'} skipped` : '',
+        data.alreadyHandledCount ? `${data.alreadyHandledCount} already submitted or verified, not re-queued as pending` : ''
       ].filter(Boolean).join('; ');
       showMessage(`${data.submittedCount} number${data.submittedCount === 1 ? '' : 's'} submitted for verification${extras ? ` (${extras})` : ''}.`, 'success');
       await loadMine();
@@ -154,6 +156,12 @@
   });
 
   $('refreshButton').addEventListener('click', loadMine);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadMine();
+  });
+  setInterval(() => {
+    if (document.visibilityState === 'visible') loadMine();
+  }, 30000);
   updatePreview();
   loadMine();
 })();

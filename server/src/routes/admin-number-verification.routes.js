@@ -2,12 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const prisma = require('../lib/prisma');
-const { buildSubmissionWhere } = require('../services/number-verification.service');
+const {
+  buildSubmissionWhere,
+  markPendingAsSubmitted
+} = require('../services/number-verification.service');
 
 router.use(authenticate, authorize('ADMIN'));
 
 function getFilters(req) {
-  const status = ['PENDING', 'VERIFIED', 'REJECTED'].includes(req.query.status)
+  const status = ['PENDING', 'SUBMITTED', 'VERIFIED', 'REJECTED'].includes(req.query.status)
     ? req.query.status
     : null;
   const query = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
@@ -46,6 +49,20 @@ router.get('/', async (req, res, next) => {
       counts: Object.fromEntries(counts.map(item => [item.status, item._count._all]))
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/copy-pending', async (req, res, next) => {
+  try {
+    const result = await markPendingAsSubmitted(prisma, { query: req.body?.query });
+    res.json({
+      numbers: result.numbers,
+      copiedCount: result.numbers.length,
+      markedCount: result.markedCount
+    });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
     next(error);
   }
 });
@@ -102,8 +119,8 @@ router.get('/export', async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
   try {
     const { status, reviewNote } = req.body || {};
-    if (!['VERIFIED', 'REJECTED', 'PENDING'].includes(status)) {
-      return res.status(400).json({ error: 'Choose Pending, Verified, or Rejected.' });
+    if (!['VERIFIED', 'REJECTED', 'PENDING', 'SUBMITTED'].includes(status)) {
+      return res.status(400).json({ error: 'Choose Pending, Submitted, Verified, or Rejected.' });
     }
     if (reviewNote != null && (typeof reviewNote !== 'string' || reviewNote.length > 500)) {
       return res.status(400).json({ error: 'Review note must be 500 characters or fewer.' });
@@ -111,14 +128,20 @@ router.patch('/:id', async (req, res, next) => {
 
     const existing = await prisma.numberVerificationSubmission.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: 'Submission not found.' });
+    if (status === 'SUBMITTED' && existing.status !== 'SUBMITTED') {
+      return res.status(409).json({ error: 'Only the copy-for-verification action can mark a number Submitted.' });
+    }
+    if (status === 'PENDING' && existing.status !== 'PENDING') {
+      return res.status(409).json({ error: 'A number that has left Pending cannot be moved back to Pending.' });
+    }
 
     const submission = await prisma.numberVerificationSubmission.update({
       where: { id: req.params.id },
       data: {
         status,
         reviewNote: reviewNote?.trim() || null,
-        reviewedById: status === 'PENDING' ? null : req.user.id,
-        reviewedAt: status === 'PENDING' ? null : new Date()
+        reviewedById: status === 'PENDING' || status === 'SUBMITTED' ? null : req.user.id,
+        reviewedAt: status === 'PENDING' || status === 'SUBMITTED' ? null : new Date()
       }
     });
     res.json({ submission });

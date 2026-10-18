@@ -33,16 +33,17 @@
         <div class="nv-admin-tools">
           <input class="nv-search" type="search" id="searchInput" placeholder="Search number, agent name, email or phone">
           <select class="nv-select" id="statusFilter" aria-label="Filter by status">
-            <option value="">All statuses</option><option value="PENDING">Pending</option><option value="VERIFIED">Verified</option><option value="REJECTED">Rejected</option>
+            <option value="">All statuses</option><option value="PENDING">Pending</option><option value="SUBMITTED">Submitted</option><option value="VERIFIED">Verified</option><option value="REJECTED">Rejected</option>
           </select>
           <button class="nv-button" id="applyFilters"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
         </div>
         <div class="nv-admin-stats" id="statusCounts"></div>
         <div class="nv-actions" style="margin-top:14px">
-          <button class="nv-button secondary" id="copyNumbers"><i class="fa-regular fa-copy"></i> Copy numbers</button>
+          <button class="nv-button" id="copyNumbers"><i class="fa-regular fa-copy"></i> Copy pending for verification</button>
           <button class="nv-button secondary" id="downloadNumbers"><i class="fa-solid fa-download"></i> Download numbers (.txt)</button>
           <button class="nv-button secondary" id="downloadCsv"><i class="fa-solid fa-file-csv"></i> Download activity (.csv)</button>
         </div>
+        <p class="nv-hint">Copying pending numbers marks every matching entry as Submitted. Downloads do not change statuses.</p>
       </div>
       <div class="nv-table-wrap">
         <table class="nv-table">
@@ -58,6 +59,17 @@
     </section>
   </main>
   <div class="nv-toast" id="toast" role="status" hidden></div>
+  <div class="nv-copy-fallback" id="copyFallback" hidden>
+    <section class="nv-copy-fallback-card" role="dialog" aria-modal="true" aria-labelledby="copyFallbackTitle">
+      <h2 id="copyFallbackTitle">Numbers marked Submitted</h2>
+      <p>Automatic clipboard access was blocked. Select and copy the list below.</p>
+      <textarea id="copyFallbackText" readonly aria-label="Submitted phone numbers"></textarea>
+      <div class="nv-actions">
+        <button class="nv-button" id="copyFallbackButton" type="button">Try copying again</button>
+        <button class="nv-button secondary" id="closeCopyFallback" type="button">Close</button>
+      </div>
+    </section>
+  </div>
   <script src="/js/number-verification-admin.js" defer></script>
 </body>
 </html>
